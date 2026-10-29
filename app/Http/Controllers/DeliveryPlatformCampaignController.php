@@ -293,6 +293,7 @@ class DeliveryPlatformCampaignController extends Controller
         $deliveryPlatformCampaignItem = DeliveryPlatformCampaignItem::findOrFail($deliveryPlatformCampaignItemID);
         if ($deliveryPlatformCampaignItem->deliveryPlatformCampaignItemVends()->exists()) {
             foreach ($deliveryPlatformCampaignItem->deliveryPlatformCampaignItemVends as $deliveryPlatformCampaignItemVend) {
+                $this->deliveryPlatformCampaignService->terminateOnPlatform($deliveryPlatformCampaignItemVend);
                 $deliveryPlatformCampaignItemVend->delete();
                 // if($deliveryPlatformCampaignItemVend->is_active) {
                 //     $deliveryPlatformCampaignItemVend->update([
@@ -365,6 +366,12 @@ class DeliveryPlatformCampaignController extends Controller
     public function destroy($id)
     {
         $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
+
+        // End what is still running on Grab first; the rows stay as history.
+        foreach ($deliveryPlatformCampaign->deliveryPlatformCampaignItemVends as $deliveryPlatformCampaignItemVend) {
+            $this->deliveryPlatformCampaignService->terminateOnPlatform($deliveryPlatformCampaignItemVend);
+        }
+
         $deliveryPlatformCampaign->delete();
 
         return redirect()->route('delivery-platform-campaigns');

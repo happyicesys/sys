@@ -2116,6 +2116,45 @@ Passport, Spatie Permission, Telescope, Clockwork, MQTT client.** Check the
 installed version before applying an example from other Laravel docs — Boost
 examples from another major version do not transfer.
 
+## Grab (GrabMart): the store is the merchant, and Grab is told less, not more
+
+Plan, evidence and the as-built table: `GRAB_REVAMP_PLAN_2026-10-29.md` (Phase 0 + 1 on 2026-10-29; Phases 2–5
+open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`.
+
+- **A Grab call is resolved by merchantID, never by machine code first.** `DeliveryPlatformService::resolveMappingVend()`
+  is the one lookup for the menu pull and the order submit: the open (`end_date` NULL), selling (`is_active`) row
+  of that merchant (ref number, else `platform_ref_id`); `partnerMerchantID` only breaks a tie. Grab keeps the
+  partnerMerchantID a store was ACTIVATED with, so a store moved to another machine keeps sending the old code
+  (4-C7CCRTEJJYUJR6 sent 2114 for months while bound to 2401 — every menu pull and order failed).
+- **The order webhook answers fast and is idempotent.** One writer per orderID (cache lock); a repeat answers
+  200 with the stored order; a Grab edit (`featureFlags.isMexEditOrder`) is kept in `request_history_json` +
+  `is_edited` for a person, never re-allocated blind. Grab calls (mark ready, cancel) run in
+  `ProcessDeliveryPlatformOrder`, never in the webhook — Grab allows 10 s and re-sends what it did not see
+  answered. A store mark1 does not sell, or an item it does not list, is a JSON **4xx**, never a 5xx (a 5xx is
+  retried and dies silently).
+- **Stock held for Grab is read from open orders** (`DeliveryProductMappingService::heldQtyByChannel`: allocated,
+  not cancelled, not dispensed, within `ORDER_EXPIRED_HOURS`, status not in `STATUSES_NOT_HOLDING_STOCK`).
+  `delivery_product_mapping_vend_channels.order_qty` is a legacy counter that double-counted; nothing reads it.
+- **Tell Grab to re-pull only when the menu changed.** Every path goes through
+  `NotifyDeliveryPlatformUpdateMenu::debounced()` (one delayed job per store, skipped when the built menu equals
+  `last_menu_json`, `startTime` ignored, keys sorted); only the daily `grab:sync-all-menu` forces. Paused or
+  ended stores are never notified. Never `dispatchSync` a notify again: it ran before the channel sync and sent
+  ~750 full syncs a day. Stock / price changes belong in Grab's Update Menu Record / Batch (Phase 2).
+- **Menu prices are stored cents** (`getRawOriginal('amount')`), integers on the wire; never `round($dollars * 100)`.
+- **Grab ends any pause after 24 h.** `delivery:sync-store-pause --apply --only-if-open` runs every 10 min
+  (`GRAB_PAUSE_REASSERT`), asks Grab's store status and re-pauses only a store Grab reopened; a merchant live on
+  another row is never paused.
+- **Webhook auth**: `VerifyGrabWebhook` (`grab.webhook`) checks the Passport client-credentials token Grab sends
+  (clients `GRAB_WEBHOOK_CLIENT_IDS`, 3 and 4 on prod). `GRAB_WEBHOOK_AUTH` = `log` until the log shows no
+  "Grab webhook auth would refuse" for real Grab traffic, then `enforce`. `auth:api` cannot do this (the token has no user).
+- **Deleting a campaign or campaign item ends it on Grab first** (`DeliveryPlatformCampaignService::terminateOnPlatform`).
+- Read-only checks: `grab:health [--days=]`, `grab:menu-diff [--details]`. Pruning `delivery_platform_menu_records`:
+  `grab:prune-menu-records`, scheduled only when `GRAB_MENU_RECORDS_KEEP_DAYS` is set.
+
+Regression coverage: `tests/Feature/GrabOrderWebhookTest.php` (built from a real prod Mart order,
+`tests/Support/Grab`), `tests/Feature/GrabMenuTest.php`, `tests/Feature/GrabWebhookAuthTest.php`,
+`tests/Feature/GrabCampaignAndUpkeepTest.php`, `tests/Feature/SyncDeliveryStorePauseTest.php`.
+
 ## Code style
 
 - Follow existing conventions in the application.

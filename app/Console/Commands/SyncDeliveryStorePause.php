@@ -49,7 +49,8 @@ class SyncDeliveryStorePause extends Command
                             {--apply : Send the pause calls; without it the command only reports}
                             {--include-ended : Also re-pause mappings that have an end_date}
                             {--mapping-vend= : Only this delivery_product_mapping_vend id}
-                            {--type=production : Operator type to act on (production or sandbox)}';
+                            {--type=production : Operator type to act on (production or sandbox)}
+                            {--only-if-open : Ask Grab first and pause only a store Grab reports open}';
 
     protected $description = 'Re-assert paused Grab stores, which Grab expires after 24 hours';
 
@@ -108,6 +109,7 @@ class SyncDeliveryStorePause extends Command
         $sent = 0;
         $failed = 0;
         $skipped = 0;
+        $alreadyClosed = 0;
 
         foreach ($mappingVends as $mappingVend) {
             $merchantId = $mappingVend->deliveryPlatformRefNumber?->ref_number
@@ -132,6 +134,25 @@ class SyncDeliveryStorePause extends Command
                 continue;
             }
 
+            if ($this->option('only-if-open')) {
+                // A store still paused on Grab is left alone: re-sending the same
+                // state answers 409 and does not extend the pause. Grab ends a pause
+                // after 24 h, so this re-pauses within one scheduled run of that.
+                // An unreadable status pauses anyway (a 409 then is harmless).
+                try {
+                    $status = $deliveryPlatformService->storeStatus($mappingVend);
+                } catch (\Throwable $e) {
+                    $status = null;
+                }
+
+                if ($status !== null && ($status['isOpen'] ?? null) === false) {
+                    $rows[] = [$mappingVend->id, $mappingVend->vend_code, $merchantId, 'already closed on Grab'.(isset($status['closeReason']) ? ' ('.$status['closeReason'].')' : '')];
+                    $alreadyClosed++;
+
+                    continue;
+                }
+            }
+
             try {
                 // pauseStore() returns the whole Grab response on success (a
                 // successful pause has an EMPTY body, so the payload alone would be
@@ -154,7 +175,7 @@ class SyncDeliveryStorePause extends Command
         $this->table(['mapping_vend', 'vend_code', 'merchant_id', 'result'], $rows);
 
         if ($apply) {
-            $this->line("paused: {$sent}   failed: {$failed}   skipped: {$skipped}");
+            $this->line("paused: {$sent}   failed: {$failed}   skipped: {$skipped}   already closed: {$alreadyClosed}");
 
             if ($failed > 0) {
                 $this->warn('Failures are logged as "Grab pauseStore failed" with the HTTP code.');

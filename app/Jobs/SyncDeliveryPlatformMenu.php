@@ -31,7 +31,7 @@ class SyncDeliveryPlatformMenu
     {
         if($this->vend->deliveryProductMappingVends()->exists()) {
             foreach($this->vend->deliveryProductMappingVends as $deliveryProductMappingVend) {
-                NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend)->onQueue('high');
+                NotifyDeliveryPlatformUpdateMenu::debounced($deliveryProductMappingVend);
             }
         }
     }

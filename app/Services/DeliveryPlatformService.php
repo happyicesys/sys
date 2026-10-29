@@ -25,6 +25,8 @@ use App\Jobs\SyncDeliveryPlatformOauthByOperator;
 use App\Services\DeliveryPlatformOperatorService;
 use Carbon\Carbon;
 use DB;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -49,41 +51,96 @@ class DeliveryPlatformService
     $this->vendDispenseService = new VendDispenseService();
   }
 
-  public function createOrder($platformRefId = null, $vendCode = null, $input)
+  /**
+   * The open, selling mapping row a Grab call is about.
+   *
+   * Grab's merchantID IS the store. Its partnerMerchantID is the machine code that
+   * was registered when the store was activated, and Grab never changes it - so a
+   * store moved to another machine keeps sending the OLD code (4-C7CCRTEJJYUJR6 sent
+   * 2114 for months while bound to 2401, and every menu pull and order failed). The
+   * merchant decides; the code only breaks a tie, and is the only key when Grab
+   * sends no merchant at all.
+   */
+  public function resolveMappingVend($platformRefId = null, $vendCode = null): ?DeliveryProductMappingVend
   {
-    // dd($platformRefId, $vendCode, $input);
-    $deliveryProductMappingVend = DeliveryProductMappingVend::query()
-      ->when($platformRefId, function ($query) use ($platformRefId) {
-        $query->where('platform_ref_id', $platformRefId);
-      })
+    $selling = fn () => DeliveryProductMappingVend::query()
+      ->whereNull('end_date')
+      ->where('is_active', true);
+
+    if ($platformRefId) {
+      $candidates = $selling()
+        ->where(function ($query) use ($platformRefId) {
+          $query->where('platform_ref_id', $platformRefId)
+            ->orWhereHas('deliveryPlatformRefNumber', fn ($ref) => $ref->where('ref_number', $platformRefId));
+        })
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+      $mappingVend = $candidates->first(fn ($row) => (string) $row->vend_code === (string) $vendCode)
+        ?? $candidates->first();
+
+      if ($mappingVend && (string) $mappingVend->vend_code !== (string) $vendCode) {
+        Log::info('Grab store served by another machine than its partnerMerchantID', [
+          'merchant_id' => $platformRefId,
+          'partner_merchant_id' => $vendCode,
+          'vend_code' => $mappingVend->vend_code,
+          'delivery_product_mapping_vend_id' => $mappingVend->id,
+        ]);
+      }
+
+      return $mappingVend;
+    }
+
+    return $selling()
       ->where('vend_code', $vendCode)
-      ->where('is_active', true)
       ->orderBy('created_at', 'desc')
       ->first();
+  }
+
+  // A 4xx (never a 5xx) for a store mark1 does not sell: a 5xx reads to Grab as
+  // "server broke, retry", so one order burns its retries and dies silently.
+  private function abortStoreNotSelling($platformRefId, $vendCode, string $context)
+  {
+    $isPaused = DeliveryProductMappingVend::query()
+      ->whereNull('end_date')
+      ->where(function ($query) use ($platformRefId, $vendCode) {
+        if ($platformRefId) {
+          $query->where('platform_ref_id', $platformRefId)
+            ->orWhereHas('deliveryPlatformRefNumber', fn ($ref) => $ref->where('ref_number', $platformRefId));
+        } else {
+          $query->where('vend_code', $vendCode);
+        }
+      })
+      ->exists();
+
+    Log::warning("Delivery {$context} rejected: no active vend mapping", [
+      'platform_ref_id' => $platformRefId,
+      'vend_code' => $vendCode,
+      'is_paused' => $isPaused,
+    ]);
+
+    abort(response()->json([
+      'error_code' => 404,
+      'error_message' => $isPaused
+        ? 'Vending Machine is paused for this Platform Ref ID.'
+        : 'No Vending Machine found for this Platform Ref ID.',
+    ], 404));
+  }
+
+  /**
+   * Stores a Grab order. Idempotent on orderID: Grab re-sends a submit it did not
+   * see answered, and re-sends an EDITED order under the same orderID with
+   * featureFlags.isMexEditOrder. Both get the stored order back (200) instead of the
+   * 500 that made Grab retry until it gave up. The order's Grab follow-up calls
+   * (mark ready, or cancel when no channel can serve it) run in
+   * ProcessDeliveryPlatformOrder, never inside this webhook: Grab gives us 10 s.
+   */
+  public function createOrder($platformRefId = null, $vendCode = null, $input)
+  {
+    $deliveryProductMappingVend = $this->resolveMappingVend($platformRefId, $vendCode);
 
     if (!$deliveryProductMappingVend) {
-      // A paused or unmapped vend is a business state, not a fault. A 5xx reads to
-      // Grab as "server broke, retry", so one order burns 15 retries and dies
-      // silently; a 4xx rejects it once and surfaces it.
-      $isPaused = DeliveryProductMappingVend::query()
-        ->when($platformRefId, function ($query) use ($platformRefId) {
-          $query->where('platform_ref_id', $platformRefId);
-        })
-        ->where('vend_code', $vendCode)
-        ->exists();
-
-      Log::warning('Delivery order rejected: no active vend mapping', [
-        'platform_ref_id' => $platformRefId,
-        'vend_code' => $vendCode,
-        'is_paused' => $isPaused,
-      ]);
-
-      abort(response([
-        'error_code' => 404,
-        'error_message' => $isPaused
-          ? 'Vending Machine is paused for this Platform Ref ID.'
-          : 'No Vending Machine found for this Platform Ref ID.',
-      ], 404));
+      $this->abortStoreNotSelling($platformRefId, $vendCode, 'order');
     }
 
     $this->deliveryPlatformOperator = $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
@@ -91,32 +148,79 @@ class DeliveryPlatformService
 
     switch ($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
-        $deliveryPlatformOrder = DeliveryPlatformOrder::where('order_id', $input['orderID'])->first();
+        // Grab retries within 500 ms, so a retry can arrive while the first call is
+        // still writing. One writer per orderID; the loser reads the winner's row.
+        return Cache::lock('delivery-order:' . $input['orderID'], 15)->block(10, function () use ($input, $deliveryProductMappingVend) {
+          $deliveryPlatformOrder = DeliveryPlatformOrder::where('order_id', $input['orderID'])->first();
 
-        if ($deliveryPlatformOrder) {
-          throw new \Exception('Replicated Order ID on Creation');
-        }
+          if ($deliveryPlatformOrder) {
+            $this->recordRepeatedOrder($deliveryPlatformOrder, $input);
 
-        if (!$deliveryPlatformOrder) {
-          DB::beginTransaction();
-          $deliveryPlatformOrder = new DeliveryPlatformOrder();
-          $deliveryPlatformOrder->fill($this->setGrabOrderIncomingParam($input));
-          $deliveryPlatformOrder->delivery_platform_id = $this->deliveryPlatformOperator->deliveryPlatform->id;
-          $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
-          $deliveryPlatformOrder->delivery_product_mapping_vend_id = $deliveryProductMappingVend->id;
-          // also persist the ref number linkage for easier joins/filtering later
-          $deliveryPlatformOrder->delivery_platform_ref_number_id = $deliveryProductMappingVend->delivery_platform_ref_number_id;
-          $deliveryPlatformOrder->save();
-          // dd($deliveryPlatformOrder->toArray());
-          $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
-          DB::commit();
+            return $deliveryPlatformOrder;
+          }
 
-          // check if any channel is not assigned to deliveryPlatformOrderItem
-          $this->verifyIsVendChannelAssigned($deliveryPlatformOrder);
-        }
+          return DB::transaction(function () use ($input, $deliveryProductMappingVend) {
+            $deliveryPlatformOrder = new DeliveryPlatformOrder();
+            // Only real columns: the param set also carries currency / items / price,
+            // which fill() drops only while the model is guarded.
+            $deliveryPlatformOrder->fill(Arr::only($this->setGrabOrderIncomingParam($input), $deliveryPlatformOrder->getFillable()));
+            $deliveryPlatformOrder->delivery_platform_id = $this->deliveryPlatformOperator->deliveryPlatform->id;
+            $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
+            $deliveryPlatformOrder->delivery_product_mapping_vend_id = $deliveryProductMappingVend->id;
+            // also persist the ref number linkage for easier joins/filtering later
+            $deliveryPlatformOrder->delivery_platform_ref_number_id = $deliveryProductMappingVend->delivery_platform_ref_number_id;
+            $deliveryPlatformOrder->save();
+            $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
 
-        return $deliveryPlatformOrder;
-        break;
+            return $deliveryPlatformOrder;
+          });
+        });
+    }
+  }
+
+  /**
+   * A second submit for a stored orderID. A plain retry changes nothing. An edit
+   * (isMexEditOrder) is kept on the order for a person: re-allocating channels for
+   * a basket the machine may already be dispensing is not safe to do blind.
+   */
+  private function recordRepeatedOrder(DeliveryPlatformOrder $deliveryPlatformOrder, array $input): void
+  {
+    $isEdit = (bool) data_get($input, 'featureFlags.isMexEditOrder', false);
+
+    Log::info($isEdit ? 'Grab order edit received' : 'Grab order submit repeated', [
+      'delivery_platform_order_id' => $deliveryPlatformOrder->id,
+      'order_id' => $deliveryPlatformOrder->order_id,
+    ]);
+
+    if (!$isEdit) {
+      return;
+    }
+
+    $history = (array) ($deliveryPlatformOrder->request_history_json ?? []);
+    $history[] = [
+      'type' => 'grab_edit',
+      'received_at' => Carbon::now()->toDateTimeString(),
+      'order' => $input,
+    ];
+
+    $deliveryPlatformOrder->forceFill([
+      'is_edited' => true,
+      'request_history_json' => $history,
+    ])->save();
+  }
+
+  /**
+   * Grab's follow-up for a newly stored order, from the queue: an order none of
+   * whose items found a channel is cancelled (as before), any other is marked ready.
+   */
+  public function processNewOrder(DeliveryPlatformOrder $deliveryPlatformOrder): void
+  {
+    if (!$this->verifyIsVendChannelAssigned($deliveryPlatformOrder)) {
+      return;
+    }
+
+    if (!$this->markOrderReady($deliveryPlatformOrder)) {
+      throw new \RuntimeException('Grab markOrderReady failed for order ' . $deliveryPlatformOrder->order_id);
     }
   }
 
@@ -145,7 +249,7 @@ class DeliveryPlatformService
               'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_CANCELLED]],
               'datetime' => Carbon::now()->toDateTimeString(),
             ]);
-            $this->syncProductMappingVendChannelOrderQtyByOrder($deliveryPlatformOrder, false);
+            $this->deliveryProductMappingService->syncVendChannelOrderQtyByDeliveryOrder($deliveryPlatformOrder, false);
           } else {
             $deliveryPlatformOrder->is_cancelled = false;
           }
@@ -208,9 +312,6 @@ class DeliveryPlatformService
           ],
         ];
       }
-
-      // sync order qty to delivery product mapping vend channel
-      $this->deliveryProductMappingService->syncVendChannelOrderQty($item->deliveryProductMappingVendChannel, $item->qty, false);
     }
 
     // get dispense parameters
@@ -474,12 +575,37 @@ class DeliveryPlatformService
   // }
   public function getMenu($platformRefId = null, $vendCode = null)
   {
-    $deliveryProductMappingVend = DeliveryProductMappingVend::query()
-      ->when($platformRefId, fn($q) => $q->where('platform_ref_id', $platformRefId))
-      ->where('vend_code', $vendCode)
-      ->where('is_active', true)
-      ->firstOrFail();
+    $deliveryProductMappingVend = $this->resolveMappingVend($platformRefId, $vendCode);
 
+    if (!$deliveryProductMappingVend) {
+      $this->abortStoreNotSelling($platformRefId, $vendCode, 'menu');
+    }
+
+    $response = $this->buildMenu($deliveryProductMappingVend);
+
+    // Use hash comparison to avoid expensive JSON comparison on large payloads
+    $responseHash = md5(json_encode($response));
+    $existingHash = $deliveryProductMappingVend->last_menu_json
+      ? md5(json_encode($deliveryProductMappingVend->last_menu_json))
+      : null;
+
+    // Update asynchronously via job to avoid blocking API response (large JSON payload)
+    if ($responseHash !== $existingHash) {
+      \App\Jobs\UpdateDeliveryMenuJson::dispatch(
+        $deliveryProductMappingVend->id,
+        $response
+      )->onQueue('default');
+    }
+
+    return $response;
+  }
+
+  /**
+   * The menu Grab pulls for one store, with no side effects (the notify job and
+   * grab:menu-diff build it too).
+   */
+  public function buildMenu(DeliveryProductMappingVend $deliveryProductMappingVend): array
+  {
     $deliveryProductMapping = $deliveryProductMappingVend->deliveryProductMapping;
     $deliveryPlatformOperator = $deliveryProductMapping->deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
@@ -543,23 +669,44 @@ class DeliveryPlatformService
       $response['categories'] = $this->getGrabMenuSubCategoriesItems($vendChannelIds);
     }
 
-    // Use hash comparison to avoid expensive JSON comparison on large payloads
-    $responseHash = md5(json_encode($response));
-    $existingHash = $deliveryProductMappingVend->last_menu_json
-      ? md5(json_encode($deliveryProductMappingVend->last_menu_json))
-      : null;
-
-    // Update asynchronously via job to avoid blocking API response (large JSON payload)
-    if ($responseHash !== $existingHash) {
-      \App\Jobs\UpdateDeliveryMenuJson::dispatch(
-        $deliveryProductMappingVend->id,
-        $response
-      )->onQueue('default');
-    }
-
     return $response;
   }
 
+  /**
+   * Would Grab's next pull differ from the menu it pulled last (last_menu_json)?
+   * The selling time's startTime is left out: it is "today" and moves every day.
+   */
+  public function menuChangedSinceLastPull(DeliveryProductMappingVend $deliveryProductMappingVend): bool
+  {
+    if (!$deliveryProductMappingVend->last_menu_json) {
+      return true;
+    }
+
+    return self::comparableMenu($this->buildMenu($deliveryProductMappingVend))
+      !== self::comparableMenu($deliveryProductMappingVend->last_menu_json);
+  }
+
+  // A menu as a canonical string: keys sorted (MySQL's JSON column reorders them),
+  // the daily-moving selling time startTime dropped.
+  public static function comparableMenu(array $menu): string
+  {
+    foreach ($menu['sellingTimes'] ?? [] as $index => $sellingTime) {
+      unset($menu['sellingTimes'][$index]['startTime']);
+    }
+
+    $sort = function ($value) use (&$sort) {
+      if (!is_array($value)) {
+        return $value;
+      }
+      if (!array_is_list($value)) {
+        ksort($value);
+      }
+
+      return array_map(fn ($item) => is_float($item) && floor($item) == $item ? (int) $item : $sort($item), $value);
+    };
+
+    return json_encode($sort($menu));
+  }
 
   public function getOauth(DeliveryPlatformOperator $deliveryPlatformOperator)
   {
@@ -577,7 +724,7 @@ class DeliveryPlatformService
   }
 
   // get category options from delivery platform
-  public function getCategories(DeliveryPlatformOperator $deliveryPlatformOperator)
+  public function getCategories(DeliveryPlatformOperator $deliveryPlatformOperator, bool $isRetry = false)
   {
     $this->deliveryPlatformOperator = $deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
@@ -591,9 +738,10 @@ class DeliveryPlatformService
           if ($response['success']) {
             return $response['data'];
           } else {
-            if ($response['code'] === 401) {
+            if ($response['code'] === 401 && !$isRetry) {
               SyncDeliveryPlatformOauthByOperator::dispatch($deliveryPlatformOperator);
-              $this->getCategories($deliveryPlatformOperator);
+
+              return $this->getCategories($deliveryPlatformOperator->fresh(), true);
             } else {
               throw new \Exception('Get Categories Failed, Other than 401, ' . $response['code']);
             }
@@ -666,6 +814,28 @@ class DeliveryPlatformService
     return null;
   }
 
+  /**
+   * Grab's own view of the store: ['isOpen' => bool, 'closeReason' => ...], or null
+   * when Grab did not answer it.
+   */
+  public function storeStatus(DeliveryProductMappingVend $deliveryProductMappingVend): ?array
+  {
+    $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
+
+    $response = $this->model->getStoreStatus($this->merchantIdFromMappingVend($deliveryProductMappingVend));
+
+    if (!$response['success'] || !is_array($response['data']) || !array_key_exists('isOpen', $response['data'])) {
+      Log::warning('Grab store status unreadable', [
+        'delivery_product_mapping_vend_id' => $deliveryProductMappingVend->id,
+        'code' => $response['code'] ?? null,
+      ]);
+
+      return null;
+    }
+
+    return $response['data'];
+  }
+
   public function updateMenu(DeliveryProductMappingVendChannel $deliveryProductMappingVendChannel)
   {
     $this->deliveryPlatformOperator = $deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
@@ -717,7 +887,7 @@ class DeliveryPlatformService
   private function createDeliveryPlatformOrderItems(DeliveryPlatformOrder $deliveryPlatformOrder, $input)
   {
     if (!isset($input['items'])) {
-      throw new \Exception('No items found in the request.');
+      $this->abortUnservableOrder($deliveryPlatformOrder, 'No items found in the request.');
     }
     $items = collect($input['items']);
 
@@ -736,7 +906,7 @@ class DeliveryPlatformService
     // dd($deliveryPlatformOrder->deliveryProductMappingVend->toArray(),$items->pluck('id'), $deliveryProductMappingVendChannels->toArray(), $deliveryPlatformOrder->toArray(), $input);
 
     if ($deliveryProductMappingVendChannels->count() === 0) {
-      throw new \Exception('No items found in the mapping.');
+      $this->abortUnservableOrder($deliveryPlatformOrder, 'No items found in the mapping.');
     }
     foreach ($items as $item) {
       foreach ($deliveryProductMappingVendChannels as $index => $deliveryProductMappingVendChannel) {
@@ -753,6 +923,21 @@ class DeliveryPlatformService
     }
 
     $this->createOrderItemVendChannels($deliveryPlatformOrder);
+  }
+
+  // A 4xx, not a 5xx: an order for items this store does not list fails the same way
+  // on every retry. The open transaction rolls back with the abort.
+  private function abortUnservableOrder(DeliveryPlatformOrder $deliveryPlatformOrder, string $message)
+  {
+    Log::warning('Grab order rejected: ' . $message, [
+      'order_id' => $deliveryPlatformOrder->order_id,
+      'delivery_product_mapping_vend_id' => $deliveryPlatformOrder->delivery_product_mapping_vend_id,
+    ]);
+
+    abort(response()->json([
+      'error_code' => 422,
+      'error_message' => $message,
+    ], 422));
   }
 
   // assign which vend channel to dispense, make sure call this after delivery platform order item created
@@ -822,17 +1007,6 @@ class DeliveryPlatformService
     }
   }
 
-  private function syncProductMappingVendChannelOrderQtyByOrder(DeliveryPlatformOrder $deliveryPlatformOrder, $isAddition = true)
-  {
-    $deliveryProductMappingVendChannels = $deliveryPlatformOrder->deliveryProductMappingVend->deliveryProductMappingVendChannels;
-    $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems;
-    foreach ($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
-      foreach ($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannel) {
-        $this->deliveryProductMappingService->syncVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, $isAddition);
-      }
-    }
-  }
-
   // verify whether available qty can cope order qty
   private function verifyOrderQtyAvailable(DeliveryPlatformOrderItem $deliveryPlatformOrderItem, DeliveryProductMappingVendChannel $deliveryProductMappingVendChannel)
   {
@@ -882,6 +1056,8 @@ class DeliveryPlatformService
       )
       ->get();
 
+    $heldQty = $this->deliveryProductMappingService->heldQtyByChannel($deliveryProductMappingVendChannels->pluck('id'));
+
     $data = [];
     foreach ($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannelIndex => $deliveryProductMappingVendChannel) {
 
@@ -889,9 +1065,17 @@ class DeliveryPlatformService
       $available = false;
       $qty = 0;
 
-      if ($deliveryProductMappingVendChannel->is_active && !$this->deliveryProductMappingService->getVendChannelErrorStatus($deliveryProductMappingVendChannel->vendChannel) && $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty']) {
-        $available = true;
-        $qty = $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty'];
+      if ($deliveryProductMappingVendChannel->is_active && !$this->deliveryProductMappingService->getVendChannelErrorStatus($deliveryProductMappingVendChannel->vendChannel)) {
+        $availableQty = $this->deliveryProductMappingService->getDeliveryVendChannelStatus(
+          $deliveryProductMappingVendChannel->vendChannel,
+          $deliveryProductMappingVendChannel,
+          $heldQty[$deliveryProductMappingVendChannel->id] ?? 0
+        )['available_qty'];
+
+        if ($availableQty) {
+          $available = true;
+          $qty = $availableQty;
+        }
       }
 
       // fill the data array
@@ -908,8 +1092,10 @@ class DeliveryPlatformService
             return $carry;
           }, []) : null,
           'desc' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->desc,
-          'amount' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->amount,
-          'image_url' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->thumbnail->full_url,
+          // Stored cents, not the accessor's dollars (which made the price a float).
+          'amount_cents' => (int) $deliveryProductMappingVendChannel->deliveryProductMappingItem->getRawOriginal('amount'),
+          // A product with no photo used to fail the whole store's menu pull.
+          'image_url' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->thumbnail?->full_url,
           'is_active' => $available ? Grab::STATUS_AVAILABLE : Grab::STATUS_UNAVAILABLE,
           'available_qty' => $qty,
         ]);
@@ -935,6 +1121,8 @@ class DeliveryPlatformService
     if (!$isSuccessful) {
       $this->cancelOrder($deliveryPlatformOrder);
     }
+
+    return $isSuccessful;
   }
 
   // grab parameter getter
@@ -1049,12 +1237,12 @@ class DeliveryPlatformService
       'name' => $params['item_name'],
       'nameTranslation' => isset($params['translated_item_name']) ? $params['translated_item_name'] : null,
       'description' => $params['desc'],
-      'price' => round($params['amount'] * 100),
+      'price' => $params['amount_cents'],
       'availableStatus' => $params['is_active'],
       'sellingTimeID' => $this->getGrabMenuSellingTimes()['id'],
-      'photos' => [
+      'photos' => array_values(array_filter([
         $params['image_url'],
-      ],
+      ])),
       'specialType' => '',
       'maxStock' => $params['available_qty'],
       'maxCount' => $params['available_qty'],
@@ -1127,7 +1315,7 @@ class DeliveryPlatformService
       ?? $order->deliveryProductMappingVend?->platform_ref_id;
   }
 
-  private function merchantIdFromMappingVend(DeliveryProductMappingVend $mappingVend): ?string
+  public function merchantIdFromMappingVend(DeliveryProductMappingVend $mappingVend): ?string
   {
     return $mappingVend->deliveryPlatformRefNumber?->ref_number
       ?? $mappingVend->platform_ref_id;

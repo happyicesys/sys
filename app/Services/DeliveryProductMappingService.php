@@ -11,6 +11,7 @@ use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryProductMappingVendChannel;
 use App\Models\VendChannel;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DeliveryProductMappingService
 {
@@ -31,7 +32,10 @@ class DeliveryProductMappingService
         if(count($deliveryProductMappingVends) > 0) {
           foreach($deliveryProductMappingVends as $deliveryProductMappingVend) {
             SyncDeliveryProductMappingVendChannels::dispatch($deliveryProductMappingVend)->onQueue('high');
-            NotifyDeliveryPlatformUpdateMenu::dispatchSync($deliveryProductMappingVend);
+            // Waits for the channel sync above, and only for a store that sells.
+            if ($deliveryProductMappingVend->is_active) {
+              NotifyDeliveryPlatformUpdateMenu::debounced($deliveryProductMappingVend);
+            }
           }
           return true;
         }
@@ -86,22 +90,6 @@ class DeliveryProductMappingService
           }
         }
       }
-
-
-      if($isAddition) {
-        $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty + $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty + $orderQty) : 0;
-      }else {
-        $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty - $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty - $orderQty) : 0;
-      }
-      $historyOrderQty = $deliveryProductMappingVendChannel->order_qty_json ?? [];
-      $historyOrderQty[] = [
-        'previous_order_qty' => $deliveryProductMappingVendChannel->order_qty,
-        'order_qty' => $orderQty,
-        'is_addition' => $isAddition,
-        'created_at' => Carbon::now()->toDateTimeString(),
-      ];
-      $deliveryProductMappingVendChannel->order_qty_json = $historyOrderQty;
-      $deliveryProductMappingVendChannel->save();
     }
 
     public function getBundleSalesOptions(DeliveryProductMapping $deliveryProductMapping)
@@ -115,14 +103,44 @@ class DeliveryProductMappingService
       }
     }
 
+    /**
+     * Units on open orders, per delivery_product_mapping_vend_channels id: allocated to
+     * an order that is still to be dispensed. Read from the orders themselves, not from
+     * the order_qty counter, which double-counted (62 units held on 39 channels with no
+     * open order on 2026-10-29). A dispensed order is already out of the VMC's count; an
+     * order past ORDER_EXPIRED_HOURS can no longer be keyed in at the machine.
+     */
+    public function heldQtyByChannel($deliveryProductMappingVendChannelIds): array
+    {
+        $ids = collect($deliveryProductMappingVendChannelIds)->filter()->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        return DB::table('order_item_vend_channels')
+            ->join('delivery_platform_orders', 'delivery_platform_orders.id', '=', 'order_item_vend_channels.delivery_platform_order_id')
+            ->whereIn('order_item_vend_channels.delivery_product_mapping_vend_channel_id', $ids)
+            ->where('delivery_platform_orders.created_at', '>=', Carbon::now()->subHours(DeliveryPlatformOrder::ORDER_EXPIRED_HOURS))
+            ->where('delivery_platform_orders.is_cancelled', false)
+            ->whereNull('delivery_platform_orders.dispensed_at')
+            ->whereNotIn('delivery_platform_orders.status', DeliveryPlatformOrder::STATUSES_NOT_HOLDING_STOCK)
+            ->groupBy('order_item_vend_channels.delivery_product_mapping_vend_channel_id')
+            ->selectRaw('order_item_vend_channels.delivery_product_mapping_vend_channel_id AS channel_id, SUM(order_item_vend_channels.qty) AS held')
+            ->pluck('held', 'channel_id')
+            ->map(fn ($qty) => (int) $qty)
+            ->all();
+    }
+
     // retrieve vend channel status after apply logic (reserved percent and reserved qty, whichever higher)
-    public function getDeliveryVendChannelStatus($vendChannel, $deliveryProductMappingVendChannel)
+    // $heldQty: units on open orders for this channel; looked up when not given.
+    public function getDeliveryVendChannelStatus($vendChannel, $deliveryProductMappingVendChannel, ?int $heldQty = null)
     {
         $vendChannelCapacity = $vendChannel->capacity;
         $vendChannelQty = $vendChannel->qty;
         $reservedPercent = $deliveryProductMappingVendChannel->reserved_percent;
         $reservedQty = $deliveryProductMappingVendChannel->reserved_qty;
-        $orderQty = $deliveryProductMappingVendChannel->order_qty;
+        $orderQty = $heldQty ?? ($this->heldQtyByChannel([$deliveryProductMappingVendChannel->id])[$deliveryProductMappingVendChannel->id] ?? 0);
 
         $status = false;
         $calReservedQty = 0;

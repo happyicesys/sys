@@ -1,0 +1,28 @@
+{
+  "items": [
+    {"id": "{{ITEM_A}}", "tax": 0, "price": 280, "quantity": 2, "modifiers": [], "grabItemID": "SGITE20260615123213041779", "specifications": null, "memberPriceMeta": null, "outOfStockInstruction": {"title": "Remove if sold out", "instructionType": "REMOVE", "replacementItems": null, "replacementItemID": null, "replacementGrabItemID": null}},
+    {"id": "{{ITEM_B}}", "tax": 0, "price": 500, "quantity": 1, "modifiers": [], "grabItemID": "SGITE20260615123212013829", "specifications": null, "memberPriceMeta": null, "outOfStockInstruction": {"title": "Remove if sold out", "instructionType": "REMOVE", "replacementItems": null, "replacementItemID": null, "replacementGrabItemID": null}}
+  ],
+  "price": {"tax": 0, "total": 1060, "subtotal": 1060, "basketPromo": 0, "deliveryFee": 0, "eaterPayment": 0, "grabFundPromo": 0, "smallOrderFee": 0, "serviceChargeFee": 0, "billRoundingInMin": 0, "merchantChargeFee": 0, "merchantFundPromo": 0, "depositAmountInMin": 0, "offlinePOSDiscountInMin": 0},
+  "dineIn": null,
+  "promos": null,
+  "cutlery": true,
+  "orderID": "{{ORDER_ID}}",
+  "currency": {"code": "SGD", "symbol": "S$", "exponent": 2},
+  "payments": null,
+  "receiver": {"name": "Test Receiver", "virtualContact": {"PIN": "0000", "status": "ACTIVE", "expiredAt": "2026-10-28T21:50:30.722189539Z", "phoneNumber": "+6500000000"}},
+  "campaigns": null,
+  "orderTime": "2026-10-28T15:50:20Z",
+  "merchantID": "{{MERCHANT_ID}}",
+  "orderState": null,
+  "submitTime": null,
+  "paymentType": "CASHLESS",
+  "completeTime": null,
+  "featureFlags": {"orderType": "DeliveredByGrab", "isMexEditOrder": false, "orderAcceptedType": "AUTO"},
+  "membershipID": null,
+  "scheduledTime": null,
+  "partnerOrderID": null,
+  "shortOrderNumber": "GM-604",
+  "partnerMerchantID": "{{PARTNER_MERCHANT_ID}}",
+  "orderReadyEstimation": {"allowChange": true, "maxOrderReadyTime": "2026-10-28T16:55:30.456685298Z", "newOrderReadyTime": null, "estimatedOrderReadyTime": "2026-10-28T15:55:30.456685298Z"}
+}

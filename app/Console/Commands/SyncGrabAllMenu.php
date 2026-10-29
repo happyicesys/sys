@@ -27,16 +27,19 @@ class SyncGrabAllMenu extends Command
      */
     public function handle()
     {
+        // Only stores mark1 sells: an ended or paused row's menu pull is refused, so
+        // notifying it only produced a FAILED sync (all 127 rows ever were notified).
         $deliveryProductMappingVends = DeliveryProductMappingVend::query()
+            ->whereNull('end_date')
+            ->where('is_active', true)
             ->whereHas('deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform', function ($query) {
                 $query->where('slug', 'grab');
             })
             ->get();
 
-        if(count($deliveryProductMappingVends) > 0) {
-            foreach($deliveryProductMappingVends as $deliveryProductMappingVend) {
-                NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend)->onQueue('high');
-            }
+        // The daily full sync Grab recommends: sent even when nothing changed.
+        foreach($deliveryProductMappingVends as $deliveryProductMappingVend) {
+            NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend, true)->onQueue('high');
         }
     }
 }

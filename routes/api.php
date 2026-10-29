@@ -78,10 +78,8 @@ Route::prefix('v1')->group(function () {
 });
 
 Route::prefix('delivery')->group(function () {
-    Route::prefix('grab')->middleware('delivery.authprobe')->group(function () {
-        Route::get('/categories/{operatorId}/{type}', [DeliveryPlatformController::class, 'getCategories']);
+    Route::prefix('grab')->middleware(['delivery.authprobe', 'grab.webhook'])->group(function () {
         Route::get('/merchant/menu', [DeliveryPlatformController::class, 'getGrabMenu']);
-        Route::get('/oauth/{deliveryPlatformOperatorId}', [DeliveryPlatformController::class, 'getOauth']);
         Route::post('/order/create', [DeliveryPlatformController::class, 'createGrabOrder']);
         Route::put('/order/update', [DeliveryPlatformController::class, 'updateGrabOrder']);
         Route::post('/sync-menu-webhook', [DeliveryPlatformController::class, 'syncGrabMenuWebhook']);

@@ -14,13 +14,12 @@ use App\Models\Operator;
 use App\Models\Vend;
 use App\Models\VendData;
 use App\Jobs\DispenseDeliveryPlatformOrder;
-use App\Jobs\SyncDeliveryPlatformOauthByOperator;
+use App\Jobs\ProcessDeliveryPlatformOrder;
 use App\Jobs\ProcessGrabMenuWebhook;
 use App\Services\DeliveryPlatformService;
 use Carbon\Carbon;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
-use Laravel\Passport\Client;
-use Laravel\Passport\Token;
 use Inertia\Inertia;
 
 class DeliveryPlatformController extends Controller
@@ -32,48 +31,6 @@ class DeliveryPlatformController extends Controller
         $this->deliveryPlatformService = $deliveryPlatformService;
     }
 
-    public function getCategories(DeliveryPlatformOperator $deliveryPlatformOperator)
-    {
-        try {
-            $response = $this->deliveryPlatformService->getCategories($deliveryPlatformOperator);
-            return $response;
-        } catch (\Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
-    public function getOauth($deliveryPlatformOperatorId)
-    {
-        try {
-            $deliveryPlatformOperator = DeliveryPlatformOperator::findOrFail($deliveryPlatformOperatorId);
-            SyncDeliveryPlatformOauthByOperator::dispatch($deliveryPlatformOperator);
-        } catch (\Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
-    public function sendOauth(Request $request)
-    {
-        try {
-            $operatorId = $request->operator_id;
-            $type = $request->type;
-
-            $clients = Client::with('tokens')
-                ->where('id', $request->client_id)
-                ->where('secret', $request->client_secret)
-                ->get();
-
-            $operator = Operator::findOrFail($operatorId);
-            $response = $this->deliveryPlatformService->getOauth($operator, $type);
-            if (!$this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken()->exists()) {
-                throw new \Exception('Please set init Oauth Client ID and Client Secret');
-            }
-            $this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken()->update($response);
-        } catch (\Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
     // grab
     // menu
     public function getGrabMenu(Request $request)
@@ -81,10 +38,18 @@ class DeliveryPlatformController extends Controller
         $merchantID = $request->merchantID;
         $partnerMerchantID = $request->partnerMerchantID;
         try {
-            $response = $this->deliveryPlatformService->getMenu($merchantID, $partnerMerchantID);
-            return $response;
-        } catch (\Exception $e) {
-            return $e->getMessage();
+            return $this->deliveryPlatformService->getMenu($merchantID, $partnerMerchantID);
+        } catch (HttpResponseException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            // Never an error text as a 200: Grab reads it as a broken menu
+            // ("unknown content-type header text/html").
+            report($e);
+
+            return response()->json([
+                'error_code' => 500,
+                'error_message' => 'Menu unavailable.',
+            ], 500);
         }
     }
 
@@ -108,9 +73,9 @@ class DeliveryPlatformController extends Controller
 
         $deliveryPlatformOrder = $this->deliveryPlatformService->createOrder($merchantID, $partnerMerchantID, $input);
 
-        // auto mark order as ready after success creation
-        if ($deliveryPlatformOrder) {
-            $this->deliveryPlatformService->markOrderReady($deliveryPlatformOrder);
+        // auto mark order as ready after success creation - from the queue, once
+        if ($deliveryPlatformOrder && $deliveryPlatformOrder->wasRecentlyCreated) {
+            ProcessDeliveryPlatformOrder::dispatch($deliveryPlatformOrder)->onQueue('high');
         }
 
         return true;

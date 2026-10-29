@@ -36,6 +36,16 @@ class DeliveryPlatformOrder extends Model
     const STATUS_CANCELLED = 98;
     const STATUS_FAILED = 99;
 
+    // An order in one of these no longer holds machine stock for Grab: it was
+    // dispensed, picked up or delivered (stock already left), or will never be.
+    const STATUSES_NOT_HOLDING_STOCK = [
+        self::STATUS_DISPENSED,
+        self::STATUS_COLLECTED,
+        self::STATUS_DELIVERED,
+        self::STATUS_CANCELLED,
+        self::STATUS_FAILED,
+    ];
+
     const DATE_FILTER_MAPPING = [
         'order_created_at' => 'Order Time',
         'dispensed_at' => 'Dispensed Time',

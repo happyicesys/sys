@@ -65,6 +65,11 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue, ShouldBeUni
             }
         }
 
+        // Units on open orders per existing row, one query for the whole machine.
+        $heldQty = $this->deliveryProductMappingService->heldQtyByChannel(
+            $this->deliveryProductMappingVend->deliveryProductMappingVendChannels->pluck('id')
+        );
+
         if($vend->vendChannels->isNotEmpty()) {
             foreach($vend->vendChannels as $vendChannel) {
               if($deliveryProductMapping->deliveryProductMappingItems->isNotEmpty()) {
@@ -85,7 +90,8 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue, ShouldBeUni
                           $item->is_active and
                           $this->deliveryProductMappingService->getDeliveryVendChannelStatus(
                             $vendChannel,
-                            $deliveryProductMappingVendChannel)['status'] ?
+                            $deliveryProductMappingVendChannel,
+                            $heldQty[$deliveryProductMappingVendChannel->id] ?? 0)['status'] ?
                           true : false,
                         'qty' => $item->qty,
                         'reserved_percent' => $deliveryProductMappingVendChannel->reserved_percent ? $deliveryProductMappingVendChannel->reserved_percent : $deliveryProductMapping->reserved_percent,
@@ -108,7 +114,8 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue, ShouldBeUni
                           $item->is_active and
                           $this->deliveryProductMappingService->getDeliveryVendChannelStatus(
                             $vendChannel,
-                            $this->deliveryProductMappingVend)['status'] ?
+                            $this->deliveryProductMappingVend,
+                            0)['status'] ?
                           true : false,
                         'qty' => $item->qty,
                         'reserved_percent' => $deliveryProductMapping->reserved_percent,

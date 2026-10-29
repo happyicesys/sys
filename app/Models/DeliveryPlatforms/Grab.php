@@ -880,6 +880,17 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         return $this->getResponse($response, 'pauseOrder');
     }
 
+    // Store status: {isOpen, closeReason, isInSpecialOpeningHourRange}
+    public function getStoreStatus($merchantID)
+    {
+        $this->verifyOauthAccessToken();
+
+        $response = Http::withHeaders($this->getHeaders())
+        ->get($this->getPartnerEndpoint() . '/partner/v1/merchants/' . rawurlencode($merchantID) . '/store/status');
+
+        return $this->getResponse($response, 'getStoreStatus');
+    }
+
     // create campaign
     public function createCampaign($campaignParams = [])
     {

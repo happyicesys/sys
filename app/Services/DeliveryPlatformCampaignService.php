@@ -81,6 +81,32 @@ class DeliveryPlatformCampaignService
     }
   }
 
+  /**
+   * Ends one machine's campaign on Grab before mark1 forgets it. Deleting a campaign
+   * or a campaign item used to delete the rows only, so Grab kept running the
+   * discount. Already-ended campaigns are not called. Returns Grab's answer, or null.
+   */
+  public function terminateOnPlatform(DeliveryPlatformCampaignItemVend $deliveryPlatformCampaignItemVend)
+  {
+    if (!$deliveryPlatformCampaignItemVend->is_submitted || !$deliveryPlatformCampaignItemVend->platform_ref_id) {
+      return null;
+    }
+
+    if ($deliveryPlatformCampaignItemVend->datetime_to && Carbon::parse($deliveryPlatformCampaignItemVend->datetime_to)->isPast()) {
+      return null;
+    }
+
+    $response = $this->deleteCampaign($deliveryPlatformCampaignItemVend);
+
+    $deliveryPlatformCampaignItemVend->update([
+      'datetime_to' => Carbon::now(),
+      'is_active' => false,
+      'submission_response_json' => $response,
+    ]);
+
+    return $response;
+  }
+
   public function getItemOptions(DeliveryPlatformCampaign $deliveryPlatformCampaign)
   {
     switch($deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug) {
@@ -119,7 +145,7 @@ class DeliveryPlatformCampaignService
 
           // Pre-flight validation before hitting the Grab API
           $validationErrors = [];
-          if (empty($itemVend->deliveryProductMappingVend?->platform_ref_id)) {
+          if (empty($itemVend->deliveryProductMappingVend ? $this->merchantId($itemVend->deliveryProductMappingVend) : null)) {
               $validationErrors[] = 'missing Grab merchant ID (platform_ref_id)';
           }
           if (empty($itemVend->datetime_to)) {
@@ -187,7 +213,7 @@ class DeliveryPlatformCampaignService
   {
     // from grab deliveryPlatformCampaignItemVend
     return $this->removeNullValuesRecursively([
-      'merchantID' => $model->deliveryProductMappingVend->platform_ref_id,
+      'merchantID' => $this->merchantId($model->deliveryProductMappingVend),
       'name' => $model->settings_label,
       'quotas' => [
         'totalCount' => $model->settings_json['totalCount'] && $model->settings_json['totalCount'] != null ? intval($model->settings_json['totalCount']) : null,
@@ -269,6 +295,12 @@ class DeliveryPlatformCampaignService
       ],
       'customTag' => '',
     ]);
+  }
+
+  private function merchantId($deliveryProductMappingVend): ?string
+  {
+    return $deliveryProductMappingVend->deliveryPlatformRefNumber?->ref_number
+      ?? $deliveryProductMappingVend->platform_ref_id;
   }
 
   private function setDeliveryPlatform($slug, DeliveryPlatformOperator $deliveryPlatformOperator)

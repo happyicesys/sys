@@ -70,6 +70,14 @@ class Kernel extends ConsoleKernel
         $schedule->command('sales:mark-missing-trade --apply')->dailyAt('00:01')->withoutOverlapping();
         $schedule->command('store:previous-day-vend-records')->dailyAt('00:06'); // was daily() = 00:00; must follow the marker
         $schedule->command('grab:sync-all-menu')->daily();
+        // Grab ends any pause after 24 h; re-pause stores mark1 holds paused (its
+        // orders would be refused anyway). Off with GRAB_PAUSE_REASSERT=false.
+        if (config('grab.pause_reassert')) {
+            $schedule->command('delivery:sync-store-pause --apply --only-if-open')->everyTenMinutes()->withoutOverlapping(10);
+        }
+        if (config('grab.menu_records_keep_days')) {
+            $schedule->command('grab:prune-menu-records --apply')->dailyAt('03:40')->withoutOverlapping(60);
+        }
         $schedule->command('sync:all-cms-vend-code-vend-prefix')->dailyAt('02:00');
         $schedule->command('copy:product-limit-from-yesterday')->at('23:57');
         // End-of-day copy of each machine's cumulative data-usage counters
