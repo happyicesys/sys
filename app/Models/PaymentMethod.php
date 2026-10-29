@@ -19,12 +19,22 @@ class PaymentMethod extends Model
         'code',
         'is_active',
         'is_apk_constant',
+        'menu_variant',
         'name',
         'payment_gateway_id',
         'payment_merchant_id',
         'sequence',
         'type_name',
     ];
+
+    /**
+     * Cache key of the machine payment menu (PaymentController::getPaymentMerchantsApi).
+     * `menu_variant` NULL = the normal menu; a variant (e.g. "mindef") = normal + its own methods.
+     */
+    public static function menuCacheKey(string $countryCode, string $gatewayName, ?string $menuVariant = null): string
+    {
+        return "payment_merchants:{$countryCode}:{$gatewayName}".($menuVariant !== null ? ":{$menuVariant}" : '');
+    }
 
     // relationships
     public function category()

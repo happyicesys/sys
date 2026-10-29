@@ -342,11 +342,13 @@ class PaymentController extends Controller
         }
     }
 
-    public function getPaymentMerchantsApi($countryCode = 'SG', $paymentGatewayName = 'omise')
+    public function getPaymentMerchantsApi($countryCode = 'SG', $paymentGatewayName = 'omise', $menuVariant = null)
     {
-        $cacheKey = "payment_merchants:{$countryCode}:{$paymentGatewayName}";
+        // A variant adds its own methods to the normal menu; an unknown variant is just the normal menu.
+        $menuVariant = $menuVariant !== null ? strtolower($menuVariant) : null;
+        $cacheKey = PaymentMethod::menuCacheKey($countryCode, $paymentGatewayName, $menuVariant);
 
-        $dataArr = Cache::remember($cacheKey, 600, function () use ($countryCode, $paymentGatewayName) {
+        $dataArr = Cache::remember($cacheKey, 600, function () use ($countryCode, $paymentGatewayName, $menuVariant) {
             $paymentMethods = PaymentMethod::query()
                 ->with([
                     'paymentGateway',
@@ -360,6 +362,12 @@ class PaymentController extends Controller
                         });
                 })
                 ->where('is_active', true)
+                ->where(function ($query) use ($menuVariant) {
+                    $query->whereNull('menu_variant');
+                    if ($menuVariant !== null) {
+                        $query->orWhere('menu_variant', $menuVariant);
+                    }
+                })
                 ->orderByRaw('ISNULL(sequence), sequence ASC')
                 ->get();
 

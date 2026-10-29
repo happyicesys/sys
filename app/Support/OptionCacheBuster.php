@@ -223,8 +223,8 @@ class OptionCacheBuster
     }
 
     /**
-     * Forget payment_merchants:{countryCode}:{gatewayName} for every
-     * gateway/country pair on record (tiny tables).
+     * Forget payment_merchants:{countryCode}:{gatewayName}[:{menuVariant}] for
+     * every gateway/country pair on record × every variant in use (tiny tables).
      */
     protected static function forgetPaymentMerchantCombos(): void
     {
@@ -234,8 +234,13 @@ class OptionCacheBuster
             ->distinct()
             ->get();
 
+        $variants = DB::table('payment_methods')->whereNotNull('menu_variant')->distinct()->pluck('menu_variant');
+
         foreach ($pairs as $pair) {
-            Cache::forget("payment_merchants:{$pair->code}:{$pair->name}");
+            Cache::forget(PaymentMethod::menuCacheKey($pair->code, $pair->name));
+            foreach ($variants as $variant) {
+                Cache::forget(PaymentMethod::menuCacheKey($pair->code, $pair->name, strtolower($variant)));
+            }
         }
     }
 }

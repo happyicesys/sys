@@ -954,6 +954,19 @@ Regression coverage: `tests/Feature/CardTerminalUnitTest.php` (including an
 end-to-end proof that a terminal bound from Setting/Edit still matches a
 settlement report).
 
+## Machine payment menu: one list per country + gateway, plus optional variants
+
+`GET /api/v1/payment-merchants/{country}/{gateway}` is the QR menu a terminal shows; each board GETs whatever
+URL its mqtt-config `mqtt_settings.payment_gateway_menu_url` holds, so the menu is chosen there, not per
+operator in mark1. Brian, 2026-10-29: an optional tail `/{menuVariant}` (e.g. `/SG/omise/mindef`) lists the
+normal menu PLUS the methods whose `payment_methods.menu_variant` equals it; the plain URL lists only
+`menu_variant IS NULL` rows and an unknown tail is just the normal menu. First variant: `mindef` — "Ace
+Credits & Apex Credits" (code 802, slug `paynow`, logo `public/img/payment-merchant/mindef-ace-apex.png`) for
+the HIMD machines. **A `paynow`-slugged entry charges as plain Omise PayNow** (LifeSG 801, GrabPay 202 and 802
+alike): the vending APK sends only the slug, so those sales are booked as "Omise (Paynow)" — the menu entry
+is a logo, not a separate rail. Cache keys come from `PaymentMethod::menuCacheKey()`; `OptionCacheBuster`
+forgets every variant. Regression coverage: `tests/Feature/PaymentMerchantsMenuVariantTest.php`.
+
 ## Txn, Revenue & Settlement: one sale, three sources, one line
 
 Transactions → **Txn, Revenue & Settlement** (`/vends/txn-revenue-settlement`,

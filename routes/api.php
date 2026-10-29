@@ -34,7 +34,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/vend-data', [VendDataController::class, 'create']);
     Route::post('/payment-gateway-status/{company?}', [PaymentController::class, 'createPaymentGatewayLog']);
     Route::get('/binded-vends', [VendDataController::class, 'getBindedVends']);
-    Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class, 'getPaymentMerchantsApi']);
+    // Optional tail = a menu variant (`payment_methods.menu_variant`): /SG/omise/mindef lists the
+    // normal SG Omise menu plus the methods kept for that variant. Machines pick it via mqtt-config's
+    // payment_gateway_menu_url; the plain URL is unchanged.
+    Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}/{menuVariant?}', [PaymentController::class, 'getPaymentMerchantsApi'])
+        ->where('menuVariant', '[A-Za-z0-9_-]{1,32}');
     Route::post('/vends/{id}/upload-log', [VendDataController::class, 'uploadLog']);
     // Device -> mark1 screen capture upload. Unauthenticated like every other
     // endpoint in this group (the APK holds no credential); the single-use
