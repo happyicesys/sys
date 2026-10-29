@@ -2164,6 +2164,21 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   and `grab:menu-diff` read it; a row with no ref number linked is judged by its binding. An open row whose ref is
   Inactive counts as paused: Grab gets the paused 4xx, and the pause re-assert keeps the store closed on Grab
   (2871: ref Inactive, Grab still listing it). Never filter `is_active` alone for "sells on Grab" again.
+- **Store ↔ machine bindings have one writer: `GrabStoreService`** (Grab Stores page `/grab-stores`, DEPLOYED
+  2026-10-30 `e5273f2866`). A merchantID moves between machines over time. A `delivery_product_mapping_vend` row
+  is ONE period (`start_date` → `end_date`, `bound_by` / `unbound_by` / `unbind_reason`), never edited in place.
+  - Move = close + open at the same instant.
+  - At most one open binding per store and per machine, checked under a lock. There is no DB unique index until
+    the 4-C7CDNZDXKEBJPE / 2658 leftover is closed from the page.
+  - Every bind, unbind, pause, resume and switch-off is a `delivery_platform_store_events` row (`user_id` null =
+    system). The old Product Mapping Bind / Unbind / Pause / Pause All and Ref Number create / edit call the
+    service: never `DeliveryProductMappingVend::create()` or set `end_date` / `is_active` by hand.
+  - Unbind pauses the store on Grab and bind reopens it.
+  - Inactive / Active tells Grab at once.
+  - A template with an open binding cannot be deleted.
+  - "Pause until" is reopened by `grab:resume-due-pauses` (every 5 min).
+  - HIPL staff see every operator's stores (DCVIC / KMY / ARK / KEA / NF are outside OperatorScope's group), and
+    other users only their own.
 - **The order webhook answers fast and is idempotent.** One writer per orderID (cache lock); a repeat answers
   200 with the stored order; a Grab edit (`featureFlags.isMexEditOrder`) is kept in `request_history_json` +
   `is_edited` for a person, never re-allocated blind. Grab calls (mark ready, cancel) run in
@@ -2194,7 +2209,7 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
 Regression coverage: `tests/Feature/GrabOrderWebhookTest.php` (built from a real prod Mart order,
 `tests/Support/Grab`), `tests/Feature/GrabMenuTest.php`, `tests/Feature/GrabWebhookAuthTest.php`,
 `tests/Feature/GrabCampaignAndUpkeepTest.php`, `tests/Feature/GrabInactiveRefNumberTest.php`,
-`tests/Feature/SyncDeliveryStorePauseTest.php`.
+`tests/Feature/SyncDeliveryStorePauseTest.php`, `tests/Feature/GrabStoresTest.php`.
 
 ## Code style
 
