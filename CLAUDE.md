@@ -967,8 +967,9 @@ hands out (same as it does for the refund form). So a machine moved into or out 
 next app start, with no mqtt-config row to edit. A missing, malformed or unknown machineID is the normal menu —
 a board must never lose its menu over this. `payment_menu_variant` is deliberately NOT fillable: the operator
 edit save mass-assigns the posted body, so an operator admin could otherwise give itself a variant; set it by
-migration. First variant: `mindef` — "Ace Credits & Apex Credits" (code 802, slug `paynow`, logo
-`public/img/payment-merchant/mindef-ace-apex.png`) on operator HIMD. **A `paynow`-slugged entry charges as plain Omise PayNow** (LifeSG 801, GrabPay 202 and 802
+migration. First variant: `mindef` — "Ace Credits & Apex Credits" (code 802, slug `paynow`) on operator HIMD. Payment logos live on DO Spaces under
+`payment-merchant/` like every other upload (no page manages them; Ace & Apex was moved there from
+`public/img/payment-merchant/` by migration `2026_10_29_180000`). **A `paynow`-slugged entry charges as plain Omise PayNow** (LifeSG 801, GrabPay 202 and 802
 alike): the vending APK sends only the slug, so those sales are booked as "Omise (Paynow)" — the menu entry
 is a logo, not a separate rail. Cache keys come from `PaymentMethod::menuCacheKey()`; `OptionCacheBuster`
 forgets every variant. Regression coverage: `tests/Feature/PaymentMerchantsMenuVariantTest.php`.
