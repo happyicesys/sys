@@ -130,6 +130,25 @@ class GrabCampaignAndUpkeepTest extends TestCase
         Http::assertSentCount(1); // one status call, no pause, nothing on the second run
     }
 
+    public function test_a_store_grab_answers_401_for_is_skipped_for_a_day_too(): void
+    {
+        // The same DCVIC stores from 2026-10-29 21:00: 401, logged as an ERROR every 10 min.
+        $this->bindGrabStore(4609, '4-REFUSED', [11 => ['qty' => 5, 'capacity' => 10]], isActive: false);
+        Http::fake([
+            '*/store/status' => Http::response(['reason' => 'unauthorized'], 401),
+            '*/partner/v1/merchant/pause' => Http::response(null, 401),
+        ]);
+
+        $this->artisan('delivery:sync-store-pause --apply --only-if-open')
+            ->expectsOutputToContain('Grab answers 401')
+            ->assertSuccessful();
+        $this->artisan('delivery:sync-store-pause --apply --only-if-open')
+            ->expectsOutputToContain('refused this store in the last 24 h')
+            ->assertSuccessful();
+
+        Http::assertSentCount(1); // one status call, no pause, nothing on the second run
+    }
+
     public function test_the_pause_reassert_stops_at_grabs_rate_limit(): void
     {
         $this->bindGrabStore(4754, '4-PAUSED-A', [11 => ['qty' => 5, 'capacity' => 10]], isActive: false);

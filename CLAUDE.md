@@ -2197,8 +2197,9 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
 - **Grab ends any pause after 24 h.** `delivery:sync-store-pause --apply --only-if-open` runs every 10 min
   (`GRAB_PAUSE_REASSERT`) over open rows that are paused or whose ref number is Inactive, asks Grab's store status
   and re-pauses only a store Grab reopened; a merchant selling on another row is never paused. Calls are spaced `GRAB_STORE_API_SPACING_MS` (300; Grab allows 5 a second for the
-  store endpoints, and the first prod run's burst drew 429s); a 429 stops the run; a store Grab answers 403 for
-  (DCVIC's 11, paused since 2025-12-29 — Grab no longer lets us act for them) is skipped for 24 h.
+  store endpoints, and the first prod run's burst drew 429s); a 429 stops the run; a store Grab answers 403 or 401 for
+  (DCVIC's 11, paused since 2025-12-29 — Grab no longer lets us act for them; 401 since 2026-10-29 21:00) is skipped
+  for 24 h with one warning, not an ERROR every run.
 - **Webhook auth**: `VerifyGrabWebhook` (`grab.webhook`) checks the Passport client-credentials token Grab sends
   (clients `GRAB_WEBHOOK_CLIENT_IDS`, 3 and 4 on prod). `GRAB_WEBHOOK_AUTH` = `log` until the log shows no
   "Grab webhook auth would refuse" for real Grab traffic, then `enforce`. `auth:api` cannot do this (the token has no user).

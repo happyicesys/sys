@@ -6,6 +6,7 @@ use App\Models\DeliveryProductMappingVend;
 use App\Services\DeliveryPlatformService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Re-assert on Grab the pause state that mark1 already holds locally.
@@ -171,12 +172,19 @@ class SyncDeliveryStorePause extends Command
                 }
                 $this->throttle();
 
-                // 403: Grab no longer lets us act for this store (DCVIC's 11, paused in
-                // mark1 since 2025-12-29, on the first run 2026-10-29). Nothing to pause;
-                // asked again only after a day.
-                if (($status['code'] ?? null) === 403) {
+                // 403 / 401: Grab no longer lets us act for this store (DCVIC's 11, paused
+                // in mark1 since 2025-12-29: 403 on the first run 2026-10-29, 401 from that
+                // evening, its account's token refused). Nothing to pause; asked again only
+                // after a day, with one warning a day instead of an ERROR every 10 min.
+                $code = $status['code'] ?? null;
+                if ($code === 403 || $code === 401) {
                     Cache::put(self::REFUSED_CACHE_PREFIX.$merchantId, true, now()->addDay());
-                    $rows[] = [$mappingVend->id, $mappingVend->vend_code, $merchantId, 'skipped: Grab answers 403 for this store'];
+                    Log::warning('Grab refuses this store; pause re-assert skips it for 24 h', [
+                        'delivery_product_mapping_vend_id' => $mappingVend->id,
+                        'merchant_id' => $merchantId,
+                        'code' => $code,
+                    ]);
+                    $rows[] = [$mappingVend->id, $mappingVend->vend_code, $merchantId, "skipped: Grab answers {$code} for this store"];
                     $refused++;
 
                     continue;
