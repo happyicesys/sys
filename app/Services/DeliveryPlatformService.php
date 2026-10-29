@@ -823,6 +823,14 @@ class DeliveryPlatformService
     return $this->model->getStoreStatus($this->merchantIdFromMappingVend($deliveryProductMappingVend));
   }
 
+  // The same, for a merchantID that is on no machine yet (Grab Stores → Add store).
+  public function storeStatusFor(DeliveryPlatformOperator $deliveryPlatformOperator, string $merchantId): array
+  {
+    $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
+
+    return $this->model->getStoreStatus($merchantId);
+  }
+
   public function updateMenu(DeliveryProductMappingVendChannel $deliveryProductMappingVendChannel)
   {
     $this->deliveryPlatformOperator = $deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;

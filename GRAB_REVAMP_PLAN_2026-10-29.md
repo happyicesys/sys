@@ -5,7 +5,8 @@ still a switch. **§7 (same day, ops feedback + prod check): Grab sells the wron
 mapping changes; the Grab menu must follow the machine mapping — Phase 3 brought forward. §7 pricing: two
 modes per operator (RP × multiplier / own SKU price). §8: Grab promotions written once per operator, by
 product/category, no template. §9: the whole Delivery Platform tab page by page (5 entries → 4) and the order
-of work. Brian, 2026-10-29: plan first — nothing built yet.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
+of work. §9 step 1 (Grab Stores) BUILT on branch `feature/grab-follow-machine`, not deployed — see "Step 1 as
+built" under §9. Everything after step 1 is still plan.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
 (read-only MCP) on 2026-10-29, and every Grab rule comes from the Partner API v1.1.3 docs (GrabFood and
 GrabMart pages).
 
@@ -714,6 +715,41 @@ The fix for "we keep our own data and push it, so we drift": split the truth by 
   - promotion drift or leftovers;
   - orders delivered but not dispensed.
   - `grab:menu-diff` runs nightly behind it. Both commands exist but are not scheduled today.
+
+### Step 1 as built (2026-10-29, branch `feature/grab-follow-machine`, NOT deployed)
+
+Brian: "can start to wire the 1st … won't affect those existing one?"
+- **New page `/grab-stores`** (menu: Delivery Platform → Grab Stores). The old Grab Platform ID and Machines pages
+  stay in the menu until ops have used the new one.
+  - One row per store: machine (link), Site, since, template, status + reason, Grab's machine ID from the last
+    order (red when it is not the bound machine), orders in 30 d, last order.
+  - Totals chips filter the list.
+  - Actions: Add store (Grab check, "Save without Grab check" tick), Put on machine, Move, Pause (reason, optional
+    until), Resume, Remove from machine (reason), Switch off/on, History.
+  - A store still open on a second machine shows "Close that one". This is how the 2658 leftover is closed, by ops,
+    from the page; no prod write by Claude.
+- **Migration `2026_10_29_200000_add_grab_store_history`** (additive):
+  - On `delivery_product_mapping_vend`: `bound_by`, `unbound_by`, `unbind_reason`, `unbind_remarks`,
+    `paused_until`, `pause_reason`.
+  - New table `delivery_platform_store_events`.
+  - Backfill: `start_date` = `created_at` where empty; who and the 5 past pauses come from `user_logs`.
+  - No unique open-binding index yet. It follows once the 2658 leftover is closed.
+- **One writer, `App\Services\GrabStoreService`.**
+  - The old Product Mapping Bind / Unbind / Pause / Pause All buttons and the Ref Number create/edit now call it,
+    so they keep working.
+- **Behaviour that changes on purpose:**
+  1. A bind is refused when the store is already open on a machine, or the machine already carries another store.
+  2. Unbind also pauses the store on Grab, and a later bind reopens it.
+  3. Pause All touches only open bindings. Before, it also paused stores that had moved on to another template.
+  4. Switching a ref Inactive pauses Grab at once, and Active reopens it. Before, it waited for the 10-min
+     re-assert and never reopened.
+  5. A template still on a machine cannot be deleted, and the ended periods of a deleted template are kept. Before,
+     delete removed every binding row.
+  6. A merchantID typed with or without "4-" is refused as a duplicate.
+- **New schedule:** `grab:resume-due-pauses` every 5 min (Pause until …).
+- **Unchanged:** menu building, orders, prices, campaigns, `isSelling()`, the 10-min pause re-assert.
+- **Tests:** `tests/Feature/GrabStoresTest.php` (16).
+- **Deploy:** push the migration commit first, then the code (deploy gap on new columns).
 
 ### Order of work (replaces the ordering in §4 / §7 where they differ)
 

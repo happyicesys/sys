@@ -7,6 +7,7 @@ use App\Http\Resources\OperatorResource;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\Operator;
+use App\Services\GrabStoreService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -108,17 +109,13 @@ class DeliveryPlatformRefNumberController extends Controller
             'is_active' => ['nullable', 'in:true,false'],
         ]);
 
-        $status = ($request->is_active ?? 'true') === 'true'
-            ? DeliveryPlatformRefNumber::STATUS_ACTIVE
-            : DeliveryPlatformRefNumber::STATUS_INACTIVE;
-
-        DeliveryPlatformRefNumber::create([
-            'delivery_platform_id' => 1,
-            'operator_id' => $validated['operator_id'],
-            'ref_number' => $validated['ref_number'],
-            'remarks' => $validated['remarks'] ?? null,
-            'status' => $status,
-        ]);
+        // Through the Grab Stores writer: a merchantID typed with or without its "4-"
+        // is one store. This older form has no Grab check (Grab Stores → Add has).
+        $grabStores = app(GrabStoreService::class);
+        $refNumber = $grabStores->addStore((int) $validated['operator_id'], $validated['ref_number'], $validated['remarks'] ?? null, auth()->id(), skipGrabCheck: true);
+        if (($request->is_active ?? 'true') !== 'true') {
+            $grabStores->setStatus($refNumber, false, auth()->id());
+        }
 
         return redirect()->route('delivery-platform-ref-numbers');
     }
@@ -155,16 +152,15 @@ class DeliveryPlatformRefNumberController extends Controller
             'is_active' => ['required', 'in:true,false'],
         ]);
 
-        $status = $request->is_active === 'true'
-            ? DeliveryPlatformRefNumber::STATUS_ACTIVE
-            : DeliveryPlatformRefNumber::STATUS_INACTIVE;
-
+        // Name and status changes go through the Grab Stores writer, which records them
+        // and tells Grab at once (Inactive pauses the store, Active reopens it).
+        $grabStores = app(GrabStoreService::class);
+        $grabStores->rename($refNumber, trim($validated['ref_number']), auth()->id());
         $refNumber->update([
             'operator_id' => $validated['operator_id'],
-            'ref_number' => $validated['ref_number'],
             'remarks' => $validated['remarks'] ?? null,
-            'status' => $status,
         ]);
+        $grabStores->setStatus($refNumber, $request->is_active === 'true', auth()->id());
 
         return redirect()->route('delivery-platform-ref-numbers');
     }

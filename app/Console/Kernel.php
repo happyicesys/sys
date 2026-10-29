@@ -75,6 +75,8 @@ class Kernel extends ConsoleKernel
         if (config('grab.pause_reassert')) {
             $schedule->command('delivery:sync-store-pause --apply --only-if-open')->everyTenMinutes()->withoutOverlapping(10);
         }
+        // "Pause until …" on Grab Stores: reopen when the time is up.
+        $schedule->command('grab:resume-due-pauses')->everyFiveMinutes()->withoutOverlapping(10);
         if (config('grab.menu_records_keep_days')) {
             $schedule->command('grab:prune-menu-records --apply')->dailyAt('03:40')->withoutOverlapping(60);
         }

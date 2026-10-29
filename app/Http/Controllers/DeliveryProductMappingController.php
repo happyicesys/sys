@@ -24,8 +24,8 @@ use App\Models\Vend;
 use App\Services\DeliveryPlatformCampaignService;
 use App\Services\DeliveryPlatformService;
 use App\Services\DeliveryProductMappingService;
+use App\Services\GrabStoreService;
 use App\Support\VendCode;
-use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -117,17 +117,14 @@ class DeliveryProductMappingController extends Controller
 
         $vend = Vend::findOrFail($request->vend_id);
 
-        $deliveryProductMappingVend = DeliveryProductMappingVend::create([
-            'customer_id' => $vend->customer_id,
-            'delivery_product_mapping_id' => $deliveryProductMapping->id,
-            'platform_ref_id' => $request->platform_ref_id,
-            'delivery_platform_ref_number_id' => $platformRefNumberId,
-            'vend_code' => $vend->code,
-            'vend_id' => $vend->id,
-        ]);
-
-        // save delivery product mapping vend channels to delivery product mapping vend as json
-        $this->deliveryProductMappingService->syncVendChannels($deliveryProductMapping->id, $vend->id);
+        // Through the Grab Stores writer: one open binding per store and per machine,
+        // dated, with who bound it; the menu is synced there.
+        app(GrabStoreService::class)->bind(
+            DeliveryPlatformRefNumber::findOrFail($platformRefNumberId),
+            $vend,
+            $deliveryProductMapping,
+            auth()->id(),
+        );
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
@@ -175,13 +172,18 @@ class DeliveryProductMappingController extends Controller
     public function delete($id)
     {
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
-        $deliveryProductMapping->deliveryProductMappingItems()->delete();
-        if ($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
-            foreach ($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
-                $deliveryProductMappingVend->deliveryProductMappingVendChannels()->delete();
-            }
-            $deliveryProductMapping->deliveryProductMappingVends()->delete();
+
+        // Bindings are store history (Grab Stores): a template still on a machine is
+        // refused, and the ended periods of a deleted one are kept.
+        $openCodes = $deliveryProductMapping->deliveryProductMappingVends()->withoutGlobalScopes()
+            ->whereNull('end_date')->pluck('vend_code');
+        if ($openCodes->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'delete' => __('This template is still on machine(s) :codes. Move or remove those Grab stores first.', ['codes' => $openCodes->implode(', ')]),
+            ]);
         }
+
+        $deliveryProductMapping->deliveryProductMappingItems()->delete();
         $deliveryProductMapping->delete();
 
         return redirect()->route('delivery-product-mappings');
@@ -402,15 +404,10 @@ class DeliveryProductMappingController extends Controller
     {
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
 
-        if ($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
-            foreach ($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
-                $deliveryProductMappingVend->update([
-                    'is_active' => false,
-                ]);
-
-                $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
-            }
-        }
+        // Open bindings only: an ended one may be a store that now sells from another
+        // template, and pausing it on Grab would shut that store.
+        $deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->where('is_active', true)->get()
+            ->each(fn ($deliveryProductMappingVend) => app(GrabStoreService::class)->pause($deliveryProductMappingVend, auth()->id(), __('Pause All on the Grab template')));
 
         $deliveryProductMapping->update([
             'is_active' => false,
@@ -424,14 +421,10 @@ class DeliveryProductMappingController extends Controller
     {
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
 
-        if ($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
-            foreach ($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
-                $deliveryProductMappingVend->update([
-                    'is_active' => false,
-                ]);
-                $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
-            }
-        }
+        // Open bindings only: an ended one may be a store that now sells from another
+        // template, and pausing it on Grab would shut that store.
+        $deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->where('is_active', true)->get()
+            ->each(fn ($deliveryProductMappingVend) => app(GrabStoreService::class)->pause($deliveryProductMappingVend, auth()->id(), __('Pause All on the Grab template')));
 
         $deliveryProductMapping->update([
             'is_active' => false,
@@ -474,21 +467,11 @@ class DeliveryProductMappingController extends Controller
     public function togglePauseVend($deliveryProductMappingVendId)
     {
         $deliveryProductMappingVend = DeliveryProductMappingVend::findOrFail($deliveryProductMappingVendId);
-        $deliveryProductMappingVend->update([
-            'is_active' => ! $deliveryProductMappingVend->is_active,
-        ]);
-        if ($deliveryProductMappingVend->deliveryProductMappingVendChannels()->exists()) {
-            $deliveryProductMappingVend->deliveryProductMappingVendChannels()->update([
-                'is_active' => $deliveryProductMappingVend->is_active,
-            ]);
-        }
+        $grabStores = app(GrabStoreService::class);
         if ($deliveryProductMappingVend->is_active) {
-            $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingVend->deliveryProductMapping->id, $deliveryProductMappingVend->vend->id);
-            // Resuming is the same Grab call with isPause=false. Re-syncing the menu
-            // on its own leaves the store paused on their side.
-            $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend, false);
+            $grabStores->pause($deliveryProductMappingVend, auth()->id());
         } else {
-            $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
+            $grabStores->resume($deliveryProductMappingVend, auth()->id());
         }
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->delivery_product_mapping_id]);
@@ -549,39 +532,10 @@ class DeliveryProductMappingController extends Controller
     public function unbindVend($deliveryProductMappingVendId)
     {
         $deliveryProductMappingVend = DeliveryProductMappingVend::findOrFail($deliveryProductMappingVendId);
-        $deliveryProductMappingVend->loadMissing('deliveryProductMapping:id,operator_id');
 
-        if (! $deliveryProductMappingVend->delivery_platform_ref_number_id && $deliveryProductMappingVend->platform_ref_id) {
-            $platformRefNumberId = DeliveryPlatformRefNumber::query()
-                ->where('ref_number', $deliveryProductMappingVend->platform_ref_id)
-                ->when($deliveryProductMappingVend->deliveryProductMapping, function ($query, $deliveryProductMapping) {
-                    $query->where('operator_id', $deliveryProductMapping->operator_id);
-                })
-                ->where('status', DeliveryPlatformRefNumber::STATUS_ACTIVE)
-                ->value('id');
-
-            if ($platformRefNumberId) {
-                $deliveryProductMappingVend->delivery_platform_ref_number_id = $platformRefNumberId;
-            }
-        }
-
-        $deliveryProductMappingVend->end_date = Carbon::now();
-        $deliveryProductMappingVend->save();
-
-        if ($deliveryProductMappingVend->deliveryPlatformCampaignItemVends()->exists()) {
-            foreach ($deliveryProductMappingVend->deliveryPlatformCampaignItemVends as $deliveryPlatformCampaignItemVend) {
-                if ($deliveryPlatformCampaignItemVend->is_submitted and $deliveryPlatformCampaignItemVend->platform_ref_id) {
-                    $response = $this->deliveryPlatformCampaignService->deleteCampaign($deliveryPlatformCampaignItemVend);
-                    $deliveryPlatformCampaignItemVend->update([
-                        'datetime_to' => Carbon::now(),
-                        'is_active' => false,
-                        'submission_response_json' => $response,
-                    ]);
-                } else {
-                    $deliveryPlatformCampaignItemVend->delete();
-                }
-            }
-        }
+        // Through the Grab Stores writer: dated, with who, campaigns ended on Grab as
+        // before, and the store paused on Grab since no machine sells it now.
+        app(GrabStoreService::class)->unbind($deliveryProductMappingVend, auth()->id(), 'removed', __('Unbound on the Grab template page'));
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->delivery_product_mapping_id]);
     }

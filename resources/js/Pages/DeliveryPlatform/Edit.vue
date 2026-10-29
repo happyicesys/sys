@@ -932,8 +932,8 @@ function bindVend(vendId) {
     onSuccess: () => {
       toast.success(t('Machine bound successfully'), { timeout: 3000 })
     },
-    onError: () => {
-      toast.error(t('Failed to bind machine'), { timeout: 3000 })
+    onError: (errors) => {
+      toast.error(errors.vend_id ?? errors.platform_ref_id ?? errors.delivery_product_mapping_id ?? t('Failed to bind machine'), { timeout: 6000 })
     },
     preserveState: false,
     preserveScroll: true,

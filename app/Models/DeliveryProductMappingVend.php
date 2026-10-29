@@ -20,7 +20,18 @@ class DeliveryProductMappingVend extends Model
 
     protected $table = 'delivery_product_mapping_vend';
 
+    // Why a period ended (Grab Stores → Remove / Move).
+    const UNBIND_REASONS = [
+        'moved' => 'Moved to another machine',
+        'replaced' => 'Machine replaced',
+        'store_closed' => 'Store closed',
+        'correction' => 'Correction',
+        'template' => 'Template changed',
+        'removed' => 'Removed',
+    ];
+
     protected $fillable = [
+        'bound_by',
         'customer_id',
         'delivery_platform_ref_number_id',
         'delivery_product_mapping_id',
@@ -28,8 +39,13 @@ class DeliveryProductMappingVend extends Model
         'end_date',
         'is_active',
         'last_menu_json',
+        'pause_reason',
+        'paused_until',
         'platform_ref_id',
         'start_date',
+        'unbind_reason',
+        'unbind_remarks',
+        'unbound_by',
         'vend_code',
         'vend_id',
     ];
@@ -38,8 +54,24 @@ class DeliveryProductMappingVend extends Model
         'delivery_product_mapping_vend_channels_json' => 'json',
         'end_date' => 'datetime',
         'last_menu_json' => 'json',
+        'paused_until' => 'datetime',
         'start_date' => 'datetime',
     ];
+
+    public function boundBy()
+    {
+        return $this->belongsTo(User::class, 'bound_by');
+    }
+
+    public function unboundBy()
+    {
+        return $this->belongsTo(User::class, 'unbound_by');
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
 
     // relationships
     public function deliveryPlatformCampaignItemVends()

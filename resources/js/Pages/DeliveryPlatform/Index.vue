@@ -297,8 +297,8 @@ function onDeleteClicked(deliveryProductMapping) {
     onSuccess: () => {
       toast.success(t('Delivery product mapping deleted successfully'), { timeout: 3000 })
     },
-    onError: () => {
-      toast.error(t('Failed to delete delivery product mapping'), { timeout: 3000 })
+    onError: (errors) => {
+      toast.error(errors.delete ?? t('Failed to delete delivery product mapping'), { timeout: 6000 })
     }
   })
 }
