@@ -301,7 +301,7 @@ read-only history.
 7–12. See §7 (2026-10-29 user feedback): stopgap for wrong-product items, unpriced products, G101 / A001,
    HIPL's multiplier and rounding, Grab's commission rate, Bulla (LEA).
 13–15. See §8 (Grab promotions): deal types on day one, below-cost promotions, who may manage them.
-16–19. See §9 (the tab): merge into Grab Stores, promotions defined here + mirrored, "dispense again", client rights.
+16–20. See §9 (the tab): merge into Grab Stores, promotions defined here + mirrored, "dispense again", client rights.
 
 ## 6. Phase 0 + 1 as built (DEPLOYED 2026-10-29 09:43, `0cdc338af7`; pause hotfix after it)
 
@@ -580,6 +580,64 @@ Grab accounts stay on the Operator page, with one writer and a "Test connection"
   - "Active" means only the ref's status.
   - Per-channel pause and both ChannelOverview copies go; a per-SKU exclusion replaces them.
 
+**Store ↔ machine is one-to-many over time, and every link is history** (Brian, 2026-10-29)
+
+What prod shows (2026-10-29, 100 merchantIDs, 127 binding rows):
+- **A merchantID moves between machines.** 25 merchantIDs have had more than one binding, and up to 3 different
+  machines. For example, `4-C7AFJUJUBAEXG6` was on 2867, then 2666, then 2869. A machine can also change
+  merchantID: 9 machines have had more than one.
+- **At any one moment, one store sells from one machine.** 0 machines have two open bindings. The one exception is
+  `4-C7CDNZDXKEBJPE`: it is open on 2873 (selling) and still open on 2658, paused since 2025-05-19 and never closed.
+  It is a leftover and should be closed (decision 20).
+- **The history kept today is thin:**
+  - a binding row has only `created_at` → `end_date`; `start_date` is empty on 121 of 127 rows;
+  - nothing records who bound or unbound, or why;
+  - pausing overwrites `is_active`, so no pause is ever on record (every closed row reads "paused");
+  - switching a template closes and reopens the binding, so a store shows 2–3 bindings on one day (2446, 2734),
+    which are not real moves.
+- **Typing is not checked.** `C7CCRTEJJYUJR6` was entered without its `4-` and is a second record of
+  `4-C7CCRTEJJYUJR6`.
+
+Target model, following the card-terminal bindings (`card_terminal_bindings`), which solved the same problem:
+- **Grab store** (`delivery_platform_ref_numbers`, kept): the merchantID, its operator's Grab account,
+  Active / Inactive, remarks. Created once and never deleted.
+- **Binding** (`delivery_product_mapping_vend`, kept; its template column becomes unused):
+  - one period of one store on one machine;
+  - `bound_at` / `unbound_at` to the second, plus who bound it, who unbound it and a reason (machine moved /
+    replaced / store closed / correction);
+  - the Site at bind time (`customer_id` is already there).
+- **Bindings are never edited in place.** "Move to another machine" closes the old one and opens the new one at the
+  same instant, in one transaction. An order is already tied to its binding (`delivery_product_mapping_vend_id`), so
+  orders and sales per period come free.
+- **At most one open binding per store and one per machine:**
+  - checked by the one writer under a lock;
+  - backed by a unique index on a generated "open" key (the same trick as `vend_channels.suffix_key`), so the 2658
+    case cannot happen again.
+- **Store events** (new, append-only):
+  - kinds: bound, unbound, paused (until, reason), resumed, switched off / on, Grab status changes seen by the
+    poll, menu sync failed;
+  - each says who did it: a user, or "system" (pause re-assert, auto-pause when offline).
+  - Pause stops overwriting history: the binding's `is_active` becomes "currently paused", and every change is an
+    event.
+- **No template on the binding** (§7), so a menu change never creates a new binding row.
+
+What people see:
+- **Grab Stores → a store → History:** a timeline of every machine the store has been on — machine (link), Site,
+  from → to, who bound and unbound it and why, orders and Grab sales in that period — with the pauses and
+  switch-offs between them.
+- **Setting/Edit of a machine:** "Grab store 4-C… since 15 Dec 2025" plus the machine's own Grab history, since a
+  machine can have had several merchantIDs.
+- **Add store:**
+  - refuses a merchantID that already exists with or without its `4-`;
+  - checks the merchantID with Grab (Get Store Status, the operator's account) before saving;
+  - if the store is open on another machine, offers "Move it here" instead of an error.
+
+Moving today's rows:
+- Every row is kept: `bound_at` = `start_date` else `created_at`, `unbound_at` = `end_date`, and who = the
+  `user_logs` entry where one exists (from 2026-07-18), else "not recorded".
+- Same-day re-binds of one store to the SAME machine (template switches) are shown as one period; the rows are not
+  changed.
+
 #### 2. Grab Menu & Prices (replaces Grab Product Mapping)
 
 - **One page per operator.** Clients (Kumoyo, Ariska) manage their own, as Kumoyo does today.
@@ -676,3 +734,5 @@ The fix for "we keep our own data and push it, so we drift": split the truth by 
     double drop), or keep Cancel only?
 19. What clients (Ariska, Kumoyo, …) may change on their own stores: prices and listing (they do today), pause /
     resume, promotions?
+20. Close the stale open binding of `4-C7CDNZDXKEBJPE` on 2658 (paused since 2025-05-19; the store sells from 2873)
+    now, with a prod write?
