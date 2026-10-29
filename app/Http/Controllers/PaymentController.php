@@ -15,6 +15,7 @@ use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Services\MqttService;
+use App\Services\Payment\OperatorPaymentMenu;
 use App\Services\Payment\WebhookVerdict;
 use App\Services\Payment\WebhookVerifier;
 use App\Services\PaymentGatewayService;
@@ -344,14 +345,16 @@ class PaymentController extends Controller
 
     public function getPaymentMerchantsApi($countryCode = 'SG', $paymentGatewayName = 'omise', $menuVariant = null)
     {
-        // A variant adds its own methods to the normal menu; an unknown variant is just the normal menu.
-        // An explicit URL tail wins; otherwise the machine's operator picks it (?machineID=, added by mqtt-config).
-        $menuVariant = $menuVariant !== null
-            ? strtolower($menuVariant)
-            : PaymentMethod::menuVariantForMachine(request()->query('machineID'));
-        $cacheKey = PaymentMethod::menuCacheKey($countryCode, $paymentGatewayName, $menuVariant);
+        // A URL tail adds that variant's methods to the normal menu (an unknown variant is just the normal menu).
+        // Without one, the machine's operator decides (?machineID=, added by mqtt-config): its Operator → Edit
+        // choices, if it has any (OperatorPaymentMenu). Every other request gets the normal menu.
+        $menuVariant = $menuVariant !== null ? strtolower($menuVariant) : null;
+        $operatorMenu = app(OperatorPaymentMenu::class);
+        $operatorId = $menuVariant === null ? $operatorMenu->operatorIdForMachine(request()->query('machineID')) : null;
+        $choices = $operatorId !== null ? $operatorMenu->choices($operatorId) : [];
+        $cacheKey = PaymentMethod::menuCacheKey($countryCode, $paymentGatewayName, $menuVariant, $choices ? $operatorId : null);
 
-        $dataArr = Cache::remember($cacheKey, 600, function () use ($countryCode, $paymentGatewayName, $menuVariant) {
+        $dataArr = Cache::remember($cacheKey, 600, function () use ($countryCode, $paymentGatewayName, $menuVariant, $choices) {
             $paymentMethods = PaymentMethod::query()
                 ->with([
                     'paymentGateway',
@@ -365,20 +368,31 @@ class PaymentController extends Controller
                         });
                 })
                 ->where('is_active', true)
-                ->where(function ($query) use ($menuVariant) {
-                    $query->whereNull('menu_variant');
-                    if ($menuVariant !== null) {
-                        $query->orWhere('menu_variant', $menuVariant);
-                    }
+                ->when(! $choices, function ($query) use ($menuVariant) {
+                    $query->where(function ($query) use ($menuVariant) {
+                        $query->whereNull('menu_variant');
+                        if ($menuVariant !== null) {
+                            $query->orWhere('menu_variant', $menuVariant);
+                        }
+                    });
                 })
                 ->orderByRaw('ISNULL(sequence), sequence ASC')
                 ->get();
+
+            if ($choices) {
+                $paymentMethods = OperatorPaymentMenu::apply($paymentMethods, $choices);
+            }
 
             if ($paymentMethods->isEmpty()) {
                 return [];
             }
 
-            return $paymentMethods->map(function ($paymentMethod) {
+            // The gateway's default switched off by the operator: the first method shown takes its place.
+            $fallbackDefaultId = $choices && ! $paymentMethods->contains(
+                fn ($paymentMethod) => $paymentMethod->paymentGateway->default_payment_method_id === $paymentMethod->id
+            ) ? $paymentMethods->first()->id : null;
+
+            return $paymentMethods->map(function ($paymentMethod) use ($fallbackDefaultId) {
                 return [
                     'name' => $paymentMethod->paymentMerchant->name,
                     'image_url' => $paymentMethod->paymentMerchant->image_url,
@@ -389,7 +403,8 @@ class PaymentController extends Controller
                     'code' => $paymentMethod->code,
                     'sequence' => $paymentMethod->sequence,
                     'timeout_seconds' => 150,
-                    'is_default' => $paymentMethod->paymentGateway->default_payment_method_id === $paymentMethod->id,
+                    'is_default' => $paymentMethod->paymentGateway->default_payment_method_id === $paymentMethod->id
+                        || $paymentMethod->id === $fallbackDefaultId,
                 ];
             })->toArray();
         });

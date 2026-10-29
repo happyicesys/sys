@@ -224,23 +224,40 @@ class OptionCacheBuster
 
     /**
      * Forget payment_merchants:{countryCode}:{gatewayName}[:{menuVariant}] for
-     * every gateway/country pair on record × every variant in use (tiny tables).
+     * every gateway/country pair on record × every variant in use, and the
+     * menu of every operator with its own choices (tiny tables).
      */
     protected static function forgetPaymentMerchantCombos(): void
     {
-        $pairs = DB::table('payment_gateways')
-            ->join('countries', 'countries.id', '=', 'payment_gateways.country_id')
-            ->select('countries.code', 'payment_gateways.name')
-            ->distinct()
-            ->get();
-
+        $pairs = self::paymentGatewayPairs();
         $variants = DB::table('payment_methods')->whereNotNull('menu_variant')->distinct()->pluck('menu_variant');
+        $operatorIds = DB::table('operator_payment_methods')->distinct()->pluck('operator_id');
 
         foreach ($pairs as $pair) {
             Cache::forget(PaymentMethod::menuCacheKey($pair->code, $pair->name));
             foreach ($variants as $variant) {
                 Cache::forget(PaymentMethod::menuCacheKey($pair->code, $pair->name, strtolower($variant)));
             }
+            foreach ($operatorIds as $operatorId) {
+                Cache::forget(PaymentMethod::menuCacheKey($pair->code, $pair->name, null, (int) $operatorId));
+            }
         }
+    }
+
+    /** Forget one operator's own payment menu (OperatorPaymentMenu::set). */
+    public static function forgetOperatorPaymentMenu(int $operatorId): void
+    {
+        foreach (self::paymentGatewayPairs() as $pair) {
+            Cache::forget(PaymentMethod::menuCacheKey($pair->code, $pair->name, null, $operatorId));
+        }
+    }
+
+    private static function paymentGatewayPairs()
+    {
+        return DB::table('payment_gateways')
+            ->join('countries', 'countries.id', '=', 'payment_gateways.country_id')
+            ->select('countries.code', 'payment_gateways.name')
+            ->distinct()
+            ->get();
     }
 }

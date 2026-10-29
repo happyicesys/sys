@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 
 class PaymentMethod extends Model
 {
@@ -30,36 +29,20 @@ class PaymentMethod extends Model
 
     /**
      * Cache key of the machine payment menu (PaymentController::getPaymentMerchantsApi).
-     * `menu_variant` NULL = the normal menu; a variant (e.g. "mindef") = normal + its own methods.
+     * `menu_variant` NULL = the normal menu; a variant (e.g. "mindef") = normal + its own methods. An operator with
+     * its own choices (OperatorPaymentMenu) has a key of its own; every other operator shares the normal one.
      */
-    public static function menuCacheKey(string $countryCode, string $gatewayName, ?string $menuVariant = null): string
+    public static function menuCacheKey(string $countryCode, string $gatewayName, ?string $menuVariant = null, ?int $operatorId = null): string
     {
-        return "payment_merchants:{$countryCode}:{$gatewayName}".($menuVariant !== null ? ":{$menuVariant}" : '');
+        return "payment_merchants:{$countryCode}:{$gatewayName}"
+            .($menuVariant !== null ? ":{$menuVariant}" : '')
+            .($operatorId !== null ? ":op{$operatorId}" : '');
     }
 
-    /**
-     * The menu variant of a machine's operator (`operators.payment_menu_variant`), from the bare machine
-     * number mqtt-config appends to the menu URL as `?machineID=` (2026-10-29). Read fresh on every call —
-     * one indexed lookup per board boot — so a machine moved to another operator follows at its next boot.
-     * Anything that is not a plain number, an unknown machine or an operator with no variant = null, the
-     * normal menu: a board must never lose its menu over this.
-     */
-    public static function menuVariantForMachine(mixed $machineId): ?string
+    /** Shown to every operator unless one switches it off; an opt-in method (a menu variant) only where switched on. */
+    public function isShownByDefault(): bool
     {
-        if (! is_string($machineId) || ! preg_match('/^\d{1,9}$/', $machineId)) {
-            return null;
-        }
-
-        // Raw on purpose: this is a public, unauthenticated API, so no operator or active-operator scope applies.
-        $variant = DB::table('vends')
-            ->join('operators', 'operators.id', '=', 'vends.operator_id')
-            ->where('vends.code', (int) $machineId)
-            ->whereNull('vends.code_prefix') // a board reports the bare number (Vend::scopeBareCode)
-            ->value('operators.payment_menu_variant');
-
-        $variant = is_string($variant) ? strtolower(trim($variant)) : '';
-
-        return $variant !== '' ? $variant : null;
+        return $this->menu_variant === null;
     }
 
     // relationships

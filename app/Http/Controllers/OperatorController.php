@@ -18,12 +18,14 @@ use App\Models\Operator;
 use App\Models\OperatorPaymentGateway;
 use App\Models\OperatorVend;
 use App\Models\PaymentGateway;
+use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Scopes\OperatorActiveScope;
 use App\Models\Scopes\ProductAccessProductScope;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vend;
+use App\Services\Payment\OperatorPaymentMenu;
 use App\Support\ProductAccess;
 use App\Support\ProductOwners;
 use App\Support\SiteSearch;
@@ -293,6 +295,7 @@ class OperatorController extends Controller
                 $operator
             ),
             'operatorCanOverrideLogo' => $operatorCanOverrideLogo,
+            'paymentMenus' => fn () => $operator ? app(OperatorPaymentMenu::class)->tableFor($operator) : [],
             'timezones' => $timezones,
             // withoutGlobalScope(ProductAccessProductScope): an admin who is
             // themselves product-restricted must still be able to grant the
@@ -388,6 +391,28 @@ class OperatorController extends Controller
         $operator->deliveryPlatformOperators()->create($request->all());
 
         return redirect()->route('operators.edit', [$operatorId]);
+    }
+
+    /**
+     * Operator → Edit → Machine payment menu: switch one payment option on or off for the operator's machines
+     * (OperatorPaymentMenu). Saves at once and answers the refreshed table.
+     */
+    public function setPaymentMethod(Request $request, $operatorId, OperatorPaymentMenu $menu)
+    {
+        $authUser = auth()->user();
+        if ($authUser->operator_id && $authUser->operator_id != 1 && $authUser->operator_id != $operatorId) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'payment_method_id' => ['required', 'integer', 'exists:payment_methods,id'],
+            'is_shown' => ['required', 'boolean'],
+        ]);
+
+        $operator = Operator::withoutGlobalScope(OperatorActiveScope::class)->findOrFail($operatorId);
+        $menu->set($operator, PaymentMethod::findOrFail($validated['payment_method_id']), (bool) $validated['is_shown'], $authUser->id);
+
+        return response()->json(['paymentMenus' => $menu->tableFor($operator)]);
     }
 
     public function storeOperatorPaymentGateway(Request $request, $operatorId)

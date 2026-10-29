@@ -960,14 +960,21 @@ settlement report).
 start only, whatever URL its mqtt-config `mqtt_settings.payment_gateway_menu_url` holds (every APK — big, small,
 freezer — uses it byte for byte). Brian, 2026-10-29: a **variant** adds methods to the normal menu — the
 methods whose `payment_methods.menu_variant` equals it; the plain menu lists only `menu_variant IS NULL` rows and
-an unknown variant is just the normal menu. The variant comes from, in order: an optional URL tail
-`/{menuVariant}` (`/SG/omise/mindef`), else the machine's OPERATOR — `operators.payment_menu_variant`, read by
-`PaymentMethod::menuVariantForMachine()` from `?machineID=<bare code>`, which mqtt-config appends to the URL it
-hands out (same as it does for the refund form). So a machine moved into or out of an operator follows at its
-next app start, with no mqtt-config row to edit. A missing, malformed or unknown machineID is the normal menu —
-a board must never lose its menu over this. `payment_menu_variant` is deliberately NOT fillable: the operator
-edit save mass-assigns the posted body, so an operator admin could otherwise give itself a variant; set it by
-migration. First variant: `mindef` — "Ace Credits & Apex Credits" (code 802, slug `paynow`) on operator HIMD. Payment logos live on DO Spaces under
+an unknown variant is just the normal menu. An optional URL tail `/{menuVariant}` (`/SG/omise/mindef`) wins.
+Without one, the machine's OPERATOR decides (Brian, 2026-10-29): **Operator → Edit → Machine Payment Menu** lists
+every active method of each gateway the operator holds keys for, each Show / No Show, saved at once (`POST
+/operators/{id}/payment-menu`, `read` + `update operators` = superadmin/admin). `App\Services\Payment\OperatorPaymentMenu`
+is the one rule and the only writer of `operator_payment_methods`: a method with `menu_variant` NULL shows unless
+switched off, one with a variant (opt-in) only where switched on, and a row is stored ONLY where the operator
+differs from that default (switching back deletes it) — so an operator nobody touched has no rows and gets the
+normal menu byte for byte, under the shared cache key; one with rows has its own (`:op{id}`, cleared on every
+switch). Everything switched off = the normal menu; the gateway's default switched off = the first method shown
+becomes `is_default` (the vending APK falls back to the first anyway). The machine is found from `?machineID=<bare
+code>`, which mqtt-config appends to the URL it hands out (same as for the refund form), so a machine moved into or
+out of an operator follows at its next app start, with no mqtt-config row to edit; a missing, malformed or unknown
+machineID is the normal menu — a board must never lose its menu over this. `operators.payment_menu_variant` (the
+first, one-variant version) was carried into rows by `2026_10_29_220000` and is no longer read. First opt-in method:
+`mindef` — "Ace Credits & Apex Credits" (code 802, slug `paynow`), switched on for HIMD. Payment logos live on DO Spaces under
 `payment-merchant/` like every other upload (no page manages them; Ace & Apex was moved there from
 `public/img/payment-merchant/` by migration `2026_10_29_180000`, then replaced by the newer artwork as
 `mindef-ace-apex-v2.png` by `2026_10_29_200000`, source file in `database/data/payment-merchant/`). **A new logo
@@ -975,7 +982,8 @@ takes a new file name**, never an overwrite: a board keeps the URL it loaded unt
 file stays on Spaces and the new name stops any URL-keyed image cache from serving the old picture. **A `paynow`-slugged entry charges as plain Omise PayNow** (LifeSG 801, GrabPay 202 and 802
 alike): the vending APK sends only the slug, so those sales are booked as "Omise (Paynow)" — the menu entry
 is a logo, not a separate rail. Cache keys come from `PaymentMethod::menuCacheKey()`; `OptionCacheBuster`
-forgets every variant. Regression coverage: `tests/Feature/PaymentMerchantsMenuVariantTest.php`.
+forgets every variant and every operator's own menu. Regression coverage:
+`tests/Feature/PaymentMerchantsMenuVariantTest.php`, `tests/Feature/OperatorPaymentMenuTest.php`.
 
 ## Txn, Revenue & Settlement: one sale, three sources, one line
 

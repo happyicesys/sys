@@ -409,6 +409,13 @@
             </div>
             </div>
 
+            <OperatorPaymentMenuSection
+              v-if="form.id"
+              :operator-id="form.id"
+              :payment-menus="props.paymentMenus || []"
+              :can-edit="permissions.includes('update operators')"
+            />
+
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                 <div class="relative">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -822,6 +829,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchVendCodeWithOperatorInput from '@/Components/SearchVendCodeWithOperatorInput.vue';
 import AccessBindingSection from '@/Components/AccessBindingSection.vue';
 import GatewayKeyCell from '@/Components/GatewayKeyCell.vue';
+import OperatorPaymentMenuSection from '@/Components/OperatorPaymentMenuSection.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlusCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted, computed, onBeforeUnmount, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -840,6 +848,7 @@ const props = defineProps({
     operatorPaymentGatewayTypes: [Array, Object],
     permissions: [Array, Object],
     operatorCanOverrideLogo: Boolean,
+    paymentMenus: Array,
     unbindedProducts: [Array, Object],
   })
 

@@ -84,16 +84,32 @@ class PaymentMerchantsMenuVariantTest extends TestCase
         $this->getJson('/api/v1/payment-merchants/SG/omise')->assertJsonCount(2);
     }
 
-    /** An operator with an optional menu variant, and one machine of it (bare number, as boards report). */
+    /**
+     * An operator, and one machine of it (bare number, as boards report). A variant switches that variant's methods
+     * on for the operator, as the 2026_10_29_220000 migration carried `operators.payment_menu_variant` over.
+     */
     private function machine(int $code, ?string $variant, ?string $codePrefix = null, string $operatorCode = 'OPX'): int
     {
         $operator = Operator::withoutGlobalScopes()->firstOrCreate(['code' => $operatorCode], ['name' => $operatorCode, 'is_active' => true]);
-        DB::table('operators')->where('id', $operator->id)->update(['payment_menu_variant' => $variant]);
+        $this->switchOnVariant($operator->id, $variant);
 
         return DB::table('vends')->insertGetId([
             'code' => $code, 'code_prefix' => $codePrefix, 'name' => "Machine {$code}", 'operator_id' => $operator->id,
             'is_testing' => 0, 'created_at' => now(), 'updated_at' => now(),
         ]);
+    }
+
+    private function switchOnVariant(int $operatorId, ?string $variant): void
+    {
+        if ($variant === null) {
+            return;
+        }
+        foreach (PaymentMethod::where('menu_variant', $variant)->pluck('id') as $methodId) {
+            DB::table('operator_payment_methods')->insertOrIgnore([
+                'operator_id' => $operatorId, 'payment_method_id' => $methodId, 'is_shown' => true,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
     }
 
     public function test_the_machines_operator_picks_the_variant(): void
@@ -156,7 +172,7 @@ class PaymentMerchantsMenuVariantTest extends TestCase
         $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=2788')->assertJsonCount(2);
 
         $himd = Operator::withoutGlobalScopes()->create(['code' => 'HIMD', 'name' => 'HI Mindef', 'is_active' => true]);
-        DB::table('operators')->where('id', $himd->id)->update(['payment_menu_variant' => 'MINDEF']); // case-insensitive
+        $this->switchOnVariant($himd->id, 'mindef');
         DB::table('vends')->where('id', $vendId)->update(['operator_id' => $himd->id]);
 
         $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=2788')->assertJsonCount(3)->assertJsonPath('0.code', 802);
