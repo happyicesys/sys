@@ -1837,6 +1837,21 @@ hand-set figure. A chiller DECREASE made here is recorded by the next stock chec
 movement in `citybox_stock_movements` (no door-open window) — nothing reads that table yet. Regression coverage:
 `tests/Feature/VendStockQtyAdjustTest.php`.
 
+## Dashboard > Performance: a product filter switches the rollup
+
+Daniel, 2026-10-29. `vend_records` (date × machine) has no product column, so Performance reads it only while
+no product is picked. The Product / Product Category / Product Category Group filters (same row as Lite) switch
+that request to `vend_product_records` (`DashboardController::show()` sets `$lite`; the page stays `Dashboard`,
+prop `productGrain`): sales are the picked products' lines, and every machine / site count — "machines in
+operation", Historical Analysis, "Based on n machines" — counts only machines that SOLD one of them (a product row
+exists only on a day it sold; there is no daily "carried" history). Earnings breakdown is hidden then (site
+earnings are not split by product). The filter's one definition is `VendProductRecord::applyProductFilters()`
+(Eloquent and the raw "in operation" query) / `hasProductFilter()` (`'all'` and empty = none); today's bar and the
+top-10 pie read live sales per product line via `matchingProductIds()`. Every chart cache key carries the filter.
+With no product picked, every figure is byte-identical to before (checked 2026-10-29 over 8 filter sets on both
+pages). Expect "all products" to read ~0.5–0.9% above the whole-machine total: baskets are rolled up per line at
+unit price, the header at what was charged. Regression coverage: `tests/Feature/DashboardPerformanceProductFilterTest.php`.
+
 ## Operation Dashboard: "Needs attention" before Search
 
 Brian, 2026-10-17. On first load the grid stays empty (Search loads it), and a section under the

@@ -5,9 +5,10 @@ namespace App\Models;
 use App\Models\Scopes\OperatorVendRecordScope;
 use App\Models\Scopes\ProductAccessProductColumnScope;
 use App\Models\Scopes\TransactionAccessScope;
+use App\Support\SiteSearch;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Support\SiteSearch;
+use Illuminate\Support\Facades\DB;
 
 class VendProductRecord extends Model
 {
@@ -206,7 +207,7 @@ class VendProductRecord extends Model
 
             // ── Operators (multi) filter ──────────────────────────────────────
             ->when($request->operators, function ($query, $search) {
-                if (!in_array('all', $search)) {
+                if (! in_array('all', $search)) {
                     $query->whereIn('vend_product_records.operator_id', $search);
                 }
             })
@@ -225,44 +226,116 @@ class VendProductRecord extends Model
                 $query->whereIn('vend_product_records.vend_prefix_id', array_values($search));
             })
 
-            // ── Product ID filter ─────────────────────────────────────────────
+            // ── Product filters ───────────────────────────────────────────────
+            ->tap(fn ($query) => static::applyProductFilters($query, $request));
+    }
+
+    /**
+     * Request keys of the product filter row. Any one of them set means the
+     * figures must be read per product, so Dashboard > Performance switches to
+     * this table (DashboardController::show) when one arrives.
+     */
+    public const PRODUCT_FILTER_KEYS = [
+        'product_id',
+        'product_codes',
+        'product_name',
+        'product_category_id',
+        'product_category_group_id',
+        'product_sub_category_id',
+    ];
+
+    /** True when the request narrows to some products, not "every product". */
+    public static function hasProductFilter($request): bool
+    {
+        foreach (self::PRODUCT_FILTER_KEYS as $key) {
+            $value = $request->input($key);
+            if (is_array($value)) {
+                $value = array_filter($value, fn ($item) => $item !== null && $item !== '');
+                if ($value && ! in_array('all', $value, true)) {
+                    return true;
+                }
+            } elseif ($value !== null && $value !== '' && $value !== 'all') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The product filter row, for an Eloquent OR a raw builder on this table.
+     *
+     * One definition on purpose: the dashboard's "machines in operation" line is
+     * a raw DB::table() query (no scope reaches it), and it read the whole fleet
+     * while every other chart honoured the product filter.
+     */
+    public static function applyProductFilters($query, $request, string $table = 'vend_product_records')
+    {
+        return $query
             // Array OR scalar. The Dashboard > Performance (Lite) filter bar
             // posts these as arrays (MultiSelect, same as vendModels), while a
             // hand-built link may pass a single id — accept both rather than
             // TypeError on whichever the caller happens to send.
-            ->when($request->product_id, function ($query, $search) {
-                $this->whereProductColumn($query, 'vend_product_records.product_id', $search);
+            ->when($request->product_id, function ($query, $search) use ($table) {
+                self::whereProductColumn($query, $table.'.product_id', $search);
             })
 
             // ── Product code search (array, or comma-separated string) ─────────
-            ->when($request->product_codes, function ($query, $search) {
+            ->when($request->product_codes, function ($query, $search) use ($table) {
                 if (! is_array($search)) {
                     $search = strpos($search, ',') !== false
                         ? array_map('trim', explode(',', $search))
                         : [$search];
                 }
-                $query->whereIn('vend_product_records.product_code', $search);
+                $query->whereIn($table.'.product_code', $search);
             })
 
             // ── Product name search (partial) ─────────────────────────────────
-            ->when($request->product_name, function ($query, $search) {
-                $query->where('vend_product_records.product_name', 'LIKE', "%{$search}%");
+            ->when($request->product_name, function ($query, $search) use ($table) {
+                $query->where($table.'.product_name', 'LIKE', "%{$search}%");
             })
 
             // ── Product category filter ───────────────────────────────────────
-            ->when($request->product_category_id, function ($query, $search) {
-                $this->whereProductColumn($query, 'vend_product_records.category_id', $search);
+            ->when($request->product_category_id, function ($query, $search) use ($table) {
+                self::whereProductColumn($query, $table.'.category_id', $search);
             })
 
             // ── Product category-group filter ─────────────────────────────────
-            ->when($request->product_category_group_id, function ($query, $search) {
-                $this->whereProductColumn($query, 'vend_product_records.category_group_id', $search);
+            ->when($request->product_category_group_id, function ($query, $search) use ($table) {
+                self::whereProductColumn($query, $table.'.category_group_id', $search);
             })
 
             // ── Product sub-category filter ───────────────────────────────────
-            ->when($request->product_sub_category_id, function ($query, $search) {
-                $this->whereProductColumn($query, 'vend_product_records.product_sub_category_id', $search);
+            ->when($request->product_sub_category_id, function ($query, $search) use ($table) {
+                self::whereProductColumn($query, $table.'.product_sub_category_id', $search);
             });
+    }
+
+    /**
+     * The products the filter row picks, as product ids, for the parts of the
+     * dashboard that read live vend_transactions instead of this rollup (today's
+     * bar, the top-10 pie). Same keys as applyProductFilters(), resolved against
+     * the product master: today's rows carry no category snapshot yet, so the
+     * product's current category is the only one there is. Sub-category is not a
+     * products column, so it narrows the rollup only.
+     *
+     * @return int[]
+     */
+    public static function matchingProductIds($request): array
+    {
+        $query = DB::table('products')
+            ->when($request->product_id, fn ($q, $search) => self::whereProductColumn($q, 'products.id', $search))
+            ->when($request->product_codes, function ($q, $search) {
+                if (! is_array($search)) {
+                    $search = array_map('trim', explode(',', $search));
+                }
+                $q->whereIn('products.code', $search);
+            })
+            ->when($request->product_name, fn ($q, $search) => $q->where('products.name', 'LIKE', "%{$search}%"))
+            ->when($request->product_category_id, fn ($q, $search) => self::whereProductColumn($q, 'products.category_id', $search))
+            ->when($request->product_category_group_id, fn ($q, $search) => self::whereProductColumn($q, 'products.category_group_id', $search));
+
+        return $query->pluck('products.id')->map(fn ($id) => (int) $id)->all();
     }
 
     /**
@@ -273,7 +346,7 @@ class VendProductRecord extends Model
      * the 'all' sentinel (the shape the other multi-select filters use) means
      * "no restriction", so add no predicate at all.
      */
-    private function whereProductColumn($query, string $column, $search): void
+    private static function whereProductColumn($query, string $column, $search): void
     {
         if (is_array($search)) {
             if (in_array('all', $search, true)) {

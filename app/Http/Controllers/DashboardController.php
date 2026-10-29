@@ -95,8 +95,16 @@ class DashboardController extends Controller
      * methods, so BOTH pages are driven by ONE set of queries. Do not fork these
      * methods into a second controller: hand-copied read paths are exactly how
      * the Excel exports drifted out of sync with their pages.
+     *
+     * Dashboard > Performance flips it too, for one request, when the product
+     * filter row is used (Daniel, 2026-10-29): vend_records cannot answer "how
+     * did these products sell", vend_product_records can. With no product picked
+     * Performance stays on vend_records, figure for figure.
      */
     protected bool $lite = false;
+
+    /** Memo for productFilterOptions(): three dropdowns, one product query. */
+    private ?array $productFilterOptionsMemo = null;
 
     public function __construct(\App\Services\WeatherService $weatherService)
     {
@@ -122,9 +130,7 @@ class DashboardController extends Controller
      */
     public function indexLite(Request $request)
     {
-        $this->lite = true;
-
-        return $this->index($request);
+        return $this->show($request, true);
     }
 
     /**
@@ -176,6 +182,21 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
+        return $this->show($request, false);
+    }
+
+    /**
+     * Both pages. Every per-request field is set here, never left over: the
+     * router keeps one controller instance per route, so state from an earlier
+     * request would otherwise leak into the next one on a long-lived worker.
+     */
+    private function show(Request $request, bool $lite)
+    {
+        // Which page renders is fixed by the route; which rollup it reads is not.
+        $component = $lite ? 'DashboardLite' : 'Dashboard';
+        $this->lite = $lite || VendProductRecord::hasProductFilter($request);
+        $this->productFilterOptionsMemo = null;
+
         $this->setDefaultOperators($request);
 
         // Pre-resolve vend IDs from machine codes once here so every downstream
@@ -272,7 +293,7 @@ class DashboardController extends Controller
             $salesComparisonGraphData = [];
         }
 
-        return Inertia::render($this->lite ? 'DashboardLite' : 'Dashboard', array_merge([
+        return Inertia::render($component, [
             // "Access Product(s)".
             //
             // Dashboard.vue uses this to raise the amber "whole-machine figures"
@@ -313,14 +334,20 @@ class DashboardController extends Controller
                 VendPrefix::orderBy('name')->get()
             ),
             'salesComparisonGraphData' => $salesComparisonGraphData,
-            // Only the Lite page gets the product filter dropdowns — the full
-            // Performance page has no product dimension to filter on, and this
-            // would be dead payload on every one of its requests.
-        ], $this->lite ? $this->productFilterOptions() : []));
+            // True when the figures are per product (Lite always; Performance
+            // while a product filter is set). Dashboard.vue relabels the machine
+            // counts and drops the earnings breakdown on it.
+            'productGrain' => $this->lite,
+            // The product filter row. Closures, so a partial reload of the charts
+            // (`only: [...]`) never re-runs the product query.
+            'productOptions' => fn () => $this->productFilterOptions()['productOptions'],
+            'productCategoryOptions' => fn () => $this->productFilterOptions()['productCategoryOptions'],
+            'productCategoryGroupOptions' => fn () => $this->productFilterOptions()['productCategoryGroupOptions'],
+        ]);
     }
 
     /**
-     * Dropdown options for the Lite page's product filter row.
+     * Dropdown options for the product filter row (Performance and Lite).
      *
      * Built from the Product MASTER, not from a DISTINCT over the 622k-row
      * vend_product_records — 893 products / 27 categories / 6 groups is three
@@ -339,12 +366,16 @@ class DashboardController extends Controller
      */
     private function productFilterOptions(): array
     {
+        if ($this->productFilterOptionsMemo !== null) {
+            return $this->productFilterOptionsMemo;
+        }
+
         $products = Product::query()
             ->orderBy('name')
             ->orderBy('code')
             ->get(['id', 'code', 'name', 'category_id', 'category_group_id']);
 
-        return [
+        return $this->productFilterOptionsMemo = [
             'productOptions' => $products->map(fn ($product) => [
                 'id' => $product->id,
                 'name' => trim($product->code.' - '.$product->name, ' -'),
@@ -697,32 +728,36 @@ class DashboardController extends Controller
             // Today is not in either rollup yet (both are T-1), so it is topped up
             // live from vend_transactions. No lite branch needed: VendTransaction
             // already carries ProductAccessTransactionScope, so this leg is
-            // narrowed to the viewer's products on BOTH pages.
-            $todayTransactions = VendTransaction::query()
-                ->filterTransactionIndex($request)
-                ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            // narrowed to the viewer's products on BOTH pages. A picked product
+            // is the exception: a whole transaction's amount is not that
+            // product's sales, so that case is counted per product line.
+            $todayTransactions = VendProductRecord::hasProductFilter($request)
+                ? $this->todayProductSales($request, $testingVendIds, $today)
+                : VendTransaction::query()
+                    ->filterTransactionIndex($request)
+                    ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
                 // Same success test the daily rollup uses (DispenseVerdict sale codes / NULL /
                 // is_multiple) — without the is_multiple leg today's bar undercounts
                 // multi-vend transactions that carry a non-success error code.
-                ->where(function ($query) {
-                    $query->where('vend_channel_errors.code', 0)
-                        ->orWhere('vend_channel_errors.code', 6)
-                        ->orWhereNull('vend_channel_errors.code')
-                        ->orWhere('vend_transactions.is_multiple', true);
-                })
+                    ->where(function ($query) {
+                        $query->where('vend_channel_errors.code', 0)
+                            ->orWhere('vend_channel_errors.code', 6)
+                            ->orWhereNull('vend_channel_errors.code')
+                            ->orWhere('vend_transactions.is_multiple', true);
+                    })
                 // vend_records (the past-day source above) only ever contains
                 // settled rows, so today's live leg must apply the same gate or
                 // the current bar counts PENDING/REFUNDED gateway rows the rest
                 // of the chart excludes.
-                ->countsAsSale()
-                ->whereBetween('transaction_datetime', [$startOfTodayUTC, $endOfTodayUTC])
-                ->where('amount', '>', 0)
-                ->whereNotIn('vend_id', $testingVendIds)
-                ->select(
-                    DB::raw('ROUND(SUM(amount), 2) as amount'),
-                    DB::raw('SUM(success_qty) as count')
-                )
-                ->first();
+                    ->countsAsSale()
+                    ->whereBetween('transaction_datetime', [$startOfTodayUTC, $endOfTodayUTC])
+                    ->where('amount', '>', 0)
+                    ->whereNotIn('vend_id', $testingVendIds)
+                    ->select(
+                        DB::raw('ROUND(SUM(amount), 2) as amount'),
+                        DB::raw('SUM(success_qty) as count')
+                    )
+                    ->first();
 
             if ($todayTransactions) {
                 // Check if today already exists in dayGraph (unlikely from VendRecord but good to check)
@@ -759,6 +794,26 @@ class DashboardController extends Controller
         }
 
         return $dayGraph;
+    }
+
+    /**
+     * Today's bar when products are picked: only their lines, priced the way
+     * StoreVendProductRecords prices the past days (a single sale's amount, a
+     * basket's sold lines at their unit price), so today's bar and yesterday's
+     * measure the same thing.
+     */
+    private function todayProductSales(Request $request, array $testingVendIds, Carbon $today): ?object
+    {
+        $productSales = VendTransactionSalesAggregator::productTotals($today, $today, function ($query) use ($request, $testingVendIds) {
+            $query->filterTransactionIndex($request)
+                ->where('vend_transactions.amount', '>', 0)
+                ->whereNotIn('vend_transactions.vend_id', $testingVendIds);
+        })->whereIn('product_id', VendProductRecord::matchingProductIds($request) ?: [0]);
+
+        return DB::query()
+            ->fromSub($productSales, 'picked_products')
+            ->selectRaw('SUM(total_amount) as amount, SUM(total_count) as count')
+            ->first();
     }
 
     private function fillEmptyDates($dayGraph, $startDate, $endDate)
@@ -818,6 +873,10 @@ class DashboardController extends Controller
         );
 
         $topProducts = $salesQuery
+            ->when(VendProductRecord::hasProductFilter($request), fn ($q) => $q->whereIn(
+                'product_id',
+                VendProductRecord::matchingProductIds($request) ?: [0]
+            ))
             ->orderByDesc('total_count')
             ->limit(10)
             ->get();
@@ -1474,6 +1533,12 @@ class DashboardController extends Controller
             return DB::table($table)
                 ->selectRaw('year, month, COUNT(DISTINCT customer_id) as count')
                 ->when($lite, fn ($q) => ProductAccess::applyToColumn($q, $table.'.product_id'))
+                // ...and the product filter row, for the same reason: no scope
+                // reaches this builder, so a picked product used to leave this
+                // line counting every site. With it, a month counts the sites
+                // that SOLD the picked products (a product row exists only on a
+                // day it sold).
+                ->when($lite, fn ($q) => VendProductRecord::applyProductFilters($q, $request, $table))
                 // Same DANGER applies to "Transaction Access From": no Eloquent
                 // scope reaches this builder, so TransactionAccessScope on
                 // VendRecord/VendProductRecord does nothing here. Applied to BOTH
@@ -1565,6 +1630,7 @@ class DashboardController extends Controller
             $request->locationType,
             $request->vendPrefixes,
             $request->customer,
+            $this->productFilterKey($request),
         ]));
 
         $modelName = $this->getModelName($request->monthlyTypeName);
@@ -1597,6 +1663,12 @@ class DashboardController extends Controller
         }
 
         return collect($monthsByModel)->sortKeys();
+    }
+
+    /** The product filter row's values, for a cache key. */
+    private function productFilterKey(Request $request): array
+    {
+        return $request->only(VendProductRecord::PRODUCT_FILTER_KEYS);
     }
 
     /**
@@ -1635,6 +1707,9 @@ class DashboardController extends Controller
             //                    sends both.
             $request->operator_id,
             $request->location_type_id,
+            // Without these, switching products served the previous product's
+            // chart for up to 5 minutes.
+            $this->productFilterKey($request),
         ], $extra)));
     }
 
@@ -1745,6 +1820,9 @@ class DashboardController extends Controller
             ->whereBetween($table.'.date', [$dateFrom, $dateTo])
             ->whereNull('v2.id') // replaces NOT IN for efficiency
             ->when($request->operators, fn ($q) => $q->whereIn($table.'.operator_id', $request->operators))
+            // A picked product narrows the machine count too: machines that
+            // sold it that day, the same population as the sales beside it.
+            ->when($this->lite, fn ($q) => VendProductRecord::applyProductFilters($q, $request, $table))
             ->groupBy($table.'.date');
 
         if ($className === 'location_types') {
@@ -1773,7 +1851,8 @@ class DashboardController extends Controller
             })
             ->whereBetween($table.'.date', [$dateFrom, $dateTo])
             ->whereNull('v2.id') // replaces NOT IN
-            ->when($request->operators, fn ($q) => $q->whereIn($table.'.operator_id', $request->operators));
+            ->when($request->operators, fn ($q) => $q->whereIn($table.'.operator_id', $request->operators))
+            ->when($this->lite, fn ($q) => VendProductRecord::applyProductFilters($q, $request, $table));
 
         // "Average" must mean the same thing on both pages, or the Lite figure is
         // not comparable to the one prod_owner sees quoted elsewhere.

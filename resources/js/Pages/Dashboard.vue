@@ -21,12 +21,24 @@
                   numbers be read as theirs.
                 -->
                 <div
-                    v-if="productRestricted"
+                    v-if="productRestricted && !productGrain"
                     class="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
                 >
                     <span class="font-semibold">{{ $t('Whole-machine figures.') }}</span>
                     {{ $t('This page reports every product in a machine, including ones you do not have access to. For sales limited to your products, use') }}
                     <a href="/vends/transactions" class="underline font-medium">{{ $t('Transactions') }}</a>.
+                </div>
+                <!--
+                  A product filter is set, so every figure below is read per
+                  product (vend_product_records): the picked products' sales, and
+                  machines / sites counted only where those products sold.
+                -->
+                <div
+                    v-if="productGrain"
+                    class="mb-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800"
+                >
+                    <span class="font-semibold">{{ $t('Picked products only.') }}</span>
+                    {{ $t('Sales cover just the products in the Product filters, and machine and site counts include only machines that sold one of them on that day or month.') }}
                 </div>
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-4">
@@ -101,6 +113,64 @@
                                 :placeholder="$t('Select')"
                                 open-direction="bottom"
                                 class="mt-1"
+                            >
+                            </MultiSelect>
+                        </div>
+                        <!--
+                          Product filter row (Daniel, 2026-10-29). Picking anything
+                          here switches the whole page to per-product figures
+                          (vend_product_records); leaving it empty keeps today's
+                          whole-machine figures exactly as they were.
+                        -->
+                        <div>
+                            <label for="text" class="block text-sm font-medium text-gray-700">
+                                {{ $t('Product') }}
+                            </label>
+                            <MultiSelect
+                                v-model="filters.products"
+                                :options="productOptions"
+                                trackBy="id"
+                                valueProp="id"
+                                label="name"
+                                :placeholder="$t('Product ID or name')"
+                                open-direction="bottom"
+                                class="mt-1"
+                                mode="tags"
+                                :searchable="true"
+                            >
+                            </MultiSelect>
+                        </div>
+                        <div>
+                            <label for="text" class="block text-sm font-medium text-gray-700">
+                                {{ $t('Product Category') }}
+                            </label>
+                            <MultiSelect
+                                v-model="filters.productCategories"
+                                :options="productCategoryOptions"
+                                trackBy="id"
+                                valueProp="id"
+                                label="name"
+                                :placeholder="$t('Select')"
+                                open-direction="bottom"
+                                class="mt-1"
+                                mode="tags"
+                            >
+                            </MultiSelect>
+                        </div>
+                        <div>
+                            <label for="text" class="block text-sm font-medium text-gray-700">
+                                {{ $t('Product Category Group') }}
+                            </label>
+                            <MultiSelect
+                                v-model="filters.productCategoryGroups"
+                                :options="productCategoryGroupOptions"
+                                trackBy="id"
+                                valueProp="id"
+                                label="name"
+                                :placeholder="$t('Select')"
+                                open-direction="bottom"
+                                class="mt-1"
+                                mode="tags"
                             >
                             </MultiSelect>
                         </div>
@@ -260,6 +330,12 @@
                                 </div>
                             </div>
 
+                            <div class="pt-5" v-else-if="productGrain">
+                                <p class="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-8 text-center text-sm text-gray-500">
+                                    {{ $t('No Vend Earning / Loc Fees breakdown while a product filter is set — site earnings are not split by product.') }}
+                                </p>
+                            </div>
+
                             <div class="pt-5" v-else-if="earningsNoSiteData">
                                 <p class="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-8 text-center text-sm text-gray-500">
                                     {{ $t('No Vend Earning / Loc Fees breakdown for this filter — the machines it selects are not bound to a site, so they have no contract terms to split sales against.') }}
@@ -417,7 +493,7 @@
                                         {{ $t('Past 30 Days - Top :count Best Performance', { count: performerLimit }) }}
                                     </div>
                                     <div>
-                                        {{ $t('Based on :count active machine(s)', { count: vendCount }) }}
+                                        {{ productGrain ? $t('Based on :count machine(s) that sold the picked products', { count: vendCount }) : $t('Based on :count active machine(s)', { count: vendCount }) }}
                                     </div>
                                 </p>
                                 <div class="mt-2 flow-root">
@@ -503,7 +579,7 @@
                                         {{ $t('Past 30 Days - Top :count Worst Performance', { count: worstPerformerLimit }) }}
                                     </div>
                                     <div>
-                                        {{ $t('Based on :count active machine(s)', { count: vendCount }) }}
+                                        {{ productGrain ? $t('Based on :count machine(s) that sold the picked products', { count: vendCount }) : $t('Based on :count active machine(s)', { count: vendCount }) }}
                                     </div>
                                 </p>
                                 <div class="mt-2 flow-root">
@@ -627,6 +703,12 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
         vendModelOptions: Object,
         vendPrefixOptions: Object,
         salesComparisonGraphData: Object,
+        // True while a product filter is set: every figure is then per product
+        // (vend_product_records), see DashboardController::show().
+        productGrain: Boolean,
+        productOptions: Array,
+        productCategoryOptions: Array,
+        productCategoryGroupOptions: Array,
     });
     const filters = ref({
         codes: '',
@@ -638,6 +720,9 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
         monthlyTypeName: 'location-type',
         vendModels: [],
         vendPrefixes: [],
+        products: [],
+        productCategories: [],
+        productCategoryGroups: [],
         monthYear: moment().format('YYYY-MM'),
     })
     const monthYearOptions = ref([]);
@@ -1195,7 +1280,9 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
         plugins: {
             title: {
                 display: true,
-                text: t('Average Number of Vending Machines (Site) in operation, by Month')
+                text: props.productGrain
+                    ? t('Number of Sites that sold the picked products, by Month')
+                    : t('Average Number of Vending Machines (Site) in operation, by Month')
             },
             legend: {
                 labels: {
@@ -1318,6 +1405,15 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
             operators: filters.value.operators.filter(operator => operator).map((operator) => { return operator.id }),
             vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
             vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
+            // Names match VendProductRecord::applyProductFilters, which takes arrays.
+            product_id: filters.value.products.map((product) => { return product.id }),
+            product_category_id: filters.value.productCategories.map((category) => { return category.id }),
+            product_category_group_id: filters.value.productCategoryGroups.map((group) => { return group.id }),
+            // The spread above would put the raw MultiSelect OBJECTS in the URL;
+            // collapse them to bare ids, as vendModels/vendPrefixes do.
+            products: filters.value.products.map((product) => { return product.id }),
+            productCategories: filters.value.productCategories.map((category) => { return category.id }),
+            productCategoryGroups: filters.value.productCategoryGroups.map((group) => { return group.id }),
             performer_limit: performerLimit.value,
             best_performer_limit: performerLimit.value,
             worst_performer_limit: worstPerformerLimit.value,
@@ -1329,7 +1425,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
     function onSearchFilterUpdated() {
         router.visit(
             route('dashboard', buildDashboardQueryParams()),{
-                only: ['activeMachineGraphData', 'dayGraphData', 'earningsGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'performerLimit', 'worstPerformerGraphData', 'worstPerformerLimit', 'vendCount', 'salesComparisonGraphData'],
+                only: ['activeMachineGraphData', 'dayGraphData', 'earningsGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'performerLimit', 'worstPerformerGraphData', 'worstPerformerLimit', 'vendCount', 'salesComparisonGraphData', 'productGrain'],
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
@@ -1961,6 +2057,11 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
         forceRerender1()
         forceRerender2()
         forceRerender3()
+        // The machine line counts sites that SOLD the picked products while a
+        // product filter is set, so its title follows the flag on every search.
+        activeMachineGraphOptions.value.plugins.title.text = props.productGrain
+            ? t('Number of Sites that sold the picked products, by Month')
+            : t('Average Number of Vending Machines (Site) in operation, by Month')
         forceRerender4()
         forceRerender5()
         forceRerender6()
