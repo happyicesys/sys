@@ -4,14 +4,14 @@
 	     CriticalAttention; this only draws them. Styled like the Last 30 days / Current panels. -->
 	<section class="overflow-hidden rounded-xl bg-rose-50 ring-1 ring-gray-300 shadow-sm">
 		<header class="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-gray-300 bg-rose-100 px-4 py-2.5">
-			<h3 class="text-sm font-semibold text-gray-800">{{ $t('Needs attention') }}</h3>
-			<span v-if="data" class="text-xs font-medium text-rose-700">
+			<h3 class="text-base font-semibold text-gray-800">{{ $t('Needs attention') }}</h3>
+			<span v-if="data" class="text-sm font-medium text-rose-700">
 				{{ $t(':flagged of :total machines', { flagged: data.flagged_count, total: data.machine_count }) }}
 			</span>
-			<span v-if="loading" class="text-xs text-gray-500">{{ $t('Checking…') }}</span>
+			<span v-if="loading" class="text-sm text-gray-500">{{ $t('Checking…') }}</span>
 			<button
 				type="button"
-				class="ml-auto text-xs font-medium text-indigo-600 hover:underline disabled:text-gray-400"
+				class="ml-auto text-sm font-medium text-indigo-600 hover:underline disabled:text-gray-400"
 				:disabled="loading"
 				@click="load"
 			>
@@ -23,7 +23,7 @@
 		<p v-else-if="!data" class="px-4 py-3 text-sm text-gray-500">{{ $t('Checking machines…') }}</p>
 		<dl v-else class="grid grid-cols-1 gap-px bg-gray-300 sm:grid-cols-2 lg:grid-cols-3 [&>div]:bg-rose-50">
 			<div v-for="group in data.groups" :key="group.key" class="px-4 py-3">
-				<dt class="text-xs font-medium leading-tight text-gray-500">{{ group.label }}</dt>
+				<dt class="text-sm font-medium leading-snug text-gray-500">{{ group.label }}</dt>
 				<dd class="mt-1 flex items-baseline gap-2">
 					<!-- The count narrows the full rows below to this category (Brian, 2026-10-18: the
 					     per-group Show was missed once it went; the list stays fully shown). -->
@@ -35,7 +35,7 @@
 						@click="emit('show', { title: group.label, vendIds: group.machines.map((m) => m.vend_id), codes: group.machines.map((m) => m.code_label) })"
 					>
 						<span class="text-[1.375rem] leading-7 font-semibold tabular-nums underline decoration-dotted underline-offset-4 group-hover:decoration-solid" :class="countClass(group)">{{ group.count }}</span>
-						<span class="text-xs font-medium text-indigo-600 group-hover:underline">{{ $t('show entries') }}</span>
+						<span class="text-sm font-medium text-indigo-600 group-hover:underline">{{ $t('show entries') }}</span>
 					</button>
 					<span v-else class="text-[1.375rem] leading-7 font-semibold tabular-nums" :class="countClass(group)">0</span>
 				</dd>
@@ -45,7 +45,7 @@
 					<li v-for="machine in group.machines" :key="machine.vend_id">
 						<button
 							type="button"
-							class="w-full rounded px-1.5 py-1 text-left text-xs ring-1 ring-inset hover:opacity-80"
+							class="w-full rounded px-1.5 py-1.5 text-left text-sm ring-1 ring-inset hover:opacity-80"
 							:class="chipClass(group)"
 							:aria-label="`${machine.code_label}, ${machine.site || $t('no site')}: ${machine.detail}`"
 							@click="emit('show', { title: `${machine.code_label} - ${machine.site || $t('No site')}`, vendIds: [machine.vend_id], codes: [machine.code_label] })"
@@ -55,7 +55,7 @@
 									<span class="font-semibold tabular-nums">{{ machine.code_label }}</span>
 									<span> - {{ machine.site || $t('No site') }}</span>
 								</span>
-								<span class="shrink-0 whitespace-nowrap text-[10px] opacity-75">{{ machine.detail }}</span>
+								<span class="shrink-0 whitespace-nowrap text-xs opacity-80">{{ machine.detail }}</span>
 							</span>
 						</button>
 					</li>
