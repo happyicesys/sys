@@ -35,6 +35,9 @@ return [
      */
     'pause_reassert' => (bool) env('GRAB_PAUSE_REASSERT', true),
 
+    // Gap between Grab store-API calls (status / pause): Grab allows 5 a second.
+    'store_api_spacing_ms' => (int) env('GRAB_STORE_API_SPACING_MS', 300),
+
     /*
      * delivery_platform_menu_records (Grab's menu-sync callbacks) older than this
      * many days are deleted nightly. null = never (the first run removes ~2.7M rows).

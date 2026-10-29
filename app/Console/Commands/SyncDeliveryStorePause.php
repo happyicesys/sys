@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\DeliveryProductMappingVend;
 use App\Services\DeliveryPlatformService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Re-assert on Grab the pause state that mark1 already holds locally.
@@ -53,6 +54,15 @@ class SyncDeliveryStorePause extends Command
                             {--only-if-open : Ask Grab first and pause only a store Grab reports open}';
 
     protected $description = 'Re-assert paused Grab stores, which Grab expires after 24 hours';
+
+    private const REFUSED_CACHE_PREFIX = 'grab-store-refused:';
+
+    // Grab's store endpoints allow 5 requests a second per project, shared by every
+    // store; the first run's burst drew 429s.
+    private function throttle(): void
+    {
+        usleep((int) config('grab.store_api_spacing_ms', 300) * 1000);
+    }
 
     public function handle(DeliveryPlatformService $deliveryPlatformService): int
     {
@@ -110,6 +120,8 @@ class SyncDeliveryStorePause extends Command
         $failed = 0;
         $skipped = 0;
         $alreadyClosed = 0;
+        $refused = 0;
+        $rateLimited = false;
 
         foreach ($mappingVends as $mappingVend) {
             $merchantId = $mappingVend->deliveryPlatformRefNumber?->ref_number
@@ -138,19 +150,46 @@ class SyncDeliveryStorePause extends Command
                 // A store still paused on Grab is left alone: re-sending the same
                 // state answers 409 and does not extend the pause. Grab ends a pause
                 // after 24 h, so this re-pauses within one scheduled run of that.
-                // An unreadable status pauses anyway (a 409 then is harmless).
+                if (Cache::has(self::REFUSED_CACHE_PREFIX.$merchantId)) {
+                    $rows[] = [$mappingVend->id, $mappingVend->vend_code, $merchantId, 'skipped: Grab refused this store in the last 24 h'];
+                    $refused++;
+
+                    continue;
+                }
+
                 try {
                     $status = $deliveryPlatformService->storeStatus($mappingVend);
                 } catch (\Throwable $e) {
-                    $status = null;
+                    $status = ['success' => false, 'code' => null, 'data' => null];
+                }
+                $this->throttle();
+
+                // 403: Grab no longer lets us act for this store (DCVIC's 11, paused in
+                // mark1 since 2025-12-29, on the first run 2026-10-29). Nothing to pause;
+                // asked again only after a day.
+                if (($status['code'] ?? null) === 403) {
+                    Cache::put(self::REFUSED_CACHE_PREFIX.$merchantId, true, now()->addDay());
+                    $rows[] = [$mappingVend->id, $mappingVend->vend_code, $merchantId, 'skipped: Grab answers 403 for this store'];
+                    $refused++;
+
+                    continue;
                 }
 
-                if ($status !== null && ($status['isOpen'] ?? null) === false) {
-                    $rows[] = [$mappingVend->id, $mappingVend->vend_code, $merchantId, 'already closed on Grab'.(isset($status['closeReason']) ? ' ('.$status['closeReason'].')' : '')];
+                // Over Grab's store-API rate limit: stop, the next run carries on.
+                if (($status['code'] ?? null) === 429) {
+                    $rows[] = [$mappingVend->id, $mappingVend->vend_code, $merchantId, 'stopped: Grab rate limit (429), next run continues'];
+                    $rateLimited = true;
+
+                    break;
+                }
+
+                if ($status['success'] && ($status['data']['isOpen'] ?? null) === false) {
+                    $rows[] = [$mappingVend->id, $mappingVend->vend_code, $merchantId, 'already closed on Grab'.(isset($status['data']['closeReason']) ? ' ('.$status['data']['closeReason'].')' : '')];
                     $alreadyClosed++;
 
                     continue;
                 }
+                // Open, or an unreadable answer: pause (a 409 then is harmless).
             }
 
             try {
@@ -170,12 +209,13 @@ class SyncDeliveryStorePause extends Command
 
             $rows[] = [$mappingVend->id, $mappingVend->vend_code, $merchantId, $ok ? 'paused' : 'FAILED (see log)'];
             $ok ? $sent++ : $failed++;
+            $this->throttle();
         }
 
         $this->table(['mapping_vend', 'vend_code', 'merchant_id', 'result'], $rows);
 
         if ($apply) {
-            $this->line("paused: {$sent}   failed: {$failed}   skipped: {$skipped}   already closed: {$alreadyClosed}");
+            $this->line("paused: {$sent}   failed: {$failed}   skipped: {$skipped}   already closed: {$alreadyClosed}   refused by Grab: {$refused}".($rateLimited ? '   (stopped at Grab rate limit)' : ''));
 
             if ($failed > 0) {
                 $this->warn('Failures are logged as "Grab pauseStore failed" with the HTTP code.');

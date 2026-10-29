@@ -25,6 +25,7 @@ class GrabCampaignAndUpkeepTest extends TestCase
     {
         parent::setUp();
 
+        config(['grab.store_api_spacing_ms' => 0]);
         $this->buildGrabOperator();
         $this->grabItem('U-49', 11, 280);
     }
@@ -108,6 +109,41 @@ class GrabCampaignAndUpkeepTest extends TestCase
 
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/merchant/pause')
             && $request['merchantID'] === '4-PAUSED' && $request['isPause'] === true);
+    }
+
+    public function test_a_store_grab_refuses_is_not_paused_and_not_asked_again_for_a_day(): void
+    {
+        // DCVIC's 11 stores on the first prod run (2026-10-29): 403 on status and pause.
+        $this->bindGrabStore(4609, '4-REFUSED', [11 => ['qty' => 5, 'capacity' => 10]], isActive: false);
+        Http::fake([
+            '*/store/status' => Http::response(['reason' => 'forbidden'], 403),
+            '*/partner/v1/merchant/pause' => Http::response(null, 204),
+        ]);
+
+        $this->artisan('delivery:sync-store-pause --apply --only-if-open')
+            ->expectsOutputToContain('Grab answers 403')
+            ->assertSuccessful();
+        $this->artisan('delivery:sync-store-pause --apply --only-if-open')
+            ->expectsOutputToContain('refused this store in the last 24 h')
+            ->assertSuccessful();
+
+        Http::assertSentCount(1); // one status call, no pause, nothing on the second run
+    }
+
+    public function test_the_pause_reassert_stops_at_grabs_rate_limit(): void
+    {
+        $this->bindGrabStore(4754, '4-PAUSED-A', [11 => ['qty' => 5, 'capacity' => 10]], isActive: false);
+        $this->bindGrabStore(4755, '4-PAUSED-B', [11 => ['qty' => 5, 'capacity' => 10]], isActive: false);
+        Http::fake([
+            '*/store/status' => Http::response(null, 429),
+            '*/partner/v1/merchant/pause' => Http::response(null, 204),
+        ]);
+
+        $this->artisan('delivery:sync-store-pause --apply --only-if-open')
+            ->expectsOutputToContain('stopped: Grab rate limit')
+            ->assertSuccessful();
+
+        Http::assertSentCount(1);
     }
 
     public function test_the_pause_reassert_is_scheduled_unless_switched_off(): void

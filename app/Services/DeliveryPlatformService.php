@@ -815,25 +815,14 @@ class DeliveryPlatformService
   }
 
   /**
-   * Grab's own view of the store: ['isOpen' => bool, 'closeReason' => ...], or null
-   * when Grab did not answer it.
+   * Grab's own view of the store, as Grab answered it: ['success', 'code', 'data'],
+   * data = {isOpen, closeReason, isInSpecialOpeningHourRange} on success.
    */
-  public function storeStatus(DeliveryProductMappingVend $deliveryProductMappingVend): ?array
+  public function storeStatus(DeliveryProductMappingVend $deliveryProductMappingVend): array
   {
     $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
 
-    $response = $this->model->getStoreStatus($this->merchantIdFromMappingVend($deliveryProductMappingVend));
-
-    if (!$response['success'] || !is_array($response['data']) || !array_key_exists('isOpen', $response['data'])) {
-      Log::warning('Grab store status unreadable', [
-        'delivery_product_mapping_vend_id' => $deliveryProductMappingVend->id,
-        'code' => $response['code'] ?? null,
-      ]);
-
-      return null;
-    }
-
-    return $response['data'];
+    return $this->model->getStoreStatus($this->merchantIdFromMappingVend($deliveryProductMappingVend));
   }
 
   public function updateMenu(DeliveryProductMappingVendChannel $deliveryProductMappingVendChannel)

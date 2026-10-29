@@ -1,7 +1,7 @@
 # Grab revamp plan: store, catalogue, stock, campaigns (2026-10-29)
 
-**Status (2026-10-29): Phase 0 + Phase 1 BUILT on branch `feature/grab-phase01`, NOT deployed** — see §6 for
-what shipped and what is still a switch. Phases 2–5 are plan only. Every number below was read from prod
+**Status (2026-10-29): Phase 0 + Phase 1 DEPLOYED** (`0cdc338af7`, 09:43) — see §6 for what shipped and what is
+still a switch. First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
 (read-only MCP) on 2026-10-29, and every Grab rule comes from the Partner API v1.1.3 docs (GrabFood and
 GrabMart pages).
 
@@ -294,14 +294,14 @@ read-only history.
    `pushIntegrationStatus`?
 6. **The 24 delivered-not-dispensed orders**: who reviews them, and is there a refund rule?
 
-## 6. Phase 0 + 1 as built (2026-10-29, branch `feature/grab-phase01`, not deployed)
+## 6. Phase 0 + 1 as built (DEPLOYED 2026-10-29 09:43, `0cdc338af7`; pause hotfix after it)
 
 | Finding | Change | Switch |
 |---|---|---|
 | A1 | Order submit idempotent on orderID (cache lock per orderID); a repeat answers 200; a Grab edit (`isMexEditOrder`) is kept in `request_history_json` + `is_edited` for a person, not re-allocated | — |
 | A2 | Mark-ready / cancel moved to `ProcessDeliveryPlatformOrder` (queue `high`, 3 tries) | — |
 | A4, A9 | `DeliveryPlatformService::resolveMappingVend()`: merchantID first (ref number or `platform_ref_id`), partnerMerchantID only breaks a tie; open (`end_date` NULL) selling rows only | — |
-| A3 | `delivery:sync-store-pause --apply --only-if-open` every 10 min: asks Grab `store/status`, re-pauses only a store Grab reopened | `GRAB_PAUSE_REASSERT` (default on) |
+| A3 | `delivery:sync-store-pause --apply --only-if-open` every 10 min: asks Grab `store/status`, re-pauses only a store Grab reopened. After the first prod run (11 DCVIC stores answered 403, the burst drew 429s): calls spaced 300 ms, a 429 stops the run, a 403 store is skipped for 24 h | `GRAB_PAUSE_REASSERT` (default on), `GRAB_STORE_API_SPACING_MS` |
 | A5 | Held stock read from open orders (`heldQtyByChannel`), never the `order_qty` counter; dispense / cancel double-counting and the stray block (crashed on an order with no channel) removed. The 62 stuck units need no reset: they are no longer read | — |
 | C1, C2 | Menu notify debounced per store (`NotifyDeliveryPlatformUpdateMenu::debounced`, unique, waits `GRAB_MENU_NOTIFY_DELAY_SECONDS` 180) and skipped when Grab already has that menu (`menuChangedSinceLastPull`, keys sorted, `startTime` ignored); the daily `grab:sync-all-menu` still forces | — |
 | C3 | Paused / ended stores never notified; a refused menu or order is JSON 404, an unexpected menu failure JSON 500 (no text/html) | — |
