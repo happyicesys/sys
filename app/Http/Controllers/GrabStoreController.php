@@ -6,6 +6,7 @@ use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatformStoreEvent;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
+use App\Models\Operator;
 use App\Models\Vend;
 use App\Services\GrabStoreService;
 use App\Support\OperatorScope;
@@ -28,7 +29,7 @@ class GrabStoreController extends Controller
 
     public function index(Request $request)
     {
-        $operatorIds = OperatorScope::narrow($request->operators);
+        $operatorIds = $this->narrow($request->operators);
         $status = in_array($request->status, self::STATUSES, true) ? $request->status : 'all';
         $search = trim((string) $request->search);
 
@@ -171,7 +172,7 @@ class GrabStoreController extends Controller
             'vend_code' => ['nullable', 'string'],
             'delivery_product_mapping_id' => ['required_with:vend_code', 'nullable', 'integer'],
         ]);
-        if (! OperatorScope::allows((int) $validated['operator_id'])) {
+        if (! $this->allows((int) $validated['operator_id'])) {
             abort(403);
         }
 
@@ -407,10 +408,40 @@ class GrabStoreController extends Controller
         return trim(($code ? $code.' ' : '').$customer->name);
     }
 
+    // HIPL runs Grab for its client operators too (DCVIC, KMY, ARK, KEA, NF are not in
+    // OperatorScope's sibling group), as it did on the old Platform ID / Machines pages:
+    // HIPL staff see every operator's stores, anyone else only their own.
+    private function visibleOperatorIds(): array
+    {
+        $own = OperatorScope::current();
+        $isHipl = Operator::withoutGlobalScopes()->whereKey(auth()->user()?->operator_id)
+            ->value('code') === OperatorScope::PARENT_CODE;
+
+        return $isHipl
+            ? Operator::withoutGlobalScopes()->pluck('id')->map(fn ($id) => (int) $id)->all()
+            : $own;
+    }
+
+    private function narrow($requested): array
+    {
+        $ceiling = $this->visibleOperatorIds();
+        $requestedIds = collect(is_array($requested) ? $requested : [$requested])
+            ->reject(fn ($id) => $id === null || $id === '' || $id === 'all')
+            ->map(fn ($id) => (int) $id)
+            ->filter();
+
+        return $requestedIds->isEmpty() ? $ceiling : array_values(array_intersect($ceiling, $requestedIds->all()));
+    }
+
+    private function allows(int $operatorId): bool
+    {
+        return in_array($operatorId, $this->visibleOperatorIds(), true);
+    }
+
     private function accessibleRef($id): DeliveryPlatformRefNumber
     {
         $ref = DeliveryPlatformRefNumber::findOrFail($id);
-        if (! OperatorScope::allows((int) $ref->operator_id)) {
+        if (! $this->allows((int) $ref->operator_id)) {
             abort(403);
         }
 
@@ -421,7 +452,7 @@ class GrabStoreController extends Controller
     {
         $binding = DeliveryProductMappingVend::query()->withoutGlobalScopes()->findOrFail($id);
         $ref = $binding->deliveryPlatformRefNumber;
-        if (! $ref || ! OperatorScope::allows((int) $ref->operator_id)) {
+        if (! $ref || ! $this->allows((int) $ref->operator_id)) {
             abort(403);
         }
 
@@ -442,7 +473,7 @@ class GrabStoreController extends Controller
     private function accessibleTemplate($id): DeliveryProductMapping
     {
         $template = DeliveryProductMapping::query()->find($id);
-        if (! $template || ! OperatorScope::allows((int) $template->operator_id)) {
+        if (! $template || ! $this->allows((int) $template->operator_id)) {
             throw ValidationException::withMessages(['delivery_product_mapping_id' => __('Pick a Grab template.')]);
         }
 

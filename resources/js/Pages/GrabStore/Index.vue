@@ -77,7 +77,7 @@
                 {{ (stores.meta.from ?? 1) + index }}
               </TableData>
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
-                <div class="font-mono">{{ store.ref_number }}</div>
+                <div class="font-mono whitespace-nowrap">{{ store.ref_number }}</div>
                 <div class="text-xs text-gray-500">{{ store.operator?.code }}</div>
                 <div v-if="store.remarks" class="text-xs text-gray-500 whitespace-pre-wrap">{{ store.remarks }}</div>
               </TableData>

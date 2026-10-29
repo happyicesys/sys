@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatformStoreEvent;
 use App\Models\DeliveryProductMappingVend;
+use App\Models\Operator;
 use App\Models\User;
 use App\Models\Vend;
 use App\Services\GrabStoreService;
@@ -318,5 +319,29 @@ class GrabStoresTest extends TestCase
         $this->actingAs($reader)->post("/grab-stores/bindings/{$binding->id}/move", ['vend_code' => '2666', 'reason' => 'moved'])
             ->assertForbidden();
         $this->assertNull($binding->fresh()->end_date);
+    }
+
+    public function test_hipl_staff_see_client_stores_and_a_client_sees_only_its_own(): void
+    {
+        $this->bindGrabStore(2867, self::MERCHANT, [11 => ['qty' => 5, 'capacity' => 10]]);
+        $client = Operator::forceCreate([
+            'name' => 'Kumoyo', 'code' => 'KMY', 'country_id' => $this->grabMapping->operator->country_id, 'created_by' => 1, 'gst_vat_rate' => 9,
+        ]);
+        $clientStore = DeliveryPlatformRefNumber::forceCreate([
+            'delivery_platform_id' => 1, 'operator_id' => $client->id, 'ref_number' => '4-KUMOYO',
+        ]);
+
+        // HIPL (not in a sibling group with KMY) still runs the client's Grab store.
+        $this->actingAs($this->user)->get('/grab-stores')
+            ->assertInertia(fn ($page) => $page->where('totals.all', 2));
+
+        $clientUser = User::factory()->create(['operator_id' => $client->id]);
+        $clientUser->givePermissionTo(['read delivery-platform-vends', 'update delivery-platform-vends']);
+        $this->actingAs($clientUser)->get('/grab-stores')
+            ->assertInertia(fn ($page) => $page->where('totals.all', 1)->where('stores.data.0.ref_number', '4-KUMOYO'));
+
+        $hiplStore = DeliveryPlatformRefNumber::query()->where('ref_number', self::MERCHANT)->first();
+        $this->actingAs($clientUser)->getJson("/grab-stores/{$hiplStore->id}/history")->assertForbidden();
+        $this->actingAs($clientUser)->getJson("/grab-stores/{$clientStore->id}/history")->assertOk();
     }
 }
