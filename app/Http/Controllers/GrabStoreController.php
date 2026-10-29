@@ -37,7 +37,8 @@ class GrabStoreController extends Controller
 
         $refs = (clone $base)
             ->with([
-                'operator:id,code,name',
+                // Deactivated operators (DCVIC, NF, KEA, LEA) still own stores here.
+                'operator' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name'),
                 'openDeliveryProductMappingVends' => fn ($query) => $query->withoutGlobalScopes()->with([
                     'vend:id,code,code_prefix,name,customer_id',
                     'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',

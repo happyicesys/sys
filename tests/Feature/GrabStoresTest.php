@@ -327,13 +327,19 @@ class GrabStoresTest extends TestCase
         $client = Operator::forceCreate([
             'name' => 'Kumoyo', 'code' => 'KMY', 'country_id' => $this->grabMapping->operator->country_id, 'created_by' => 1, 'gst_vat_rate' => 9,
         ]);
+        $inactive = Operator::forceCreate([
+            'name' => 'DCVIC', 'code' => 'DCVIC', 'country_id' => $client->country_id, 'created_by' => 1, 'gst_vat_rate' => 9, 'is_active' => false,
+        ]);
+        DeliveryPlatformRefNumber::forceCreate([
+            'delivery_platform_id' => 1, 'operator_id' => $inactive->id, 'ref_number' => '4-DCVIC', 'status' => DeliveryPlatformRefNumber::STATUS_INACTIVE,
+        ]);
         $clientStore = DeliveryPlatformRefNumber::forceCreate([
             'delivery_platform_id' => 1, 'operator_id' => $client->id, 'ref_number' => '4-KUMOYO',
         ]);
 
         // HIPL (not in a sibling group with KMY) still runs the client's Grab store.
-        $this->actingAs($this->user)->get('/grab-stores')
-            ->assertInertia(fn ($page) => $page->where('totals.all', 2));
+        $this->actingAs($this->user)->get('/grab-stores?search=4-DCVIC')
+            ->assertInertia(fn ($page) => $page->where('totals.all', 3)->where('stores.data.0.operator.code', 'DCVIC'));
 
         $clientUser = User::factory()->create(['operator_id' => $client->id]);
         $clientUser->givePermissionTo(['read delivery-platform-vends', 'update delivery-platform-vends']);
