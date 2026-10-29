@@ -4,7 +4,8 @@
 still a switch. **§7 (same day, ops feedback + prod check): Grab sells the wrong product on 58 of 64 stores after
 mapping changes; the Grab menu must follow the machine mapping — Phase 3 brought forward. §7 pricing: two
 modes per operator (RP × multiplier / own SKU price). §8: Grab promotions written once per operator, by
-product/category, no template. Brian, 2026-10-29: more feedback first — nothing built yet.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
+product/category, no template. §9: the whole Delivery Platform tab page by page (5 entries → 4) and the order
+of work. Brian, 2026-10-29: plan first — nothing built yet.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
 (read-only MCP) on 2026-10-29, and every Grab rule comes from the Partner API v1.1.3 docs (GrabFood and
 GrabMart pages).
 
@@ -300,6 +301,7 @@ read-only history.
 7–12. See §7 (2026-10-29 user feedback): stopgap for wrong-product items, unpriced products, G101 / A001,
    HIPL's multiplier and rounding, Grab's commission rate, Bulla (LEA).
 13–15. See §8 (Grab promotions): deal types on day one, below-cost promotions, who may manage them.
+16–19. See §9 (the tab): merge into Grab Stores, promotions defined here + mirrored, "dispense again", client rights.
 
 ## 6. Phase 0 + 1 as built (DEPLOYED 2026-10-29 09:43, `0cdc338af7`; pause hotfix after it)
 
@@ -490,3 +492,187 @@ What the person sees — one page, Grab → Promotions, a list and a "New promot
     $X")?
 14. Below-cost promotions: warn and allow with a tick (recommended), or block?
 15. Who may manage promotions: the operator's own admins too (Ariska, Kumoyo), or HIPL staff only?
+
+## 9. The Delivery Platform tab, page by page (Brian, 2026-10-29: "plan first, don't execute")
+
+**How the tab is used today** (prod; page views are logged since 2026-07-28, edits since 2026-07-01):
+
+| Page | Views | Who | Edits since 07-01 |
+|---|---|---|---|
+| Grab Orders | 64 | Brian, Daniel, Iris, LiangBao, MSW, XO | — (only Cancel exists) |
+| Grab Platform ID | 53 | 8 users incl. Ariska, Kumoyo | 1 created (10-19), 1 updated |
+| Grab Product Mapping | 50 + 59 edit-page views | Daniel, Kumoyo, Ariska, XO | Kumoyo 38 updates + 26 item add/deletes on their own mapping; Daniel deleted 21 templates (10-28) |
+| Machines | 39 | 9 users | 5 binding updates |
+| Grab Campaign | 12 | Brian, Daniel, Kumoyo, MSW, XO | none — nothing live since 2026-08-31 |
+
+- Grab orders ran ~430 a month Jan–Aug, then 283 in Sep and 239 in Oct. That fall starts the month after the last
+  campaign ended (08-31). This is a correlation, not proof, but it agrees with ops: fewer flavours and no promotions.
+- **5 of 83 open bindings** use a Grab template built on the machine's CURRENT mapping. The other 78 run on a
+  mapping the machine has left (§7).
+- **12 Grab accounts** (`delivery_platform_operators`, one per operator, sandbox or production) are created on the
+  Operator pages by two different endpoints. Only one of them fetches the OAuth token
+  (`OperatorController.php:385` vs `:691`).
+
+**What is wrong, by page** (code read 2026-10-29):
+- **Grab Platform ID and Machines are one thing split in two.** A Grab store is a merchantID on a machine. One page
+  types the merchantID; the other shows the binding and holds Pause / Unbind.
+  - Binding is done from a third page (Product Mapping → Bind VM).
+  - The merchantID is stored twice: the ref number, plus a string copy in `platform_ref_id`. Renaming a ref does
+    not update the copy, and the Machines page filters and counts by the copy.
+  - "Active" means two things. The ref's own `status` decides selling. The page's Status filter means "has an open
+    binding".
+- **Grab Product Mapping is a second copy of the machine mapping.**
+  - It is copied once at create, then matched to the machine by channel code only. That is the wrong-product bug in §7.
+  - Bind / Pause / Unbind are duplicated here. Unbind does not pause on Grab, and Pause All never resumes.
+  - Deleting a mapping hard-deletes its bindings and ends no Grab campaign.
+  - Bundle sales are written but never read.
+- **Grab Campaign keeps its own copy and pushes it; nothing reads Grab back.**
+  - The campaign is per template, then per machine, then "Submit".
+  - A failed Grab DELETE is still recorded as ended locally. So mark1 believes a campaign is gone while Grab keeps
+    it, and the next create for that store is refused ("same item in two campaigns"). This is the error ops see when
+    they switch machines or re-run a deal.
+  - `GET /partner/v1/campaigns` is never called, and update (PUT) is never used.
+  - The Edit page's Save button updates a PRODUCT MAPPING whose id happens to equal the campaign id
+    (`DeliveryPlatformCampaign/Edit.vue:900`).
+- **Grab Orders works, and is the most used page.**
+  - Its "Save Order" button posts to a route that does not exist (`DeliveryPlatformOrder/Edit.vue:450`).
+  - Its form Save posts to `/operators/{id}/update`.
+  - Items show by channel. There is no view of what needs a person.
+
+### Target: five entries become four, one place per fact
+
+| Today | Target | Change |
+|---|---|---|
+| Grab Platform ID + Machines | **Grab Stores** | merged: one row per Grab store |
+| Grab Product Mapping | **Grab Menu & Prices** | per operator, by product; no template, no channel |
+| Grab Campaign | **Grab Promotions** | §8, with Grab as the truth for what is live |
+| Grab Orders | **Grab Orders** | kept; broken buttons removed; a "Needs attention" view added |
+
+Grab accounts stay on the Operator page, with one writer and a "Test connection" button.
+
+#### 1. Grab Stores (merges Grab Platform ID + Machines)
+
+- **One row = one Grab store.** Columns:
+  - merchantID;
+  - Machine (`MachineIdLink`) and Site;
+  - Operator;
+  - **Status** — one word plus its reason: Selling / Paused by ops until 18:00 / Paused: machine offline /
+    Off (Inactive) / No machine;
+  - **Grab says** — the live open / closed state and reason, from Get Store Status, polled;
+  - **Menu** — items listed, last full sync and its result (Trace menu sync / sync-state webhook);
+  - last order and orders in the last 30 days.
+- The header shows totals: bound / selling / paused / off (today's `grab:health`).
+- **Actions**, each one step:
+  - **Add store** — type the merchantID and pick the machine. mark1 checks the merchantID against Grab with the
+    operator's account before saving, so a typo is caught.
+  - **Move to another machine** — closes the binding, opens the new one and syncs the menu. It replaces Unbind +
+    Bind on two pages.
+  - **Pause until… / Resume** — with a reason. Grab's 24 h limit is handled by the existing re-assert.
+  - **Switch off** — the ref goes Inactive (today's rule), and Grab is paused at once.
+  - No template to pick: the menu comes from the machine (§7).
+- **Store detail** (a drawer):
+  - "What Grab shows now" — product, Grab price, available qty — from the same builder as Grab's menu webhook;
+  - per-store settings: safety buffer (reserved qty / %; on the template today) and "don't sell here" SKUs;
+  - history: bindings, pauses, menu syncs.
+- **Data:**
+  - The merchantID is stored once: `platform_ref_id` is dropped after reads move to the ref; the two match on all
+    open bindings today.
+  - "Active" means only the ref's status.
+  - Per-channel pause and both ChannelOverview copies go; a per-SKU exclusion replaces them.
+
+#### 2. Grab Menu & Prices (replaces Grab Product Mapping)
+
+- **One page per operator.** Clients (Kumoyo, Ariska) manage their own, as Kumoyo does today.
+- **Header:** pricing mode (§7: RP × multiplier, or own SKU price), multiplier and rounding, Grab commission %.
+- **Grid: one row per product** — every product on any of the operator's Grab machines, plus any listed before. Columns:
+  - photo, product, category;
+  - Grab sub-category (Grab's list, fetched live as Create does today);
+  - **Listed** on/off;
+  - normal price (each RP tier in use);
+  - Grab price (computed, or typed in SKU-price mode);
+  - % vs normal;
+  - kept after commission;
+  - unit cost;
+  - "on n stores".
+- A banner at the top: "3 products on your machines are not on Grab yet". Bulk actions: give a whole category one
+  sub-category, list all.
+- **Preview:** pick a store and see its menu exactly as Grab receives it.
+- **Gone:** templates; items per channel; "Refer to Product Mapping"; Bind VM; Pause All; bundle sales (0 rows,
+  never read).
+
+#### 3. Grab Promotions (replaces Grab Campaign) — §8, plus one source of truth per question
+
+The fix for "we keep our own data and push it, so we drift": split the truth by question.
+
+- **Grab is the truth for what IS live.**
+  - mark1 mirrors every store's ongoing and upcoming campaigns from `GET /partner/v1/campaigns` into a mirror table.
+  - It refreshes every 10 minutes, and again right before and right after every write.
+  - Pages and reports read the mirror; nothing assumes a campaign is gone because mark1 asked.
+- **mark1 is the truth for what SHOULD be live** (the promotion, §8). The planner compares wanted with the mirror,
+  store by store:
+  - wanted but missing → create;
+  - ours but no longer wanted → end;
+  - made in the Grab merchant app or by Grab → shown read-only, never touched.
+- **Every write starts from Grab's list for that store.**
+  - An old campaign of ours that blocks an item is ended first, so switching machines or re-running a deal no
+    longer hits "already in another campaign".
+  - A campaign we did not make that blocks an item is named on the page (what, until when), with an "End it"
+    button behind a confirmation.
+- A DELETE that fails leaves the run "still live on Grab", with a retry. It is never marked ended until the mirror
+  shows it gone.
+- Grab refuses concurrent create/update for one merchant, so writes go through one queue lane per merchantID.
+- **Why not pull-only** (make campaigns in the Grab merchant app, mark1 only shows them):
+  - it cannot put one deal on 55 stores in one go;
+  - it cannot follow a mapping change;
+  - it cannot check the price against cost.
+  - Campaigns made there still appear and count in results, so ops can still use the Grab app for a one-off.
+- **Switch-over:** the first mirror run lists every live Grab campaign. Ours with no promotion behind them are
+  shown as "left over — End?" (one button ends them all).
+
+#### 4. Grab Orders (kept)
+
+- **Remove:** "Save Order", which posts to a missing route, and the form Save, which posts to the operator update.
+- **Show:**
+  - the status as a timeline in words, from `status_json`;
+  - items by PRODUCT, with each line's dispense result and the slot it dropped from;
+  - the promotion discount from `campaigns[].deductedAmount`;
+  - Grab's order id and short id.
+- **"Needs attention" view** (a default filter chip):
+  - delivered but not dispensed (decision 6);
+  - accepted but not collected after 30 min;
+  - cancelled by mark1 for no stock;
+  - driver complaints.
+- **Actions:** Cancel (exists). Nothing else without a decision (18).
+
+#### 5. Automation: what nobody does by hand any more
+
+- The menu follows the machine mapping; prices follow RP (§7).
+- Promotions reach stores added later, renew past Grab's 2 months, and clear their own leftovers (§8, mirror).
+- A store is kept paused while it is Off (done). Auto-pause on a machine that is offline: decision 4.
+- **`grab:health` at 08:30** emails only what needs a person, like `card-settlement:health`:
+  - store open on Grab but off here, or the reverse;
+  - menu sync failed;
+  - unpriced products on a Grab machine;
+  - promotion drift or leftovers;
+  - orders delivered but not dispensed.
+  - `grab:menu-diff` runs nightly behind it. Both commands exist but are not scheduled today.
+
+### Order of work (replaces the ordering in §4 / §7 where they differ)
+
+1. **Grab Stores** — merge the two pages; merchantID stored once; Unbind pauses; Move. No change on Grab's side;
+   low risk.
+2. **Grab Menu & Prices + product-id items** (§7, Phase 3) — the risky one. Switched store by store, as §4 says.
+3. **Grab Promotions with the mirror** (§8 + above) — needs step 2's item ids. The mirror alone (read-only, plus
+   the leftover list) can ship first, before step 2.
+4. **Grab Orders clean-up, "Needs attention", `grab:health`** — independent; can run in parallel with steps 1–3.
+5. Phase 2 (batch stock updates), then Phase 5 (remove templates and the old campaign tables).
+- The §7 stopgap (decision 7) stays optional before step 2.
+
+**Decisions for Brian**
+16. Merge Grab Platform ID + Machines into one **Grab Stores** page?
+17. Promotions: mark1 defines them and mirrors Grab (recommended), or the Grab merchant app only, with mark1
+    showing and reporting?
+18. Grab Orders: add a "dispense again" for a paid order whose drop failed (driver at the machine; risk of a
+    double drop), or keep Cancel only?
+19. What clients (Ariska, Kumoyo, …) may change on their own stores: prices and listing (they do today), pause /
+    resume, promotions?
