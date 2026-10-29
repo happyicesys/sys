@@ -1,7 +1,8 @@
 # Grab revamp plan: store, catalogue, stock, campaigns (2026-10-29)
 
 **Status (2026-10-29): Phase 0 + Phase 1 DEPLOYED** (`0cdc338af7`, 09:43) — see §6 for what shipped and what is
-still a switch. First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
+still a switch. **§7 (same day, ops feedback + prod check): Grab sells the wrong product on 58 of 64 stores after
+mapping changes; the Grab menu must follow the machine mapping — Phase 3 brought forward.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
 (read-only MCP) on 2026-10-29, and every Grab rule comes from the Partner API v1.1.3 docs (GrabFood and
 GrabMart pages).
 
@@ -293,6 +294,8 @@ read-only history.
    fall under that, and should new stores go through `POST /partner/v1/self-serve/activation` +
    `pushIntegrationStatus`?
 6. **The 24 delivered-not-dispensed orders**: who reviews them, and is there a refund rule?
+7–9. See §7 (2026-10-29 user feedback): stopgap for wrong-product items, price for an unpriced product,
+   G101 / A001 prices.
 
 ## 6. Phase 0 + 1 as built (DEPLOYED 2026-10-29 09:43, `0cdc338af7`; pause hotfix after it)
 
@@ -322,3 +325,63 @@ After deploy, on prod: `php artisan grab:menu-diff` (expect only "same" / "stock
 `php artisan grab:health --days=1` daily for a week against the 2026-10-29 baseline, and
 `grep "Grab webhook auth would refuse" storage/logs/laravel.log` before switching auth to enforce.
 
+
+## 7. User feedback (2026-10-29): the Grab mapping must follow the machine mapping
+
+Source: Daniel's screen recording of the Grab Product Mapping page (Dropbox
+`Engineering/Frozen VM/share video/ScreenRecorderProject103.mp4`, 93 s, Mandarin voice-over).
+
+**What ops said**
+- The Grab mapping and the machine mapping are kept apart, so every mapping change means pairing the Grab one
+  again by hand. For a year our mappings never changed; now they change about **once a month, machine by machine**.
+- Combine them: when a flavour is swapped out of a machine it must **disappear from that machine on Grab**,
+  because the machine's real mapping no longer has it.
+- Few flavours on Grab is probably **the biggest reason Grab sales dropped**.
+- Someone reported items **selling at $0** because "product pricing was not updated". Not found in mark1: no
+  production store's menu or order in the last 30 days has a price under $1. The only Grab prices under $1 (U-11
+  $0.20, U-49 $0.30 …) are on the TEST template `UFI_19_V30_2405_Testing`, bound to sandbox machine 2005 (ref
+  Inactive since 2026-10-29). We need the store and item to look further — it may be on Grab's side.
+
+**What the data shows (prod, 2026-10-29)** — worse than a chore:
+- A Grab template item is (channel code → product, price). The menu names the TEMPLATE's product and takes stock
+  from whatever the machine holds at that channel (`getGrabMenuSubCategoriesItems`). Nothing checks that the two are
+  the same product.
+- On **58 of 64 selling stores** at least one Grab item now names a different product from the machine's channel:
+  2873 15 of 16 channels (template `CFY_16_V01.0_2511` is built on mapping 429, the machine runs 695); 2733 12 of 16;
+  the 38 stores on `UEB_F_2606_Pist_Rocket` 2–5 each (31 U-91 → U-16, 37 U-89 → U-90, 44 U-21a → U-16, 65 U-01 → U-93).
+- So a Grab customer is charged the template's price for product A and the machine drops product B. Upper bound
+  (the channel's product is today's, an order may predate the change): **19 of 54 orders in the last 7 days**
+  (43 units), 79 of 244 in 30 days.
+- 13 templates sit behind 18 different machine mappings. Of 960 SKU × store pairs a machine holds, Grab lists 713
+  correctly; 247 are missing or wrong.
+
+**Target (replaces the Phase 3 wording in §3 rule 2 / §4)**
+1. **The menu is built from the machine's live channels**, never from a template's channel list: for each SKU the
+   machine holds now (`vend_channels.product_id`, active), list it if the operator has a Grab price for it. So a
+   mapping change — applied by the ops job as today — reaches Grab through the CHANNEL sync that already notifies
+   it (debounced, diffed). Ops do nothing on the Grab side when they change a mapping.
+2. **One Grab Price List per operator**: product → Grab price (integer cents), Mart sub-category, listed yes/no.
+   It replaces the per-mapping templates. Seeded from today's templates: 796 of the 960 pairs get a price that way.
+   Conflicts to settle once: HIPL G101 ($2.00 / $2.50), A001 ($2.40 / $2.50). Products on Grab machines with no
+   Grab price yet: HIPL BC-02, E-01, GW05, GW07, OK-01, OK-02, U-16, U-50, U-90, U-92, U-93; KMY KMY13. The page
+   lists "on a Grab machine, no Grab price" at the top so a new flavour is priced the day it is mapped.
+3. **Grab item id = `products.id`** (decision 2), one item per SKU, stock summed over its channels, an order
+   allocated to the channels holding that SKU (most stock first). A channel item id cannot follow the machine: the
+   same id would quietly turn into another product, and a campaign on it with it.
+4. Per-store exclusions stay possible (a SKU not to sell on Grab at one site), but the default is: everything the
+   machine holds and the operator prices.
+
+**Order of work (changes §4)**
+- **Now — stop wrong-product sales (one small deploy, on today's code):** a Grab item whose template product is not
+  the product the machine holds at that channel is left out of the menu, and an order for it gets the 4xx. Menu
+  items fall by the mismatched channels until step 2 lands, so Grab shows fewer flavours for a few weeks — but it
+  stops charging for one product and dropping another. Brian decides (below).
+- **Next — Phase 3 brought forward, before the store record and batch updates:** Grab Price List + menu from the
+  machine + product-id items. Switch store by store as §4 Phase 3 says (old item ids accepted for orders in
+  flight, no live campaign, one full sync), templates read-only, then removed in Phase 5.
+- Phase 2 (store record, batch stock updates) follows; it does not change what ops see when a mapping changes.
+
+**Decisions for Brian (added to §5)**
+7. Ship the stopgap now (hide mismatched items), or leave Grab as it is until the Price List lands?
+8. Grab price for a product with none on the list: hidden until priced (recommended), or the Site's RP tier price?
+9. G101 and A001: which price?
