@@ -1248,7 +1248,7 @@
                           {{ vendIndex + 1 }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                          {{ vendCodeLabel(vend) }}
+                          <MachineIdLink :vend="vend" />
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                           <span v-if="vend && vend.customer">
@@ -1421,6 +1421,7 @@
 
 <script setup>
 import AttachmentList from '@/Components/AttachmentList.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -1434,7 +1435,6 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { t } from '@/i18n';
 import axios from 'axios';
-import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
     apkSetting: Object,

@@ -177,7 +177,7 @@
             <div>
               <span class="font-mono">{{ t.terminal_id }}</span> <span class="text-red-600">({{ $t(':count rows', { count: t.row_count }) }})</span>
               <template v-if="t.suggested_vend_code">
-                {{ $t('— likely on') }} <b>{{ t.suggested_vend_code }}</b>{{ $t(': :hits of :count lines fit that machine exactly, from', { hits: t.suggested_hits, count: t.row_count }) }} <b>{{ t.from_date }}</b>
+                {{ $t('— likely on') }} <b><MachineIdLink :code="t.suggested_vend_code" /></b>{{ $t(': :hits of :count lines fit that machine exactly, from', { hits: t.suggested_hits, count: t.row_count }) }} <b>{{ t.from_date }}</b>
               </template>
               <span v-else class="text-red-600">{{ $t('— no single machine fits its lines; bind it by hand') }}</span>
             </div>
@@ -214,7 +214,7 @@
             <div>
               <span class="font-mono">{{ t.terminal_id }}</span> <span class="text-amber-600">({{ $t(':count rows', { count: t.row_count }) }})</span>
               <template v-if="t.suggested_vend_code">
-                {{ $t('— likely on') }} <b>{{ t.suggested_vend_code }}</b>{{ $t(': :hits of :count lines fit that machine exactly, from', { hits: t.suggested_hits, count: t.row_count }) }} <b>{{ t.from_date }}</b>
+                {{ $t('— likely on') }} <b><MachineIdLink :code="t.suggested_vend_code" /></b>{{ $t(': :hits of :count lines fit that machine exactly, from', { hits: t.suggested_hits, count: t.row_count }) }} <b>{{ t.from_date }}</b>
               </template>
               <span v-else class="text-amber-600">{{ $t('— no single machine fits its lines; bind it by hand') }}</span>
             </div>
@@ -257,8 +257,8 @@
             />
             <span v-else class="mt-1 inline-block w-4" :title="$t('Only one line fits — not enough evidence to move the terminal automatically')"></span>
             <div>
-            <span class="font-mono">{{ s.terminal_id }}</span> {{ $t('is bound to') }} <b>{{ s.bound_vend_code }}</b>{{ $t(', but its sales are on') }}
-            <b>{{ s.suggested_vend_code }}</b> — {{ $t(':hits of :count unmatched lines fit that machine exactly, from', { hits: s.suggested_hits, count: s.row_count }) }}
+            <span class="font-mono">{{ s.terminal_id }}</span> {{ $t('is bound to') }} <b><MachineIdLink :code="s.bound_vend_code" /></b>{{ $t(', but its sales are on') }}
+            <b><MachineIdLink :code="s.suggested_vend_code" /></b> — {{ $t(':hits of :count unmatched lines fit that machine exactly, from', { hits: s.suggested_hits, count: s.row_count }) }}
             <b>{{ s.from_date }}</b>.<span v-if="s.weak" class="ml-1 text-orange-600">{{ $t('One line is a coincidence, not a move — bind by hand if you know it moved.') }}</span>
             <!-- Impact across EVERY report from that date, counted before the
                  move: what it recovers vs what it would knock back to a query. -->
@@ -346,14 +346,7 @@
                         {{ row.terminal_id }}
                       </TableData>
                       <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
-                        <a
-                          v-if="row.vend_code"
-                          class="text-blue-700 hover:underline"
-                          target="_blank"
-                          :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'"
-                        >
-                          {{ row.vend_code }}
-                        </a>
+                        <MachineIdLink v-if="row.vend_code" :code="row.vend_code" />
                         <span v-else class="text-gray-400">—</span>
                       </TableData>
                       <TableData :currentIndex="rowIndex" :totalLength="rows.length" inputClass="text-center">
@@ -485,6 +478,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Paginator from '@/Components/Paginator.vue';
 import { ArrowDownTrayIcon, ArrowPathIcon, ArrowUturnLeftIcon, CheckCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';

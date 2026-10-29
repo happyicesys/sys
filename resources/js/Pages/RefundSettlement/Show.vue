@@ -5,6 +5,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { LockClosedIcon, LockOpenIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
 import DatePicker from '@/Components/DatePicker.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import moment from 'moment';
 
 const props = defineProps({
@@ -218,7 +219,7 @@ function actionBadge(l) {
                             <input type="checkbox" :disabled="!doneEligible(t)" :checked="selected.includes(t.id)" @change="toggleRow(t.id)" />
                         </td>
                         <td class="px-4 py-2"><a :href="'/refunds/' + t.id" target="_blank" class="text-teal-700 font-semibold hover:underline">{{ t.reference }}</a></td>
-                        <td class="px-4 py-2">{{ t.vend_code }}<div class="text-xs text-gray-500">{{ t.site_name || '—' }}</div></td>
+                        <td class="px-4 py-2"><MachineIdLink :code="t.vend_code" /><div class="text-xs text-gray-500">{{ t.site_name || '—' }}</div></td>
                         <td class="px-4 py-2 text-center">${{ t.amount }}</td>
                         <td class="px-4 py-2 text-center">
                             <span>{{ t.payout_destination }}</span>
@@ -268,7 +269,7 @@ function actionBadge(l) {
                             <input type="checkbox" :disabled="!doneEligible(t)" :checked="selected.includes(t.id)" @change="toggleRow(t.id)" />
                         </td>
                         <td class="px-4 py-2"><a :href="'/refunds/' + t.id" target="_blank" class="text-teal-700 font-semibold hover:underline">{{ t.reference }}</a></td>
-                        <td class="px-4 py-2">{{ t.vend_code }}<div class="text-xs text-gray-500">{{ t.site_name || '—' }}</div></td>
+                        <td class="px-4 py-2"><MachineIdLink :code="t.vend_code" /><div class="text-xs text-gray-500">{{ t.site_name || '—' }}</div></td>
                         <td class="px-4 py-2 text-center">${{ t.amount }}</td>
                         <td class="px-4 py-2 text-center">{{ t.payout_destination }}</td>
                         <td v-if="showStatus" class="px-4 py-2 text-center">

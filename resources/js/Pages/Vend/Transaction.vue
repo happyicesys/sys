@@ -820,7 +820,7 @@
                             {{ vendTransaction.transaction_datetime }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vend_code }}
+                            <MachineIdLink :code="vendTransaction.vend_code" />
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.vend_prefix_name }}
@@ -1289,6 +1289,7 @@
 <script setup>
 import { t } from '@/i18n';
 import HappyHourBadge from '@/Components/HappyHourBadge.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';

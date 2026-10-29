@@ -160,7 +160,7 @@
                       </div>
                     </TableData>
                     <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
-                      {{ refNumber.current_vend_code ?? '' }}
+                      <MachineIdLink :code="refNumber.current_vend_code ?? ''" />
                     </TableData>
                     <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
                       {{ refNumber.vend_prefix ?? '' }}
@@ -207,6 +207,7 @@
 import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import OperatorFilter from '@/Components/OperatorFilter.vue';

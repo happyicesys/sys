@@ -111,11 +111,7 @@
                         <span class="text-xs min-w-0">
                           <span class="mr-1 inline-flex min-w-[1.25rem] justify-center rounded bg-gray-700 px-1 text-[11px] font-bold leading-4 text-white">{{ gIndex + 1 }}</span>
                           <!-- The machine on the Operation Dashboard, in a new tab. -->
-                          <a
-                            :href="'/vends/customers?codes=' + encodeURIComponent(g.code) + '&autoload=true'"
-                            target="_blank"
-                            class="font-bold text-blue-700 hover:underline"
-                          >{{ g.code }}</a>
+                          <MachineIdLink :code="g.code" class="font-bold" />
                           <!-- The Site in the Site editor, in a new tab (Brian, 2026-10-15). -->
                           <a
                             v-if="g.site && g.customerId"
@@ -215,7 +211,7 @@
                     <!-- Picked by name in another campaign: that one wins while it is in force. -->
                     <div v-for="o in c.overridden" :key="o.code" class="text-xs text-gray-500 mb-1 whitespace-nowrap"
                       v-tooltip="$t('Picked by name in “:campaign”, which takes priority over this campaign\'s group while it is on', { campaign: o.by })">
-                      <span class="line-through">{{ o.code }}</span> → {{ o.by }}
+                      <span class="line-through"><MachineIdLink :code="o.code" /></span> → {{ o.by }}
                     </div>
                     <div class="flex flex-wrap justify-center gap-1">
                       <button v-for="v in shownVends(c)" :key="v.id" type="button" @click="openPreview(c, v)"
@@ -559,6 +555,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import CampaignStatsCharts from '@/Components/HappyHour/CampaignStatsCharts.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import TableHead from '@/Components/TableHead.vue';

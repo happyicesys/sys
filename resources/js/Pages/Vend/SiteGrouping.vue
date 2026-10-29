@@ -78,7 +78,7 @@
               <li v-for="site in group.members" :key="site.id"
                 class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 pl-2 pr-1 py-1 text-xs text-gray-700">
                 <span>
-                  <span v-if="site.machine_id" class="text-gray-500">(#{{ site.machine_id }}) - {{ site.site_id }}</span>
+                  <span v-if="site.machine_id" class="text-gray-500">(#<MachineIdLink :code="site.machine_id" />) - {{ site.site_id }}</span>
                   <span v-else class="text-gray-500">{{ site.site_id }}</span>
                   <span class="font-medium ml-1">{{ site.name }}</span>
                   <span v-if="site.status_name && site.status_name !== 'Active'"
@@ -160,6 +160,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { PencilSquareIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import { ref, reactive, computed } from 'vue';
 import axios from 'axios';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import { t } from '@/i18n';
 
 const props = defineProps({

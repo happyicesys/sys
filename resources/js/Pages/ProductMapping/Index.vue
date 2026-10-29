@@ -458,11 +458,7 @@
                               <span>
                                 {{ vendIndex + 1 }}.
                               </span>
-                              <a :href="'/vends/customers?codes=' + vendCodeLabel(vend)" target="_blank" class="text-blue-700">
-                                <span>
-                                  {{ vendCodeLabel(vend) }}
-                                </span>
-                              </a>
+                              <MachineIdLink :code="vendCodeLabel(vend)" />
 
                               <span v-if="vend.customer && vend.customer.person_id">
                                   <span v-if="permissions.includes('admin-access vends')">
@@ -972,9 +968,7 @@
                 <tr v-for="(vend, index) in upcomingVends" :key="vend.id">
                   <td class="px-2 py-2 align-top text-xs text-gray-500">{{ index + 1 }}.</td>
                   <td class="px-2 py-2 align-top text-xs whitespace-nowrap">
-                    <a :href="'/vends/customers?codes=' + vendCodeLabel(vend)" target="_blank" class="text-blue-700">
-                      {{ vendCodeLabel(vend) }}
-                    </a>
+                    <MachineIdLink :code="vendCodeLabel(vend)" />
                     <span class="text-gray-500" v-if="vend.vend_prefix_name">
                       ({{ vend.vend_prefix_name }})
                     </span>
@@ -1071,6 +1065,7 @@ import { useToast } from "vue-toastification";
 import { t } from '@/i18n';
 import moment from 'moment';
 import { vendCodeLabel } from '@/utils/vendCode';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 
 const props = defineProps({
   cmsEndpoint: String,

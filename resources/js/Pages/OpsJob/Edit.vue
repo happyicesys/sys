@@ -538,11 +538,7 @@
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <div class="flex flex-col space-y-2 max-w-24">
-                              <Link :href="'/vends/customers?codes=' + vendCodeLabel(row.vend)" class="text-blue-700" v-if="row && row.vend">
-                                <span>
-                                  {{ vendCodeLabel(row.vend) }}
-                                </span>
-                              </Link>
+                              <MachineIdLink :code="vendCodeLabel(row.vend)" v-if="row && row.vend" />
                               <span>
                                 {{ row.vend && row.vend.vendPrefix ? row.vend.vendPrefix.name : '' }}
                               </span>
@@ -1315,6 +1311,7 @@
 <script setup>
 import { t } from '@/i18n';
 import { vendCodeLabel } from '@/utils/vendCode'
+import MachineIdLink from '@/Components/MachineIdLink.vue'
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import CityboxOpenDoorButton from '@/Components/CityboxOpenDoorButton.vue';

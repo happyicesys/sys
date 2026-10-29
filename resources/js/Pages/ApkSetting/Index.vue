@@ -161,11 +161,7 @@
                               <span>
                                 {{ vendIndex + 1 }}.
                               </span>
-                              <a :href="'/vends/customers?codes=' + vend.code" target="_blank" class="text-blue-700">
-                                <span>
-                                  {{ vendCodeLabel(vend) }}
-                                </span>
-                              </a>
+                              <MachineIdLink :vend="vend" />
 
                               <span v-if="vend.customer && vend.customer.person_id">
                                   <span v-if="permissions.includes('admin-access vends')">
@@ -250,6 +246,7 @@
 import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';

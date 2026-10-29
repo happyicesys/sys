@@ -174,15 +174,11 @@
                            and its filters survive the click. -->
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
                         <div v-if="machineCodes(simcard).length" class="flex flex-col items-center space-y-1">
-                          <a
+                          <MachineIdLink
                             v-for="machine in machineCodes(simcard)"
                             :key="machine.id"
-                            class="text-blue-700 hover:underline"
-                            target="_blank"
-                            :href="'/vends/customers?codes=' + machine.code + '&autoload=true'"
-                          >
-                            {{ machine.code }}
-                          </a>
+                            :code="machine.code"
+                          />
                         </div>
                         <span v-else class="text-gray-400">—</span>
                       </TableData>
@@ -345,6 +341,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { vendCodeLabel } from '@/utils/vendCode';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/Simcard/Form.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';

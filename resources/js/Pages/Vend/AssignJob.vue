@@ -19,7 +19,7 @@
             <span v-for="(vend, vendIndex) in vends" class="flex flex-col space-y-1">
               <span>
                 <span class="text-blue-700">
-                  {{ vendCodeLabel(vend) }}
+                  <MachineIdLink :code="vendCodeLabel(vend)" />
                 </span>
                 -
                 <span v-if="vend.person_id">
@@ -88,6 +88,7 @@ import { router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { t } from '@/i18n';
 import { vendCodeLabel } from '@/utils/vendCode';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 const props = defineProps({
   driverOptions: [Array, Object],
   vends: Object,

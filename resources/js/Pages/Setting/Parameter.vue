@@ -4,7 +4,7 @@
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
         {{ $t('Editing Machine Parameters') }}
-        {{ vendCodeLabel(vend) }}
+        <MachineIdLink :vend="vend" />
       </h2>
     </template>
 
@@ -542,6 +542,7 @@
 <script setup>
 import { t } from '@/i18n';
 import AttachmentList from '@/Components/AttachmentList.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';

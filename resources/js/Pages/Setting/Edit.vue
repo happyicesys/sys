@@ -4,7 +4,7 @@
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
         {{ $t('Editing Machine') }}
-        {{ vendCodeLabel(vend) }}
+        <MachineIdLink :vend="vend" />
       </h2>
     </template>
 
@@ -1952,6 +1952,7 @@
 <script setup>
   import { vendCodeLabel } from '@/utils/vendCode'
 import AttachmentList from '@/Components/AttachmentList.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import FloatingActionBar from '@/Components/FloatingActionBar.vue';

@@ -156,6 +156,10 @@ class UserMachineAccessLevelsTest extends TestCase
         $this->actingAs($this->admin(['read users']))->get("/users/{$owner->id}/edit")
             ->assertInertia(fn (Assert $page) => $page
                 ->where('machineVisibility.0.prefix', 'C-CEP2')
+                // The Site column links to /customers/{site_id}/edit.
+                ->where('machineVisibility.0.site_id', $site)
+                // MachineIdLink sends an unrestricted viewer to the full Dashboard.
+                ->where('auth.productRestricted', false)
                 // The Site's begin date is NOT the SKU's start; no refill loaded it yet.
                 ->where('machineVisibility.0.sku_start_date', null)
                 ->where('machineVisibility.0.machine_l30d', ['amount' => 12345, 'count' => 67])
@@ -171,7 +175,9 @@ class UserMachineAccessLevelsTest extends TestCase
         $this->actingAs($limitedEditor)->get("/users/{$owner->id}/edit")
             ->assertInertia(fn (Assert $page) => $page
                 ->where('machineVisibility.0.machine_l30d', null)
-                ->where('machineVisibility.0.sku_l30d', ['amount' => 300, 'count' => 2]));
+                ->where('machineVisibility.0.sku_l30d', ['amount' => 300, 'count' => 2])
+                // …and its Machine ID links go to Dashboard (Lite): the full one 403s it.
+                ->where('auth.productRestricted', true));
     }
 
     public function test_a_hidden_machine_that_stopped_carrying_stays_listed_to_switch_back(): void

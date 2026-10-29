@@ -19,7 +19,7 @@
       <div class="flex flex-col space-y-2 max-w-24 items-center">
         <span class="inline-flex items-center justify-center rounded px-2 py-0.5 text-xs font-bold w-fit" :class="type.badgeClass">{{ $t(type.badge) }}</span>
         <Link :href="editUrl" class="underline break-words" :class="type.textClass">{{ row.display_code }}</Link>
-        <span class="text-gray-800">{{ row.vend_code }}</span>
+        <span class="text-gray-800"><MachineIdLink :code="row.vend_code" /></span>
       </div>
     </td>
 
@@ -85,6 +85,7 @@
 import Button from '@/Components/Button.vue'
 import { PencilSquareIcon } from '@heroicons/vue/20/solid'
 import { Link } from '@inertiajs/vue3'
+import MachineIdLink from '@/Components/MachineIdLink.vue'
 import { computed } from 'vue'
 import { STOP_TYPES, stopStatusClass } from './stopTypes'
 

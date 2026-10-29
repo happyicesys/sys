@@ -4,7 +4,7 @@
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
         {{ $t('Advance Control for Machine ID#') }}
-        {{ vendCodeLabel(vend) }}
+        <MachineIdLink :code="vendCodeLabel(vend)" />
       </h2>
     </template>
 
@@ -717,6 +717,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 const VendLogModal = defineAsyncComponent(() => import('@/Components/VendLogModal.vue'));
 import { fromPairs } from 'lodash';
 import { vendCodeLabel } from '@/utils/vendCode';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import { useToast } from "vue-toastification";
 import { t } from '@/i18n';
 

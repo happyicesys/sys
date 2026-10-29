@@ -7,7 +7,7 @@
             {{ $t('Editing') }}
           </span>
           <span v-if="vend">
-            {{ vendCodeLabel(vend) }}
+            <MachineIdLink :code="vendCodeLabel(vend)" />
           </span>
         </div>
       </template>
@@ -238,6 +238,7 @@ import { router, useForm } from '@inertiajs/vue3';
 import moment from 'moment';
 import { ref, onMounted } from 'vue'
 import { vendCodeLabel } from '@/utils/vendCode';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import { useToast } from "vue-toastification";
 import { t } from '@/i18n';
 

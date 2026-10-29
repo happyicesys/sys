@@ -484,7 +484,7 @@
                                   {{ deliveryProductMappingVendIndex + 1 }}
                                 </TableData>
                                 <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.data.length" inputClass="text-left">
-                                  {{ vendCodeLabel(deliveryProductMappingVend.vend) }}
+                                  <MachineIdLink :vend="deliveryProductMappingVend.vend" />
                                   <br>
                                   <span v-if="deliveryProductMappingVend.vend.vendPrefix">
                                     {{ deliveryProductMappingVend.vend.vendPrefix.name }}
@@ -558,6 +558,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import DatetimePicker from '@/Components/DatetimePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -568,7 +569,6 @@ import { computed, ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { t } from '@/i18n';
-import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
     deliveryPlatformCampaign: Object,

@@ -262,7 +262,7 @@
                         {{ vends.meta.from + vendIndex }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vendCodeLabel(vend) }}
+                        <MachineIdLink :vend="vend" />
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                         <span v-if="vend.customer_code || vend.customer_name">
@@ -333,7 +333,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import { vendCodeLabel } from '@/utils/vendCode';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Button from '@/Components/Button.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';

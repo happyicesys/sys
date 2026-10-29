@@ -7,7 +7,7 @@
             {{ $t('Channel Overview') }}
           </span>
           <span v-if="vend.code">
-            ID# {{ vendCodeLabel(vend) }}
+            ID# <MachineIdLink :code="vendCodeLabel(vend)" />
           </span>
           <span v-if="vend.customer_code">
             ({{ vend.customer_code ? vend.customer_code : null }})
@@ -270,6 +270,7 @@ import ErrorList from '@/Pages/Vend/ErrorList.vue';
 import { onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { vendCodeLabel } from '@/utils/vendCode';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 
 const props = defineProps({
   productOptions: Object,

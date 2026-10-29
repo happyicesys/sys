@@ -264,9 +264,7 @@
                               </td>
                               <td class="whitespace-pre-line py-2 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 <div class="flex flex-col space-y-2 max-w-24">
-                                  <Link :href="'/vends/customers?codes=' + opsJobItem.vend?.code" class="text-blue-700">
-                                    <span> {{ vendCodeLabel(opsJobItem.vend) }} </span>
-                                  </Link>
+                                  <MachineIdLink :code="vendCodeLabel(opsJobItem.vend)" />
                                   <div>
                                     <Link :href="'/ops-jobs/items/' + opsJobItem.id + '/edit'">
                                       <Button
@@ -363,6 +361,7 @@ import { ref, computed, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { vendCodeLabel } from '@/utils/vendCode';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import { t } from '@/i18n';
 
 const filters = ref({

@@ -31,8 +31,8 @@ class UserMachineVisibility
      * Prefix, Machine L30d sales, SKU start date, SKU L30d sales) unless $withFigures is
      * false — the visibility POST checks membership with the bare list.
      *
-     * @return array<int, array{id: int, code: string, prefix: ?string, site: ?string, sku_start_date: ?string, sku_start_dates: array<string, string>, products: array<int, string>, is_active: bool, is_shown: bool, carries: bool, machine_l30d: ?array{amount: int, count: int}, sku_l30d: ?array{amount: int, count: int}}>|null
-     *                                                                                                                                                                                                                                                                                                                                null when the user is not limited to a product list
+     * @return array<int, array{id: int, code: string, prefix: ?string, site: ?string, site_id: ?int, sku_start_date: ?string, sku_start_dates: array<string, string>, products: array<int, string>, is_active: bool, is_shown: bool, carries: bool, machine_l30d: ?array{amount: int, count: int}, sku_l30d: ?array{amount: int, count: int}}>|null
+     *                                                                                                                                                                                                                                                                                                                                               null when the user is not limited to a product list
      */
     public function listFor(User $user, bool $withFigures = true): ?array
     {
@@ -65,7 +65,7 @@ class UserMachineVisibility
                 ->where(fn ($q) => $q->whereIn('vends.id', $carrying->keys()->all() ?: [0])->where('vends.is_active', true))
                 ->orWhereIn('vends.id', $hidden ?: [0]))
             ->selectRaw(VendCode::sqlLabel().' as code_label')
-            ->addSelect('vends.id', 'vends.code', 'vends.is_active', 'customers.name as site_name')
+            ->addSelect('vends.id', 'vends.code', 'vends.is_active', 'vends.customer_id', 'customers.name as site_name')
             ->addSelect('vend_prefixes.name as prefix_name', 'vends.vend_transaction_totals_json');
 
         // The machines this user could see at all: their own operator's, or every
@@ -88,6 +88,8 @@ class UserMachineVisibility
                 // vend_prefixes.name, as Sales Transactions and Warehouse Qty show it.
                 'prefix' => $vend->prefix_name,
                 'site' => $vend->site_name,
+                // The Site column links to that Site's edit page.
+                'site_id' => $vend->customer_id ? (int) $vend->customer_id : null,
                 // When each of their products went into this machine (skuStartDates);
                 // the earliest one sorts the column.
                 'sku_start_dates' => $skuStarts[(int) $vend->id] ?? [],

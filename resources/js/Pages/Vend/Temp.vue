@@ -11,7 +11,7 @@
                       {{ $t('Machine ID') }}
                   </h2>
                   <h2 class="font-semibold text-xl md:text-2xl text-gray-900 leading-tight">
-                      {{ vendCodeLabel(vend) }}
+                      <MachineIdLink :code="vendCodeLabel(vend)" />
                   </h2>
                   <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
                       {{ $t('Temperature') }}
@@ -45,7 +45,7 @@
                   <span v-if="vend.vend_prefix_name">
                       {{ vend.vend_prefix_name }}-
                   </span>
-                  {{ vendCodeLabel(vend) }}
+                  <MachineIdLink :code="vendCodeLabel(vend)" />
               </h2>
               <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.customer_id && vend.customer_name">
                    {{ vend.customer_id + 20000 }} - {{ vend.customer_name }}
@@ -272,6 +272,7 @@ import { Head, router, usePage, usePoll } from '@inertiajs/vue3';
 import moment from 'moment';
 import { useToast } from "vue-toastification";
 import { vendCodeLabel } from '@/utils/vendCode';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import { t } from '@/i18n';
 
 const toast = useToast();

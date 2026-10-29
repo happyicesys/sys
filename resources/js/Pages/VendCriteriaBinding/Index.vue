@@ -191,7 +191,7 @@
                         {{ vendCriteriaBindings.meta.from + vendCriteriaBindingIndex }}
                       </TableData>
                       <TableData :currentIndex="vendCriteriaBindingIndex" :totalLength="vendCriteriaBindings.length" inputClass="text-center">
-                        {{ vendCriteriaBinding.code }}
+                        <MachineIdLink :code="vendCriteriaBinding.code" />
                       </TableData>
                       <TableData :currentIndex="vendCriteriaBindingIndex" :totalLength="vendCriteriaBindings.length" inputClass="text-left">
                         {{ vendCriteriaBinding.full_name }}
@@ -246,6 +246,7 @@
 import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';

@@ -159,16 +159,16 @@
                               {{ deliveryProductMappingVendIndex + 1 }}.
                             </span>
                             <span v-if="deliveryProductMappingVend.vend.customer && deliveryProductMappingVend.vend.customer.person_id">
-                              {{ vendCodeLabel(deliveryProductMappingVend.vend) }} <br>
+                              <MachineIdLink :vend="deliveryProductMappingVend.vend" /> <br>
                               ({{ deliveryProductMappingVend.vend.customer.id + 20000 }})
                               <!-- ({{ deliveryProductMappingVend.vend.customer.virtual_customer_prefix }}) -  -->
                               {{ deliveryProductMappingVend.vend.customer.name }}
                             </span>
                             <span v-else-if="deliveryProductMappingVend.vend.customer && !deliveryProductMappingVend.vend.customer.person_id">
-                              {{ vendCodeLabel(deliveryProductMappingVend.vend) }} - {{ deliveryProductMappingVend.vend.customer.name }}
+                              <MachineIdLink :vend="deliveryProductMappingVend.vend" /> - {{ deliveryProductMappingVend.vend.customer.name }}
                             </span>
                             <span v-else>
-                              {{ vendCodeLabel(deliveryProductMappingVend.vend) }}
+                              <MachineIdLink :vend="deliveryProductMappingVend.vend" />
                             </span>
                           </li>
                         </ul>
@@ -224,6 +224,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -235,7 +236,6 @@ import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { t } from '@/i18n';
-import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   deliveryProductMappings: Object,

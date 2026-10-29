@@ -132,7 +132,8 @@
                   :key="column.key"
                   :class="columnIndex === 0 ? 'font-semibold' : ''"
                 >
-                  {{ cellValue(row, column) }}
+                  <MachineIdLink v-if="column.machineId" :code="cellValue(row, column)" />
+                  <template v-else>{{ cellValue(row, column) }}</template>
                 </td>
                 <td class="whitespace-nowrap px-3 py-3 text-sm text-center">
                   <Button
@@ -162,6 +163,7 @@
 import { computed, ref } from 'vue'
 import { BackspaceIcon, PlusCircleIcon } from '@heroicons/vue/20/solid'
 import Button from '@/Components/Button.vue'
+import MachineIdLink from '@/Components/MachineIdLink.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import { t, tk } from '@/i18n'
 
@@ -171,7 +173,8 @@ const MODE_LIST = 'list'
 const props = defineProps({
   title: { type: String, required: true },
   addLabel: { type: String, required: true },
-  // [{ key: 'code', label: 'Product Code' }, ...]; key may be dotted ('customer.name')
+  // [{ key: 'code', label: 'Product Code' }, ...]; key may be dotted ('customer.name');
+  // machineId: true renders that cell as a MachineIdLink
   columns: { type: Array, required: true },
   // currently bound rows (array of objects)
   modelValue: { type: Array, default: () => [] },

@@ -1104,15 +1104,11 @@
                              removed site; older rows are frozen, and a Removed
                              site drops the link entirely (the code may now belong
                              to another site). -->
-                        <a
+                        <MachineIdLink
                           v-if="row.is_latest_row && !isRemovedSite(row)"
-                          target="_blank"
-                          :href="'/vends/customers?codes=' + encodeURIComponent(row.machine_vend.code)"
-                          class="text-blue-700 hover:underline"
+                          :code="row.machine_vend.code"
                           v-tooltip="$t('Open this machine in the Ops Dashboard')"
-                        >
-                          {{ row.machine_vend.code }}
-                        </a>
+                        />
                         <span v-else class="text-gray-900" v-tooltip="$t('Machine attached during this period (frozen)')">{{ row.machine_vend.code }}</span>
                         <span
                           v-if="row.is_new_machine"
@@ -1124,29 +1120,21 @@
                     <template v-else-if="row.customer?.vends && row.customer.vends.length > 1">
                       <div class="flex flex-col items-center space-y-0.5">
                         <template v-for="v in row.customer.vends" :key="v.id">
-                          <a
+                          <MachineIdLink
                             v-if="!isRemovedSite(row)"
-                            target="_blank"
-                            :href="'/vends/customers?codes=' + encodeURIComponent(v.code)"
-                            class="text-blue-700 hover:underline"
+                            :code="v.code"
                             v-tooltip="$t('Open this machine in the Ops Dashboard')"
-                          >
-                            {{ v.code }}
-                          </a>
+                          />
                           <span v-else class="text-gray-900">{{ v.code }}</span>
                         </template>
                       </div>
                     </template>
                     <template v-else>
-                      <a
+                      <MachineIdLink
                         v-if="row.customer?.vend?.id && !isRemovedSite(row)"
-                        target="_blank"
-                        :href="'/vends/customers?codes=' + encodeURIComponent(row.customer.vend.code)"
-                        class="text-blue-700 hover:underline"
+                        :code="row.customer.vend.code"
                         v-tooltip="$t('Open this machine in the Ops Dashboard')"
-                      >
-                        {{ row.customer.vend.code }}
-                      </a>
+                      />
                       <span v-else-if="row.customer?.vend">{{ row.customer.vend.code }}</span>
                     </template>
                   </TableData>
@@ -2635,7 +2623,7 @@
                   :class="b.is_binding ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-700 border-red-300'"
                 >{{ b.is_binding ? $t('Bound') : $t('Unbound') }}</span>
               </td>
-              <td class="py-1 pr-3 font-medium">{{ b.vend_code || '—' }}</td>
+              <td class="py-1 pr-3 font-medium"><MachineIdLink v-if="b.vend_code" :code="b.vend_code" /><template v-else>—</template></td>
               <td class="py-1 pr-3">{{ b.vend_prefix || '—' }}</td>
               <td class="py-1 text-gray-600">{{ b.user || '—' }}</td>
             </tr>
@@ -3037,6 +3025,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import MapMarker from '@/Components/MapMarker.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Modal from '@/Components/Modal.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';

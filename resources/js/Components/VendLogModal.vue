@@ -7,7 +7,7 @@
             {{ $t('Machine Log') }}
           </span>
           <span class="text-base font-semibold text-gray-900" v-if="displayTitle">
-            {{ displayTitle }}
+            <MachineIdLink v-if="vendCode" :code="vendCode" /> {{ vendName }}
           </span>
         </div>
       </template>
@@ -77,6 +77,7 @@
 import { computed, ref, watch } from 'vue'
 import moment from 'moment'
 import Modal from '@/Components/Modal.vue'
+import MachineIdLink from '@/Components/MachineIdLink.vue'
 import Button from '@/Components/Button.vue'
 import { vendCodeLabel } from '@/utils/vendCode';
 import { t } from '@/i18n';

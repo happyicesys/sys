@@ -12,6 +12,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { computed, reactive } from 'vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 // `t` below is the totals computed, so the translator is imported as `tr`.
 import { t as tr, tk } from '@/i18n';
 
@@ -94,7 +95,6 @@ const money = (cents) => (cents === null || cents === undefined) ? '' : moneyFor
 const pct = (part, whole) => whole ? (part * 100 / whole).toFixed(1) + '%' : '—';
 
 const railLabel = { card: tk('Card'), qr: 'QR', cash: tk('Cash'), other: tk('Other') };
-const opsDashboardUrl = (code) => code ? ('/vends/customers?codes=' + encodeURIComponent(code)) : null;
 const txnUrl = (r) => '/vends/transactions?' + new URLSearchParams({
     order_id: r.order_id || '', codes: r.vend_code || '', date_from: r.txn_date || '', date_to: r.txn_date || '',
 }).toString();
@@ -241,7 +241,7 @@ const cashlessTxnCents = computed(() => t.value.txn.card.cents + t.value.txn.qr.
                             <div class="text-gray-600">{{ r.transaction_datetime }}</div>
                         </td>
                         <td class="max-w-[150px]">
-                            <a v-if="r.vend_code" :href="opsDashboardUrl(r.vend_code)" target="_blank" class="font-medium text-teal-700 hover:underline">{{ r.vend_code }}</a>
+                            <MachineIdLink v-if="r.vend_code" :code="r.vend_code" class="font-medium" />
                             <span class="ml-1 text-gray-400">{{ r.operator_code }}</span>
                             <div class="text-gray-600 break-words">{{ r.customer_code }} {{ r.customer_name }}</div>
                         </td>

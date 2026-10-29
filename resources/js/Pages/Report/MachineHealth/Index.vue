@@ -7,6 +7,7 @@ import MultiSelect from '@/Components/MultiSelect.vue'
 import SearchInput from '@/Components/SearchInput.vue'
 import { CheckCircleIcon } from '@heroicons/vue/24/solid'
 import { ClockIcon } from '@heroicons/vue/24/outline'
+import MachineIdLink from '@/Components/MachineIdLink.vue'
 import Modal from '@/Components/Modal.vue'
 import { COIN_FLOAT_LOW_THRESHOLD } from '@/constants/vendThresholds'
 import { t, tk } from '@/i18n'
@@ -926,13 +927,7 @@ const loadMoreHistory = () => {
                         class="rounded border border-gray-200 bg-white p-3 shadow-sm"
                       >
                         <div class="font-medium text-gray-900">
-                          <a
-                            :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'"
-                            target="_blank"
-                            class="text-indigo-600 hover:text-indigo-900 hover:underline"
-                          >
-                            {{ row.vend_code }}
-                          </a>
+                          <MachineIdLink :code="row.vend_code" />
                            · {{ (row.hours_offline).toFixed(2) }}
                         </div>
                         <div class="mt-1 text-xs text-gray-500 grid gap-0.5">
@@ -1045,9 +1040,7 @@ const loadMoreHistory = () => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                        {{ row.vend_code }}
-                      </a>
+                      <MachineIdLink :code="row.vend_code" />
                        (Δ {{ formatNumber(row.delta, 1) }}°C)
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1087,9 +1080,7 @@ const loadMoreHistory = () => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                        {{ row.vend_code }}
-                      </a>
+                      <MachineIdLink :code="row.vend_code" />
                        · {{ row.worst_min_temp }}°C
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1129,9 +1120,7 @@ const loadMoreHistory = () => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                        {{ row.vend_code }}
-                      </a>
+                      <MachineIdLink :code="row.vend_code" />
                        · {{ row.min_value }}°C
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1194,10 +1183,7 @@ const loadMoreHistory = () => {
                                 <template v-if="group.cells[sev] && group.cells[sev].length">
                                     <div v-for="row in group.cells[sev]" :key="row.vend_id" class="text-sm border border-gray-100 p-2 rounded bg-gray-50/50 mb-2 last:mb-0">
                                         <div class="font-medium text-gray-900 mb-1">
-                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank"
-                                             class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                                            {{ row.vend_code }}
-                                          </a>
+                                          <MachineIdLink :code="row.vend_code" />
                                           <span class="text-xs text-gray-500 ml-1" v-if="row.meta_duration">
                                               ({{ !Number.isNaN(Number(row.meta_duration)) ? (Math.abs(Number(row.meta_duration)) < 1 ? Math.round(Math.abs(Number(row.meta_duration)) * 60) + ' min' : formatNumber(Math.abs(Number(row.meta_duration)), 2) + ' hr') : row.meta_duration }})
                                           </span>
@@ -1292,10 +1278,7 @@ const loadMoreHistory = () => {
                                 <template v-if="group.cells[sev] && group.cells[sev].length">
                                     <div v-for="row in group.cells[sev]" :key="row.vend_id" class="text-sm border border-gray-100 p-2 rounded bg-gray-50/50 mb-2 last:mb-0">
                                       <div class="font-medium text-gray-900 mb-1">
-                                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank"
-                                             class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                                            {{ row.vend_code }}
-                                          </a>
+                                          <MachineIdLink :code="row.vend_code" />
                                           <span class="text-xs text-gray-500 ml-1" v-if="row.meta_duration">
                                               ({{ !Number.isNaN(Number(row.meta_duration)) ? (Math.abs(Number(row.meta_duration)) < 1 ? Math.round(Math.abs(Number(row.meta_duration)) * 60) + ' min' : formatNumber(Math.abs(Number(row.meta_duration)), 2) + ' hr') : row.meta_duration }})
                                           </span>
@@ -1466,9 +1449,7 @@ const loadMoreHistory = () => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                        {{ row.vend_code }}
-                      </a>
+                      <MachineIdLink :code="row.vend_code" />
                        · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1513,9 +1494,7 @@ const loadMoreHistory = () => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                        {{ row.vend_code }}
-                      </a>
+                      <MachineIdLink :code="row.vend_code" />
                        · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1574,9 +1553,7 @@ const loadMoreHistory = () => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                        {{ row.vend_code }}
-                      </a>
+                      <MachineIdLink :code="row.vend_code" />
                        · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1634,9 +1611,7 @@ const loadMoreHistory = () => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                        {{ row.vend_code }}
-                      </a>
+                      <MachineIdLink :code="row.vend_code" />
                        · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1682,9 +1657,7 @@ const loadMoreHistory = () => {
                     class="rounded border border-gray-100 p-3"
                   >
                     <div class="font-medium text-gray-900">
-                      <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                        {{ row.vend_code }}
-                      </a>
+                      <MachineIdLink :code="row.vend_code" />
                        · {{ formatHours(row.hours_since) }}
                     </div>
                     <div class="text-xs text-gray-500">
@@ -1897,9 +1870,7 @@ const loadMoreHistory = () => {
                         <td class="px-4 py-2">
                           <div class="flex flex-col space-y-1">
                             <div class="font-medium text-gray-900">
-                              <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                                {{ row.vend_code }}
-                              </a>
+                              <MachineIdLink :code="row.vend_code" />
                             </div>
                             <div class="text-xs text-gray-700">
                               {{ row.vend_prefix_name ?? '—' }}
@@ -2080,9 +2051,7 @@ const loadMoreHistory = () => {
                     >
                       <td class="px-4 py-2">
                         <div class="font-medium text-gray-900">
-                          <a :href="'/vends/customers?codes=' + row.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                            {{ row.vend_code }}
-                          </a>
+                          <MachineIdLink :code="row.vend_code" />
                            · {{ row.channel_code ?? '—' }}
                         </div>
                         <div class="text-xs text-gray-500">
@@ -2161,9 +2130,7 @@ const loadMoreHistory = () => {
                   <tr v-for="log in historyLogs" :key="log.id">
                     <td class="px-4 py-2">
                         <div class="font-bold text-gray-900">
-                            <a :href="'/vends/customers?codes=' + log.vend_code + '&autoload=true'" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
-                                {{ log.vend_code }}
-                            </a>
+                            <MachineIdLink :code="log.vend_code" />
                             <span v-if="log.hours_offline !== null && log.hours_offline !== undefined">
                                 · {{ Number(log.hours_offline).toFixed(2) }} hr
                             </span>

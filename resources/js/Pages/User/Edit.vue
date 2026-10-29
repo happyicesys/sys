@@ -298,7 +298,7 @@ const user = ref()
 const productLimitedOnScreen = computed(() => form.value?.product_access_mode === 'list')
 
 const vendColumns = [
-  { key: 'code', label: t('Machine ID') },
+  { key: 'code', label: t('Machine ID'), machineId: true },
   { key: 'customer.name', label: t('Site') },
 ]
 const productColumns = [

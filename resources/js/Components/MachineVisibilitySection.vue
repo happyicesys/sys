@@ -66,12 +66,18 @@
                 <tr v-for="(row, rowIndex) in sortedRows" :key="row.id" :class="[rowIndex % 2 === 0 ? undefined : 'bg-gray-50', row.is_shown ? '' : 'text-gray-400']">
                   <td class="whitespace-nowrap px-3 py-3 text-sm text-center">{{ rowIndex + 1 }}</td>
                   <td class="whitespace-nowrap px-3 py-3 text-sm font-semibold" :class="row.is_shown ? 'text-gray-900' : ''">
-                    {{ row.code }}
+                    <MachineIdLink :code="row.code" />
                     <span v-if="!row.is_active" class="ml-1 rounded bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-600">{{ $t('Inactive') }}</span>
                   </td>
                   <td class="whitespace-nowrap px-3 py-3 text-sm">{{ row.prefix || '—' }}</td>
-                  <td class="px-3 py-3 text-sm">{{ row.site || '—' }}</td>
-                  <td class="whitespace-nowrap px-3 py-3 text-sm text-right tabular-nums">{{ salesText(row.machine_l30d) }}</td>
+                  <td class="px-3 py-3 text-sm">
+                    <a v-if="row.site && row.site_id" :href="'/customers/' + row.site_id + '/edit'" target="_blank" rel="noopener" class="text-blue-700 hover:underline">{{ row.site }}</a>
+                    <template v-else>{{ row.site || '—' }}</template>
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-3 text-sm text-right tabular-nums">
+                    <a v-if="row.machine_l30d" :href="l30dTransactionsUrl(row)" target="_blank" rel="noopener" class="text-blue-700 hover:underline">{{ salesText(row.machine_l30d) }}</a>
+                    <template v-else>{{ salesText(row.machine_l30d) }}</template>
+                  </td>
                   <td class="px-3 py-3 text-sm">
                     <template v-if="row.carries">{{ row.products.join(', ') }}</template>
                     <span v-else class="italic">{{ $t('No longer carries their products') }}</span>
@@ -121,7 +127,9 @@
 import { computed, ref, watch } from 'vue'
 import axios from 'axios'
 import { usePage } from '@inertiajs/vue3'
+import moment from 'moment'
 import { t, tk } from '@/i18n'
+import MachineIdLink from '@/Components/MachineIdLink.vue'
 
 const props = defineProps({
   userId: { type: [Number, String], required: true },
@@ -213,6 +221,16 @@ function salesText(figure) {
     maximumFractionDigits: operatorCountry?.is_currency_exponent_hidden ? 0 : exponent,
   })
   return `${symbol}${amount} (${figure.count.toLocaleString()})`
+}
+
+// The machine's sales over the same window as the L30d figure (ProductScopedSales:
+// today and the 29 days before). The trailing comma makes the code match exactly.
+function l30dTransactionsUrl(row) {
+  return '/vends/transactions?' + new URLSearchParams({
+    codes: row.code + ',',
+    date_from: moment().subtract(29, 'days').format('YYYY-MM-DD'),
+    date_to: moment().format('YYYY-MM-DD'),
+  }).toString()
 }
 
 async function setShown(row, show) {

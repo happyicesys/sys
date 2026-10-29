@@ -179,7 +179,7 @@
                               {{ vends.meta.from + vendIndex }}
                           </TableData>
                           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                              {{ vendCodeLabel(vend) }}
+                              <MachineIdLink :code="vendCodeLabel(vend)" />
                           </TableData>
                           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                               <div class="flex flex-col">
@@ -293,6 +293,7 @@ import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { vendCodeLabel } from '@/utils/vendCode';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import { t } from '@/i18n';
 
 const props = defineProps({

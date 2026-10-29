@@ -439,7 +439,7 @@
                                                     <td class="px-3 py-1 text-sm text-gray-600 align-top">
                                                         <div class="max-w-[220px] break-words">
                                                             <span class="block font-medium text-gray-700">
-                                                                {{ [vendCodeLabel(vend.vend), vend.vend?.name].filter(Boolean).join(' - ') }}
+                                                                <MachineIdLink :vend="vend.vend" />{{ vendCodeLabel(vend.vend) && vend.vend?.name ? ' - ' : '' }}{{ vend.vend?.name }}
                                                             </span>
                                                             <span class="block text-xs text-gray-500" v-if="vend.vend?.vendPrefix?.name">
                                                                 {{ vend.vend.vendPrefix.name }}
@@ -525,7 +525,7 @@
                                                     <td class="px-3 py-1 text-sm text-gray-600 align-top">
                                                         <div class="max-w-[220px] break-words">
                                                             <span class="block font-medium text-gray-700">
-                                                                {{ [vendCodeLabel(vend.vend), vend.vend?.name].filter(Boolean).join(' - ') }}
+                                                                <MachineIdLink :vend="vend.vend" />{{ vendCodeLabel(vend.vend) && vend.vend?.name ? ' - ' : '' }}{{ vend.vend?.name }}
                                                             </span>
                                                             <span class="block text-xs text-gray-500" v-if="vend.vend?.vendPrefix?.name">
                                                                 {{ vend.vend.vendPrefix.name }}
@@ -595,6 +595,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
     import { hiplDefaultOperators } from '@/constants/defaultOperators';
     import moment from 'moment';
     import { vendCodeLabel } from '@/utils/vendCode';
+    import MachineIdLink from '@/Components/MachineIdLink.vue';
     import { t } from '@/i18n';
 
     const props = defineProps({

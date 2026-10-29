@@ -1,5 +1,6 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { netsReportBadge, retainedCreditAdvice } from '@/constants/netsReportBadge';
@@ -64,10 +65,6 @@ function nextMedia() {
     if (n) mediaIndex.value = (mediaIndex.value + 1) % n;
 }
 const busy = ref(false);
-
-// Machine ID → Operations Dashboard, deep-linked+auto-searched to that machine
-// via the ?codes= param (opens in a new tab so the ticket stays open).
-const opsDashboardUrl = (code) => code ? ('/vends/customers?codes=' + encodeURIComponent(code)) : null;
 
 // ---- Sent-email preview (opened from an audit-trail email line) ----
 const emailPreview = ref(null); // the log entry's meta, or null when closed
@@ -360,7 +357,7 @@ function actionBadge(l) {
             <Link href="/refunds" class="text-teal-600 text-sm">{{ $t('← Refunds') }}</Link>
             <h2 class="font-semibold text-xl text-gray-800">
                 <span :class="t.is_dropped ? 'line-through text-gray-400' : ''"
-                    :title="t.is_dropped ? $t('Dropped / closed (e.g. double submission)') : ''">{{ t.reference }}</span> · {{ t.vend_code }}
+                    :title="t.is_dropped ? $t('Dropped / closed (e.g. double submission)') : ''">{{ t.reference }}</span> · <MachineIdLink :code="t.vend_code" />
             </h2>
             <!-- Dropped is a pseudo-status (stored as Rejected + is_dropped). Show
                  ONLY the Dropped badge for it, not the underlying Rejected badge. -->
@@ -544,7 +541,7 @@ function actionBadge(l) {
                         <dt class="text-gray-500">{{ $t('Name') }}</dt><dd class="col-span-2 font-medium">{{ t.contact_name || '—' }}</dd>
                         <dt class="text-gray-500">{{ $t('Email') }}</dt><dd class="col-span-2 font-medium break-all">{{ t.contact_email || '—' }}</dd>
                         <dt class="text-gray-500">{{ $t('Machine ID') }}</dt><dd class="col-span-2 font-medium">
-                            <a v-if="t.vend_code" :href="opsDashboardUrl(t.vend_code)" target="_blank" class="text-teal-700 hover:underline" :title="$t('Open in Operations Dashboard')">{{ t.vend_code }}</a>
+                            <MachineIdLink v-if="t.vend_code" :code="t.vend_code" :title="$t('Open in Operations Dashboard')" />
                             <span v-else>—</span>
                         </dd>
                         <dt class="text-gray-500">{{ $t('Site Name') }}</dt><dd class="col-span-2 font-medium">{{ t.site_name || '—' }}</dd>
@@ -727,7 +724,7 @@ function actionBadge(l) {
                         <div class="min-w-0">
                             <dt class="text-[10px] uppercase tracking-wide text-gray-500">{{ $t('Machine ID') }}</dt>
                             <dd class="text-sm font-medium">
-                                <a v-if="r.machine" :href="opsDashboardUrl(r.machine)" target="_blank" class="text-teal-700 hover:underline" :title="$t('Open in Operations Dashboard')">{{ r.machine }}</a>
+                                <MachineIdLink v-if="r.machine" :code="r.machine" :title="$t('Open in Operations Dashboard')" />
                                 <span v-else class="text-gray-800">—</span>
                             </dd>
                         </div>

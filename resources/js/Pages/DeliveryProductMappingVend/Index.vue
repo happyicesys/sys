@@ -196,7 +196,7 @@
                       {{ deliveryProductMappingVends.meta.from + deliveryProductMappingVendIndex }}
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
-                      {{ vendCodeLabel(deliveryProductMappingVend.vend) }}
+                      <MachineIdLink :vend="deliveryProductMappingVend.vend" />
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">
                       {{ deliveryProductMappingVend.platform_ref_id }}
@@ -358,8 +358,8 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import ChannelOverview from '@/Pages/DeliveryProductMappingVend/ChannelOverview.vue';
-import { vendCodeLabel } from '@/utils/vendCode';
 import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';

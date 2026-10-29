@@ -324,7 +324,7 @@
                           </div>
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
-                            {{ paymentGatewayLog.vend_code }}
+                            <MachineIdLink :code="paymentGatewayLog.vend_code" />
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
                             {{ paymentGatewayLog.vend?.vendPrefix?.name }}
@@ -390,6 +390,7 @@ import { router } from '@inertiajs/vue3';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
 import { Head, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import { t } from '@/i18n';
 
 const props = defineProps({

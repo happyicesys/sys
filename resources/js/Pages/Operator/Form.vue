@@ -534,7 +534,7 @@
                           {{ vendIndex + 1 }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                          {{ vendCodeLabel(vend) }}
+                          <MachineIdLink :vend="vend" />
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                           <span v-if="vend && vend.customer">
@@ -597,7 +597,7 @@
 <script setup>
 import { t } from '@/i18n';
 import Button from '@/Components/Button.vue';
-import { vendCodeLabel } from '@/utils/vendCode';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';

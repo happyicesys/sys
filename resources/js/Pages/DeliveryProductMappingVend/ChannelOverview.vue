@@ -7,7 +7,7 @@
             {{ $t('Delivery Product Mapping Vend') }}
           </span>
           <span v-if="deliveryProductMappingVend.vend.code">
-            ID# {{ vendCodeLabel(deliveryProductMappingVend.vend) }}
+            ID# <MachineIdLink :vend="deliveryProductMappingVend.vend" />
           </span>
           <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.customer_code">
             ({{ deliveryProductMappingVend.vend.customer_code ? deliveryProductMappingVend.vend.customer_code : null }})
@@ -172,11 +172,11 @@
 <script setup>
 import { CheckCircleIcon, PauseCircleIcon, PlayCircleIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
 import Button from '@/Components/Button.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import { onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
-import { vendCodeLabel } from '@/utils/vendCode';
 import { t } from '@/i18n';
 
 const props = defineProps({

@@ -197,7 +197,7 @@
                     inputClass="text-center"
                   >
                     <span class="font-semibold text-gray-900">
-                      {{ vend.code }}
+                      <MachineIdLink :code="vend.code" />
                     </span>
                   </TableData>
                   <TableData
@@ -286,6 +286,7 @@ import moment from 'moment'
 import { Head, router, useForm } from '@inertiajs/vue3'
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import Button from '@/Components/Button.vue'
+import MachineIdLink from '@/Components/MachineIdLink.vue'
 import SearchInput from '@/Components/SearchInput.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
 import OperatorFilter from '@/Components/OperatorFilter.vue';

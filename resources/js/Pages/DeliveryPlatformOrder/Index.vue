@@ -318,7 +318,7 @@
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
                       <span class="flex flex-col">
                         <span class="text-gray-700 text-md pr-2" v-if="deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend">
-                          {{ deliveryPlatformOrder.deliveryProductMappingVend ? vendCodeLabel(deliveryPlatformOrder.deliveryProductMappingVend.vend) : '' }}
+                          <MachineIdLink :vend="deliveryPlatformOrder.deliveryProductMappingVend ? deliveryPlatformOrder.deliveryProductMappingVend.vend : null" />
                         </span>
                         <span v-if="deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend && deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer && deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.person_id">
                             <span v-if="permissions.includes('admin-access vends')">
@@ -466,6 +466,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
@@ -483,7 +484,6 @@ import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { t } from '@/i18n';
 import { hiplDefaultOperators } from '@/constants/defaultOperators';
-import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
   cmsEndpoint: String,

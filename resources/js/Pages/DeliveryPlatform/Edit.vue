@@ -589,7 +589,7 @@
                             {{ vendIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ vendCodeLabel(deliveryProductMappingVend.vend) }} <br>
+                            <MachineIdLink :vend="deliveryProductMappingVend.vend" /> <br>
                             ({{ deliveryProductMappingVend.platform_ref_id }})
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
@@ -730,6 +730,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import ChannelOverview from '@/Pages/DeliveryPlatform/ChannelOverview.vue';
 import EditItem from '@/Pages/DeliveryPlatform/EditItem.vue';
 import FormInput from '@/Components/FormInput.vue';
@@ -741,7 +742,6 @@ import { ref, onMounted, computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { t } from '@/i18n';
-import { vendCodeLabel } from '@/utils/vendCode';
 
 const props = defineProps({
     bundleSalesOptions: [Array, Object],

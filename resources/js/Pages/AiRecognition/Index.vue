@@ -154,7 +154,7 @@
         </p>
         <div class="mt-2 flex flex-col divide-y divide-amber-200 text-xs">
           <div v-for="hold in sessionlessHolds" :key="hold.id" class="flex flex-wrap items-center gap-x-4 gap-y-1 py-1.5">
-            <span class="font-medium">{{ hold.vend_label }}</span>
+            <span class="font-medium"><MachineIdLink :code="hold.vend_label" /></span>
             <span class="font-mono">{{ hold.session_ref }}</span>
             <span>{{ $t('hold :amount', { amount: formatCents(hold.hold_cents) }) }}</span>
             <span class="text-gray-600">{{ $t('door closed :time', { time: hold.door_closed_at }) }}</span>
@@ -258,7 +258,7 @@
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
                     <div class="flex flex-col space-y-1">
-                      <span v-if="row.vend_label" class="font-medium">{{ row.vend_label }}</span>
+                      <span v-if="row.vend_label" class="font-medium"><MachineIdLink :code="row.vend_label" /></span>
                       <span v-else class="text-amber-700 text-xs" :title="$t('The push named no freezer of ours')">{{ $t('Not matched') }}</span>
                       <span v-if="row.device_id" class="text-xs text-gray-500" :title="$t('Device no / IMEI in the push')">{{ row.device_id }}</span>
                     </div>
@@ -387,7 +387,7 @@
       </template>
       <div v-if="charge.row" class="flex flex-col space-y-3 text-sm">
         <div class="grid grid-cols-2 gap-x-4 gap-y-1">
-          <span class="text-gray-500">{{ $t('Machine') }}</span><span class="font-medium">{{ charge.row.vend_label }}</span>
+          <span class="text-gray-500">{{ $t('Machine') }}</span><span class="font-medium"><MachineIdLink :code="charge.row.vend_label" /></span>
           <span class="text-gray-500">{{ $t('Order No') }}</span><span class="font-mono">{{ charge.row.sale ? charge.row.sale.order_id : charge.row.session_ref }}</span>
           <span class="text-gray-500">{{ $t('Card hold (T05)') }}</span><span class="font-medium">{{ formatCents(charge.row.card.hold_cents) }}</span>
           <span class="text-gray-500">{{ $t('AI') }}</span><span>{{ charge.row.algorithm_status || '—' }}</span>
@@ -458,6 +458,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import { MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';

@@ -1379,7 +1379,7 @@
                 <div class="sm:col-span-6" v-if="pricingMachineRows.length">
                   <label class="flex justify-start text-sm font-medium text-gray-700"> {{ $t('Is Server Price?') }} </label>
                   <div v-for="m in pricingMachineRows" :key="m.id" class="mt-1 flex flex-wrap items-center gap-2">
-                    <span v-if="pricingMachineRows.length > 1" class="text-sm font-medium text-gray-700 w-16">{{ m.code }}</span>
+                    <span v-if="pricingMachineRows.length > 1" class="text-sm font-medium text-gray-700 w-16"><MachineIdLink :code="m.code" /></span>
                     <select
                       :value="m.is_using_server_price ? 'true' : 'false'"
                       :disabled="m.saving || m.machine_type === 'smart_freezer' || !permissions.includes('update customers')"
@@ -1661,7 +1661,7 @@
                                 <span v-if="customerVendBinding.vend_prefix">
                                   {{ customerVendBinding.vend_prefix.name }} -
                                 </span>
-                                 {{ vendCodeLabel(customerVendBinding?.vend) }}
+                                 <MachineIdLink :vend="customerVendBinding?.vend" />
                               </span>
                               <span class="text-sm text-gray-500">
                                 {{ customerVendBinding.created_at ? formatDatetime(customerVendBinding.created_at) : '' }}
@@ -1753,6 +1753,7 @@ import AttachmentList from '@/Components/AttachmentList.vue';
 import AttachmentListProductMapping from '@/Components/AttachmentListProductMapping.vue';
 import Button from '@/Components/Button.vue';
 import FloatingActionBar from '@/Components/FloatingActionBar.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';

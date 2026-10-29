@@ -1,5 +1,6 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import Button from '@/Components/Button.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
@@ -276,10 +277,6 @@ const statusClass = (s) => ({
     completed: 'text-green-700',                   // green text, no background
     dropped: 'text-gray-900',                      // black text, no background
 }[s] || 'bg-gray-100 text-gray-700');
-
-// Machine ID → Operations Dashboard, deep-linked+auto-searched to that machine
-// via the ?codes= param (opens in a new tab so the refund list is kept).
-const opsDashboardUrl = (code) => code ? ('/vends/customers?codes=' + encodeURIComponent(code)) : null;
 
 // Split a settlement ref (RST-260710-HIPL-01) after the date onto two lines so the
 // "Send to Settlement" column stays narrow: "RST-260710" / "HIPL-01".
@@ -689,8 +686,8 @@ const sortedRows = computed(() => {
                             <span v-if="t.is_dropped" class="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">{{ $t('dropped') }}</span>
                         </td>
                         <td class="px-4 py-3 max-w-[160px]">
-                            <a v-if="t.vend_code" :href="opsDashboardUrl(t.vend_code)" target="_blank" @click.stop
-                                class="font-medium text-teal-700 hover:underline" :title="$t('Open in Operations Dashboard')">{{ t.vend_code }}</a>
+                            <MachineIdLink v-if="t.vend_code" :code="t.vend_code"
+                                class="font-medium" :title="$t('Open in Operations Dashboard')" />
                             <span v-else class="font-medium text-gray-800">—</span>
                             <span v-if="t.vend_prefix_name" class="ml-1 text-xs text-gray-500"
                                 v-tooltip="$t('VendPrefix (mapping) name of the machine.')">({{ t.vend_prefix_name }})</span>

@@ -769,7 +769,7 @@
                             {{ vendIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-left">
-                            {{ vend ? vendCodeLabel(vend) : null }}
+                            <MachineIdLink :vend="vend" />
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <span v-if="vend.customer && vend.customer.person_id">
@@ -813,8 +813,8 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import { vendCodeLabel } from '@/utils/vendCode';
 import Button from '@/Components/Button.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import FormInput from '@/Components/FormInput.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';

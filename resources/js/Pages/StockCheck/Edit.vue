@@ -17,7 +17,7 @@
       <div class="bg-white shadow-sm ring-1 ring-black ring-opacity-5 rounded-lg p-4 grid grid-cols-1 sm:grid-cols-6 gap-3 text-sm">
         <div class="sm:col-span-2">
           <div class="text-xs text-gray-500">{{ $t('Machine') }}</div>
-          <div class="font-semibold text-gray-900">{{ check.vend_code }}</div>
+          <div class="font-semibold text-gray-900"><MachineIdLink :code="check.vend_code" /></div>
           <div class="text-gray-700">{{ check.customer_name }}</div>
         </div>
         <div class="sm:col-span-2">
@@ -206,6 +206,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import Button from '@/Components/Button.vue'
+import MachineIdLink from '@/Components/MachineIdLink.vue'
 import StopAttachmentSlot from '@/Pages/OpsJob/Stops/StopAttachmentSlot.vue'
 import { firstErrors, stopStatusClass } from '@/Pages/OpsJob/Stops/stopTypes'
 import { ArrowPathIcon, ClipboardDocumentListIcon } from '@heroicons/vue/20/solid'

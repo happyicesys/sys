@@ -15,6 +15,7 @@ import Button from '@/Components/Button.vue'
 import TableHead from '@/Components/TableHead.vue'
 import TableData from '@/Components/TableData.vue'
 import Paginator from '@/Components/Paginator.vue'
+import MachineIdLink from '@/Components/MachineIdLink.vue'
 
 const props = defineProps({
     movements: Object,
@@ -274,7 +275,7 @@ const onExcelExportClicked = () => {
                                         {{ movement.by_user }}
                                     </TableData>
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-center">
-                                        {{ movement.machine_id }}
+                                        <MachineIdLink :code="movement.machine_id" />
                                     </TableData>
                                     <TableData :currentIndex="index" :totalLength="movements.data.length" inputClass="text-left">
                                         {{ movement.remarks ? '#' + movement.remarks : '' }}

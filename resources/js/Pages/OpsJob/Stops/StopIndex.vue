@@ -86,7 +86,7 @@
                   <TableData :currentIndex="index" :totalLength="rows.data.length" inputClass="text-center">
                     <Link :href="'/ops-jobs/' + row.ops_job_id + '/edit'" class="text-blue-600 underline">{{ row.ops_job?.date_label }}</Link>
                   </TableData>
-                  <TableData :currentIndex="index" :totalLength="rows.data.length" inputClass="text-center">{{ row.vend_code }}</TableData>
+                  <TableData :currentIndex="index" :totalLength="rows.data.length" inputClass="text-center"><MachineIdLink :code="row.vend_code" /></TableData>
                   <TableData :currentIndex="index" :totalLength="rows.data.length" inputClass="text-left">{{ row.customer_name }}</TableData>
                   <TableData :currentIndex="index" :totalLength="rows.data.length" inputClass="text-center">{{ row.ops_job?.delivered_by_name }}</TableData>
                   <TableData :currentIndex="index" :totalLength="rows.data.length" inputClass="text-center">
@@ -117,6 +117,7 @@ import SearchInput from '@/Components/SearchInput.vue'
 import TableData from '@/Components/TableData.vue'
 import TableHead from '@/Components/TableHead.vue'
 import TableHeadSort from '@/Components/TableHeadSort.vue'
+import MachineIdLink from '@/Components/MachineIdLink.vue'
 import { ArrowDownTrayIcon, BackspaceIcon, MagnifyingGlassIcon } from '@heroicons/vue/20/solid'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import moment from 'moment'

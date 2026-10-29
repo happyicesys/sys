@@ -496,8 +496,8 @@
                 <td class="p-2 text-xs text-gray-500">{{ vendIndex + 1 }}</td>
                 <td class="p-2 text-xs font-bold whitespace-nowrap">
                   <!-- Opens the Operation Dashboard on this machine, already searched (Brian, 2026-10-26). -->
-                  <a :href="opsDashboardUrl(vend)" target="_blank" class="text-blue-700 hover:underline"
-                    v-tooltip="$t('Open this machine in the Operation Dashboard')">{{ vend.vend_code }}</a>
+                  <MachineIdLink :code="vend.vend_code"
+                    v-tooltip="$t('Open this machine in the Operation Dashboard')" />
                 </td>
                 <td class="p-2 text-xs text-gray-700 whitespace-nowrap">
                   <span v-if="vend.vend_prefix_name">{{ vend.vend_prefix_name }}</span>
@@ -557,6 +557,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import OperatorFilter from '@/Components/OperatorFilter.vue';
 import BlindFlavourChips from '@/Components/BlindFlavourChips.vue';
 import Modal from '@/Components/Modal.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import { t } from '@/i18n';
 const props = defineProps({
   operatorOptions: Object,
@@ -772,12 +773,6 @@ const vendDrillColumns = [
 ]
 const vendDrillSortKey = ref('index')
 const vendDrillSortAsc = ref(true)
-
-// The machine's Operation Dashboard row: its code in the Machine ID filter, searched at once. The trailing comma
-// makes the filter match that code exactly (VendCode::whereSearch), not every code starting with it.
-function opsDashboardUrl(vend) {
-  return '/vends/customers?codes=' + encodeURIComponent(vend.vend_code + ',') + '&autoload=true'
-}
 
 function sortVendDrill(key) {
   if (vendDrillSortKey.value === key) {

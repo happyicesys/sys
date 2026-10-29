@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Operator;
 use App\Models\Scopes\OperatorActiveScope;
 use App\Models\Setting;
+use App\Support\ProductAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
@@ -83,6 +84,10 @@ class HandleInertiaRequests extends Middleware
                 // pages do not each hard-code a role name. See
                 // User::DRIVER_ROLES - sup_driver mirrors driver.
                 'isDriver' => $user ? $user->isDriver() : false,
+                // The full Operation Dashboard 403s a product-restricted viewer
+                // (BlockWhenProductRestricted), so MachineIdLink sends them to
+                // Dashboard (Lite) instead.
+                'productRestricted' => fn () => $user ? ProductAccess::isRestricted() : false,
                 'profile' => $user ? $user->profile : null,
                 // 'profile.baseCurrency' => $request->user() ? $request->user()->profile->baseCurrency : null,
                 'timezone' => $operator ? $operator->timezone : config('app.timezone'),

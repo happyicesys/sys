@@ -117,6 +117,18 @@ carries invisible markers naming its key; every click is captured so nothing on 
 i18n:scan --hardcoded` (or `--file=Pages/X`) lists text not wrapped yet: the to-do list of the full pass
 (2026-10-26: ~10,800 findings in 308 files before it started). IDN is not on this code yet.
 
+## Machine IDs link to the Operation Dashboard
+
+Brian, 2026-10-29: every Machine ID on screen, unless a page says otherwise, opens that machine on the
+Operation Dashboard in a new tab. Render it with `Components/MachineIdLink.vue` (`:code` = the label as
+shown, "C6003" included, or `:vend`), never a hand-built `/vends/customers?codes=` link. The URL is
+`opsDashboardUrl()` in `utils/vendCode.js`: label + trailing comma (exact match), `autoload=true`;
+Dashboard (Lite) for a product-restricted viewer (shared prop `auth.productRestricted` — the full
+Dashboard 403s them) or a Lite-only role; plain text for anyone who can open neither. Not linked: the Operation
+Dashboard pages themselves (CustomerIndex, CustomerIndexLite, Components/OpsDashboard, SmartChillerRowCells), inputs / filters / options, and an ID that already opens something else
+(e.g. Setting/Index → Setting/Edit). On User edit's machine list the Site opens its Site edit page and
+Machine L30d Sales opens Sales Transactions for that machine over today and the 29 days before.
+
 ## Roles and permissions: one file, always
 
 `database/seeders/RolePermissionSyncSeeder.php` is the **single source of truth**.

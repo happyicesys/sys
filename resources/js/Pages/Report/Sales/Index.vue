@@ -343,11 +343,11 @@
                         {{ items.meta.from + itemIndex }}
                       </TableData>
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-center">
-                        <Link
+                        <MachineIdLink
                           v-if="currentTab.slug === 'vend'"
-                          :href="`/vends/customers?codes=${item.code}&autoload=true`"
-                          class="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                        >{{ item.code }}</Link>
+                          :code="item.code"
+                          class="font-medium"
+                        />
                         <span v-else>{{ item.code }}</span>
                       </TableData>
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-left">
@@ -426,6 +426,7 @@ import { t } from '@/i18n';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';

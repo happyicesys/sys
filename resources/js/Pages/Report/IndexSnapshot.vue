@@ -214,7 +214,7 @@
                             {{ vendSnapshot.created_at }}
                           </TableData>
                           <TableData :currentIndex="vendIndex" :totalLength="vendSnapshots.length" inputClass="text-center">
-                              {{ vendSnapshot.vend_code }}
+                              <MachineIdLink :code="vendSnapshot.vend_code" />
                           </TableData>
                           <TableData :currentIndex="vendIndex" :totalLength="vendSnapshots.length" inputClass="text-left">
                             <span v-if="vendSnapshot.virtual_customer_code">
@@ -390,6 +390,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
+import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
