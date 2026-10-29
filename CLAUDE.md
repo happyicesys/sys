@@ -140,7 +140,13 @@ user until someone seeds it there. 2026-10-17: the UI Setting per-verb gate lock
 operator_admin (Edit refused). lsh turned out ~170 grants behind (Stock Count, Service Notice,
 Happy Hour, the `picker` role, …); the full sync was run there the same day (Brian's go-ahead)
 and lsh now matches sys grant for grant. **After every deploy that touches the seeder, run it on
-lsh too.** `observer_transactions` holds zero permissions on both hosts (it did before, too).
+lsh too.** **Indonesia (`idn-sys.happyice.net`, `forge@178.128.31.69`, plain checkout
+`/home/forge/idn-sys.happyice.net`, DB `idn_sys`) is not deployed by a push at all** — its checkout
+sat at 2026-09-21, 754 commits behind, on 2026-10-28. That day (Brian: "same roles and permission
+access level" on all three) main's seeder was run against IDN's DB from a temp copy under a renamed
+class, leaving its old code untouched; sys, lsh and IDN then matched exactly (331 permissions, 18
+roles, 1,580 grants). Permissions IDN's old code never checks are inert there. Sync IDN the same way
+after a seeder change. `observer_transactions` holds zero permissions on both hosts (it did before, too).
 
 Amending it:
 
