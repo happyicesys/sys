@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class PaymentMethod extends Model
 {
@@ -34,6 +35,31 @@ class PaymentMethod extends Model
     public static function menuCacheKey(string $countryCode, string $gatewayName, ?string $menuVariant = null): string
     {
         return "payment_merchants:{$countryCode}:{$gatewayName}".($menuVariant !== null ? ":{$menuVariant}" : '');
+    }
+
+    /**
+     * The menu variant of a machine's operator (`operators.payment_menu_variant`), from the bare machine
+     * number mqtt-config appends to the menu URL as `?machineID=` (2026-10-29). Read fresh on every call —
+     * one indexed lookup per board boot — so a machine moved to another operator follows at its next boot.
+     * Anything that is not a plain number, an unknown machine or an operator with no variant = null, the
+     * normal menu: a board must never lose its menu over this.
+     */
+    public static function menuVariantForMachine(mixed $machineId): ?string
+    {
+        if (! is_string($machineId) || ! preg_match('/^\d{1,9}$/', $machineId)) {
+            return null;
+        }
+
+        // Raw on purpose: this is a public, unauthenticated API, so no operator or active-operator scope applies.
+        $variant = DB::table('vends')
+            ->join('operators', 'operators.id', '=', 'vends.operator_id')
+            ->where('vends.code', (int) $machineId)
+            ->whereNull('vends.code_prefix') // a board reports the bare number (Vend::scopeBareCode)
+            ->value('operators.payment_menu_variant');
+
+        $variant = is_string($variant) ? strtolower(trim($variant)) : '';
+
+        return $variant !== '' ? $variant : null;
     }
 
     // relationships

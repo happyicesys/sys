@@ -345,7 +345,10 @@ class PaymentController extends Controller
     public function getPaymentMerchantsApi($countryCode = 'SG', $paymentGatewayName = 'omise', $menuVariant = null)
     {
         // A variant adds its own methods to the normal menu; an unknown variant is just the normal menu.
-        $menuVariant = $menuVariant !== null ? strtolower($menuVariant) : null;
+        // An explicit URL tail wins; otherwise the machine's operator picks it (?machineID=, added by mqtt-config).
+        $menuVariant = $menuVariant !== null
+            ? strtolower($menuVariant)
+            : PaymentMethod::menuVariantForMachine(request()->query('machineID'));
         $cacheKey = PaymentMethod::menuCacheKey($countryCode, $paymentGatewayName, $menuVariant);
 
         $dataArr = Cache::remember($cacheKey, 600, function () use ($countryCode, $paymentGatewayName, $menuVariant) {

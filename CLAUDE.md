@@ -956,13 +956,19 @@ settlement report).
 
 ## Machine payment menu: one list per country + gateway, plus optional variants
 
-`GET /api/v1/payment-merchants/{country}/{gateway}` is the QR menu a terminal shows; each board GETs whatever
-URL its mqtt-config `mqtt_settings.payment_gateway_menu_url` holds, so the menu is chosen there, not per
-operator in mark1. Brian, 2026-10-29: an optional tail `/{menuVariant}` (e.g. `/SG/omise/mindef`) lists the
-normal menu PLUS the methods whose `payment_methods.menu_variant` equals it; the plain URL lists only
-`menu_variant IS NULL` rows and an unknown tail is just the normal menu. First variant: `mindef` — "Ace
-Credits & Apex Credits" (code 802, slug `paynow`, logo `public/img/payment-merchant/mindef-ace-apex.png`) for
-the HIMD machines. **A `paynow`-slugged entry charges as plain Omise PayNow** (LifeSG 801, GrabPay 202 and 802
+`GET /api/v1/payment-merchants/{country}/{gateway}` is the QR menu a terminal shows; each board GETs, at app
+start only, whatever URL its mqtt-config `mqtt_settings.payment_gateway_menu_url` holds (every APK — big, small,
+freezer — uses it byte for byte). Brian, 2026-10-29: a **variant** adds methods to the normal menu — the
+methods whose `payment_methods.menu_variant` equals it; the plain menu lists only `menu_variant IS NULL` rows and
+an unknown variant is just the normal menu. The variant comes from, in order: an optional URL tail
+`/{menuVariant}` (`/SG/omise/mindef`), else the machine's OPERATOR — `operators.payment_menu_variant`, read by
+`PaymentMethod::menuVariantForMachine()` from `?machineID=<bare code>`, which mqtt-config appends to the URL it
+hands out (same as it does for the refund form). So a machine moved into or out of an operator follows at its
+next app start, with no mqtt-config row to edit. A missing, malformed or unknown machineID is the normal menu —
+a board must never lose its menu over this. `payment_menu_variant` is deliberately NOT fillable: the operator
+edit save mass-assigns the posted body, so an operator admin could otherwise give itself a variant; set it by
+migration. First variant: `mindef` — "Ace Credits & Apex Credits" (code 802, slug `paynow`, logo
+`public/img/payment-merchant/mindef-ace-apex.png`) on operator HIMD. **A `paynow`-slugged entry charges as plain Omise PayNow** (LifeSG 801, GrabPay 202 and 802
 alike): the vending APK sends only the slug, so those sales are booked as "Omise (Paynow)" — the menu entry
 is a logo, not a separate rail. Cache keys come from `PaymentMethod::menuCacheKey()`; `OptionCacheBuster`
 forgets every variant. Regression coverage: `tests/Feature/PaymentMerchantsMenuVariantTest.php`.

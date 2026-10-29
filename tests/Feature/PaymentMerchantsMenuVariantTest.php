@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Operator;
 use App\Models\PaymentMethod;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -11,6 +12,7 @@ use Tests\TestCase;
 /**
  * /api/v1/payment-merchants/{country}/{gateway}/{variant?} (Brian, 2026-10-29): the plain URL — what
  * the fleet's mqtt-config rows point at — must not change; a variant tail adds that variant's methods.
+ * `?machineID=` (appended by mqtt-config) picks the variant from the machine's operator instead.
  */
 class PaymentMerchantsMenuVariantTest extends TestCase
 {
@@ -80,5 +82,104 @@ class PaymentMerchantsMenuVariantTest extends TestCase
 
         $this->getJson('/api/v1/payment-merchants/SG/omise/mindef')->assertJsonCount(2);
         $this->getJson('/api/v1/payment-merchants/SG/omise')->assertJsonCount(2);
+    }
+
+    /** An operator with an optional menu variant, and one machine of it (bare number, as boards report). */
+    private function machine(int $code, ?string $variant, ?string $codePrefix = null, string $operatorCode = 'OPX'): int
+    {
+        $operator = Operator::withoutGlobalScopes()->firstOrCreate(['code' => $operatorCode], ['name' => $operatorCode, 'is_active' => true]);
+        DB::table('operators')->where('id', $operator->id)->update(['payment_menu_variant' => $variant]);
+
+        return DB::table('vends')->insertGetId([
+            'code' => $code, 'code_prefix' => $codePrefix, 'name' => "Machine {$code}", 'operator_id' => $operator->id,
+            'is_testing' => 0, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    public function test_the_machines_operator_picks_the_variant(): void
+    {
+        $this->machine(2788, 'mindef', operatorCode: 'HIMD');
+
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=2788')
+            ->assertOk()
+            ->assertJsonCount(3)
+            ->assertJsonPath('0.code', 802)
+            ->assertJsonPath('1.code', 201)
+            ->assertJsonPath('2.code', 801);
+    }
+
+    public function test_a_machine_of_an_operator_without_a_variant_gets_the_normal_menu(): void
+    {
+        $this->machine(1001, null, operatorCode: 'HIPL');
+        $this->machine(1002, 'army', operatorCode: 'OTHER'); // a variant no method carries
+
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=1001')->assertOk()->assertJsonCount(2);
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=1002')->assertOk()->assertJsonCount(2);
+    }
+
+    public function test_a_board_never_loses_its_menu_over_a_bad_machine_id(): void
+    {
+        $this->machine(2788, 'mindef', operatorCode: 'HIMD');
+
+        foreach (['', '9999', 'abc', '2788abc', '2788 OR 1=1', '-2788', '27.88', '1234567890123', 'C2788'] as $machineId) {
+            $this->getJson('/api/v1/payment-merchants/SG/omise?machineID='.rawurlencode($machineId))
+                ->assertOk()
+                ->assertJsonCount(2);
+        }
+        // An array instead of a string.
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID[]=2788')->assertOk()->assertJsonCount(2);
+    }
+
+    public function test_only_the_bare_number_resolves_never_a_prefixed_chiller_with_the_same_number(): void
+    {
+        $this->machine(6002, 'mindef', codePrefix: 'C', operatorCode: 'HIMD');
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=6002')->assertOk()->assertJsonCount(2);
+
+        $this->machine(6002, null, operatorCode: 'HIPL');
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=6002')->assertOk()->assertJsonCount(2);
+    }
+
+    public function test_the_url_tail_wins_over_the_operator(): void
+    {
+        $this->machine(1001, null, operatorCode: 'HIPL');
+        $this->machine(2788, 'mindef', operatorCode: 'HIMD');
+
+        // The rows already pointed at /mindef keep it, whatever the operator says.
+        $this->getJson('/api/v1/payment-merchants/SG/omise/mindef?machineID=1001')->assertOk()->assertJsonCount(3);
+        // An unknown tail is the normal menu, even for a MINDEF machine.
+        $this->getJson('/api/v1/payment-merchants/SG/omise/army?machineID=2788')->assertOk()->assertJsonCount(2);
+    }
+
+    public function test_a_machine_moved_to_another_operator_follows_at_once(): void
+    {
+        $vendId = $this->machine(2788, null, operatorCode: 'HIPL');
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=2788')->assertJsonCount(2);
+
+        $himd = Operator::withoutGlobalScopes()->create(['code' => 'HIMD', 'name' => 'HI Mindef', 'is_active' => true]);
+        DB::table('operators')->where('id', $himd->id)->update(['payment_menu_variant' => 'MINDEF']); // case-insensitive
+        DB::table('vends')->where('id', $vendId)->update(['operator_id' => $himd->id]);
+
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=2788')->assertJsonCount(3)->assertJsonPath('0.code', 802);
+
+        DB::table('vends')->where('id', $vendId)->update(['operator_id' => Operator::withoutGlobalScopes()->where('code', 'HIPL')->value('id')]);
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=2788')->assertJsonCount(2);
+    }
+
+    public function test_an_inactive_operator_still_resolves(): void
+    {
+        $this->machine(2788, 'mindef', operatorCode: 'HIMD');
+        DB::table('operators')->where('code', 'HIMD')->update(['is_active' => false]);
+
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=2788')->assertJsonCount(3);
+    }
+
+    public function test_the_menu_payload_is_unchanged_by_a_machine_id(): void
+    {
+        $this->machine(1001, null, operatorCode: 'HIPL');
+
+        $plain = $this->getJson('/api/v1/payment-merchants/SG/omise')->assertOk()->getContent();
+        Cache::flush();
+        $this->assertSame($plain, $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=1001')->getContent());
+        $this->assertSame($plain, $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=garbage')->getContent());
     }
 }
