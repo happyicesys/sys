@@ -239,8 +239,13 @@ return [
             // an OOM that took mysqld down. The duplicates are gone; these numbers
             // now mean what they say. If more throughput is needed, raise the cap
             // here — never by adding a second Horizon daemon.
+            //
+            // The defaults are sized for sys (mark1 prod). Smaller instances that
+            // run this same code set the HORIZON_*_PROCESSES env vars lower: LSH (2 CPU,
+            // 4 GB) let Horizon grow to 39 workers (~3 GB) and swapped itself
+            // unresponsive on 2026-10-29 10:55–12:51.
             'supervisor-1' => [
-                'maxProcesses' => 35,
+                'maxProcesses' => (int) env('HORIZON_DEFAULT_PROCESSES', 35),
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
@@ -252,13 +257,13 @@ return [
             // ~40–60 connections, leaving headroom for web requests and the
             // schedule. Bump only if you've raised MySQL max_connections.
             'supervisor-low' => [
-                'maxProcesses' => 8,
+                'maxProcesses' => (int) env('HORIZON_LOW_PROCESSES', 8),
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
                 'nice' => 10, // deprioritise CPU-wise vs real-time supervisor
             ],
             'supervisor-cms' => [
-                'maxProcesses' => 2,
+                'maxProcesses' => (int) env('HORIZON_CMS_PROCESSES', 2),
             ],
             // Two, so one long high job (SyncVendChannels) never parks the next
             // payment. +2 workers ≈ +2–3 MySQL connections.
