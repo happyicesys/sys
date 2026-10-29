@@ -63,7 +63,7 @@
                     {{ method.shown_by_default ? $t('Shown to every operator') : $t('Hidden unless switched on') }}
                   </td>
                   <td class="px-3 py-3 text-sm">
-                    <template v-if="method.changed_at">{{ method.changed_by || '—' }} · {{ formatTime(method.changed_at) }}</template>
+                    <template v-if="method.changed_at"><template v-if="method.changed_by">{{ method.changed_by }} · </template>{{ formatTime(method.changed_at) }}</template>
                     <template v-else>—</template>
                   </td>
                   <td class="whitespace-nowrap px-3 py-2 text-sm text-center">
