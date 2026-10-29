@@ -2,7 +2,8 @@
 
 **Status (2026-10-29): Phase 0 + Phase 1 DEPLOYED** (`0cdc338af7`, 09:43) — see §6 for what shipped and what is
 still a switch. **§7 (same day, ops feedback + prod check): Grab sells the wrong product on 58 of 64 stores after
-mapping changes; the Grab menu must follow the machine mapping — Phase 3 brought forward.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
+mapping changes; the Grab menu must follow the machine mapping — Phase 3 brought forward. §7 pricing: two
+modes per operator (RP × multiplier / own SKU price). Brian, 2026-10-29: more feedback first — nothing built yet.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
 (read-only MCP) on 2026-10-29, and every Grab rule comes from the Partner API v1.1.3 docs (GrabFood and
 GrabMart pages).
 
@@ -286,7 +287,8 @@ read-only history.
 
 ## 5. Decisions for Brian
 
-1. **Grab price**: RP tier + markup % with per-product overrides (recommended), or a hand-kept Grab price list?
+1. **Grab price**: ANSWERED 2026-10-29 — both, chosen per operator (§7 "Grab pricing"): RP × multiplier (HIPL)
+   or the operator's own SKU price with the normal price as reference (Ariska, Kumoyo).
 2. **Item id = `products.id`** (recommended; it is stable and unique). The barcode goes in Mart's `barcode` field.
 3. **GrabFood**: no credential uses it today. Build Mart only, with Food as a flavour flag for later?
 4. **Safety buffer** default (today 0 everywhere) and whether to **auto-pause** an offline machine (after how long).
@@ -294,8 +296,8 @@ read-only history.
    fall under that, and should new stores go through `POST /partner/v1/self-serve/activation` +
    `pushIntegrationStatus`?
 6. **The 24 delivered-not-dispensed orders**: who reviews them, and is there a refund rule?
-7–9. See §7 (2026-10-29 user feedback): stopgap for wrong-product items, price for an unpriced product,
-   G101 / A001 prices.
+7–12. See §7 (2026-10-29 user feedback): stopgap for wrong-product items, unpriced products, G101 / A001,
+   HIPL's multiplier and rounding, Grab's commission rate, Bulla (LEA).
 
 ## 6. Phase 0 + 1 as built (DEPLOYED 2026-10-29 09:43, `0cdc338af7`; pause hotfix after it)
 
@@ -360,16 +362,40 @@ Source: Daniel's screen recording of the Grab Product Mapping page (Dropbox
    machine holds now (`vend_channels.product_id`, active), list it if the operator has a Grab price for it. So a
    mapping change — applied by the ops job as today — reaches Grab through the CHANNEL sync that already notifies
    it (debounced, diffed). Ops do nothing on the Grab side when they change a mapping.
-2. **One Grab Price List per operator**: product → Grab price (integer cents), Mart sub-category, listed yes/no.
-   It replaces the per-mapping templates. Seeded from today's templates: 796 of the 960 pairs get a price that way.
-   Conflicts to settle once: HIPL G101 ($2.00 / $2.50), A001 ($2.40 / $2.50). Products on Grab machines with no
-   Grab price yet: HIPL BC-02, E-01, GW05, GW07, OK-01, OK-02, U-16, U-50, U-90, U-92, U-93; KMY KMY13. The page
-   lists "on a Grab machine, no Grab price" at the top so a new flavour is priced the day it is mapped.
+2. **One Grab product list per operator**: product → Mart sub-category, listed yes/no, and — only for an operator
+   on the SKU-price mode — its Grab price (integer cents). The price comes from the operator's pricing mode
+   ("Grab pricing" below). It replaces the per-mapping templates. The page lists "on a Grab machine, not listed /
+   no price" at the top so a new flavour is listed (and priced) the day it is mapped. Products on Grab machines with
+   no template price today: HIPL BC-02, E-01, GW05, GW07, OK-01, OK-02, U-16, U-50, U-90, U-92, U-93; KMY KMY13.
 3. **Grab item id = `products.id`** (decision 2), one item per SKU, stock summed over its channels, an order
    allocated to the channels holding that SKU (most stock first). A channel item id cannot follow the machine: the
    same id would quietly turn into another product, and a campaign on it with it.
 4. Per-store exclusions stay possible (a SKU not to sell on Grab at one site), but the default is: everything the
    machine holds and the operator prices.
+
+**Grab pricing: two modes, chosen per operator** (Brian, 2026-10-29)
+
+Each operator picks one mode on its Grab settings. The mode decides the price of every SKU it lists; the product
+list (sub-category, listed yes/no) is the same in both.
+
+1. **RP × multiplier** — for HIPL, whose machines sit on different RP tiers. Grab price = the store's Site RP tier
+   price for that SKU (`customers.selling_price_type` → `selling_prices`, the "Server Price") × the operator's
+   multiplier, rounded UP to a step (like Happy Hour's rounding). The same SKU therefore costs more on Grab at an RP4
+   site than at an RP2 one, as it does at the machine, and an RP change on Product → Edit reaches Grab with no
+   Grab step. A SKU with no price on that store's tier is not listed there (shown on the page as "no RP on tier n").
+   - Why it matters today: HIPL templates carry ONE Grab price per SKU whatever the tier. On the 708 correctly
+     mapped HIPL channels, Grab is below the machine's own RP on 207, and on **every one of the 84 RP4 channels**
+     (by 56¢ on average); at RP2 it is above by 10%+ on 244 of 495. Average Grab ÷ RP is ×1.024 (×0.71–×1.18).
+   - The base is the Site's RP even where the machine sells at its board price: the two agree on 700 of 708
+     channels, and the RP is the price ops keep.
+2. **SKU price** — for clients (Ariska, Kumoyo) who set their own Grab price. The list has a Grab price per SKU, and
+   beside it, as reference: the **normal price** (the RP tier their stores use — RP2 for both today; each tier in
+   use if their stores differ), **% vs normal**, and **what they keep after Grab's commission** (30%). E.g. normal
+   $2.50, Grab $2.92 → "+17%", keeps $2.04 = 82% of normal. Seeded from today's templates. Today Ariska is exactly ×1.10 of normal on all 48
+   channels, Kumoyo ×1.16–×1.18 on 11 — so after 30% both keep 77–82% of their machine price.
+
+Both modes show the same reference columns (normal price, Grab price, %, net after commission), so an operator on
+RP × multiplier also sees what each store charges. Grab campaigns discount from the resulting Grab price.
 
 **Order of work (changes §4)**
 - **Now — stop wrong-product sales (one small deploy, on today's code):** a Grab item whose template product is not
@@ -383,5 +409,10 @@ Source: Daniel's screen recording of the Grab Product Mapping page (Dropbox
 
 **Decisions for Brian (added to §5)**
 7. Ship the stopgap now (hide mismatched items), or leave Grab as it is until the Price List lands?
-8. Grab price for a product with none on the list: hidden until priced (recommended), or the Site's RP tier price?
-9. G101 and A001: which price?
+8. SKU-price mode, a product with no Grab price yet: hidden until priced (recommended), or normal price ×
+   a default %?
+9. G101 and A001 ($2.00 / $2.50, $2.40 / $2.50 in different HIPL templates): moot if HIPL takes RP × multiplier.
+10. HIPL's multiplier and rounding step: ×1.00 keeps Grab at the machine price (today's average is ×1.024); a
+    higher one recovers part of Grab's 30%. Round up to 10¢?
+11. Grab's commission: 30% for every operator, or a rate per operator (clients may have their own Grab terms)?
+12. Bulla (LEA, 1 store): its site has no RP tier, so only the SKU-price mode works for it — confirm.
