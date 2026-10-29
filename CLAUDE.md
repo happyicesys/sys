@@ -1862,7 +1862,10 @@ earnings are not split by product). The filter's one definition is `VendProductR
 top-10 pie read live sales per product line via `matchingProductIds()`. Every chart cache key carries the filter.
 With no product picked, every figure is byte-identical to before (checked 2026-10-29 over 8 filter sets on both
 pages). Expect "all products" to read ~0.5–0.9% above the whole-machine total: baskets are rolled up per line at
-unit price, the header at what was charged. Regression coverage: `tests/Feature/DashboardPerformanceProductFilterTest.php`.
+unit price, the header at what was charged. Historical Analysis "Machine Count" = machines selling on an average
+day of the month (machine-days ÷ days with a sale), so Daily Sales/ VM × Machine Count × days = Total Sales; it read
+a column the query stopped returning on 2025-07-08 and showed 0 until 2026-10-29. Regression coverage:
+`tests/Feature/DashboardPerformanceProductFilterTest.php`.
 
 ## Operation Dashboard: "Needs attention" before Search
 

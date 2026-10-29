@@ -1652,7 +1652,9 @@ class DashboardController extends Controller
                 'current' => $currentMonthNumber == $item->month,
                 'month_short_name' => $month->short_name,
                 'amount' => $item->amount ? $item->amount / 100 : 0,
-                'vend_count' => $item->count ?? 0,
+                // Read off average_active_count. It read `count`, a column the
+                // query stopped returning on 2025-07-08, so the row showed 0.
+                'vend_count' => (float) ($item->average_active_count ?? 0),
                 'average' => $item->average ? $item->average / 100 : 0,
             ];
             if ($item->id) {
@@ -1805,32 +1807,6 @@ class DashboardController extends Controller
 
         $table = $this->recordTable();
 
-        // Subquery: daily active vend count per id (location_type_id/operator) & date
-        $dailyActive = $this->recordQuery(self::IDX_BY_MONTH)
-            // Dedicated covering index for monthly-sales (see migration
-            // 2026_07_01_020000). Other dashboard queries keep idx_operator_date_vend.
-            ->selectRaw("{$table}.location_type_id as location_type_id")
-            ->selectRaw("{$table}.operator_id as operator_id")
-            ->selectRaw("{$table}.date as date")
-            ->selectRaw("COUNT(DISTINCT {$table}.vend_id) as daily_active_count")
-            ->leftJoin('vends as v2', function ($join) use ($table) {
-                $join->on($table.'.vend_id', '=', 'v2.id')
-                    ->where('v2.is_testing', true);
-            })
-            ->whereBetween($table.'.date', [$dateFrom, $dateTo])
-            ->whereNull('v2.id') // replaces NOT IN for efficiency
-            ->when($request->operators, fn ($q) => $q->whereIn($table.'.operator_id', $request->operators))
-            // A picked product narrows the machine count too: machines that
-            // sold it that day, the same population as the sales beside it.
-            ->when($this->lite, fn ($q) => VendProductRecord::applyProductFilters($q, $request, $table))
-            ->groupBy($table.'.date');
-
-        if ($className === 'location_types') {
-            $dailyActive->groupBy($table.'.location_type_id');
-        } elseif ($className === 'operators') {
-            $dailyActive->groupBy($table.'.operator_id');
-        }
-
         $query = $this->recordQuery(self::IDX_BY_MONTH)
             // Dedicated covering index for monthly-sales (see migration
             // 2026_07_01_020000). Other dashboard queries keep idx_operator_date_vend.
@@ -1840,14 +1816,6 @@ class DashboardController extends Controller
             ->leftJoin('vends as v2', function ($join) use ($table) {
                 $join->on($table.'.vend_id', '=', 'v2.id')
                     ->where('v2.is_testing', true);
-            })
-            ->leftJoinSub($dailyActive, 'daily_active', function ($join) use ($className, $table) {
-                $join->on($table.'.date', '=', 'daily_active.date');
-                if ($className === 'location_types') {
-                    $join->on($table.'.location_type_id', '=', 'daily_active.location_type_id');
-                } elseif ($className === 'operators') {
-                    $join->on($table.'.operator_id', '=', 'daily_active.operator_id');
-                }
             })
             ->whereBetween($table.'.date', [$dateFrom, $dateTo])
             ->whereNull('v2.id') // replaces NOT IN
@@ -1882,7 +1850,11 @@ class DashboardController extends Controller
                 ->orderBy('operators.name', 'asc');
         }
 
-        $query->selectRaw('ROUND(AVG(daily_active.daily_active_count), 2) as average_active_count');
+        // "Machine Count": machines selling on an average day of the month
+        // (machine-days ÷ days with a sale), the same machine-day the average
+        // above divides by, so Daily Sales/ VM × Machine Count × days = Total.
+        // On a product filter it counts machines that sold the picked products.
+        $query->selectRaw("ROUND(COUNT(DISTINCT {$table}.vend_id, {$table}.date) / NULLIF(COUNT(DISTINCT {$table}.date), 0), 2) as average_active_count");
 
         return $query;
     }

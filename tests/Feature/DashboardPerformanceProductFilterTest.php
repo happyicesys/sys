@@ -119,6 +119,9 @@ class DashboardPerformanceProductFilterTest extends TestCase
                 ->where('monthGraphData.2026.8.amount', 150)
                 ->where('activeMachineGraphData.2026.8.count', 2)
                 ->where('monthsByModel.Office.8.amount', 150)
+                // Machine Count: machines selling on an average day. It read a
+                // column the query no longer returned and showed 0 for months.
+                ->where('monthsByModel.Office.8.vend_count', 2)
                 ->where('performerGraphData.data.0.amount', 100)
                 ->has('productGraphData', 2)
                 ->has('productOptions', 2);
@@ -137,6 +140,7 @@ class DashboardPerformanceProductFilterTest extends TestCase
                 ->where('monthGraphData.2026.8.amount', 60)
                 ->where('activeMachineGraphData.2026.8.count', 1)
                 ->where('monthsByModel.Office.8.amount', 60)
+                ->where('monthsByModel.Office.8.vend_count', 1)
                 ->has('performerGraphData.data', 1)
                 ->where('performerGraphData.data.0.amount', 60)
                 ->has('productGraphData', 1)
