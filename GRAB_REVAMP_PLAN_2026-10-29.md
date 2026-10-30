@@ -7,8 +7,8 @@ modes per operator (RP × multiplier / own SKU price). §8: Grab promotions writ
 product/category, no template. §9: the whole Delivery Platform tab page by page (5 entries → 4) and the order
 of work. §9 step 1 (Grab Stores) DEPLOYED 2026-10-29/30 (`e5273f2866`) — see "Step 1 as built" under §9. Grab
 Errors (`/grab-errors`: Grab's error answers, failed callbacks, nightly missed-order check, 30-day prune)
-DEPLOYED 2026-10-30 (`bdf7e65286`). Step 3's first part, the read-only Grab Promotions mirror, BUILT
-2026-10-30 (see "Step 3a as built" under §9). Steps 2–5 are otherwise still plan.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
+DEPLOYED 2026-10-30 (`bdf7e65286`). Step 3's first part, the read-only Grab Promotions mirror, DEPLOYED
+2026-10-30 14:44 (`de0f910cf2`, fix `f266f72279`; see "Step 3a as built" under §9). Steps 2–5 are otherwise still plan.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
 (read-only MCP) on 2026-10-29, and every Grab rule comes from the Partner API v1.1.3 docs (GrabFood and
 GrabMart pages).
 
@@ -753,7 +753,7 @@ Brian: "can start to wire the 1st … won't affect those existing one?"
 - **Tests:** `tests/Feature/GrabStoresTest.php` (16).
 - **Deploy:** push the migration commit first, then the code (deploy gap on new columns).
 
-### Step 3a as built (2026-10-30): Grab Promotions mirror, read only
+### Step 3a as built (DEPLOYED 2026-10-30 14:44, `de0f910cf2`; fix `f266f72279`): Grab Promotions mirror, read only
 
 Brian picked "Promotions mirror" next.
 - **`grab:mirror-campaigns`** runs every 10 min at :05, :15 …, offset from the pause re-assert.
@@ -779,7 +779,7 @@ Brian picked "Promotions mirror" next.
   - Grab Stores rows show "n promotions on Grab". Visibility is the same as Grab Stores.
 - **Not in this step:** an "End it" button and the leftover "End all". Both write to Grab, so they come with
   step 3b after you've seen what the first mirror run finds.
-- **Tests:** `tests/Feature/GrabPromotionsMirrorTest.php` (8).
+- **Tests:** `tests/Feature/GrabPromotionsMirrorTest.php` (10). Page-by-page before / after: `GRAB_PAGES_BEFORE_AFTER_2026-10-30.md`.
 
 ### Order of work (replaces the ordering in §4 / §7 where they differ)
 
