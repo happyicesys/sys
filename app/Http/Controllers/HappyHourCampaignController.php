@@ -78,18 +78,12 @@ class HappyHourCampaignController extends Controller
         $boundVends = $campaigns->flatMap(fn ($c) => $c->vends);
         $paused = HappyHourPause::forVends($boundVends->pluck('id'), $now, $boundVends->mapWithKeys(fn (Vend $v) => [$v->id => $v->codeLabel()])->all());
 
-        // The Campaign column's figures: last 24 h over last 30 days (Brian, 2026-10-16).
-        $stats = app(HappyHourCampaignStats::class);
-        $operatorId = OperatorVendFilterScope::viewerOperatorId();
-
         return Inertia::render('HappyHourCampaign/Index', [
-            'campaigns' => $campaigns->map(fn (HappyHourCampaign $c) => [
-                ...$this->campaignPayload($c, $slots->get($c->id, collect()), $paused, $stock, $sold),
-                'stats' => [
-                    'l24h' => $stats->window($c->id, $now->copy()->subDay(), $now, $operatorId, oneDay: true),
-                    'l30d' => $stats->window($c->id, $now->copy()->subDays(30), $now, $operatorId),
-                ],
-            ])->values(),
+            'campaigns' => $campaigns->map(fn (HappyHourCampaign $c) => $this->campaignPayload($c, $slots->get($c->id, collect()), $paused, $stock, $sold))->values(),
+            // The Campaign column's figures, last 24 h over last 30 days (Brian, 2026-10-16), keyed by campaign
+            // id. Deferred (Brian, 2026-10-30): ~1 s of queries that grows with the 30 days, so the page draws
+            // first and the browser fetches these right after.
+            'campaignStats' => Inertia::defer(fn () => $this->campaignStats($campaigns, $now)),
             'machines' => $machines,
             'products' => $this->productOptions(collect($machines)->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)->pluck('id')->all()),
             'rules' => collect(HappyHourCampaign::RULES)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
@@ -97,6 +91,21 @@ class HappyHourCampaignController extends Controller
             'minVendingApkVersion' => HappyHourEligibility::minVendingApk(),
             'machineGroups' => collect(HappyHourMachineGroups::GROUPS)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
         ]);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, HappyHourCampaign>  $campaigns
+     * @return array<int, array{l24h: array<string, mixed>, l30d: array<string, mixed>}> campaign id => windows
+     */
+    private function campaignStats($campaigns, Carbon $now): array
+    {
+        $stats = app(HappyHourCampaignStats::class);
+        $operatorId = OperatorVendFilterScope::viewerOperatorId();
+
+        return $campaigns->mapWithKeys(fn (HappyHourCampaign $c) => [$c->id => [
+            'l24h' => $stats->window($c->id, $now->copy()->subDay(), $now, $operatorId, oneDay: true),
+            'l30d' => $stats->window($c->id, $now->copy()->subDays(30), $now, $operatorId),
+        ]])->all();
     }
 
     public function store(HappyHourCampaignRequest $request): RedirectResponse

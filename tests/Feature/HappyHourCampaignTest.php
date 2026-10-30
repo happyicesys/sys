@@ -847,12 +847,14 @@ class HappyHourCampaignTest extends TestCase
 
         // 3 promo units at $2.40 ($1.60 off each) on one machine that ran Happy Hour today.
         $expect = ['revenue' => 720, 'discount' => 480, 'units' => 3, 'machines' => 1, 'machine_days' => 1, 'avg_daily_units_per_machine' => 3];
+        // The figures are deferred: absent from the page itself, fetched by the browser right after.
         $this->actingAs($user)->get('/happy-hour-campaigns')->assertOk()
-            ->assertInertia(function ($page) use ($expect) {
-                foreach ($expect as $key => $value) {
-                    $page->where("campaigns.0.stats.l24h.{$key}", $value)->where("campaigns.0.stats.l30d.{$key}", $value);
-                }
-            });
+            ->assertInertia(fn ($page) => $page->has('campaigns', 1)->missing('campaignStats'));
+        $stats = $this->deferredCampaignStats($user)[$campaign->id];
+        foreach ($expect as $key => $value) {
+            $this->assertEquals($value, $stats['l24h'][$key], "l24h {$key}");
+            $this->assertEquals($value, $stats['l30d'][$key], "l30d {$key}");
+        }
 
         // The graph: the last 7 days by default, every date present.
         $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/stats")->assertOk()
@@ -900,12 +902,10 @@ class HappyHourCampaignTest extends TestCase
             'related_transactions' => 2, 'related_multiple' => 1, 'related_revenue' => 1680, 'related_units' => 5,
             'related_units_per_machine' => 5, 'non_hh_revenue_pct' => 71.4, 'non_hh_units_pct' => 60,
         ];
-        $this->actingAs($user)->get('/happy-hour-campaigns')->assertOk()
-            ->assertInertia(function ($page) use ($expect) {
-                foreach ($expect as $key => $value) {
-                    $page->where("campaigns.0.stats.l24h.{$key}", $value);
-                }
-            });
+        $stats = $this->deferredCampaignStats($user)[$campaign->id];
+        foreach ($expect as $key => $value) {
+            $this->assertEquals($value, $stats['l24h'][$key], "l24h {$key}");
+        }
         $json = $this->actingAs($user)->getJson("/happy-hour-campaigns/{$campaign->id}/stats")->assertOk()->json();
         foreach ($expect as $key => $value) {
             $this->assertEquals($value, $json['days'][6][$key], "day {$key}");
@@ -1011,6 +1011,24 @@ class HappyHourCampaignTest extends TestCase
     }
 
     /** @param  array<string, mixed>  $overrides */
+    /**
+     * The deferred `campaignStats` prop, fetched the way the browser does after the page draws: an Inertia
+     * partial reload asking for that prop only.
+     *
+     * @return array<int|string, array<string, mixed>>
+     */
+    private function deferredCampaignStats(User $user): array
+    {
+        $version = (string) app(\App\Http\Middleware\HandleInertiaRequests::class)->version(\Illuminate\Http\Request::create('/'));
+
+        return $this->actingAs($user)->get('/happy-hour-campaigns', [
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => $version,
+            'X-Inertia-Partial-Component' => 'HappyHourCampaign/Index',
+            'X-Inertia-Partial-Data' => 'campaignStats',
+        ])->assertOk()->json('props.campaignStats');
+    }
+
     private function form(array $overrides = []): array
     {
         return array_merge([

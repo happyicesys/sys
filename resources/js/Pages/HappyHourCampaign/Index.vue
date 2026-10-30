@@ -70,7 +70,9 @@
                     {{ c.name }}
                     <div class="text-xs font-normal text-gray-500">{{ ruleLabel(c.selection_rule) }}</div>
                     <!-- How the campaign is doing: last 24 h over last 30 days (Brian, 2026-10-16). -->
-                    <table v-if="c.stats" class="mt-3 text-xs font-normal text-gray-700">
+                    <!-- campaignStats is deferred: the page draws first, the figures arrive right after. -->
+                    <div v-if="!campaignStats" class="mt-3 text-xs font-normal text-gray-400">{{ $t('Loading figures…') }}</div>
+                    <table v-else-if="campaignStats[c.id]" class="mt-3 text-xs font-normal text-gray-700">
                       <thead>
                         <tr class="text-gray-500">
                           <th class="pr-3 text-left font-normal"></th>
@@ -81,12 +83,12 @@
                       <tbody>
                         <tr v-for="row in statRows" :key="row.key">
                           <td class="pr-3 whitespace-nowrap" :title="row.title">{{ row.name }}</td>
-                          <td class="px-1 text-right font-semibold whitespace-nowrap">{{ row.format(c.stats.l24h[row.key]) }}</td>
-                          <td class="pl-2 text-right whitespace-nowrap">/ {{ row.format(c.stats.l30d[row.key]) }}</td>
+                          <td class="px-1 text-right font-semibold whitespace-nowrap">{{ row.format(campaignStats[c.id].l24h[row.key]) }}</td>
+                          <td class="pl-2 text-right whitespace-nowrap">/ {{ row.format(campaignStats[c.id].l30d[row.key]) }}</td>
                         </tr>
                       </tbody>
                     </table>
-                    <button v-if="c.stats" type="button" class="mt-2 text-xs font-normal text-blue-700 hover:underline" @click="openStats(c)">
+                    <button v-if="campaignStats?.[c.id]" type="button" class="mt-2 text-xs font-normal text-blue-700 hover:underline" @click="openStats(c)">
                       {{ $t('Show graph') }}
                     </button>
                   </TableData>
@@ -574,6 +576,8 @@ const props = defineProps({
   minApkVersion: Number,
   minVendingApkVersion: Number,
   machineGroups: { type: Array, default: () => [] },
+  // Deferred (Inertia::defer): undefined until the browser's follow-up request returns. Campaign id => windows.
+  campaignStats: { type: Object, default: null },
 })
 
 const permissions = computed(() => usePage().props.auth?.permissions ?? [])
