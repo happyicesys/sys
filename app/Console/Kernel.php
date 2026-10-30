@@ -80,6 +80,9 @@ class Kernel extends ConsoleKernel
         // Grab Errors: orders Grab has that never reached us (yesterday), and the 30-day keep.
         $schedule->command('grab:missed-orders')->dailyAt('03:30')->withoutOverlapping(60);
         $schedule->command('grab:prune-api-errors')->dailyAt('03:45')->withoutOverlapping(30);
+        // Grab Promotions: what Grab has live per store. At :05, :15 … so it never shares a
+        // minute with the pause re-assert's Grab calls.
+        $schedule->command('grab:mirror-campaigns')->cron('5-55/10 * * * *')->withoutOverlapping(10);
         if (config('grab.menu_records_keep_days')) {
             $schedule->command('grab:prune-menu-records --apply')->dailyAt('03:40')->withoutOverlapping(60);
         }

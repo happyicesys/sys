@@ -894,6 +894,18 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         return $this->getResponse($response, 'getStoreStatus');
     }
 
+    // List campaigns: a store's ongoing and upcoming campaigns, at most 100 of each
+    // ({ongoing, upcoming}). Grab's docs give merchantID as a header and in the URL; both are sent.
+    public function listCampaigns(string $merchantID)
+    {
+        $this->verifyOauthAccessToken();
+
+        $response = Http::withHeaders($this->getHeaders(['merchantID' => $merchantID]))
+            ->get($this->getPartnerEndpoint().'/partner/v1/campaigns', ['merchantID' => $merchantID]);
+
+        return $this->getResponse($response, 'listCampaigns');
+    }
+
     // create campaign
     public function createCampaign($campaignParams = [])
     {

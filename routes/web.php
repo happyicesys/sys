@@ -23,6 +23,7 @@ use App\Http\Controllers\DeliveryProductMappingController;
 use App\Http\Controllers\DeliveryProductMappingVendController;
 use App\Http\Controllers\FreezerControlController;
 use App\Http\Controllers\GrabErrorController;
+use App\Http\Controllers\GrabPromotionController;
 use App\Http\Controllers\GrabStoreController;
 use App\Http\Controllers\HappyHourCampaignController;
 use App\Http\Controllers\HidCardController;
@@ -463,6 +464,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
 
     // Grab Errors: every failed exchange with Grab, both ways, last 30 days.
     Route::get('/grab-errors', [GrabErrorController::class, 'index'])->name('grab-errors')->middleware('can:read delivery-platform-vends');
+
+    // Grab Promotions (plan §9.3, first part): what Grab has live per store; read only.
+    Route::get('/grab-promotions', [GrabPromotionController::class, 'index'])->name('grab-promotions')->middleware('can:read delivery-platform-campaigns');
+    Route::post('/grab-promotions/stores/{refId}/refresh', [GrabPromotionController::class, 'refresh'])->name('grab-promotions.refresh')->middleware('can:read delivery-platform-campaigns');
 
     // Grab Stores (plan §9 step 1): Grab Platform ID + Machines on one page.
     Route::prefix('grab-stores')->group(function () {

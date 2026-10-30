@@ -52,6 +52,9 @@ class GrabStoreController extends Controller
                 'errors_7d' => DB::table('delivery_platform_api_errors')->selectRaw('COUNT(*)')
                     ->whereColumn('delivery_platform_ref_number_id', 'delivery_platform_ref_numbers.id')
                     ->where('created_at', '>=', Carbon::now()->subDays(7)),
+                'promotions_live' => DB::table('delivery_platform_live_campaigns')->selectRaw('COUNT(*)')
+                    ->whereColumn('delivery_platform_ref_number_id', 'delivery_platform_ref_numbers.id')
+                    ->whereNull('gone_at'),
             ])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
@@ -331,6 +334,7 @@ class GrabStoreController extends Controller
             'last_order_at' => $ref->last_order_at ? Carbon::parse($ref->last_order_at)->toIso8601String() : null,
             'orders_30d' => (int) $ref->orders_30d,
             'errors_7d' => (int) $ref->errors_7d,
+            'promotions_live' => (int) $ref->promotions_live,
             'binding' => $binding ? [
                 'id' => $binding->id,
                 'vend_code' => $binding->vend_code,

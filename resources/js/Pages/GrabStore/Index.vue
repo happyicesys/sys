@@ -135,6 +135,12 @@
                   class="mt-1 inline-block rounded bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-700 hover:underline"
                   @click.stop
                 >{{ $tc(':count Grab error / 7d|:count Grab errors / 7d', store.errors_7d) }}</a>
+                <a
+                  v-if="store.promotions_live"
+                  :href="`/grab-promotions?search=${encodeURIComponent(store.ref_number)}`"
+                  class="mt-1 inline-block rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700 hover:underline"
+                  @click.stop
+                >{{ $tc(':count promotion on Grab|:count promotions on Grab', store.promotions_live) }}</a>
               </TableData>
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
                 <div class="flex flex-wrap gap-1">

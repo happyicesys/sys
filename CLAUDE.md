@@ -2235,6 +2235,20 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   - **Who sees what:** client users see only their own stores' errors; HIPL also sees errors tied to no store.
   - **Updates for unknown orders:** an order update for an order we never stored answers 404, never 500. In
     2026-10 it crashed 96 times on machine 4754, whose orders had been refused while Grab reopened it.
+- **Grab is the truth for which campaigns ARE live; mark1's own campaign rows are not** (plan §9.3, built
+  2026-10-30). Delivery Platform → **Grab Promotions** `/grab-promotions` shows the mirror, and each Grab Stores
+  row counts it.
+  - The mirror is filled by `grab:mirror-campaigns` (at :05, :15 …, never in the pause re-assert's minute) through
+    `App\Services\GrabCampaignMirror`. It reads `GET /partner/v1/campaigns` (ongoing + upcoming, ≤ 100 each) per
+    Active / bound store into `delivery_platform_live_campaigns`, plus one `delivery_platform_campaign_reads` row
+    per store.
+  - It is **read only on Grab**: it never creates, changes or ends a campaign.
+  - A campaign a good read no longer lists gets `gone_at`, and gone rows are pruned after 30 days. A failed read
+    changes no row.
+  - Ours = `delivery_platform_campaign_item_vends.platform_ref_id`. If mark1 shows that item vend inactive,
+    past its end, or on a closed binding, the campaign is a **leftover**. That is how a failed DELETE shows
+    itself, and why a new create is refused with "same item in two campaigns".
+  - Never decide that a campaign is gone from mark1's rows; read the mirror.
 - **The order webhook answers fast and is idempotent.** One writer per orderID (cache lock); a repeat answers
   200 with the stored order; a Grab edit (`featureFlags.isMexEditOrder`) is kept in `request_history_json` +
   `is_edited` for a person, never re-allocated blind. Grab calls (mark ready, cancel) run in

@@ -5,8 +5,10 @@ still a switch. **§7 (same day, ops feedback + prod check): Grab sells the wron
 mapping changes; the Grab menu must follow the machine mapping — Phase 3 brought forward. §7 pricing: two
 modes per operator (RP × multiplier / own SKU price). §8: Grab promotions written once per operator, by
 product/category, no template. §9: the whole Delivery Platform tab page by page (5 entries → 4) and the order
-of work. §9 step 1 (Grab Stores) BUILT on branch `feature/grab-follow-machine`, not deployed — see "Step 1 as
-built" under §9. Everything after step 1 is still plan.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
+of work. §9 step 1 (Grab Stores) DEPLOYED 2026-10-29/30 (`e5273f2866`) — see "Step 1 as built" under §9. Grab
+Errors (`/grab-errors`: Grab's error answers, failed callbacks, nightly missed-order check, 30-day prune)
+DEPLOYED 2026-10-30 (`bdf7e65286`). Step 3's first part, the read-only Grab Promotions mirror, BUILT
+2026-10-30 (see "Step 3a as built" under §9). Steps 2–5 are otherwise still plan.** First prod check: `grab:menu-diff` = every selling store "same" or "stock only". Phases 2–5 are plan only. Every number below was read from prod
 (read-only MCP) on 2026-10-29, and every Grab rule comes from the Partner API v1.1.3 docs (GrabFood and
 GrabMart pages).
 
@@ -716,7 +718,7 @@ The fix for "we keep our own data and push it, so we drift": split the truth by 
   - orders delivered but not dispensed.
   - `grab:menu-diff` runs nightly behind it. Both commands exist but are not scheduled today.
 
-### Step 1 as built (2026-10-29, branch `feature/grab-follow-machine`, NOT deployed)
+### Step 1 as built (DEPLOYED 2026-10-29/30, `e5273f2866`; Grab Errors added 2026-10-30, `bdf7e65286`)
 
 Brian: "can start to wire the 1st … won't affect those existing one?"
 - **New page `/grab-stores`** (menu: Delivery Platform → Grab Stores). The old Grab Platform ID and Machines pages
@@ -750,6 +752,34 @@ Brian: "can start to wire the 1st … won't affect those existing one?"
 - **Unchanged:** menu building, orders, prices, campaigns, `isSelling()`, the 10-min pause re-assert.
 - **Tests:** `tests/Feature/GrabStoresTest.php` (16).
 - **Deploy:** push the migration commit first, then the code (deploy gap on new columns).
+
+### Step 3a as built (2026-10-30): Grab Promotions mirror, read only
+
+Brian picked "Promotions mirror" next.
+- **`grab:mirror-campaigns`** runs every 10 min at :05, :15 …, offset from the pause re-assert.
+  - It reads `GET /partner/v1/campaigns?merchantID=` (Mart docs: ongoing + upcoming, at most 100 each) for every
+    store that is Active, open on a machine, or still has mirrored campaigns.
+  - Stores Grab refused in the last day are skipped (DCVIC), and a 429 stops the run.
+- **Data** (migration `2026_10_30_200000_create_grab_campaign_mirror_tables`):
+  - `delivery_platform_live_campaigns`: one row per Grab campaign id, with state, createdBy, name, deal type and
+    scope, start / end, the full JSON, the matching `delivery_platform_campaign_item_vends` row,
+    first / last seen and `gone_at`.
+  - `delivery_platform_campaign_reads`: one row per store, holding the last read, the last good read, the status
+    and the counts.
+- **Who made it**, with leftovers in red:
+  - **Made in mark1:** the item vend is active, not past its end, and its binding is open.
+  - **Leftover:** mark1 has the item vend but believes it ended. This is the failed-DELETE case.
+  - **Grab merchant app / Grab team:** taken from `createdBy`.
+  - **Not found in mark1:** anything else.
+- **Page `/grab-promotions`** (`read delivery-platform-campaigns`):
+  - each row shows the store and machine, the deal in words with its items or category by name, from → to, and
+    Live now / Upcoming / Gone;
+  - chips filter by state and by who made it, and there is an "Ended" view;
+  - a box lists stores whose last read failed, each with "Read again", which is a GET on Grab.
+  - Grab Stores rows show "n promotions on Grab". Visibility is the same as Grab Stores.
+- **Not in this step:** an "End it" button and the leftover "End all". Both write to Grab, so they come with
+  step 3b after you've seen what the first mirror run finds.
+- **Tests:** `tests/Feature/GrabPromotionsMirrorTest.php` (8).
 
 ### Order of work (replaces the ordering in §4 / §7 where they differ)
 
