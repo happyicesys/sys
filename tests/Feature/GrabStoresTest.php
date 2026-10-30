@@ -310,6 +310,122 @@ class GrabStoresTest extends TestCase
             ->assertJsonPath('store.ref_number', self::MERCHANT);
     }
 
+    public function test_edit_changes_merchant_id_and_remarks_and_records_both(): void
+    {
+        $binding = $this->bindGrabStore(2867, 'C7CCRTEJJYUJR6', [11 => ['qty' => 5, 'capacity' => 10]]);
+        $refId = $binding->delivery_platform_ref_number_id;
+
+        $this->actingAs($this->user)->post("/grab-stores/{$refId}/update", [
+            'operator_id' => $this->grabMapping->operator_id,
+            'ref_number' => '4-c7ccrtejjyujr6 ',
+            'remarks' => 'Typo fixed',
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $ref = DeliveryPlatformRefNumber::find($refId);
+        $this->assertSame('4-C7CCRTEJJYUJR6', $ref->ref_number);
+        $this->assertSame('Typo fixed', $ref->remarks);
+        // The binding's copy follows, so the store keeps resolving.
+        $this->assertSame('4-C7CCRTEJJYUJR6', $binding->fresh()->platform_ref_id);
+        $this->assertSame(['renamed', 'edited'], DeliveryPlatformStoreEvent::query()->orderBy('id')->pluck('event')->all());
+    }
+
+    public function test_edit_asks_grab_about_a_new_merchant_id_unless_ticked(): void
+    {
+        $ref = $this->service()->addStore($this->grabMapping->operator_id, '4-FIRST', null, $this->user->id);
+        $this->grabKnowsStore = false;
+
+        $this->actingAs($this->user)->post("/grab-stores/{$ref->id}/update", [
+            'operator_id' => $ref->operator_id, 'ref_number' => '4-SECOND',
+        ])->assertSessionHasErrors('ref_number');
+        $this->assertSame('4-FIRST', $ref->fresh()->ref_number);
+
+        // Remarks alone never ask Grab.
+        $this->actingAs($this->user)->post("/grab-stores/{$ref->id}/update", [
+            'operator_id' => $ref->operator_id, 'ref_number' => '4-FIRST', 'remarks' => 'Note',
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($this->user)->post("/grab-stores/{$ref->id}/update", [
+            'operator_id' => $ref->operator_id, 'ref_number' => '4-SECOND', 'skip_grab_check' => true,
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('4-SECOND', $ref->fresh()->ref_number);
+    }
+
+    public function test_the_operator_changes_only_while_the_store_is_on_no_machine(): void
+    {
+        $binding = $this->bindGrabStore(2867, self::MERCHANT, [11 => ['qty' => 5, 'capacity' => 10]]);
+        $ref = $binding->deliveryPlatformRefNumber;
+        $other = Operator::forceCreate([
+            'name' => 'Other', 'code' => 'OTH', 'country_id' => $this->grabMapping->operator->country_id, 'created_by' => 1, 'gst_vat_rate' => 9,
+        ]);
+
+        try {
+            $this->service()->editStore($ref, $ref->ref_number, $other->id, null, $this->user->id);
+            $this->fail('The operator changed while the store was on a machine.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('operator_id', $e->errors());
+        }
+
+        $this->service()->unbind($binding, $this->user->id);
+        $this->service()->editStore($ref->fresh(), $ref->ref_number, $other->id, null, $this->user->id);
+        $this->assertSame($other->id, (int) $ref->fresh()->operator_id);
+    }
+
+    public function test_the_old_grab_platform_id_edit_goes_through_the_writer(): void
+    {
+        $binding = $this->bindGrabStore(2867, 'C7CCRTEJJYUJR6', [11 => ['qty' => 5, 'capacity' => 10]]);
+        $refId = $binding->delivery_platform_ref_number_id;
+
+        $this->actingAs($this->user)->post("/delivery-platform-ref-numbers/{$refId}/update", [
+            'operator_id' => $this->grabMapping->operator_id,
+            'ref_number' => '4-C7CCRTEJJYUJR6',
+            'remarks' => 'From the old page',
+            'is_active' => 'true',
+        ])->assertRedirect();
+
+        $this->assertSame('4-C7CCRTEJJYUJR6', $binding->fresh()->platform_ref_id);
+        $this->assertSame(['renamed', 'edited'], DeliveryPlatformStoreEvent::query()->orderBy('id')->pluck('event')->all());
+    }
+
+    public function test_on_grab_now_lists_the_menu_grab_pulls_with_why_a_slot_cannot_be_ordered(): void
+    {
+        $this->grabItem('U-50', 12, 300);
+        $this->grabItem('U-51', 13, 320);
+        $this->grabItems['U-51']->forceFill(['is_active' => false])->save();
+        $binding = $this->bindGrabStore(2867, self::MERCHANT, [
+            11 => ['qty' => 5, 'capacity' => 10],
+            12 => ['qty' => 0, 'capacity' => 10],
+            13 => ['qty' => 4, 'capacity' => 10],
+        ]);
+
+        // The viewer's own product limits (their operator owns none of these products)
+        // do not drop a line: the panel shows what Grab gets.
+        $response = $this->actingAs($this->user)->getJson("/grab-stores/{$binding->delivery_platform_ref_number_id}/menu")
+            ->assertOk()
+            ->assertJsonPath('selling', true)
+            ->assertJsonPath('grab_has_it', null)
+            ->assertJsonPath('counts.items', 3)
+            ->assertJsonPath('counts.available', 1);
+
+        $lines = collect($response->json('lines'))->keyBy('slot');
+        $this->assertTrue($lines['11']['available']);
+        $this->assertSame(280, $lines['11']['price']);
+        $this->assertSame(5, $lines['11']['max_stock']);
+        $this->assertSame('U-49', $lines['11']['product_code']);
+        $this->assertSame('sold_out', $lines['12']['reason']);
+        $this->assertSame('item_off', $lines['13']['reason']);
+
+        // Grab's last pull of the same menu reads as "Grab has this menu".
+        auth()->forgetUser(); // Grab's pull has no user
+        $binding->update(['last_menu_json' => app(\App\Services\DeliveryPlatformService::class)->buildMenu($binding->fresh())]);
+        $this->actingAs($this->user)->getJson("/grab-stores/{$binding->delivery_platform_ref_number_id}/menu")
+            ->assertJsonPath('grab_has_it', true);
+
+        // A paused store is flagged: Grab is not served its menu at all.
+        $this->service()->pause($binding->fresh(), $this->user->id, 'Repair');
+        $this->actingAs($this->user)->getJson("/grab-stores/{$binding->delivery_platform_ref_number_id}/menu")
+            ->assertJsonPath('selling', false);
+    }
+
     public function test_the_move_endpoint_needs_update_rights(): void
     {
         $binding = $this->bindGrabStore(2867, self::MERCHANT, [11 => ['qty' => 5, 'capacity' => 10]]);

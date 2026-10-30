@@ -474,8 +474,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/', [GrabStoreController::class, 'index'])->name('grab-stores')->middleware('can:read delivery-platform-vends');
         Route::get('/{id}/history', [GrabStoreController::class, 'history'])->name('grab-stores.history')->middleware('can:read delivery-platform-vends');
         Route::post('/{id}/check-grab', [GrabStoreController::class, 'checkGrab'])->name('grab-stores.check-grab')->middleware('can:read delivery-platform-vends');
+        Route::get('/{id}/menu', [GrabStoreController::class, 'menu'])->name('grab-stores.menu')->middleware('can:read delivery-platform-vends');
         Route::middleware('can:update delivery-platform-vends')->group(function () {
             Route::post('/', [GrabStoreController::class, 'store'])->name('grab-stores.store');
+            Route::post('/{id}/update', [GrabStoreController::class, 'update'])->name('grab-stores.update');
             Route::post('/{id}/bind', [GrabStoreController::class, 'bind'])->name('grab-stores.bind');
             Route::post('/{id}/status', [GrabStoreController::class, 'setStatus'])->name('grab-stores.status');
             Route::post('/bindings/{bindingId}/move', [GrabStoreController::class, 'move'])->name('grab-stores.move');

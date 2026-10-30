@@ -8,17 +8,15 @@ built"), checked against the code and prod.
 
 | Before | Now |
 |---|---|
-| Grab Platform ID | **Grab Stores** (new) |
+| Grab Platform ID | **Grab Stores** (new; replaces Grab Platform ID + Machines) |
 | Machines | **Grab Errors** (new) |
 | Grab Orders | **Grab Promotions** (new) |
-| Grab Product Mapping | Grab Platform ID (kept for now) |
-| Grab Campaign | Machines (kept for now) |
-| | Grab Orders |
-| | Grab Product Mapping |
+| Grab Product Mapping | Grab Orders |
+| Grab Campaign | Grab Product Mapping |
 | | Grab Campaign |
 
-The three new pages are at the top. The old Grab Platform ID and Machines pages stay until ops are used to Grab
-Stores; after that they are removed.
+Grab Platform ID and Machines left the menu on 2026-10-30, once Grab Stores could do everything they did. Their old
+addresses still open, so bookmarks keep working.
 
 ---
 
@@ -38,9 +36,15 @@ why, and a pause overwrote the record, so no past pause was ever kept.
   reason, the machine ID Grab sent on the last order (red when it is not the bound machine), orders in 30 days, last
   order, a count of Grab errors, and "n promotions on Grab".
 - **Totals chips** at the top filter the list.
-- **Actions:** Add store (checks the merchantID with Grab first, with a "Save without Grab check" tick), Put on
-  machine, Move to another machine, Pause (reason, optional "until"), Resume, Remove from machine (with a reason),
-  Switch off / on, History.
+- **Actions:** Add store (checks the merchantID with Grab first, with a "Save without Grab check" tick), **Edit**
+  (merchantID, operator, remarks), Put on machine, Move to another machine, Pause (reason, optional "until"), Resume,
+  Remove from machine (with a reason), Switch off / on, History.
+- **On Grab now:** the store's menu exactly as Grab pulls it, one line per slot: product, Grab sub-category, Grab
+  price, qty in the machine, units held by open orders, qty offered on Grab, and for anything Grab cannot sell, why
+  (store paused, switched off in the template, slot fault, no capacity, sold out, back at the next stock sync). It
+  also says whether Grab has already pulled this version. Read only.
+- **Edit rules:** a new merchantID is checked with Grab first (tick to skip). The operator decides which Grab account
+  serves the store, so it can only change while the store is on no machine.
 - **History:** every machine the store has been on, who bound and unbound it and why, every pause, switch-off and
   Grab error.
 - A store still open on a second machine shows **"Close that one"**. The 4-C7CDNZDXKEBJPE / 2658 leftover is closed
@@ -81,7 +85,10 @@ First run on prod (14:45): 70 stores read, **no campaigns live or upcoming anywh
 store, GFSBPOS-800-085 on machine 2002, is a sandbox merchantID on the live account. Grab answers "Merchant not
 found" for it, so it stays in the "could not be read" box.
 
-## 4. Grab Platform ID (`/delivery-platform-ref-numbers`) — kept for now
+## 4. Grab Platform ID (`/delivery-platform-ref-numbers`) — off the menu; use Grab Stores
+
+The address still opens. Its Edit now goes through the same writer as Grab Stores, so a change is recorded and the
+operator cannot change while the store is on a machine.
 
 | | Before | Now |
 |---|---|---|
@@ -91,7 +98,11 @@ found" for it, so it stays in the "could not be read" box.
 | Switch it back **Active** | Grab was never reopened | Grab is reopened at once |
 | Inactive store still bound to a machine | Its menu, orders and stock kept going in some paths (GoWell 2870 sold on a closed listing) | Counts as off everywhere: menu, orders, stock, re-pause |
 
-## 5. Machines (`/delivery-product-mapping-vends`) — kept for now
+## 5. Machines (`/delivery-product-mapping-vends`) — off the menu; use Grab Stores
+
+The address still opens. Its channel view is now **On Grab now** on Grab Stores. Its per-channel edits are not
+carried over on purpose: reserved % / reserved qty is set on no channel on prod, and a channel pause set there was
+overwritten by the next stock sync.
 
 | | Before | Now |
 |---|---|---|
@@ -164,4 +175,3 @@ attention" view.
 - **Step 4, Grab Orders clean-up:** broken buttons removed, items by product, a "Needs attention" view, and a
   daily `grab:health` email.
 - **Step 5:** batch stock updates, then removing templates and the old campaign tables.
-- Removing the old Grab Platform ID and Machines entries from the menu.

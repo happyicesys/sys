@@ -152,14 +152,11 @@ class DeliveryPlatformRefNumberController extends Controller
             'is_active' => ['required', 'in:true,false'],
         ]);
 
-        // Name and status changes go through the Grab Stores writer, which records them
-        // and tells Grab at once (Inactive pauses the store, Active reopens it).
+        // Every change goes through the Grab Stores writer, which records it, keeps the
+        // operator while the store is on a machine, and tells Grab at once (Inactive
+        // pauses the store, Active reopens it). This old form never asked Grab.
         $grabStores = app(GrabStoreService::class);
-        $grabStores->rename($refNumber, trim($validated['ref_number']), auth()->id());
-        $refNumber->update([
-            'operator_id' => $validated['operator_id'],
-            'remarks' => $validated['remarks'] ?? null,
-        ]);
+        $grabStores->editStore($refNumber, $validated['ref_number'], (int) $validated['operator_id'], $validated['remarks'] ?? null, auth()->id(), true);
         $grabStores->setStatus($refNumber, $request->is_active === 'true', auth()->id());
 
         return redirect()->route('delivery-platform-ref-numbers');

@@ -325,6 +325,57 @@ class GrabStoreService
         );
     }
 
+    /**
+     * Edit a store: its merchantID (a typo fix), operator and remarks. A new merchantID
+     * is asked of Grab first unless $skipGrabCheck. The operator decides which Grab
+     * account serves the store, so it changes only while the store is on no machine.
+     */
+    public function editStore(DeliveryPlatformRefNumber $ref, string $refNumber, int $operatorId, ?string $remarks, ?int $userId, bool $skipGrabCheck = false): void
+    {
+        $refNumber = strtoupper(trim($refNumber));
+        $remarks = ($remarks = trim((string) $remarks)) === '' ? null : $remarks;
+
+        if ($operatorId !== (int) $ref->operator_id && $ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->exists()) {
+            throw ValidationException::withMessages([
+                'operator_id' => __('Take the store off its machine first: the operator decides which Grab account serves it.'),
+            ]);
+        }
+
+        if ($refNumber !== $ref->ref_number) {
+            if ($duplicate = $this->findDuplicate($refNumber, $ref->id)) {
+                throw ValidationException::withMessages([
+                    'ref_number' => __('This store is already on file as :ref.', ['ref' => $duplicate->ref_number]),
+                ]);
+            }
+            if (! $skipGrabCheck) {
+                $grabCheck = $this->checkWithGrab($operatorId, $refNumber);
+                if (! $grabCheck['ok']) {
+                    throw ValidationException::withMessages([
+                        'ref_number' => $grabCheck['message'].' '.__('Tick "Save without Grab check" to save it anyway.'),
+                    ]);
+                }
+            }
+        }
+
+        DB::transaction(function () use ($ref, $refNumber, $operatorId, $remarks, $userId) {
+            $this->rename($ref, $refNumber, $userId);
+
+            $changes = [];
+            if ($operatorId !== (int) $ref->operator_id) {
+                $changes['operator_id'] = ['from' => (int) $ref->operator_id, 'to' => $operatorId];
+            }
+            if ($remarks !== $ref->remarks) {
+                $changes['remarks'] = ['from' => $ref->remarks, 'to' => $remarks];
+            }
+            if (! $changes) {
+                return;
+            }
+
+            $ref->update(['operator_id' => $operatorId, 'remarks' => $remarks]);
+            $this->event($ref, DeliveryPlatformStoreEvent::EVENT_EDITED, $userId, null, null, $changes);
+        });
+    }
+
     /** A ref number edited by hand: the bindings' copies follow, and the change is on record. */
     public function rename(DeliveryPlatformRefNumber $ref, string $newRefNumber, ?int $userId): void
     {

@@ -145,7 +145,9 @@
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
                 <div class="flex flex-wrap gap-1">
                   <button type="button" :class="actionClass" @click="openHistory(store)">{{ $t('History') }}</button>
+                  <button v-if="store.binding" type="button" :class="actionClass" @click="openMenu(store)">{{ $t('On Grab now') }}</button>
                   <template v-if="canUpdate">
+                    <button type="button" :class="actionClass" @click="openEdit(store)">{{ $t('Edit') }}</button>
                     <button v-if="store.binding" type="button" :class="actionClass" @click="openMove(store)">{{ $t('Move') }}</button>
                     <button v-else type="button" :class="actionClass" @click="openBind(store)">{{ $t('Put on machine') }}</button>
                     <button v-if="store.binding && store.binding.is_active" type="button" :class="actionClass" @click="openPause(store)">{{ $t('Pause') }}</button>
@@ -294,6 +296,106 @@
           <button type="button" :class="actionClass" @click="closeModal">{{ $t('Cancel') }}</button>
           <button type="button" :class="dangerClass" :disabled="unbindForm.processing" @click="submitUnbind">{{ $t('Remove from machine') }}</button>
         </div>
+      </div>
+    </Modal>
+
+    <!-- Edit store -->
+    <Modal :open="modal === 'edit'" @modalClose="closeModal">
+      <template #header>{{ $t('Edit Grab store :ref', { ref: current?.ref_number }) }}</template>
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block font-medium text-gray-700">{{ $t('Operator') }}</label>
+          <select v-model="editForm.operator_id" :class="inputClass" :disabled="!!current?.binding">
+            <option v-if="current?.operator && !operatorOptions.some(option => option.id === current.operator_id)" :value="current.operator_id">{{ current.operator.name }}</option>
+            <option v-for="option in operatorOptions" :key="option.id" :value="option.id">{{ option.full_name ?? option.name }}</option>
+          </select>
+          <p v-if="current?.binding" class="text-xs text-gray-500 mt-1">{{ $t('Take the store off its machine to change the operator: the operator decides which Grab account serves it.') }}</p>
+          <InputError :message="editForm.errors.operator_id" />
+        </div>
+        <div>
+          <label class="block font-medium text-gray-700">{{ $t('Grab merchant ID') }}</label>
+          <input v-model="editForm.ref_number" type="text" :class="inputClass" />
+          <p v-if="merchantIdChanged" class="text-xs text-gray-500 mt-1">{{ $t('mark1 asks Grab about the new merchant ID before saving.') }}</p>
+          <InputError :message="editForm.errors.ref_number" />
+        </div>
+        <div>
+          <label class="block font-medium text-gray-700">{{ $t('Remarks') }}</label>
+          <textarea v-model="editForm.remarks" rows="2" :class="inputClass"></textarea>
+          <InputError :message="editForm.errors.remarks" />
+        </div>
+        <label v-if="merchantIdChanged" class="flex items-center gap-2 text-gray-700">
+          <input v-model="editForm.skip_grab_check" type="checkbox" class="rounded border-gray-300" />
+          {{ $t('Save without Grab check') }}
+        </label>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" :class="actionClass" @click="closeModal">{{ $t('Cancel') }}</button>
+          <button type="button" :class="primaryClass" :disabled="editForm.processing" @click="submitEdit">{{ $t('Save') }}</button>
+        </div>
+      </div>
+    </Modal>
+
+    <!-- What Grab gets for this store now (read only) -->
+    <Modal :open="modal === 'menu'" @modalClose="closeModal">
+      <template #header>{{ $t('On Grab now: :ref on machine :code', { ref: current?.ref_number, code: current?.binding?.vend_code }) }}</template>
+      <div class="space-y-3 text-sm">
+        <div v-if="menu.loading" class="text-gray-500">{{ $t('Loading…') }}</div>
+        <p v-else-if="menu.failed" class="text-red-600">{{ $t('Could not load the menu.') }}</p>
+        <template v-else-if="menu.data">
+          <p v-if="menu.data.error" class="text-red-600">{{ menu.data.error }}</p>
+          <template v-else>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">
+                {{ $t(':available of :items items can be ordered', { available: menu.data.counts.available, items: menu.data.counts.items }) }}
+              </span>
+              <span v-if="!menu.data.selling" class="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                {{ $t('The store is not selling: Grab shows it closed.') }}
+              </span>
+              <span v-else-if="menu.data.grab_has_it === true" class="rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">{{ $t('Grab has this menu') }}</span>
+              <span v-else-if="menu.data.grab_has_it === false" class="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{{ $t('Grab has not pulled this version yet') }}</span>
+            </div>
+            <p class="text-xs text-gray-500">{{ $t('The menu exactly as Grab pulls it, built now from the Grab template and the machine\'s stock. Read only.') }}</p>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-xs border">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th class="px-2 py-1 text-left">{{ $t('Slot') }}</th>
+                    <th class="px-2 py-1 text-left">{{ $t('Product') }}</th>
+                    <th class="px-2 py-1 text-left">{{ $t('Grab sub-category') }}</th>
+                    <th class="px-2 py-1 text-right">{{ $t('Grab price') }}</th>
+                    <th class="px-2 py-1 text-right">{{ $t('In machine') }}</th>
+                    <th class="px-2 py-1 text-right">{{ $t('On open orders') }}</th>
+                    <th class="px-2 py-1 text-right">{{ $t('Offered on Grab') }}</th>
+                    <th class="px-2 py-1 text-left">{{ $t('On Grab') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(line, lineIndex) in menu.data.lines" :key="lineIndex" class="border-t align-top">
+                    <td class="px-2 py-1 font-mono">{{ line.slot ?? '—' }}</td>
+                    <td class="px-2 py-1">
+                      <span v-if="line.product_code" class="mr-1 text-gray-500">{{ line.product_code }}</span>{{ line.name }}
+                      <div v-if="!line.has_photo" class="text-amber-700">{{ $t('No photo') }}</div>
+                    </td>
+                    <td class="px-2 py-1">{{ line.sub_category }}</td>
+                    <td class="px-2 py-1 text-right whitespace-nowrap">{{ money(line.price) }}</td>
+                    <td class="px-2 py-1 text-right">{{ line.machine_qty ?? '—' }}</td>
+                    <td class="px-2 py-1 text-right">{{ line.held || '' }}</td>
+                    <td class="px-2 py-1 text-right">{{ line.max_stock }}</td>
+                    <td class="px-2 py-1">
+                      <span v-if="line.available" class="font-semibold text-green-700">{{ $t('Can order') }}</span>
+                      <template v-else>
+                        <span class="font-semibold text-gray-600">{{ $t('Unavailable') }}</span>
+                        <div v-if="line.reason" class="text-gray-500">{{ menuReasons[line.reason] ?? line.reason }}</div>
+                      </template>
+                    </td>
+                  </tr>
+                  <tr v-if="!menu.data.lines.length">
+                    <td colspan="8" class="px-2 py-3 text-center text-gray-500">{{ $t('The menu has no items.') }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
+        </template>
       </div>
     </Modal>
 
@@ -454,6 +556,15 @@ const eventNames = {
   switched_off: t('Switched off'),
   switched_on: t('Switched on'),
   renamed: t('Merchant ID changed'),
+  edited: t('Store details changed'),
+}
+const menuReasons = {
+  store_paused: t('Store paused'),
+  item_off: t('Switched off in the Grab template'),
+  slot_fault: t('Slot fault on the machine'),
+  no_capacity: t('Slot has no capacity set'),
+  sold_out: t('Sold out (after units on open orders)'),
+  next_sync: t('Back on Grab at the next stock sync'),
 }
 
 const filters = ref({
@@ -505,6 +616,8 @@ const addForm = useForm({
 const moveForm = useForm({ vend_code: '', delivery_product_mapping_id: null, reason: 'moved', remarks: '' })
 const pauseForm = useForm({ reason: '', until: '' })
 const unbindForm = useForm({ reason: 'removed', remarks: '' })
+const editForm = useForm({ operator_id: null, ref_number: '', remarks: '', skip_grab_check: false })
+const merchantIdChanged = computed(() => (editForm.ref_number ?? '').trim().toUpperCase() !== (current.value?.ref_number ?? ''))
 
 const ok = { preserveScroll: true, onSuccess: () => closeModal() }
 
@@ -518,6 +631,35 @@ function openAdd() {
 
 function submitAdd() {
   addForm.post('/grab-stores', ok)
+}
+
+function openEdit(store) {
+  current.value = store
+  editForm.clearErrors()
+  editForm.operator_id = store.operator_id
+  editForm.ref_number = store.ref_number
+  editForm.remarks = store.remarks ?? ''
+  editForm.skip_grab_check = false
+  modal.value = 'edit'
+}
+
+function submitEdit() {
+  editForm.post(`/grab-stores/${current.value.id}/update`, ok)
+}
+
+// On Grab now
+const menu = ref({ loading: false, failed: false, data: null })
+
+async function openMenu(store) {
+  current.value = store
+  menu.value = { loading: true, failed: false, data: null }
+  modal.value = 'menu'
+  try {
+    const { data } = await axios.get(`/grab-stores/${store.id}/menu`)
+    menu.value = { loading: false, failed: false, data }
+  } catch (e) {
+    menu.value = { loading: false, failed: true, data: null }
+  }
 }
 
 function openBind(store) {
@@ -621,6 +763,16 @@ async function askGrab() {
 function eventText(event) {
   const name = eventNames[event.event] ?? event.event
   const code = event.vend_code ?? event.data?.vend_code ?? ''
+  if (event.event === 'edited') {
+    const parts = []
+    if (event.data?.operator_id) {
+      parts.push(t('operator changed'))
+    }
+    if (event.data?.remarks) {
+      parts.push(t('remarks: :text', { text: event.data.remarks.to ?? '—' }))
+    }
+    return parts.length ? `${name}: ${parts.join(', ')}` : name
+  }
   if (event.event === 'renamed') {
     return `${name}: ${event.data?.from ?? ''} → ${event.data?.to ?? ''}`
   }

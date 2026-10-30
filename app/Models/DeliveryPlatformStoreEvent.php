@@ -28,6 +28,8 @@ class DeliveryPlatformStoreEvent extends Model
 
     const EVENT_RENAMED = 'renamed';
 
+    const EVENT_EDITED = 'edited';
+
     protected $fillable = [
         'data',
         'delivery_platform_ref_number_id',

@@ -270,8 +270,6 @@ const navigation = computed(() => [
             {name: tk('Grab Stores'), href: '/grab-stores', permission: 'read delivery-platform-vends'},
             {name: tk('Grab Errors'), href: '/grab-errors', permission: 'read delivery-platform-vends'},
             {name: tk('Grab Promotions'), href: '/grab-promotions', permission: 'read delivery-platform-campaigns'},
-            {name: tk('Grab Platform ID'), href: '/delivery-platform-ref-numbers', permission: 'read delivery-platform-vends'},
-            {name: tk('Machines'), href: '/delivery-product-mapping-vends', permission: 'read delivery-platform-vends'},
             {name: tk('Grab Orders'), href: '/delivery-platform-orders', permission: 'read delivery-platform-orders'},
             {name: tk('Grab Product Mapping'), href: '/delivery-product-mappings', permission: 'read delivery-platform-product-mappings'},
             {name: tk('Grab Campaign'), href: '/delivery-platform-campaigns', permission: 'read delivery-platform-campaigns'},

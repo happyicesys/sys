@@ -2259,6 +2259,11 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   - "Pause until" is reopened by `grab:resume-due-pauses` (every 5 min).
   - HIPL staff see every operator's stores (DCVIC / KMY / ARK / KEA / NF are outside OperatorScope's group), and
     other users only their own.
+  - **Edit** (`editStore`) changes merchantID (asked of Grab unless ticked), operator and remarks. The operator picks
+    the Grab account, so it changes only while the store is on no machine. The old Grab Platform ID edit calls it too.
+  - **On Grab now** (`GET /grab-stores/{id}/menu`) shows `buildMenu()` line by line with each slot and why Grab
+    cannot sell it. It is built with no signed-in user, so the viewer's product / machine limits never drop a line.
+  - Grab Platform ID and Machines left the menu 2026-10-30; their routes still answer.
 - **Every failed exchange with Grab is kept 30 days** (Brian, 2026-10-30; Delivery Platform → **Grab Errors**
   `/grab-errors`, a count on each Grab Stores row, the details in the store's History). The ONE writer is
   `App\Support\Grab\GrabApiErrorRecorder` (`delivery_platform_api_errors`, never throws):

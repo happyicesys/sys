@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\DeliveryPlatformApiError;
 use App\Models\DeliveryPlatformRefNumber;
+use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformStoreEvent;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
+use App\Models\DeliveryProductMappingVendChannel;
 use App\Models\Vend;
+use App\Services\DeliveryPlatformService;
+use App\Services\DeliveryProductMappingService;
 use App\Services\GrabStoreService;
 use App\Support\Grab\GrabStoreVisibility;
 use Carbon\Carbon;
@@ -209,6 +213,149 @@ class GrabStoreController extends Controller
         }
 
         return back()->with('success', __('Grab store :ref added.', ['ref' => $ref->ref_number]));
+    }
+
+    /** Edit a store (Grab Platform ID's old Edit): merchantID, operator, remarks. */
+    public function update(Request $request, $id)
+    {
+        $ref = $this->accessibleRef($id);
+        $validated = $request->validate([
+            'operator_id' => ['required', 'exists:operators,id'],
+            'ref_number' => ['required', 'string', 'max:255'],
+            'remarks' => ['nullable', 'string', 'max:1000'],
+            'skip_grab_check' => ['nullable', 'boolean'],
+        ]);
+        if (! GrabStoreVisibility::allows((int) $validated['operator_id'])) {
+            abort(403);
+        }
+
+        $this->grabStores->editStore(
+            $ref,
+            $validated['ref_number'],
+            (int) $validated['operator_id'],
+            $validated['remarks'] ?? null,
+            auth()->id(),
+            (bool) ($validated['skip_grab_check'] ?? false),
+        );
+
+        return back()->with('success', __('Grab store :ref saved.', ['ref' => $ref->ref_number]));
+    }
+
+    /**
+     * What Grab gets for this store now: the menu Grab pulls (DeliveryPlatformService::buildMenu,
+     * no call to Grab), one line per item, each with the machine slot behind it and, when
+     * Grab cannot sell it, why. Read only: replaces the old Machines page's channel view.
+     */
+    public function menu($id)
+    {
+        $ref = $this->accessibleRef($id);
+        $binding = $ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->first();
+        if (! $binding) {
+            return response()->json(['binding' => null, 'lines' => []]);
+        }
+        $binding->setRelation('deliveryPlatformRefNumber', $ref);
+
+        $selling = $binding->isSelling();
+        $base = [
+            'binding' => ['id' => $binding->id, 'vend_code' => $binding->vend_code, 'is_active' => (bool) $binding->is_active],
+            'selling' => $selling,
+        ];
+
+        // Built as Grab's pull builds it: with no viewer, so the viewer's own product and
+        // machine limits cannot drop a line Grab does get (the store was checked above).
+        $mappingService = app(DeliveryProductMappingService::class);
+        try {
+            [$menu, $channels] = $this->withoutViewer(fn () => [
+                app(DeliveryPlatformService::class)->buildMenu($binding),
+                DeliveryProductMappingVendChannel::query()
+                    ->where('delivery_product_mapping_vend_id', $binding->id)
+                    ->with([
+                        'vendChannel.vendChannelLatestError.vendChannelError',
+                        'deliveryProductMappingItem:id,is_active,product_id',
+                        'deliveryProductMappingItem.product:id,code',
+                    ])
+                    ->orderBy('id')
+                    ->get(),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json($base + ['error' => __('The menu could not be built: :error', ['error' => $e->getMessage()]), 'lines' => []]);
+        }
+        $held = $mappingService->heldQtyByChannel($channels->pluck('id'));
+
+        // The menu lists one item per channel, in channel order, so the n-th time an item
+        // id appears it is that item's n-th channel.
+        $channelsByItem = $channels->groupBy('delivery_product_mapping_item_id')->map->values();
+        $seen = [];
+
+        // Mart: one category holding the sub-categories; Food: the sub-categories themselves.
+        $subCategories = isset($menu['categories'][0]['subCategories']) ? $menu['categories'][0]['subCategories'] : ($menu['categories'] ?? []);
+        $lines = [];
+        foreach ($subCategories as $subCategory) {
+            foreach ($subCategory['items'] ?? [] as $item) {
+                $itemId = (int) $item['id'];
+                $nth = $seen[$itemId] = ($seen[$itemId] ?? -1) + 1;
+                $channel = $channelsByItem->get($itemId)?->get($nth);
+                $available = ($item['availableStatus'] ?? null) === Grab::STATUS_AVAILABLE;
+
+                $lines[] = [
+                    'sub_category' => $subCategory['name'] ?? null,
+                    'item_id' => $itemId,
+                    'name' => $item['name'] ?? null,
+                    'product_code' => $channel?->deliveryProductMappingItem?->product?->code,
+                    'slot' => $channel?->vend_channel_code,
+                    'price' => (int) ($item['price'] ?? 0),
+                    'available' => $available,
+                    'max_stock' => (int) ($item['maxStock'] ?? 0),
+                    'machine_qty' => $channel?->vendChannel?->qty,
+                    'held' => $channel ? (int) ($held[$channel->id] ?? 0) : 0,
+                    'has_photo' => ! empty($item['photos']),
+                    'reason' => $available || ! $channel ? null : $this->unavailableReason($binding, $channel, $held[$channel->id] ?? 0, $mappingService),
+                ];
+            }
+        }
+
+        // Grab's last pull of this store, compared the way the menu notify compares it.
+        $grabHasIt = $binding->last_menu_json
+            ? DeliveryPlatformService::comparableMenu($menu) === DeliveryPlatformService::comparableMenu($binding->last_menu_json)
+            : null;
+
+        return response()->json($base + [
+            'grab_has_it' => $grabHasIt,
+            'lines' => $lines,
+            'counts' => [
+                'items' => count($lines),
+                'available' => count(array_filter($lines, fn ($line) => $line['available'])),
+            ],
+        ]);
+    }
+
+    /** Runs $read with no signed-in user (the global scopes then see what Grab's own calls see). */
+    private function withoutViewer(callable $read)
+    {
+        $user = auth()->user();
+        auth()->forgetUser();
+        try {
+            return $read();
+        } finally {
+            if ($user) {
+                auth()->setUser($user);
+            }
+        }
+    }
+
+    /** Why the menu tells Grab this slot cannot be sold, in the order the menu decides it. */
+    private function unavailableReason(DeliveryProductMappingVend $binding, DeliveryProductMappingVendChannel $channel, int $held, DeliveryProductMappingService $mappingService): string
+    {
+        $vendChannel = $channel->vendChannel;
+
+        return match (true) {
+            ! $binding->is_active => 'store_paused',
+            ! $channel->deliveryProductMappingItem?->is_active => 'item_off',
+            $vendChannel && $mappingService->getVendChannelErrorStatus($vendChannel) => 'slot_fault',
+            ! $vendChannel || (int) $vendChannel->capacity <= 0 => 'no_capacity',
+            ! $mappingService->getDeliveryVendChannelStatus($vendChannel, $channel, $held)['status'] => 'sold_out',
+            default => 'next_sync',
+        };
     }
 
     public function bind(Request $request, $id)
