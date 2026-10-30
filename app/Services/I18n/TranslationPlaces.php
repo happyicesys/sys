@@ -228,7 +228,7 @@ class TranslationPlaces
         $source = @file_get_contents(resource_path('js/Layouts/Authenticated.vue')) ?: '';
         $source = preg_replace('/^\s*\/\/.*$/m', '', $source);
         preg_match_all('/^\s{8}name:\s*tk\(\'((?:\\\\\'|[^\'])+)\'\),\s*$/m', $source, $sections, PREG_OFFSET_CAPTURE);
-        preg_match_all('/\{\s*name:\s*tk\(\'((?:\\\\\'|[^\'])+)\'\)\s*,\s*href:\s*\'([^\']+)\'/', $source, $items, PREG_OFFSET_CAPTURE | PREG_SET_ORDER);
+        preg_match_all('/\{\s*name:\s*tk\(\'((?:\\\\\'|[^\'])+)\'\)\s*,\s*href:\s*\'([^\']+)\'(?:\s*,\s*also:\s*\[([^\]]*)\])?/', $source, $items, PREG_OFFSET_CAPTURE | PREG_SET_ORDER);
         $out = [];
         foreach ($items as $item) {
             $section = null;
@@ -237,7 +237,13 @@ class TranslationPlaces
                     $section = $name;
                 }
             }
-            $out[] = ['section' => $section, 'item' => str_replace("\\'", "'", $item[1][0]), 'href' => strtok($item[2][0], '?')];
+            $name = str_replace("\\'", "'", $item[1][0]);
+            $out[] = ['section' => $section, 'item' => $name, 'href' => strtok($item[2][0], '?')];
+            // Pages folded into this entry (`also: ['/path', …]`) belong to it too.
+            preg_match_all("/'([^']+)'/", $item[3][0] ?? '', $also);
+            foreach ($also[1] as $path) {
+                $out[] = ['section' => $section, 'item' => $name, 'href' => strtok($path, '?')];
+            }
         }
 
         return $out;

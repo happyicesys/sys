@@ -8,15 +8,17 @@ built"), checked against the code and prod.
 
 | Before | Now |
 |---|---|
+| Before | Now |
+|---|---|
 | Grab Platform ID | **Grab Stores** (new; replaces Grab Platform ID + Machines) |
 | Machines | **Grab Errors** (new) |
-| Grab Orders | **Grab Promotions** (new) |
+| Grab Orders | **Grab Promotions** (new; includes Grab Campaign) |
 | Grab Product Mapping | Grab Orders |
 | Grab Campaign | Grab Product Mapping |
-| | Grab Campaign |
 
-Grab Platform ID and Machines left the menu on 2026-10-30, once Grab Stores could do everything they did. Their old
-addresses still open, so bookmarks keep working.
+Eight entries became five on 2026-10-30. Grab Platform ID and Machines left the menu once Grab Stores could do
+everything they did. Grab Campaign became the second view of Grab Promotions ("Set up in mark1"), next to "Running
+on Grab". Every old address still opens, so bookmarks keep working.
 
 ---
 
@@ -65,7 +67,11 @@ unless they went looking. An order Grab took but never sent to us was invisible.
 The page lists them; each Grab Stores row shows its count, and the store's History shows the details. Client users
 see only their own stores' errors. Customer details and secrets are never stored.
 
-## 3. Grab Promotions (`/grab-promotions`) — new, read only
+## 3. Grab Promotions (`/grab-promotions`) — new; two views
+
+Two views at the top of the page:
+- **Running on Grab** — what Grab really runs, read from Grab (below). Read only.
+- **Set up in mark1** — the old Grab Campaign pages (section 7), where campaigns are still created, sent and ended.
 
 **Before.** mark1 only knew what it had sent to Grab. It never asked Grab what was actually live. When an end
 request to Grab failed, mark1 still marked the campaign ended. Grab kept it running, and the next campaign for that
@@ -126,7 +132,10 @@ Still the same: the template is copied from the machine mapping and matched by c
 the wrong product on stores whose machine mapping has changed. It is fixed by step 2 (Grab Menu & Prices), which
 is not built yet.
 
-## 7. Grab Campaign (`/delivery-platform-campaigns`)
+## 7. Grab Campaign (`/delivery-platform-campaigns`) — now Grab Promotions → "Set up in mark1"
+
+No menu entry of its own since 2026-10-30; it opens from the "Set up in mark1" view of Grab Promotions, and the menu
+lights up Grab Promotions while it is open. The pages work as before.
 
 | | Before | Now |
 |---|---|---|

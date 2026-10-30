@@ -2284,7 +2284,9 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
     2026-10 it crashed 96 times on machine 4754, whose orders had been refused while Grab reopened it.
 - **Grab is the truth for which campaigns ARE live; mark1's own campaign rows are not** (plan §9.3, built
   2026-10-30). Delivery Platform → **Grab Promotions** `/grab-promotions` shows the mirror, and each Grab Stores
-  row counts it.
+  row counts it. It is ONE menu entry with two views (`Components/GrabPromotionViews.vue`): "Running on Grab" (the
+  mirror) and "Set up in mark1" (the old Grab Campaign pages, `/delivery-platform-campaigns`, which have no menu entry
+  of their own — the entry's `also:` paths light it up there and `TranslationPlaces` files their texts under it).
   - The mirror is filled by `grab:mirror-campaigns` (at :05, :15 …, never in the pause re-assert's minute) through
     `App\Services\GrabCampaignMirror`. It reads `GET /partner/v1/campaigns` (ongoing + upcoming, ≤ 100 each) per
     Active / bound store into `delivery_platform_live_campaigns`, plus one `delivery_platform_campaign_reads` row

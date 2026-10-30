@@ -778,6 +778,8 @@ Brian picked "Promotions mirror" next.
   - chips filter by state and by who made it, and there is an "Ended" view;
   - a box lists stores whose last read failed, each with "Read again", which is a GET on Grab.
   - Grab Stores rows show "n promotions on Grab". Visibility is the same as Grab Stores.
+  - Since 2026-10-30 (Brian: "don't use extra sub tabs for nothing") Grab Campaign has no menu entry: it is the
+    "Set up in mark1" view of Grab Promotions, next to "Running on Grab". Steps 3b / §8 rebuild that view.
 - **Not in this step:** an "End it" button and the leftover "End all". Both write to Grab, so they come with
   step 3b after you've seen what the first mirror run finds.
 - **Tests:** `tests/Feature/GrabPromotionsMirrorTest.php` (10). Page-by-page before / after: `GRAB_PAGES_BEFORE_AFTER_2026-10-30.md`.

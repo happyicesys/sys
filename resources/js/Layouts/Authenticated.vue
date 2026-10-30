@@ -269,10 +269,10 @@ const navigation = computed(() => [
         children: [
             {name: tk('Grab Stores'), href: '/grab-stores', permission: 'read delivery-platform-vends'},
             {name: tk('Grab Errors'), href: '/grab-errors', permission: 'read delivery-platform-vends'},
-            {name: tk('Grab Promotions'), href: '/grab-promotions', permission: 'read delivery-platform-campaigns'},
+            // Grab Campaign (set-up in mark1) is the second view of Grab Promotions since 2026-10-30.
+            {name: tk('Grab Promotions'), href: '/grab-promotions', also: ['/delivery-platform-campaigns'], permission: 'read delivery-platform-campaigns'},
             {name: tk('Grab Orders'), href: '/delivery-platform-orders', permission: 'read delivery-platform-orders'},
             {name: tk('Grab Product Mapping'), href: '/delivery-product-mappings', permission: 'read delivery-platform-product-mappings'},
-            {name: tk('Grab Campaign'), href: '/delivery-platform-campaigns', permission: 'read delivery-platform-campaigns'},
         ]
     },
     // {
@@ -534,8 +534,8 @@ const activePath = computed(() => {
     let best = '', bestLen = -1
     for (const item of navigation.value) {
         const candidates = (item.children && item.children.length)
-            ? item.children.map(c => c.href)
-            : [item.href]
+            ? item.children.flatMap(ownedHrefs)
+            : ownedHrefs(item)
         for (const href of candidates) {
             const p = resolvePath(href)
             if (pathMatches(p) && p.length > bestLen) { best = p; bestLen = p.length }
@@ -544,19 +544,29 @@ const activePath = computed(() => {
     return best
 })
 
+// An entry owns its own href plus any `also` paths (pages folded into it that
+// have no menu entry of their own).
+function ownedHrefs(item) {
+    return [item.href, ...(item.also ?? [])]
+}
+
+function owns(item) {
+    return ownedHrefs(item).some(href => resolvePath(href) === activePath.value)
+}
+
 // A top-level item is active when it (leaf) or any of its children owns the
 // active path.
 function isItemActive(item) {
     if (!activePath.value) return false
     if (item.children && item.children.length) {
-        return item.children.some(c => resolvePath(c.href) === activePath.value)
+        return item.children.some(owns)
     }
-    return resolvePath(item.href) === activePath.value
+    return owns(item)
 }
 
 // A sub-item is active when it owns the active path.
 function isSubItemActive(item, subItem) {
-    return !!activePath.value && resolvePath(subItem.href) === activePath.value
+    return !!activePath.value && owns(subItem)
 }
 
 // --- Visitor History dwell-time beacon ---------------------------------------

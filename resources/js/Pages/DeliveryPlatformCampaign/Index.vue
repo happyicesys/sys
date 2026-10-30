@@ -1,15 +1,16 @@
 <template>
 
-  <Head :title="$t('Delivery Campaign')" />
+  <Head :title="$t('Grab Promotions')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ $t('Delivery Platform Campaign') }}
+        {{ $t('Grab Promotions') }}
       </h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
+      <GrabPromotionViews current="setup" />
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end">
           <Link :href="'/delivery-platform-campaigns/create'">
@@ -226,6 +227,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import GrabPromotionViews from '@/Components/GrabPromotionViews.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';

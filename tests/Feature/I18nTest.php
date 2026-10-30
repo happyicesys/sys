@@ -134,6 +134,8 @@ class I18nTest extends TestCase
         $this->assertContains('Menu & top bar (every page)', $places->for('Shown on:'), 'the Edit wording box sits in the top bar');
         $this->assertContains('Machine Management › Machines Settings › VM Edit · /settings/vend/{id}/update', $places->for('Reset fan detection'));
         $this->assertContains('System message shown in Operations › Dashboard · /vends/customers', $places->for('Touch screen frozen'));
+        // A page folded into a menu entry (`also:`) is placed under that entry.
+        $this->assertSame('Delivery Platform › Grab Promotions · /delivery-platform-campaigns', $places->pages()['page:DeliveryPlatformCampaign/Index']['label']);
         foreach ($places->pages() as $info) {
             $this->assertDoesNotMatchRegularExpression('/\\.vue|resources\\/|\\b[A-Z][a-zA-Z]+\\/[A-Z][a-zA-Z]+\\b/', $info['label'], 'no file names: '.$info['label']);
         }
