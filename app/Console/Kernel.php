@@ -77,6 +77,9 @@ class Kernel extends ConsoleKernel
         }
         // "Pause until …" on Grab Stores: reopen when the time is up.
         $schedule->command('grab:resume-due-pauses')->everyFiveMinutes()->withoutOverlapping(10);
+        // Grab Errors: orders Grab has that never reached us (yesterday), and the 30-day keep.
+        $schedule->command('grab:missed-orders')->dailyAt('03:30')->withoutOverlapping(60);
+        $schedule->command('grab:prune-api-errors')->dailyAt('03:45')->withoutOverlapping(30);
         if (config('grab.menu_records_keep_days')) {
             $schedule->command('grab:prune-menu-records --apply')->dailyAt('03:40')->withoutOverlapping(60);
         }

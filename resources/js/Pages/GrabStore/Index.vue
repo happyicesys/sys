@@ -129,6 +129,12 @@
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-center">
                 <div>{{ store.orders_30d }} <span class="text-xs text-gray-500">/ 30d</span></div>
                 <div class="text-xs text-gray-500">{{ store.last_order_at ? $t('Last :time', { time: formatDateTime(store.last_order_at) }) : $t('No orders') }}</div>
+                <a
+                  v-if="store.errors_7d"
+                  :href="`/grab-errors?search=${encodeURIComponent(store.ref_number)}`"
+                  class="mt-1 inline-block rounded bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-700 hover:underline"
+                  @click.stop
+                >{{ $tc(':count Grab error / 7d|:count Grab errors / 7d', store.errors_7d) }}</a>
               </TableData>
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
                 <div class="flex flex-wrap gap-1">
@@ -352,6 +358,19 @@
               </li>
             </ul>
             <p v-else class="text-gray-500">{{ $t('Nothing recorded yet. Changes are recorded from now on.') }}</p>
+          </div>
+
+          <div>
+            <h4 class="font-semibold text-gray-800 mb-1">{{ $t('Grab errors (last 30 days)') }}</h4>
+            <ul v-if="history.data.errors?.length" class="divide-y border rounded">
+              <li v-for="error in history.data.errors" :key="error.id" class="px-2 py-1 flex gap-2">
+                <span class="whitespace-nowrap text-gray-500">{{ formatDateTime(error.at) }}</span>
+                <span class="whitespace-nowrap font-medium">{{ $t(error.action_name) }}</span>
+                <span class="whitespace-nowrap" :class="error.status === null || error.status >= 500 ? 'text-red-600' : 'text-amber-700'">{{ error.status ?? $t('No answer') }}</span>
+                <span class="flex-1 text-gray-600 break-all">{{ error.message }}</span>
+              </li>
+            </ul>
+            <p v-else class="text-gray-500">{{ $t('No Grab errors for this store.') }}</p>
           </div>
         </template>
       </div>

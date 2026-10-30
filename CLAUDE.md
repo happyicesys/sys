@@ -2179,6 +2179,22 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   - "Pause until" is reopened by `grab:resume-due-pauses` (every 5 min).
   - HIPL staff see every operator's stores (DCVIC / KMY / ARK / KEA / NF are outside OperatorScope's group), and
     other users only their own.
+- **Every failed exchange with Grab is kept 30 days** (Brian, 2026-10-30; Delivery Platform → **Grab Errors**
+  `/grab-errors`, a count on each Grab Stores row, the details in the store's History). The ONE writer is
+  `App\Support\Grab\GrabApiErrorRecorder` (`delivery_platform_api_errors`, never throws):
+  - **Outgoing:** any call to a `*.grab.com` host answered ≥ 400 or not at all. It is caught from Laravel's HTTP
+    client events in `AppServiceProvider`, so a new Grab call is covered with no work. The account comes from the
+    hidden Context the `Grab` model sets. Pausing a store Grab already has closed (409) is not an error.
+  - **Incoming:** any Grab callback we answer ≥ 400, crash included, caught by `grab.callback-errors`, the
+    outermost middleware on the Grab routes.
+  - **Missed orders:** `grab:missed-orders` (03:30, yesterday; `--days` / `--store`) compares Grab's
+    `GET /partner/v1/orders` per store that was on a machine that day with ours. Each order we never stored is
+    kept once (`order_missed`).
+  - **Never stored:** OAuth request bodies, any key named like a secret or token, and the customer (`receiver`).
+  - **Retention:** `grab:prune-api-errors` (03:45).
+  - **Who sees what:** client users see only their own stores' errors; HIPL also sees errors tied to no store.
+  - **Updates for unknown orders:** an order update for an order we never stored answers 404, never 500. In
+    2026-10 it crashed 96 times on machine 4754, whose orders had been refused while Grab reopened it.
 - **The order webhook answers fast and is idempotent.** One writer per orderID (cache lock); a repeat answers
   200 with the stored order; a Grab edit (`featureFlags.isMexEditOrder`) is kept in `request_history_json` +
   `is_edited` for a person, never re-allocated blind. Grab calls (mark ready, cancel) run in
@@ -2210,7 +2226,8 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
 Regression coverage: `tests/Feature/GrabOrderWebhookTest.php` (built from a real prod Mart order,
 `tests/Support/Grab`), `tests/Feature/GrabMenuTest.php`, `tests/Feature/GrabWebhookAuthTest.php`,
 `tests/Feature/GrabCampaignAndUpkeepTest.php`, `tests/Feature/GrabInactiveRefNumberTest.php`,
-`tests/Feature/SyncDeliveryStorePauseTest.php`, `tests/Feature/GrabStoresTest.php`.
+`tests/Feature/SyncDeliveryStorePauseTest.php`, `tests/Feature/GrabStoresTest.php`,
+`tests/Feature/GrabApiErrorsTest.php`.
 
 ## Code style
 

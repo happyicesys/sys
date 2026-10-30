@@ -77,6 +77,8 @@ class Kernel extends HttpKernel
         // the caller presented a bearer token, never rejects. Remove once settled.
         'delivery.authprobe' => \App\Http\Middleware\LogDeliveryPlatformAuth::class,
         'grab.webhook' => \App\Http\Middleware\VerifyGrabWebhook::class,
+        // Every Grab callback we answer with an error is kept (Grab Errors page).
+        'grab.callback-errors' => \App\Http\Middleware\RecordGrabCallbackFailures::class,
         // Machine-signed device requests (card rail) - see the class docblock.
         'device.signed' => \App\Http\Middleware\VerifyDeviceSignature::class,
     ];

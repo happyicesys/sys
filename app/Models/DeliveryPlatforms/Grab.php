@@ -2,6 +2,8 @@
 
 namespace App\Models\DeliveryPlatforms;
 
+use App\Support\Grab\GrabApiErrorRecorder;
+use Illuminate\Support\Facades\Context;
 use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryProductMappingVend;
@@ -585,6 +587,8 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     public function __construct(DeliveryPlatformOperator $deliveryPlatformOperator)
     {
         $this->deliveryPlatformOperator = $deliveryPlatformOperator;
+        // Names the Grab account on any failed call this object makes (GrabApiErrorRecorder).
+        Context::addHidden(GrabApiErrorRecorder::CONTEXT_OPERATOR, $deliveryPlatformOperator->id);
     }
 
     public function getDefaultCategories()
@@ -741,21 +745,20 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         throw new \Exception('Manualy Accept Reject Order Failed: ' . $response->body());
     }
 
-    // List orders
-    public function listOrders($date, $pageNumber = 1, $filters)
+    // List orders: one store's orders for one day, a page at a time ({orders, more}).
+    // Grab's GET /partner/v1/orders (the old version posted to /order/prepare).
+    public function listOrders(string $merchantId, string $date, int $page = 1)
     {
         $this->verifyOauthAccessToken();
 
-        $response = Http::withHeaders($this->getHeaders([
-            'merchantID' => $this->merchantId,
-            'date' => $date ? $date : Carbon::today()->toDateString(),
-            'page' => $pageNumber,
-        ]))
-        ->post($this->getPartnerEndpoint() . '/partner/v1/order/prepare', $filters);
+        $response = Http::withHeaders($this->getHeaders())
+            ->get($this->getPartnerEndpoint().'/partner/v1/orders', [
+                'merchantID' => $merchantId,
+                'date' => $date,
+                'page' => $page,
+            ]);
 
         return $this->getResponse($response, 'listOrders');
-
-        throw new \Exception('List Orders Failed: ' . $response->body());
     }
 
     // Edit order

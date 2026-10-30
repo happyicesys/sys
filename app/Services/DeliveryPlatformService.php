@@ -395,8 +395,13 @@ class DeliveryPlatformService
       })
       ->first();
 
+    // An update for an order we never stored (we refused it: 4754, 2026-10-11..19, 96 of
+    // them) is a 4xx, never the 500 that made Grab retry each one. Kept on Grab Errors.
     if (!$deliveryPlatformOrder) {
-      throw new \Exception('No Order Found for this merchant ID and order ID.' . $platformRefId . ' - ' . $orderId);
+      abort(response()->json([
+        'error_code' => 404,
+        'error_message' => 'No order found for this merchant ID and order ID.',
+      ], 404));
     }
 
     $this->deliveryPlatformOperator = $deliveryPlatformOrder->deliveryPlatformOperator;
@@ -795,6 +800,12 @@ class DeliveryPlatformService
         // caller testing the return for null reads a real pause as a failure.
         // It did exactly that on 4754's first live pause (2026-09-23).
         if ($response['success']) {
+          return $response;
+        }
+
+        // 409 "already_exists": the store is already in that state on Grab (paused,
+        // or outside its opening hours). Nothing failed.
+        if (($response['code'] ?? null) === 409) {
           return $response;
         }
 

@@ -104,6 +104,19 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
+        // Every failed exchange with Grab is kept 30 days, whatever code made the call
+        // (Grab Errors page; App\Support\Grab\GrabApiErrorRecorder).
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Http\Client\Events\ResponseReceived::class, function ($event) {
+            if ($event->response->status() >= 400 && \App\Support\Grab\GrabApiErrorRecorder::isGrabUrl($event->request->url())) {
+                \App\Support\Grab\GrabApiErrorRecorder::outgoing($event->request, $event->response);
+            }
+        });
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Http\Client\Events\ConnectionFailed::class, function ($event) {
+            if (\App\Support\Grab\GrabApiErrorRecorder::isGrabUrl($event->request->url())) {
+                \App\Support\Grab\GrabApiErrorRecorder::outgoing($event->request, null, $event->exception->getMessage());
+            }
+        });
+
         Inertia::share('initBinded', env('VEND_INIT_BINDED'));
 
         // Blind SKU: keep per-product blended unit costs in sync.

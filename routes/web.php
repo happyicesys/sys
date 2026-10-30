@@ -22,6 +22,7 @@ use App\Http\Controllers\DeliveryPlatformRefNumberController;
 use App\Http\Controllers\DeliveryProductMappingController;
 use App\Http\Controllers\DeliveryProductMappingVendController;
 use App\Http\Controllers\FreezerControlController;
+use App\Http\Controllers\GrabErrorController;
 use App\Http\Controllers\GrabStoreController;
 use App\Http\Controllers\HappyHourCampaignController;
 use App\Http\Controllers\HidCardController;
@@ -459,6 +460,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
     Route::prefix('delivery-product-mapping-vends')->group(function () {
         Route::get('/', [DeliveryProductMappingVendController::class, 'index'])->name('delivery-product-mapping-vends');
     });
+
+    // Grab Errors: every failed exchange with Grab, both ways, last 30 days.
+    Route::get('/grab-errors', [GrabErrorController::class, 'index'])->name('grab-errors')->middleware('can:read delivery-platform-vends');
 
     // Grab Stores (plan §9 step 1): Grab Platform ID + Machines on one page.
     Route::prefix('grab-stores')->group(function () {

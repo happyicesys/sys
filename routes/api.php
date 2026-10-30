@@ -82,7 +82,7 @@ Route::prefix('v1')->group(function () {
 });
 
 Route::prefix('delivery')->group(function () {
-    Route::prefix('grab')->middleware(['delivery.authprobe', 'grab.webhook'])->group(function () {
+    Route::prefix('grab')->middleware(['grab.callback-errors', 'delivery.authprobe', 'grab.webhook'])->group(function () {
         Route::get('/merchant/menu', [DeliveryPlatformController::class, 'getGrabMenu']);
         Route::post('/order/create', [DeliveryPlatformController::class, 'createGrabOrder']);
         Route::put('/order/update', [DeliveryPlatformController::class, 'updateGrabOrder']);
