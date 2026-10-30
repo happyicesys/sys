@@ -195,6 +195,19 @@ class GrabApiErrorsTest extends TestCase
             && $request['merchantID'] === self::MERCHANT && $request['page'] === 1);
     }
 
+    public function test_a_store_grab_refuses_us_is_not_asked_for_its_orders(): void
+    {
+        $binding = $this->store();
+        $binding->forceFill(['start_date' => now()->subDays(5)])->save();
+        \Illuminate\Support\Facades\Cache::put(\App\Console\Commands\SyncDeliveryStorePause::REFUSED_CACHE_PREFIX.self::MERCHANT, true, now()->addDay());
+        Http::fake(['*' => Http::response(null, 401)]);
+
+        $this->artisan('grab:missed-orders')->assertSuccessful();
+
+        Http::assertNothingSent();
+        $this->assertSame(0, DeliveryPlatformApiError::count());
+    }
+
     public function test_errors_older_than_30_days_are_deleted(): void
     {
         $old = DeliveryPlatformApiError::create(['direction' => 'outgoing', 'action' => 'store_pause', 'status' => 500]);

@@ -8,6 +8,7 @@ use App\Models\DeliveryProductMappingVend;
 use App\Support\Grab\GrabApiErrorRecorder;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Orders Grab has that never reached mark1 (Brian, 2026-10-30): a callback Grab could
@@ -73,6 +74,12 @@ class GrabMissedOrders extends Command
             $account = $binding->deliveryProductMapping?->deliveryPlatformOperator;
             if (! $merchantId || ! $account || $account->type !== 'production'
                 || $account->deliveryPlatform?->slug !== 'grab' || ! $account->externalOauthToken?->access_token) {
+                continue;
+            }
+
+            // Grab refused us this store in the last day (DCVIC's 11, paused and off since
+            // 2025-12): asking for its orders only adds a 401 to Grab Errors each night.
+            if (Cache::has(SyncDeliveryStorePause::REFUSED_CACHE_PREFIX.$merchantId)) {
                 continue;
             }
 

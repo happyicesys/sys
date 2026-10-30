@@ -59,7 +59,8 @@ class SyncDeliveryStorePause extends Command
 
     protected $description = 'Re-assert paused Grab stores, which Grab expires after 24 hours';
 
-    private const REFUSED_CACHE_PREFIX = 'grab-store-refused:';
+    // Also read by grab:missed-orders: a store Grab refuses us is skipped there too.
+    public const REFUSED_CACHE_PREFIX = 'grab-store-refused:';
 
     // Grab's store endpoints allow 5 requests a second per project, shared by every
     // store; the first run's burst drew 429s.
