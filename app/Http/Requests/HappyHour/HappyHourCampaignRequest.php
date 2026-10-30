@@ -60,6 +60,9 @@ class HappyHourCampaignRequest extends FormRequest
             // Live groups (HappyHourMachineGroups): the owner's machines of that kind, joining as they qualify.
             'machine_groups' => ['nullable', 'array'],
             'machine_groups.*' => ['string', 'distinct', Rule::in(array_keys(HappyHourMachineGroups::GROUPS))],
+            // Left out of the groups (HappyHourMachineGroups::members). Absent (an old tab) = keep the stored list.
+            'excluded_vend_ids' => ['sometimes', 'nullable', 'array'],
+            'excluded_vend_ids.*' => ['integer', 'distinct'],
         ];
     }
 
@@ -90,6 +93,13 @@ class HappyHourCampaignRequest extends FormRequest
                 return;
             }
             $vendIds = array_map('intval', (array) $this->input('vend_ids', []));
+            $pickedAndExcluded = array_intersect($vendIds, array_map('intval', (array) $this->input('excluded_vend_ids', [])));
+            if ($pickedAndExcluded !== []) {
+                $codes = DB::table('vends')->whereIn('id', $pickedAndExcluded)->orderBy('code')->pluck('code')->implode(', ');
+                $validator->errors()->add('excluded_vend_ids', __('A machine cannot be both picked and excluded: :machines.', ['machines' => $codes]));
+
+                return;
+            }
             if (count($this->allowedVendIds($vendIds)) !== count($vendIds)) {
                 $validator->errors()->add('vend_ids', sprintf(
                     'Only smart freezers and touchscreen vending machines (big board, app %d+) you can see can take part in Happy Hour.',

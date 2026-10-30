@@ -61,7 +61,7 @@ class HappyHourCampaign extends Model
         'name', 'operator_id', 'is_active', 'starts_on', 'ends_on', 'days_mask', 'window_start', 'window_end',
         'slot_minutes', 'sku_count', 'skus_per_slot', 'selection_rule', 'lookback_days', 'discount_pct',
         'min_balance_pct', 'min_qty', 'price_step_cents', 'allow_below_cost', 'skip_unavailable', 'bestseller_hold_hours', 'bestseller_hold_count', 'bestseller_lookback_days',
-        'excluded_product_ids', 'priority_product_ids', 'machine_groups',
+        'excluded_product_ids', 'priority_product_ids', 'machine_groups', 'excluded_vend_ids',
         'created_by', 'updated_by',
     ];
 
@@ -85,6 +85,7 @@ class HappyHourCampaign extends Model
         'bestseller_lookback_days' => 'integer',
         'excluded_product_ids' => 'array',
         'priority_product_ids' => 'array',
+        'excluded_vend_ids' => 'array',
         'machine_groups' => 'array',
     ];
 
@@ -180,6 +181,16 @@ class HappyHourCampaign extends Model
     }
 
     /** @return list<int> */
+    /**
+     * Machines the campaign's live groups leave out (Brian, 2026-10-30) — never a machine picked by name.
+     *
+     * @return list<int>
+     */
+    public function excludedVendIds(): array
+    {
+        return array_values(array_map('intval', (array) ($this->excluded_vend_ids ?? [])));
+    }
+
     public function excludedProductIds(): array
     {
         return array_values(array_map('intval', (array) ($this->excluded_product_ids ?? [])));

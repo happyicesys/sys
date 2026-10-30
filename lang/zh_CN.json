@@ -6052,5 +6052,11 @@
     "🔁 Re-match Order ID": "🔁 重新匹配订单 ID",
     "🔗 Auto-matched": "🔗 自动匹配",
     "🔗 Match Order ID": "🔗 匹配订单 ID",
-    "🗑 Delete ticket (permanent)": "🗑 删除申请（永久）"
+    "🗑 Delete ticket (permanent)": "🗑 删除申请（永久）",
+    "Exclude machines": "排除机器",
+    "Machines the groups above leave out": "上方机器组中要排除的机器",
+    "These never join through a group, now or later. To bring one back, remove it here.": "这些机器现在和以后都不会通过机器组加入。要恢复某台机器，请在此移除。",
+    "Excluded from this campaign's machine groups": "已从本活动的机器组中排除",
+    "Excluded:": "已排除：",
+    "A machine cannot be both picked and excluded: :machines.": "同一台机器不能既被选中又被排除：:machines。"
 }

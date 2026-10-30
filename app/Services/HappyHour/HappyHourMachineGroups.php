@@ -115,13 +115,17 @@ final class HappyHourMachineGroups
     }
 
     /**
-     * The live members of the campaign's groups, as vend id => group.
+     * The live members of the campaign's groups, as vend id => group — less the machines the campaign
+     * excludes (`excluded_vend_ids`, Brian 2026-10-30), which never join through a group.
      *
      * @return array<int, string>
      */
     public function members(HappyHourCampaign $campaign): array
     {
-        return $this->membersFor((array) $campaign->machine_groups, (int) ($campaign->operator_id ?: OperatorVendFilterScope::UNRESTRICTED_OPERATOR_ID));
+        return array_diff_key(
+            $this->membersFor((array) $campaign->machine_groups, (int) ($campaign->operator_id ?: OperatorVendFilterScope::UNRESTRICTED_OPERATOR_ID)),
+            array_flip($campaign->excludedVendIds()),
+        );
     }
 
     /**

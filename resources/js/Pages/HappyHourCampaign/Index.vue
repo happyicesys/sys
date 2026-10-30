@@ -210,6 +210,12 @@
                         {{ groupLabel(g) }} · {{ c.vends.filter(v => v.via_group === g).length }}
                       </span>
                     </div>
+                    <!-- Left out of the groups by this campaign (Brian, 2026-10-30). -->
+                    <div v-if="c.machine_groups.length && c.excluded_vend_ids?.length" class="text-xs text-gray-500 mb-1"
+                      v-tooltip="$t('Excluded from this campaign\'s machine groups')">
+                      {{ $t('Excluded:') }}
+                      <span v-for="(code, i) in excludedCodes(c)" :key="code"><span class="line-through"><MachineIdLink :code="code" /></span><span v-if="i < excludedCodes(c).length - 1">, </span></span>
+                    </div>
                     <!-- Picked by name in another campaign: that one wins while it is in force. -->
                     <div v-for="o in c.overridden" :key="o.code" class="text-xs text-gray-500 mb-1 whitespace-nowrap"
                       v-tooltip="$t('Picked by name in “:campaign”, which takes priority over this campaign\'s group while it is on', { campaign: o.by })">
@@ -286,6 +292,17 @@
                 {{ $t('Every one of your operator\'s machines of that kind that can run Happy Hour — now, and each new one as it qualifies (a big board joins when it reaches app :version). No need to pick them below.', { version: minVendingApkVersion }) }}
               </p>
               <p v-if="form.errors.machine_groups" class="text-red-600 text-xs mt-1">{{ form.errors.machine_groups }}</p>
+            </div>
+
+            <!-- Left out of the ticked groups (Brian, 2026-10-30). A machine picked by name below is never excluded. -->
+            <div v-if="form.machine_groups.length" class="md:col-span-6">
+              <label class="block text-sm font-medium text-gray-700">{{ $t('Exclude machines') }}</label>
+              <MultiSelect v-model="selectedExcludedVends" :options="excludableMachines" mode="tags" trackBy="id" valueProp="id" label="name"
+                :placeholder="$t('Machines the groups above leave out')" open-direction="bottom" class="mt-1" />
+              <p class="text-xs text-gray-500 mt-1">
+                {{ $t('These never join through a group, now or later. To bring one back, remove it here.') }}
+              </p>
+              <p v-if="form.errors.excluded_vend_ids" class="text-red-600 text-xs mt-1">{{ form.errors.excluded_vend_ids }}</p>
             </div>
 
             <div class="md:col-span-6">
@@ -597,13 +614,25 @@ const blank = () => ({
   selection_rule: 'balance_pct', lookback_days: 14, discount_pct: 40,
   min_balance_pct: 15, min_qty: 2, price_step_cents: 10, allow_below_cost: false, skip_unavailable: true,
   bestseller_hold_hours: 0, bestseller_hold_count: 0, bestseller_lookback_days: 7,
-  excluded_product_ids: [], priority_product_ids: [], vend_ids: [], machine_groups: [],
+  excluded_product_ids: [], priority_product_ids: [], vend_ids: [], machine_groups: [], excluded_vend_ids: [],
 })
 
 const form = useForm(blank())
 const editingId = ref(null)
 const showForm = ref(false)
 const selectedMachines = ref([])
+const selectedExcludedVends = ref([])
+
+// A group's kind of machine: what the Exclude picker offers (the ticked groups' machines that can run Happy Hour).
+const groupMachineType = { vending_big_board: 'vending_machine', smart_freezer: 'smart_freezer' }
+const excludableMachines = computed(() => {
+  const types = form.machine_groups.map(g => groupMachineType[g]).filter(Boolean)
+  return props.machines.filter(m => types.includes(m.machine_type) && (m.supported || selectedExcludedVends.value.some(x => x.id === m.id)))
+})
+// Excluded machine labels for the Machines column; one this viewer cannot see shows as its id.
+function excludedCodes(c) {
+  return (c.excluded_vend_ids ?? []).map(id => props.machines.find(m => m.id === id)?.name?.replace(' (inactive)', '') ?? `#${id}`)
+}
 const selectedExcluded = ref([])
 const selectedPriority = ref([])
 const showPreview = ref(false)
@@ -888,6 +917,7 @@ function openCreate() {
   Object.assign(form, blank())
   form.clearErrors()
   selectedMachines.value = []
+  selectedExcludedVends.value = []
   selectedExcluded.value = []
   selectedPriority.value = []
   showForm.value = true
@@ -903,6 +933,7 @@ function openEdit(c) {
   form.machine_groups = [...(c.machine_groups ?? [])]
   // Only hand-picked machines go in the picker; a group's members follow the group.
   selectedMachines.value = props.machines.filter(m => c.vends.some(v => v.id === m.id && !v.via_group))
+  selectedExcludedVends.value = props.machines.filter(m => (c.excluded_vend_ids ?? []).includes(m.id))
   selectedExcluded.value = props.products.filter(p => c.excluded_product_ids.includes(p.id))
   selectedPriority.value = props.products.filter(p => (c.priority_product_ids ?? []).includes(p.id))
   showForm.value = true
@@ -910,6 +941,8 @@ function openEdit(c) {
 
 function submit() {
   form.vend_ids = selectedMachines.value.map(m => m.id)
+  // Unticking every group clears the list (it only ever applies to groups).
+  form.excluded_vend_ids = form.machine_groups.length ? selectedExcludedVends.value.map(m => m.id) : []
   form.excluded_product_ids = selectedExcluded.value.map(p => p.id)
   form.priority_product_ids = selectedPriority.value.map(p => p.id)
   const url = editingId.value ? `/happy-hour-campaigns/${editingId.value}` : '/happy-hour-campaigns'

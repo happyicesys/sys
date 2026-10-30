@@ -137,7 +137,7 @@ class HappyHourCampaignController extends Controller
         $membersBefore = $this->memberIds($campaign);
 
         DB::transaction(function () use ($request, $campaign, $now) {
-            $campaign->fill([...$this->fields($request), 'updated_by' => auth()->id()]);
+            $campaign->fill([...$this->fields($request, $campaign), 'updated_by' => auth()->id()]);
             $reschedule = $campaign->isDirty(self::SCHEDULE_FIELDS);
             $campaign->save();
             $removed = $this->syncVends($campaign, $request->input('vend_ids', []));
@@ -321,9 +321,18 @@ class HappyHourCampaignController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function fields(HappyHourCampaignRequest $request): array
+    private function fields(HappyHourCampaignRequest $request, ?HappyHourCampaign $campaign = null): array
     {
         $data = $request->safe()->except('vend_ids');
+        // Absent (an old tab) = keep the stored list. The form lists only the viewer's machines, so an
+        // exclusion of a machine it cannot see is kept, as syncVends keeps such a machine's pick.
+        if (array_key_exists('excluded_vend_ids', $data)) {
+            $previous = $campaign?->excludedVendIds() ?? [];
+            $visible = $previous === [] ? [] : $this->visibleVends(Vend::query()->whereIn('vends.id', $previous))->pluck('vends.id')->map(fn ($id) => (int) $id)->all();
+            $data['excluded_vend_ids'] = collect($data['excluded_vend_ids'] ?? [])->map(fn ($id) => (int) $id)
+                ->merge(array_diff($previous, $visible))
+                ->unique()->sort()->values()->all() ?: null;
+        }
         $data['excluded_product_ids'] = array_values(array_map('intval', $data['excluded_product_ids'] ?? [])) ?: null;
         // Absent (an old tab) = keep the stored list.
         if (array_key_exists('priority_product_ids', $data)) {
@@ -404,6 +413,8 @@ class HappyHourCampaignController extends Controller
             'excluded_product_ids' => $c->excludedProductIds(),
             'priority_product_ids' => $c->priorityProductIds(),
             'machine_groups' => array_values((array) $c->machine_groups),
+            // Left out of the groups (Brian, 2026-10-30).
+            'excluded_vend_ids' => $c->excludedVendIds(),
             // Group members another campaign picked by name — they run that one while it is in force.
             'overridden' => $this->overridden($c),
             'vends' => $c->vends->map(fn (Vend $v) => [

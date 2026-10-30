@@ -1330,6 +1330,13 @@ ended or deleted; save and delete call `HappyHourPlanner::followGroups` so the h
 group campaign's row lists it as "2031 → <campaign>". Clashes on save are only equal-priority ones: two
 campaigns naming the same machine at overlapping hours, or the same group on two overlapping campaigns whose
 owners' operator groups meet (an HIMD group campaign clashes with HIPL's). The form's picker shows hand-picked machines only.
+**Exclude machines** (Brian, 2026-10-30): `excluded_vend_ids` on the campaign lists machines its groups leave out —
+`HappyHourMachineGroups::members()` drops them, so they never join, now or when they later qualify; excluding one
+already in takes it out at the save (its slots cancelled), removing it brings it back. Groups only: a machine picked
+by name is never excluded, and the form refuses one on both lists. The form shows the picker only while a group is
+ticked (the ticked kinds' eligible machines); an exclusion of a machine the viewer cannot see survives its save, and a
+form without the field keeps the list. Two campaigns ticking the same group cannot overlap at all (above), so
+excluding is how one machine sits out a group campaign.
 Regression coverage: `tests/Feature/HappyHourMachineGroupsTest.php`.
 
 Machines and the freezer:

@@ -150,6 +150,66 @@ class HappyHourMachineGroupsTest extends TestCase
         $this->assertSame([$hand => null], $this->members($campaign));
     }
 
+    public function test_excluded_machines_never_join_through_a_group(): void
+    {
+        // Brian, 2026-10-30: "how can I exclude those vends if All VM or All Smart Freezers is ticked?"
+        $kept = $this->vending(2031, 315);
+        $excluded = $this->vending(2762, 315);
+        $later = $this->vending(4603, 220);                   // not eligible yet; excluded ahead of time
+        $freezer = $this->freezer(50001, 30);
+        $admin = $this->admin();
+        $groups = [HappyHourMachineGroups::VENDING_BIG_BOARD, HappyHourMachineGroups::SMART_FREEZER];
+
+        $this->actingAs($admin)->post('/happy-hour-campaigns', $this->form([
+            'machine_groups' => $groups, 'excluded_vend_ids' => [$excluded, $later],
+        ]))->assertSessionHasNoErrors();
+        $campaign = HappyHourCampaign::firstOrFail();
+        $this->assertSame([$excluded, $later], $campaign->excludedVendIds());
+        $this->assertEquals([
+            $kept => HappyHourMachineGroups::VENDING_BIG_BOARD,
+            $freezer => HappyHourMachineGroups::SMART_FREEZER,
+        ], $this->members($campaign));
+
+        // The excluded big board reaching 315 later still does not join; the minute run follows the list.
+        DB::table('vends')->where('id', $later)->update(['apk_version_code' => 315, 'apk_ver_json' => json_encode(['apkver' => 315, 'deviceType' => 'ZC-328'])]);
+        app(HappyHourPlanner::class)->run(now());
+        $this->assertArrayNotHasKey($later, $this->members($campaign));
+
+        // Excluding a machine already in takes it out (its live slot is cancelled); removing it brings it back.
+        $slot = HappyHourSlot::create([
+            'happy_hour_campaign_id' => $campaign->id, 'vend_id' => $kept, 'product_id' => 1, 'slot_date' => '2026-10-14',
+            'position' => 0, 'starts_at' => '2026-10-14 08:30:00', 'ends_at' => '2026-10-14 09:30:00',
+            'original_price' => 200, 'promo_price' => 140, 'discount_pct' => 30, 'rank' => 1,
+        ]);
+        $this->actingAs($admin)->post("/happy-hour-campaigns/{$campaign->id}", $this->form([
+            'machine_groups' => $groups, 'excluded_vend_ids' => [$excluded, $later, $kept],
+        ]))->assertSessionHasNoErrors();
+        $this->assertArrayNotHasKey($kept, $this->members($campaign));
+        $this->assertNotSame(HappyHourSlot::STATUS_SCHEDULED, $slot->fresh()?->status, 'its slot no longer runs');
+
+        $this->actingAs($admin)->post("/happy-hour-campaigns/{$campaign->id}", $this->form([
+            'machine_groups' => $groups, 'excluded_vend_ids' => [],
+        ]))->assertSessionHasNoErrors();
+        $this->assertEqualsCanonicalizing([$kept, $excluded, $later, $freezer], array_keys($this->members($campaign)));
+
+        // A form without the field (an old tab) keeps the stored list.
+        $this->actingAs($admin)->post("/happy-hour-campaigns/{$campaign->id}", $this->form([
+            'machine_groups' => $groups, 'excluded_vend_ids' => [$excluded],
+        ]))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['machine_groups' => $groups]))
+            ->assertSessionHasNoErrors();
+        $this->assertSame([$excluded], $campaign->fresh()->excludedVendIds());
+
+        // A machine cannot be picked by name and excluded at once.
+        $this->actingAs($admin)->post("/happy-hour-campaigns/{$campaign->id}", $this->form([
+            'machine_groups' => $groups, 'vend_ids' => [$excluded], 'excluded_vend_ids' => [$excluded],
+        ]))->assertSessionHasErrors('excluded_vend_ids');
+
+        // The page carries the list for the form and the Machines column.
+        $this->actingAs($admin)->get('/happy-hour-campaigns')->assertOk()
+            ->assertInertia(fn ($page) => $page->where('campaigns.0.excluded_vend_ids', [$excluded]));
+    }
+
     public function test_the_page_shows_groups_and_keeps_group_members_out_of_the_hand_picker(): void
     {
         $big = $this->vending(2031, 315);
