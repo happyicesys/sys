@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\DeliveryPlatformApiError;
 use App\Models\DeliveryProductMappingVend;
 use App\Services\DeliveryPlatformService;
 use Illuminate\Console\Command;
@@ -159,7 +160,7 @@ class SyncDeliveryStorePause extends Command
                 // A store still paused on Grab is left alone: re-sending the same
                 // state answers 409 and does not extend the pause. Grab ends a pause
                 // after 24 h, so this re-pauses within one scheduled run of that.
-                if (Cache::has(self::REFUSED_CACHE_PREFIX.$merchantId)) {
+                if (Cache::has(self::REFUSED_CACHE_PREFIX.$merchantId) || DeliveryPlatformApiError::refusedRecently($merchantId)) {
                     $rows[] = [$mappingVend->id, $mappingVend->vend_code, $merchantId, 'skipped: Grab refused this store in the last 24 h'];
                     $refused++;
 

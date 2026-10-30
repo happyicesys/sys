@@ -208,6 +208,26 @@ class GrabApiErrorsTest extends TestCase
         $this->assertSame(0, DeliveryPlatformApiError::count());
     }
 
+    public function test_a_refusal_survives_a_cache_clear(): void
+    {
+        // A deploy clears the cache: the refusal on record still keeps both jobs off the store.
+        $binding = $this->store();
+        $binding->forceFill(['start_date' => now()->subDays(5), 'is_active' => false])->save();
+        Http::fake(['*' => Http::response(null, 401)]);
+
+        $this->artisan('delivery:sync-store-pause --apply --only-if-open')->assertSuccessful();
+        $this->assertSame(1, DeliveryPlatformApiError::count());
+
+        \Illuminate\Support\Facades\Cache::flush();
+        $this->artisan('delivery:sync-store-pause --apply --only-if-open')
+            ->expectsOutputToContain('refused this store in the last 24 h')
+            ->assertSuccessful();
+        $this->artisan('grab:missed-orders')->assertSuccessful();
+
+        Http::assertSentCount(1);
+        $this->assertSame(1, DeliveryPlatformApiError::count());
+    }
+
     public function test_errors_older_than_30_days_are_deleted(): void
     {
         $old = DeliveryPlatformApiError::create(['direction' => 'outgoing', 'action' => 'store_pause', 'status' => 500]);

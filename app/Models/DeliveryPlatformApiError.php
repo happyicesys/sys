@@ -71,6 +71,20 @@ class DeliveryPlatformApiError extends Model
         'response_json' => 'json',
     ];
 
+    /**
+     * Grab refused us this store (401 / 403) in the last 24 h. Read from this table, not
+     * a cache flag: a deploy clears the cache, and every deploy re-asked DCVIC's 11 stores.
+     */
+    public static function refusedRecently(string $merchantId): bool
+    {
+        return self::query()
+            ->where('merchant_id', $merchantId)
+            ->where('direction', self::DIRECTION_OUTGOING)
+            ->whereIn('status', [401, 403])
+            ->where('created_at', '>=', now()->subDay())
+            ->exists();
+    }
+
     public function deliveryPlatformRefNumber()
     {
         return $this->belongsTo(DeliveryPlatformRefNumber::class);

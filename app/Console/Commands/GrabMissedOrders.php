@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\DeliveryPlatformApiError;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryProductMappingVend;
@@ -79,7 +80,7 @@ class GrabMissedOrders extends Command
 
             // Grab refused us this store in the last day (DCVIC's 11, paused and off since
             // 2025-12): asking for its orders only adds a 401 to Grab Errors each night.
-            if (Cache::has(SyncDeliveryStorePause::REFUSED_CACHE_PREFIX.$merchantId)) {
+            if (Cache::has(SyncDeliveryStorePause::REFUSED_CACHE_PREFIX.$merchantId) || DeliveryPlatformApiError::refusedRecently($merchantId)) {
                 continue;
             }
 
