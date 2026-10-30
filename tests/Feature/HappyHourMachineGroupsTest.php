@@ -205,9 +205,12 @@ class HappyHourMachineGroupsTest extends TestCase
             'machine_groups' => $groups, 'vend_ids' => [$excluded], 'excluded_vend_ids' => [$excluded],
         ]))->assertSessionHasErrors('excluded_vend_ids');
 
-        // The page carries the list for the form and the Machines column.
+        // The page carries the list for the form and the Machines column, and offers an excluded machine
+        // even when it cannot run Happy Hour (or the form would drop it on the next save).
+        DB::table('vends')->where('id', $excluded)->update(['apk_version_code' => 220, 'apk_ver_json' => json_encode(['apkver' => 220, 'deviceType' => 'ZC-328'])]);
         $this->actingAs($admin)->get('/happy-hour-campaigns')->assertOk()
-            ->assertInertia(fn ($page) => $page->where('campaigns.0.excluded_vend_ids', [$excluded]));
+            ->assertInertia(fn ($page) => $page->where('campaigns.0.excluded_vend_ids', [$excluded])
+                ->where('machines', fn ($machines) => collect($machines)->contains('id', $excluded)));
     }
 
     public function test_the_page_shows_groups_and_keeps_group_members_out_of_the_hand_picker(): void

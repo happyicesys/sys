@@ -517,6 +517,9 @@ class HappyHourCampaignController extends Controller
         $columns = ['id', 'code', 'code_prefix', 'machine_type', 'is_active', 'apk_version_code', 'apk_ver_json'];
         $freezers = Vend::query()->where('machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)->get($columns);
         $bound = DB::table('happy_hour_campaign_vend')->distinct()->pluck('vend_id')->map(fn ($id) => (int) $id)->all();
+        // A machine a campaign excludes from its groups stays offered, or the form could not show it (or keep it).
+        $bound = array_values(array_unique([...$bound, ...HappyHourCampaign::query()->whereNotNull('excluded_vend_ids')->get(['id', 'excluded_vend_ids'])
+            ->flatMap(fn (HappyHourCampaign $c) => $c->excludedVendIds())->all()]));
         $vending = Vend::query()->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)
             ->where(fn ($q) => $q->where('is_active', 1)->orWhereIn('id', $bound))
             ->get($columns)

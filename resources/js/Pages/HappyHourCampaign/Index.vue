@@ -627,7 +627,7 @@ const selectedExcludedVends = ref([])
 const groupMachineType = { vending_big_board: 'vending_machine', smart_freezer: 'smart_freezer' }
 const excludableMachines = computed(() => {
   const types = form.machine_groups.map(g => groupMachineType[g]).filter(Boolean)
-  return props.machines.filter(m => types.includes(m.machine_type) && (m.supported || selectedExcludedVends.value.some(x => x.id === m.id)))
+  return props.machines.filter(m => types.includes(m.machine_type))
 })
 // Excluded machine labels for the Machines column; one this viewer cannot see shows as its id.
 function excludedCodes(c) {
