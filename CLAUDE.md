@@ -957,7 +957,7 @@ settlement report).
 ## Machine payment menu: one list per country + gateway, plus optional variants
 
 `GET /api/v1/payment-merchants/{country}/{gateway}` is the QR menu a terminal shows; each board GETs, at app
-start only, whatever URL its mqtt-config `mqtt_settings.payment_gateway_menu_url` holds (every APK — big, small,
+start (and big-board 321+ also on a `PAYMENTMENU` frame, below), whatever URL its mqtt-config `mqtt_settings.payment_gateway_menu_url` holds (every APK — big, small,
 freezer — uses it byte for byte). Brian, 2026-10-29: a **variant** adds methods to the normal menu — the
 methods whose `payment_methods.menu_variant` equals it; the plain menu lists only `menu_variant IS NULL` rows and
 an unknown variant is just the normal menu. An optional URL tail `/{menuVariant}` (`/SG/omise/mindef`) wins.
@@ -984,6 +984,28 @@ alike): the vending APK sends only the slug, so those sales are booked as "Omise
 is a logo, not a separate rail. Cache keys come from `PaymentMethod::menuCacheKey()`; `OptionCacheBuster`
 forgets every variant and every operator's own menu. Regression coverage:
 `tests/Feature/PaymentMerchantsMenuVariantTest.php`, `tests/Feature/OperatorPaymentMenuTest.php`.
+
+**A change reaches the machines at once, and the page shows which have it** (Brian, 2026-10-30). A board keeps
+the wallet list in memory, so until then a change waited for an app restart (2003 showed ten wallets after six
+were hidden). Now:
+- **Push.** Every Machine Payment Menu switch queues `App\Jobs\Vend\PushPaymentMenu` for that operator, and any
+  PaymentMethod / PaymentGateway / PaymentMerchant save queues it for every operator (`OptionCacheBuster`).
+  It is debounced 10 s, like `PushMappingMenuSync`. It sends the bare `PAYMENTMENU` frame
+  (`VendJobService::nudgePaymentMenuToVend`) to active or testing big-board vending machines on app ≥
+  `payment.menu_push_min_vending_apk` (321). Big-board 321+ re-reads only its wallet list, on a background thread,
+  and keeps the old list if the reply is empty or fails. Older apps, small boards and freezers just log the frame
+  and update at their next start, so they are not sent it. `PAYMENT_MENU_PUSH=false` turns the push off.
+- **Proof.** The machine's own fetch (`?machineID=`) is the proof, written by `OperatorPaymentMenu::recordFetch`:
+  `vends.payment_menu_fetched_at` / `_hash` (md5 of the exact reply) / `_path` (`SG/omise[/variant]`), plus
+  `payment_menu_pushed_at` when a frame was sent. These are plain updates, so neither `updated_at` nor the
+  audit log moves.
+- **Page.** `deliveryState()` compares the stored hash with what the menu answers now: `current` / `stale`
+  (fetched an older menu) / `unknown` (no fetch since tracking began). Operator → Edit lists the operator's
+  machines that way (`machinesFor()`, `GET /operators/{id}/payment-menu/machines`). It re-checks every 5 s for
+  2 min after a save, and has "Send to machines again" (`POST …/payment-menu/push`).
+- **mqtt-config dependency.** The tracking only sees a machine whose mqtt-config URL carries `machineID`.
+
+Regression coverage: `tests/Feature/PaymentMenuPushTest.php`.
 
 ## Txn, Revenue & Settlement: one sale, three sources, one line
 
@@ -2087,6 +2109,24 @@ mapping carrying the product; a selling price added or deleted → only machines
 on server price. A new write path that changes what a machine shows calls
 `PushMappingMenuSync::schedule()` / `scheduleForProduct()`. Regression coverage:
 `tests/Feature/MappingMenuAutoPushTest.php`.
+
+**Edits outside a UI Setting or a mapping reach the machines too** (Brian, 2026-10-30: "when there's a setting
+change, it will push to the APK" - never wait for a restart). `App\Support\MachineRefreshTriggers` (model events,
+registered beside `OptionCacheBuster`) is the one list of WHICH edit tells WHICH machines; the pushes are the existing
+debounced jobs:
+- a campaign saved → every UI Setting it is bound to (`PushApkSettingSync`; `/parameters` carries `campaigns[]`);
+- a label (tag) renamed or deleted → the menu of every mapping holding a product with it, plus every UI Setting whose
+  campaign item names it;
+- a category renamed or deleted → the menu of every mapping holding a product in it;
+- a Grab binding created / deleted / switched on-off / moved, or a Grab store's status changed → that machine re-reads
+  `/parameters` (`isGrabEnabled`) through `App\Jobs\Vend\PushVendSettingsSync` (per machine, only one `/parameters`
+  answers for: a UI Setting bound, or the Happy Hour bear).
+Label and category renames are words only: `PushMappingMenuSync`'s `textOnly` sends a 315+ big board the `HAPPYHOUR`
+frame (it re-reads the same `/thumbnails` JSON, no photo downloads) and older boards the full menu frame. A new edit
+that changes what a machine shows goes in that class. Still NOT pushed: mqtt-config admin edits (boards read them at
+boot), anything on a small board (its app reads no settings or menu frame), and Setting/Edit's per-machine
+"Parameters" page, which writes `vends.settings_parameter_json` - a column `/parameters` never reads. Regression
+coverage: `tests/Feature/MachineRefreshTriggersTest.php`.
 
 ## Nightly stock count: a lost night is estimated, never re-run
 

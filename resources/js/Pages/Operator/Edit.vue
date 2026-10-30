@@ -413,6 +413,7 @@
               v-if="form.id"
               :operator-id="form.id"
               :payment-menus="props.paymentMenus || []"
+              :payment-menu-machines="props.paymentMenuMachines || []"
               :can-edit="permissions.includes('update operators')"
             />
 
@@ -849,6 +850,7 @@ const props = defineProps({
     permissions: [Array, Object],
     operatorCanOverrideLogo: Boolean,
     paymentMenus: Array,
+    paymentMenuMachines: Array,
     unbindedProducts: [Array, Object],
   })
 

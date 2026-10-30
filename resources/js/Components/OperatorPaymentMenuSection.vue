@@ -15,7 +15,7 @@
     </div>
 
     <p class="mt-2 text-sm text-gray-700">
-      {{ $t('The QR payment options this operator’s machines show. A machine picks up a change at its next app restart.') }}
+      {{ $t('The QR payment options this operator’s machines show. Machines on app 321 or later update within a minute of a change; older apps update at their next restart.') }}
     </p>
     <div class="text-sm text-red-600" v-if="error">{{ error }}</div>
 
@@ -95,11 +95,70 @@
         </div>
       </div>
     </div>
+
+    <!-- Brian, 2026-10-30: each machine's own fetch is the proof it holds the menu (OperatorPaymentMenu::machinesFor). -->
+    <div v-if="machines.length" class="mt-5">
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <span class="font-semibold text-gray-900">{{ $t('Machines') }}</span>
+        <span class="text-green-700">{{ $t(':count up to date', { count: counts.current }) }}</span>
+        <span v-if="counts.stale" class="text-amber-700">{{ $t(':count waiting', { count: counts.stale }) }}</span>
+        <span v-if="counts.unknown" class="text-gray-500">{{ $t(':count not checked yet', { count: counts.unknown }) }}</span>
+        <span v-if="polling" class="text-gray-500">{{ $t('Checking…') }}</span>
+        <button
+          v-if="canEdit"
+          type="button"
+          class="ml-auto rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          :disabled="pushing"
+          @click="pushAgain"
+        >
+          {{ $t('Send to machines again') }}
+        </button>
+      </div>
+
+      <div class="mt-2 max-h-96 overflow-auto shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+        <div class="inline-block min-w-full align-middle">
+          <div>
+            <table class="min-w-full divide-y divide-gray-300">
+              <thead class="sticky top-0 bg-gray-50">
+                <tr>
+                  <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">{{ $t('Machine') }}</th>
+                  <th scope="col" class="px-3 py-2 text-center text-sm font-semibold text-gray-900">{{ $t('App') }}</th>
+                  <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">{{ $t('Menu on machine') }}</th>
+                  <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">{{ $t('Last fetched') }}</th>
+                  <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">{{ $t('Last sent') }}</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr v-for="machine in machines" :key="machine.id">
+                  <td class="px-3 py-2 text-sm">
+                    <span class="font-semibold tabular-nums">{{ machine.code }}</span>
+                    <span v-if="machine.site" class="text-gray-600"> - {{ machine.site }}</span>
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-2 text-sm text-center tabular-nums">{{ machine.apk_version || '—' }}</td>
+                  <td class="px-3 py-2 text-sm">
+                    <span v-if="machine.state === 'current'" class="rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800">{{ $t('Up to date') }}</span>
+                    <template v-else>
+                      <span v-if="machine.state === 'stale'" class="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">{{ $t('Waiting') }}</span>
+                      <span v-else class="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">{{ $t('Not checked yet') }}</span>
+                      <span class="ml-1 text-xs text-gray-500">
+                        {{ machine.instant ? $t('updates when it is online') : $t('updates at its next restart (app below 321)') }}
+                      </span>
+                    </template>
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-2 text-sm">{{ machine.fetched_at ? formatTime(machine.fetched_at) : '—' }}</td>
+                  <td class="whitespace-nowrap px-3 py-2 text-sm">{{ machine.pushed_at ? formatTime(machine.pushed_at) : '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import axios from 'axios'
 import moment from 'moment'
 import { t } from '@/i18n'
@@ -107,11 +166,77 @@ import { t } from '@/i18n'
 const props = defineProps({
   operatorId: { type: [Number, String], required: true },
   paymentMenus: { type: Array, default: () => [] },
+  paymentMenuMachines: { type: Array, default: () => [] },
   canEdit: { type: Boolean, default: false },
 })
 
 const menus = ref([...props.paymentMenus])
 watch(() => props.paymentMenus, (value) => { menus.value = [...(value || [])] })
+
+const machines = ref([...props.paymentMenuMachines])
+watch(() => props.paymentMenuMachines, (value) => { machines.value = [...(value || [])] })
+
+const counts = computed(() => ({
+  current: machines.value.filter((m) => m.state === 'current').length,
+  stale: machines.value.filter((m) => m.state === 'stale').length,
+  unknown: machines.value.filter((m) => m.state === 'unknown').length,
+}))
+
+// After a save the push goes out ~10 s later and each machine fetches within seconds of it, so the list re-checks
+// every 5 s for two minutes, or until no machine that can update at once is still waiting.
+const POLL_EVERY_MS = 5000
+const POLL_FOR_MS = 120000
+const polling = ref(false)
+let pollTimer = null
+let pollUntil = 0
+
+function stopPolling() {
+  if (pollTimer) clearTimeout(pollTimer)
+  pollTimer = null
+  polling.value = false
+}
+
+function startPolling() {
+  pollUntil = Date.now() + POLL_FOR_MS
+  if (!pollTimer) {
+    polling.value = true
+    pollTimer = setTimeout(poll, POLL_EVERY_MS)
+  }
+}
+
+async function poll() {
+  pollTimer = null
+  try {
+    const { data } = await axios.get(`/operators/${props.operatorId}/payment-menu/machines`)
+    machines.value = data.paymentMenuMachines || []
+  } catch (e) {
+    // A missed check is retried on the next tick.
+  }
+  const waiting = machines.value.some((m) => m.instant && m.state !== 'current')
+  if (waiting && Date.now() < pollUntil) {
+    pollTimer = setTimeout(poll, POLL_EVERY_MS)
+  } else {
+    polling.value = false
+  }
+}
+
+onBeforeUnmount(stopPolling)
+
+const pushing = ref(false)
+
+async function pushAgain() {
+  pushing.value = true
+  error.value = ''
+  try {
+    const { data } = await axios.post(`/operators/${props.operatorId}/payment-menu/push`)
+    machines.value = data.paymentMenuMachines || []
+    startPolling()
+  } catch (e) {
+    error.value = e?.response?.data?.message || t('Could not send. Please try again.')
+  } finally {
+    pushing.value = false
+  }
+}
 
 const busyId = ref(null)
 const error = ref('')
@@ -127,6 +252,8 @@ async function setShown(method, show) {
   try {
     const { data } = await axios.post(`/operators/${props.operatorId}/payment-menu`, { payment_method_id: method.id, is_shown: show })
     menus.value = data.paymentMenus || []
+    machines.value = data.paymentMenuMachines || machines.value
+    startPolling()
   } catch (e) {
     error.value = e?.response?.data?.message || t('Could not save. Please try again.')
   } finally {

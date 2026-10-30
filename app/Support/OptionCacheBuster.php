@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Jobs\Vend\PushPaymentMenu;
 use App\Models\CardTerminal;
 use App\Models\Category;
 use App\Models\CategoryGroup;
@@ -129,8 +130,12 @@ class OptionCacheBuster
         // payment_merchants:{countryCode}:{gatewayName} (machine-facing API,
         // PaymentController::getPaymentMerchantsApi) — derived from
         // PaymentMethod + PaymentGateway + PaymentMerchant.
+        // Machines then re-read it at once (PushPaymentMenu, every machine: these rows feed every operator's menu).
         foreach ([PaymentMethod::class, PaymentGateway::class, PaymentMerchant::class] as $model) {
-            self::onChange($model, fn () => self::forgetPaymentMerchantCombos());
+            self::onChange($model, function () {
+                self::forgetPaymentMerchantCombos();
+                PushPaymentMenu::schedule();
+            });
         }
 
         // customer_product_options_{ver}_{operatorIds} — combo keys can't be

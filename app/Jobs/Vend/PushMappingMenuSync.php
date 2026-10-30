@@ -4,6 +4,7 @@ namespace App\Jobs\Vend;
 
 use App\Models\ProductMappingItem;
 use App\Models\Vend;
+use App\Services\HappyHour\HappyHourEligibility;
 use App\Services\VendJobService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -33,6 +34,11 @@ use Illuminate\Support\Facades\Log;
  * burst of edits collapses into one push per machine. The frame carries no data -
  * the machine reads whatever is current when it fetches - and the delay also puts
  * the fetch safely after the request's commit.
+ *
+ * $textOnly (2026-10-30): the change is words only - a category or label renamed -
+ * so a big board on app 315+ gets the HAPPYHOUR frame instead, on which it re-reads
+ * the same `/thumbnails` JSON (names, labels, sub-category) without re-downloading
+ * every photo over its SIM. Older boards still get the full frame.
  */
 class PushMappingMenuSync implements ShouldQueue
 {
@@ -47,11 +53,12 @@ class PushMappingMenuSync implements ShouldQueue
     public function __construct(
         protected int $productMappingId,
         protected bool $serverPriceOnly = false,
+        protected bool $textOnly = false,
     ) {}
 
-    public static function cacheKey(int $productMappingId, bool $serverPriceOnly = false): string
+    public static function cacheKey(int $productMappingId, bool $serverPriceOnly = false, bool $textOnly = false): string
     {
-        return 'mapping-menu-push:'.$productMappingId.($serverPriceOnly ? ':server-price' : '');
+        return 'mapping-menu-push:'.$productMappingId.($serverPriceOnly ? ':server-price' : '').($textOnly ? ':text' : '');
     }
 
     /**
@@ -60,15 +67,15 @@ class PushMappingMenuSync implements ShouldQueue
      * $serverPriceOnly: the change is a selling price, which only machines that
      * follow the Site's pricing display - the rest sell at the board price.
      */
-    public static function schedule(?int $productMappingId, bool $serverPriceOnly = false): void
+    public static function schedule(?int $productMappingId, bool $serverPriceOnly = false, bool $textOnly = false): void
     {
         if (! $productMappingId) {
             return;
         }
 
         // Cache::add is atomic: only the first caller in the window wins.
-        if (Cache::add(self::cacheKey($productMappingId, $serverPriceOnly), true, self::GUARD_TTL_SECONDS)) {
-            self::dispatch($productMappingId, $serverPriceOnly)
+        if (Cache::add(self::cacheKey($productMappingId, $serverPriceOnly, $textOnly), true, self::GUARD_TTL_SECONDS)) {
+            self::dispatch($productMappingId, $serverPriceOnly, $textOnly)
                 ->delay(now()->addSeconds(self::DEBOUNCE_SECONDS))
                 ->onQueue('default');
         }
@@ -83,12 +90,27 @@ class PushMappingMenuSync implements ShouldQueue
             return;
         }
 
-        $mappingIds = ProductMappingItem::where('product_id', $productId)
+        self::scheduleForProducts([$productId], $serverPriceOnly);
+    }
+
+    /**
+     * Several products changed at once (a category or label renamed): push every mapping any of them sits on.
+     *
+     * @param  iterable<int>  $productIds
+     */
+    public static function scheduleForProducts(iterable $productIds, bool $serverPriceOnly = false, bool $textOnly = false): void
+    {
+        $productIds = collect($productIds)->filter()->map(fn ($id) => (int) $id)->unique()->values();
+        if ($productIds->isEmpty()) {
+            return;
+        }
+
+        $mappingIds = $productIds->chunk(1000)->flatMap(fn ($chunk) => ProductMappingItem::whereIn('product_id', $chunk->all())
             ->distinct()
-            ->pluck('product_mapping_id');
+            ->pluck('product_mapping_id'))->unique();
 
         foreach ($mappingIds as $mappingId) {
-            self::schedule((int) $mappingId, $serverPriceOnly);
+            self::schedule((int) $mappingId, $serverPriceOnly, $textOnly);
         }
     }
 
@@ -96,7 +118,7 @@ class PushMappingMenuSync implements ShouldQueue
     {
         // Released first, so an edit made while this job runs schedules the
         // next push instead of being swallowed by a stale guard.
-        Cache::forget(self::cacheKey($this->productMappingId, $this->serverPriceOnly));
+        Cache::forget(self::cacheKey($this->productMappingId, $this->serverPriceOnly, $this->textOnly));
 
         // withoutGlobalScopes: a queue worker has no authenticated user, and the
         // push must reach every operator's machine on this mapping.
@@ -107,10 +129,15 @@ class PushMappingMenuSync implements ShouldQueue
             ->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)
             ->where(fn ($q) => $q->where('is_active', true)->orWhere('is_testing', true))
             ->when($this->serverPriceOnly, fn ($q) => $q->where('is_using_server_price', true))
-            ->get(['id', 'code', 'private_key', 'machine_type']);
+            ->get(['id', 'code', 'private_key', 'machine_type', 'is_active', 'apk_ver_json', 'apk_version_code', 'apk_checked_in_at']);
 
         foreach ($vends as $vend) {
             try {
+                if ($this->textOnly && HappyHourEligibility::supportsVending($vend)) {
+                    $vendJobService->nudgeHappyHourToVend($vend);
+
+                    continue;
+                }
                 $vendJobService->syncChannelSlotListToVend($vend);
             } catch (\Throwable $e) {
                 // One unreachable machine must not stop the rest.

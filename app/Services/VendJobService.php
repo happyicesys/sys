@@ -178,6 +178,15 @@ class VendJobService
         return true;
     }
 
+    /**
+     * The machine's QR payment menu changed (PushPaymentMenu): app 321+ re-reads its wallet list only — no settings,
+     * no menu images, no restart.
+     */
+    public function nudgePaymentMenuToVend(Vend $vend): void
+    {
+        $this->publishBareFrame($vend, 'PAYMENTMENU');
+    }
+
     /** `{"Type":…,"time":…,"action":"","mid":<code>}` on CM<code>, signed with the vend's key, QoS 1. */
     private function publishBareFrame(Vend $vend, string $type): void
     {

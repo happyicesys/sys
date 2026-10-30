@@ -13,6 +13,7 @@ use App\Observers\ProductChildObserver;
 use App\Observers\RefundTicketObserver;
 use App\Observers\UnitCostObserver;
 use App\Services\UserLogger;
+use App\Support\MachineRefreshTriggers;
 use App\Support\OptionCacheBuster;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
@@ -140,6 +141,7 @@ class AppServiceProvider extends ServiceProvider
         // edits show up immediately instead of after the 24h TTL. Per-model
         // listeners only — NOT a wildcard (see UserLogger note below).
         OptionCacheBuster::listen();
+        MachineRefreshTriggers::listen();
 
         // App-wide user-action audit log (web CRUD only; cron/queue/machine excluded).
         // Re-enabled 2026-07-12: UserLogger::listen() now short-circuits in console

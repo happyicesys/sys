@@ -9,6 +9,7 @@ use App\Http\Resources\PaymentGatewayResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
+use App\Jobs\Vend\PushPaymentMenu;
 use App\Models\AlertEmailItem;
 use App\Models\Country;
 use App\Models\Customer;
@@ -296,6 +297,7 @@ class OperatorController extends Controller
             ),
             'operatorCanOverrideLogo' => $operatorCanOverrideLogo,
             'paymentMenus' => fn () => $operator ? app(OperatorPaymentMenu::class)->tableFor($operator) : [],
+            'paymentMenuMachines' => fn () => $operator ? app(OperatorPaymentMenu::class)->machinesFor($operator) : [],
             'timezones' => $timezones,
             // withoutGlobalScope(ProductAccessProductScope): an admin who is
             // themselves product-restricted must still be able to grant the
@@ -412,7 +414,37 @@ class OperatorController extends Controller
         $operator = Operator::withoutGlobalScope(OperatorActiveScope::class)->findOrFail($operatorId);
         $menu->set($operator, PaymentMethod::findOrFail($validated['payment_method_id']), (bool) $validated['is_shown'], $authUser->id);
 
-        return response()->json(['paymentMenus' => $menu->tableFor($operator)]);
+        return response()->json([
+            'paymentMenus' => $menu->tableFor($operator),
+            'paymentMenuMachines' => $menu->machinesFor($operator),
+        ]);
+    }
+
+    /** Operator → Edit → Machine Payment Menu: whether each machine already holds the current menu (polled after a save). */
+    public function paymentMenuMachines($operatorId, OperatorPaymentMenu $menu)
+    {
+        $operator = $this->paymentMenuOperator($operatorId);
+
+        return response()->json(['paymentMenuMachines' => $menu->machinesFor($operator)]);
+    }
+
+    /** "Send to machines again": the same push a save queues, for a machine that was offline at the time. */
+    public function pushPaymentMenu($operatorId, OperatorPaymentMenu $menu)
+    {
+        $operator = $this->paymentMenuOperator($operatorId);
+        PushPaymentMenu::schedule($operator->id);
+
+        return response()->json(['paymentMenuMachines' => $menu->machinesFor($operator)]);
+    }
+
+    private function paymentMenuOperator($operatorId): Operator
+    {
+        $authUser = auth()->user();
+        if ($authUser->operator_id && $authUser->operator_id != 1 && $authUser->operator_id != $operatorId) {
+            abort(403);
+        }
+
+        return Operator::withoutGlobalScope(OperatorActiveScope::class)->findOrFail($operatorId);
     }
 
     public function storeOperatorPaymentGateway(Request $request, $operatorId)

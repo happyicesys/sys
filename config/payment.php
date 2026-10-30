@@ -36,4 +36,13 @@ return [
     */
     'qr_decoder_python' => env('QR_DECODER_PYTHON', '/home/forge/.local/qrdecode/bin/python'),
 
+    /*
+    | Machine payment menu push (Brian, 2026-10-30): after the QR menu changes (Operator → Edit → Machine Payment
+    | Menu, or a payment method / merchant / gateway edit), mark1 sends PAYMENTMENU to the machines it concerns and
+    | they re-read their wallet list at once. Big-board app 321 is the first to act on the frame; older apps ignore
+    | it and pick the change up at their next restart. Off = changes wait for a restart, as before.
+    */
+    'menu_push' => (bool) env('PAYMENT_MENU_PUSH', true),
+    'menu_push_min_vending_apk' => (int) env('PAYMENT_MENU_PUSH_MIN_VENDING_APK', 321),
+
 ];

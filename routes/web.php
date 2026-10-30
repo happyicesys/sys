@@ -566,6 +566,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::delete('/delivery-platform/{delivery_platform_operator_id}', [OperatorController::class, 'unbindDeliveryPlatform']);
         Route::post('/{id}/payment-menu', [OperatorController::class, 'setPaymentMethod'])->name('operators.payment-menu')
             ->middleware('can:update operators');
+        Route::get('/{id}/payment-menu/machines', [OperatorController::class, 'paymentMenuMachines'])->name('operators.payment-menu.machines')
+            ->middleware('can:read operators');
+        Route::post('/{id}/payment-menu/push', [OperatorController::class, 'pushPaymentMenu'])->name('operators.payment-menu.push')
+            ->middleware('can:update operators');
         Route::post('/{id}/callbacks', [OperatorController::class, 'storeOperatorCallback'])->name('operators.store-callback');
         Route::delete('/callbacks/{id}', [OperatorController::class, 'deleteOperatorCallback'])->name('operators.delete-callback');
     });
