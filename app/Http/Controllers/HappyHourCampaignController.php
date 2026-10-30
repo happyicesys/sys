@@ -13,6 +13,7 @@ use App\Services\HappyHour\HappyHourCampaignStats;
 use App\Services\HappyHour\HappyHourEligibility;
 use App\Services\HappyHour\HappyHourMachineGroups;
 use App\Services\HappyHour\HappyHourPause;
+use App\Services\HappyHour\HappyHourPlanner;
 use App\Services\HappyHour\HappyHourRanker;
 use App\Services\HappyHour\HappyHourSales;
 use App\Services\HappyHour\HappyHourSkipped;
@@ -151,13 +152,17 @@ class HappyHourCampaignController extends Controller
             $reschedule = $this->scheduleChanged($campaign);
             $campaign->save();
             $removed = $this->syncVends($campaign, $request->input('vend_ids', []));
+            $cancel = $reschedule ? 'all' : ($removed ?: null);
+            // The old slots end WITH the save (a schedule change: all of them; else those of the machines
+            // taken out), so a save never stands while its old prices keep running.
+            $this->cancelSlots($campaign, $cancel);
 
-            return $reschedule ? 'all' : ($removed ?: null);
+            return $cancel;
         });
-        // After the response, under the planner lock: the old slots are taken back (a schedule change: all
-        // of them; else those of the machines taken out), group campaigns follow (picked by name now, or no
-        // longer), the campaign re-plans, and machines added, kept or taken out without a UI Setting re-read
-        // /parameters, so the bear comes on or goes off (HappyHourWelcomeFallback).
+        // After the response, under the planner lock: the same cancel again (a slot a run in flight wrote from
+        // the old settings goes too), group campaigns follow (picked by name now, or no longer), the campaign
+        // re-plans, and machines added, kept or taken out without a UI Setting re-read /parameters, so the bear
+        // comes on or goes off (HappyHourWelcomeFallback).
         FollowHappyHourCampaignSave::dispatchAfterResponse($campaign->id, $cancel, $membersBefore);
 
         return back()->with('success', __('Happy Hour ":name" updated.', ['name' => $campaign->name]));
@@ -167,7 +172,10 @@ class HappyHourCampaignController extends Controller
     {
         $campaign = HappyHourCampaign::findOrFail($id);
         $members = $this->memberIds($campaign);
-        $campaign->delete();
+        DB::transaction(function () use ($campaign) {
+            $this->cancelSlots($campaign, 'all');
+            $campaign->delete();
+        });
         // After the response, under the planner lock: its slots are taken back and its machines picked by
         // name go back to any group campaign that covers them. Deleted, it plans nothing.
         FollowHappyHourCampaignSave::dispatchAfterResponse($campaign->id, 'all', $members);
@@ -299,6 +307,14 @@ class HappyHourCampaignController extends Controller
             ->orderBy('code')->get(['id', 'code', 'code_prefix'])
             ->map(fn (Vend $v) => ['code' => $v->codeLabel(), 'by' => $byVend[$v->id]])
             ->values()->all();
+    }
+
+    /** @param  'all'|list<int>|null  $cancel */
+    private function cancelSlots(HappyHourCampaign $campaign, string|array|null $cancel): void
+    {
+        if ($cancel !== null && $cancel !== []) {
+            app(HappyHourPlanner::class)->cancel($campaign, Carbon::now(), $cancel === 'all' ? null : $cancel);
+        }
     }
 
     /**

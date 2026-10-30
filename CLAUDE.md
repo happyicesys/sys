@@ -1259,9 +1259,9 @@ What a campaign is:
   exclusion rule needs its own key, or the page files it under "Other".
 - The Campaign column shows Total sales / Total $disc / Total qty / Avg daily qty per VM, last 24 h over last 30 days,
   and "Show graph" opens daily bar charts for a chosen range (default 7 days, `/{id}/stats`) — Brian, 2026-10-16.
-  They are an Inertia deferred prop (Brian, 2026-10-30), and EVERY other prop of the page is a closure: the browser's
+  They are an Inertia deferred prop (Brian, 2026-10-30), and every other prop that queries is a closure: the browser's
   follow-up request names `campaignStats` only, and a plain value is computed again on it (the first cut re-ran the
-  whole page). A new prop on this page must be a closure too.
+  whole page). A new prop on this page that queries must be a closure too.
   `HappyHourCampaignStats` owns the figures: the campaign's TAGGED sales (`HappyHourSales::dailyTotals`, the slot
   results' rules) on machines the viewer may see; "per VM" = per machine-day on which it ran a slot (cancelled slots
   never ran), so a young campaign is not divided by 30.
@@ -1278,10 +1278,12 @@ What a campaign is:
 background, so it starts on the minute — at midnight it used to wait behind the daily jobs), and once after each
 save or delete. **One writer at a time** (audit 2026-10-30): both hold the `happy-hour-plan` lock
 (`HappyHourPlanner::exclusively`); before, a save re-planning during a run gave 1358/1371/1372 two slot groups at
-once (2026-10-15 21:57). A save or delete only writes the campaign; `FollowHappyHourCampaignSave` runs right after
-the response (`dispatchAfterResponse`, not queued) under the lock: it takes the old slots back (again, so a slot a
-run in flight wrote from the old settings goes too), group campaigns follow, the campaign plans, unbound machines
-re-read `/parameters`. Without the lock in 120 s it runs anyway (a cancel is never lost); the minute run waits 45 s,
+once (2026-10-15 21:57). A save or delete writes the campaign and cancels its old slots in ONE transaction (a save
+never stands while its old prices run on); `FollowHappyHourCampaignSave` runs right after the response
+(`dispatchAfterResponse`, not queued, still signed in — so the ranker reads products unscoped) under the lock: it
+cancels again (a slot a run in flight wrote from the old settings goes too), group campaigns follow, the campaign
+plans, unbound machines re-read `/parameters`. A pick that meets this campaign's own CANCELLED row for the same
+SKU and start takes that row up again (the unique key would otherwise block it for a minute or two). Without the lock in 120 s it runs anyway (a cancel is never lost); the minute run waits 45 s,
 then skips that minute. A save re-plans only when how it picks or prices changes — the SKU lists are SETS (sorted
 on save; re-ordering the Prioritize list once cancelled 445 live slots on 223 machines). Each step of the run is
 isolated (one bad slot never stops the rest), and it also takes back open slots that no longer belong — campaign

@@ -75,7 +75,12 @@ class HappyHourPlanner
         try {
             // A save's re-plan holds the lock for up to ~30 s on the whole fleet; slots are picked 2 min
             // ahead, so a skipped minute is caught up by the next one.
-            return $this->exclusively(fn () => $this->runLocked(CarbonImmutable::instance($now)), $waitSeconds);
+            // The clock moves on while the run waits for the lock: the run works at the moment it got it.
+            $asked = microtime(true);
+
+            return $this->exclusively(fn () => $this->runLocked(
+                CarbonImmutable::instance($now)->addSeconds((int) floor(microtime(true) - $asked))
+            ), $waitSeconds);
         } catch (LockTimeoutException) {
             Log::warning('happy hour run skipped: the planner lock is taken');
 
@@ -89,7 +94,11 @@ class HappyHourPlanner
     {
         $stats = ['closed' => 0, 'sold_out' => 0, 'paused' => 0, 'orphaned' => 0, 'group_joined' => 0,
             'group_left' => 0, 'paused_machines' => 0, 'planned' => 0, 'swapped' => 0];
-        [$stats['group_joined'], $stats['group_left']] = $this->followGroups($now);
+        try {
+            [$stats['group_joined'], $stats['group_left']] = $this->followGroups($now);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         $campaigns = HappyHourCampaign::query()->withoutGlobalScope(OperatorHappyHourCampaignScope::class)->active()->with('vends')->get();
         $paused = HappyHourPause::forVends($campaigns->flatMap(fn ($c) => $c->vends->pluck('id')), $now);
@@ -441,7 +450,28 @@ class HappyHourPlanner
                 ...$this->pickColumns($campaign, $pick, $isPriority),
             ]);
         } catch (UniqueConstraintViolationException) {
-            // This SKU already has a slot on this machine at this start time: first come keeps it.
+            // This SKU already has a slot on this machine at this start time. One this campaign cancelled (a
+            // swap, a save) is taken up again — same SKU, so a board's sales under its id stay right; it
+            // would otherwise block the pick for a minute or two (audit review 2026-10-30).
+            $revived = HappyHourSlot::query()
+                ->where('vend_id', $vend->id)->where('starts_at', $time['starts_at'])->where('product_id', $pick->productId)
+                ->where('happy_hour_campaign_id', $campaign->id)->where('status', HappyHourSlot::STATUS_CANCELLED)
+                ->first();
+            if ($revived !== null) {
+                $revived->update([
+                    'slot_date' => $time['slot_date'] ?? $time['starts_at']->toDateString(),
+                    'position' => $time['position'],
+                    'ends_at' => $time['ends_at'],
+                    'planned_ends_at' => $time['ends_at'],
+                    'status' => HappyHourSlot::STATUS_SCHEDULED,
+                    'checked_at' => $checkedAt,
+                    'units_sold' => null,
+                    ...$this->pickColumns($campaign, $pick, $isPriority),
+                ]);
+
+                return $revived;
+            }
+            // Otherwise first come keeps it.
             Log::warning('happy hour slot clash', ['campaign' => $campaign->id, 'vend' => $vend->id, 'product' => $pick->productId, 'starts_at' => (string) $time['starts_at']]);
 
             return null;

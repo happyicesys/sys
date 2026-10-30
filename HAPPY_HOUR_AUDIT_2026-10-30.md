@@ -77,3 +77,34 @@ Fixes as made (where they differ from the suggestion, the CLAUDE.md wording gove
 - Validation bounds (window end ≤ start, ends before starts, discount 0 or 91).
 - Overlap edge cases (adjacent windows, disjoint dates, re-activating a paused campaign).
 - Stats and skipped caches never shared between an HIPL viewer and a restricted viewer.
+
+## Final check (2026-10-30 evening)
+
+Two independent reviews of every Happy Hour commit from this work, plus prod data after the deploy.
+
+**On prod:**
+- The 21:00 and 22:00 slots ran on 221 machines with no duplicates, and every slot has a planned end.
+- Totals closed on time.
+- Every tagged sale since the deploy carries its list price.
+- All 4 tagged baskets add up.
+- No errors in the log.
+
+**Fixed in the follow-up commit:**
+- A save cancels its old slots inside its own transaction again; the after-response job cancels a second time under the lock. Before this, a dead PHP worker could leave the old prices running until the slot ended.
+- The ranker reads products unscoped. The after-save planning runs signed in, and an operator-restricted user's product filter could hide a SKU's Available? tick.
+- A pick that meets this campaign's own cancelled row for the same SKU and start takes that row up again. Before this, the unique key blocked the pick for a minute or two after a swap.
+- A minute run that waited for the lock works at the time it got the lock, not a time up to 45 s old.
+- Group following is isolated like every other step of the run.
+- Freezer tagging: a sale inside a live slot goes to that slot, and a sale only a stale menu could make goes to the cancelled slot.
+- A vending sale is tagged by its arrival time only while its TIME is within the clock slack readers search with.
+
+**Left as is (Low; noted for later):**
+- Clearing "Active from" or "Active to" in the form sends the text `Invalid date`, so a campaign's dates cannot be removed once set. This predates this work; `Setting/Edit.vue` already guards it.
+- No error line under `min_qty`, `min_balance_pct`, `lookback_days`, `window_start` or `selection_rule`. Emptying one makes Save do nothing.
+- `loadStats` has no `catch`, so a failed graph request leaves an empty modal.
+- Unticking one of two groups hides that kind's exclusions in the picker but keeps them stored. They show again when the group is re-ticked.
+- Site Name sort ties are not broken by Machine ID.
+- The list price and the full-price guard read the channel price when the TRADE arrives, so a TRADE replayed after a board-price change uses today's price.
+- The 00:00 slot is ranked with the previous day's "Random" seed.
+- The basket reprice proof uses the campaign's current price step, so a rounding change mid-slot leaves a basket unproven. It refuses; it never misprices.
+- The stats drop a cancelled slot's sales on a machine that ran no other slot that day. 0 cases in prod.

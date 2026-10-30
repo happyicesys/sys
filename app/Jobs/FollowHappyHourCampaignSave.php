@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Log;
  * minute run (audit 2026-10-30: the two wrote slots together, and a fleet-wide re-plan held the save
  * request for ~26 s):
  *  1. takes back the campaign's slots, all of them (a schedule change, a delete) or those of the machines
- *     it gave up — again under the lock, so a slot a run in flight wrote from the old settings goes too;
+ *     it gave up — the save already did, inside its transaction; this does it again under the lock, so a slot a
+ *     run in flight wrote from the old settings goes too;
  *  2. group campaigns follow (a machine picked by name leaves them, or rejoins after a delete);
  *  3. plans the campaign's machines at once instead of at the next minute;
  *  4. machines with no UI Setting re-read /parameters, so the bear comes on or goes off now.
@@ -56,8 +57,13 @@ class FollowHappyHourCampaignSave
         if ($campaign === null) {
             return;
         }
-        if ($this->cancel !== null && $this->cancel !== []) {
-            $planner->cancel($campaign, $now, $this->cancel === 'all' ? null : $this->cancel);
+        try {
+            if ($this->cancel !== null && $this->cancel !== []) {
+                $planner->cancel($campaign, $now, $this->cancel === 'all' ? null : $this->cancel);
+            }
+        } catch (\Throwable $e) {
+            // The save's own cancel already ran; go on so the campaign still plans.
+            report($e);
         }
         $planner->followGroups($now);
         try {

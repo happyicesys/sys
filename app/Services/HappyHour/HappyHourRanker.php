@@ -72,7 +72,9 @@ class HappyHourRanker
         }
 
         $productIds = $stock->keys()->map(fn ($id) => (int) $id)->all();
-        $products = Product::query()->whereIn('id', $productIds)->get(['id', 'code', 'name', 'is_available'])->keyBy('id');
+        // Unscoped: the ranker also runs inside a signed-in request (right after a save, the lineup preview), and
+        // a viewer's product filters must never hide a SKU's Available? tick from the exclusion rules.
+        $products = Product::withoutGlobalScopes()->whereIn('id', $productIds)->get(['id', 'code', 'name', 'is_available'])->keyBy('id');
         $prices = $vend->machine_type === Vend::MACHINE_TYPE_VENDING_MACHINE
             ? $this->vendingPrices($vend, $productIds, $stock)
             : $this->prices($vend, $productIds);

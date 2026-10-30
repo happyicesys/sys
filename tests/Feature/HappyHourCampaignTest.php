@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\FollowHappyHourCampaignSave;
 use App\Jobs\NudgeFreezerMenu;
 use App\Models\Customer;
 use App\Models\HappyHourCampaign;
@@ -24,6 +25,7 @@ use App\Services\HappyHour\HappyHourSales;
 use App\Services\VendTransactionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -1071,6 +1073,7 @@ class HappyHourCampaignTest extends TestCase
         Carbon::setTestNow('2026-10-09 14:12:00');
         $this->planner()->run(now());
         $this->assertSame(HappyHourSlot::STATUS_CANCELLED, $live->fresh()->status);
+        fwrite(STDERR, json_encode(HappyHourSlot::all(['id', 'status', 'starts_at', 'ends_at', 'discount_pct', 'created_at'])->toArray()));
         $this->assertSame(0, HappyHourSlot::open()->count());
     }
 
@@ -1148,6 +1151,92 @@ class HappyHourCampaignTest extends TestCase
         // Its menu still says $2.40 until 15:00: a sale at 14:40 is the cancelled slot's, one after 15:05 is not.
         $this->assertSame($slot->id, (int) $this->sale($this->products['A']->id, 240, '2026-10-09 14:40:00')->fresh()->happy_hour_slot_id);
         $this->assertNull($this->sale($this->products['A']->id, 240, '2026-10-09 15:06:00')->fresh()->happy_hour_slot_id);
+    }
+
+    public function test_a_save_cancels_its_old_slots_with_the_save_itself(): void
+    {
+        $this->freezer(['A' => [5, 10, 4.00, 0], 'B' => [4, 10, 4.00, 7]]);
+        $user = User::factory()->create(['operator_id' => 1]);
+        foreach (['update', 'delete'] as $action) {
+            $user->givePermissionTo(Permission::findOrCreate("{$action} happy-hour-campaigns", 'web'));
+        }
+        // Planned by the minute run (a saved campaign's request would queue its own follow-up for the test's life).
+        $campaign = $this->campaign();
+        Carbon::setTestNow('2026-10-09 14:30:00');
+        $this->planner()->run(now());
+        Carbon::setTestNow('2026-10-09 14:34:00');
+        $live = HappyHourSlot::open()->sole();
+
+        // The after-response follow-up never runs (its PHP worker died): the save already ended the old price.
+        Bus::fake([FollowHappyHourCampaignSave::class]);
+        $this->actingAs($user)->post("/happy-hour-campaigns/{$campaign->id}", $this->form(['discount_pct' => 50]))->assertSessionHasNoErrors();
+        Bus::assertDispatchedAfterResponse(FollowHappyHourCampaignSave::class);
+        $this->assertSame(HappyHourSlot::STATUS_CANCELLED, $live->fresh()->status);
+        $this->assertSame(0, HappyHourSlot::open()->count());
+
+        // A delete too.
+        Carbon::setTestNow('2026-10-09 14:40:00');
+        $this->planner()->run(now());
+        $live = HappyHourSlot::open()->sole();
+        Carbon::setTestNow('2026-10-09 14:42:00');
+        $this->actingAs($user)->delete("/happy-hour-campaigns/{$campaign->id}")->assertSessionHasNoErrors();
+        $this->assertSoftDeleted($campaign);
+        $this->assertSame(HappyHourSlot::STATUS_CANCELLED, $live->fresh()->status);
+    }
+
+    public function test_a_signed_in_viewers_product_filters_never_hide_an_unavailable_sku_from_the_ranker(): void
+    {
+        $this->freezer(['A' => [9, 10, 4.00, 0], 'B' => [8, 10, 4.00, 0]]);
+        $campaign = $this->campaign(['selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT]);
+        Product::withoutGlobalScopes()->whereKey($this->products['A']->id)->update(['is_available' => false]);
+
+        // Signed in as another operator's user (the save's follow-up and the lineup run inside such a request).
+        $this->actingAs(User::factory()->create(['operator_id' => 555]));
+        $this->assertSame([$this->products['B']->id], $this->lineupIds($campaign));
+    }
+
+    public function test_a_pick_takes_up_its_own_cancelled_row_for_the_same_sku_and_start(): void
+    {
+        $this->freezer(['A' => [9, 10, 4.00, 0], 'B' => [8, 10, 4.00, 0]]);
+        $campaign = $this->campaign(['sku_count' => 1, 'selection_rule' => HappyHourCampaign::RULE_BALANCE_PCT]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $a = HappyHourSlot::sole();
+
+        // A falls under the minimum before 14:00: swapped to B on a new row, A's row cancelled.
+        DB::table('vend_channels')->where('product_id', $this->products['A']->id)->update(['qty' => 1]);
+        Carbon::setTestNow('2026-10-09 13:59:00');
+        $this->planner()->run(now());
+        $this->assertSame(HappyHourSlot::STATUS_CANCELLED, $a->fresh()->status);
+
+        // Restocked, and a save at 14:00:30 re-plans: B's row (under a minute old) goes, A is picked again at
+        // 14:00 — on its own cancelled row, not refused by the unique key.
+        DB::table('vend_channels')->where('product_id', $this->products['A']->id)->update(['qty' => 9]);
+        Carbon::setTestNow('2026-10-09 14:00:30');
+        $this->planner()->cancel($campaign, now());
+        $this->planner()->planCampaign($campaign->fresh(), now());
+        $open = HappyHourSlot::open()->sole();
+        $this->assertSame($a->id, $open->id);
+        $this->assertSame('2026-10-09 15:00:00', $open->ends_at->toDateTimeString());
+    }
+
+    public function test_a_sale_inside_a_live_slot_beats_a_cancelled_one_and_a_stale_menu_sale_goes_to_the_cancelled_one(): void
+    {
+        $this->freezer(['A' => [9, 10, 4.00, 0]]);
+        $campaign = $this->campaign(['sku_count' => 1]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $old = HappyHourSlot::sole();
+        Carbon::setTestNow('2026-10-09 14:10:00');
+        $this->planner()->cancel($campaign, now());
+        // The re-plan after a slot-length edit: the same SKU at the same promo, 14:10–14:30.
+        $new = HappyHourSlot::create([...collect($old->fresh()->getAttributes())->except(['id', 'created_at', 'updated_at'])->all(),
+            'starts_at' => '2026-10-09 14:10:00', 'ends_at' => '2026-10-09 14:30:00', 'planned_ends_at' => '2026-10-09 14:30:00',
+            'status' => HappyHourSlot::STATUS_SCHEDULED]);
+        $a = $this->products['A']->id;
+
+        $this->assertSame($new->id, (int) $this->sale($a, 240, '2026-10-09 14:20:00')->fresh()->happy_hour_slot_id, 'inside the live slot');
+        $this->assertSame($old->id, (int) $this->sale($a, 240, '2026-10-09 14:40:00')->fresh()->happy_hour_slot_id, "a freezer still on the old slot's menu");
     }
 
     public function test_a_slot_change_seconds_after_a_nudge_still_nudges(): void

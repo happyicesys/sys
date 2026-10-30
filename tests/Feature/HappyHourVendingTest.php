@@ -506,6 +506,8 @@ class HappyHourVendingTest extends TestCase
         $this->assertSame(160, (int) $fast->fresh()->happy_hour_list_price, 'the list price is frozen with the tag');
         $late = $this->sale($vend, $a, 11, $promo, '2026-10-09 15:07:00', $hh, arrivedAt: '2026-10-09 15:07:00');
         $this->assertNull($late->fresh()->happy_hour_slot_id, 'both times past the slot + grace');
+        $behind = $this->sale($vend, $a, 11, $promo, '2026-10-09 13:20:00', $hh, arrivedAt: '2026-10-09 14:10:00');
+        $this->assertNull($behind->fresh()->happy_hour_slot_id, 'arrived inside, but TIME is further out than readers search');
 
         // A stale HH entry on a full-price single sale is no promo sale.
         $this->assertNull($this->sale($vend, $a, 11, 160, '2026-10-09 14:20:00', $hh)->fresh()->happy_hour_slot_id);

@@ -341,9 +341,15 @@ final class HappyHourSales
         $tagged = []; // slot id => item ids
         $listPrices = []; // line key => the price before the discount
         foreach ($lines as $key => [$productId, $unit]) {
+            // Inside a slot's actual time first; else inside a planned time (a freezer still on a cancelled
+            // slot's menu); else the nearest.
             $slot = $slots
                 ->filter(fn (HappyHourSlot $s) => $s->product_id === $productId && $s->promo_price === $unit)
-                ->sortBy(fn (HappyHourSlot $s) => $this->secondsOutside($s, $at))
+                ->sortBy([
+                    fn (HappyHourSlot $x, HappyHourSlot $y) => ($this->secondsOutside($x, $at) > 0) <=> ($this->secondsOutside($y, $at) > 0),
+                    fn (HappyHourSlot $x, HappyHourSlot $y) => $this->secondsOutside($x, $at, planned: true) <=> $this->secondsOutside($y, $at, planned: true),
+                    fn (HappyHourSlot $x, HappyHourSlot $y) => $this->secondsOutside($x, $at) <=> $this->secondsOutside($y, $at),
+                ])
                 ->first();
             if ($slot) {
                 $tagged[$slot->id][] = $key;
@@ -402,7 +408,9 @@ final class HappyHourSales
             ->whereIn('id', array_values(array_unique($slotBySid)))
             ->where('vend_id', $vend->id)
             ->get(['id', 'product_id', 'original_price', 'promo_price', 'starts_at', 'ends_at', 'planned_ends_at', 'units_sold'])
-            ->filter(fn (HappyHourSlot $s) => $s->covers($at, $grace) || $s->covers($arrived, $grace))
+            // By arrival only while TIME is still within the clock slack readers search with (results()).
+            ->filter(fn (HappyHourSlot $s) => $s->covers($at, $grace)
+                || ($s->covers($arrived, $grace) && $s->covers($at, $grace + self::CLOCK_SLACK_SECONDS)))
             ->keyBy('id');
         if ($slots->isEmpty()) {
             return 0;
@@ -593,14 +601,15 @@ final class HappyHourSales
         return array_sum(array_map('count', $tagged));
     }
 
-    /** 0 when the sale is inside the slot, else how far outside it. */
-    private function secondsOutside(HappyHourSlot $slot, CarbonInterface $at): int
+    /** 0 when the sale is inside the slot (up to its planned end, if asked), else how far outside it. */
+    private function secondsOutside(HappyHourSlot $slot, CarbonInterface $at, bool $planned = false): int
     {
+        $ends = $planned ? $slot->taggableUntil() : $slot->ends_at;
         if ($at->lt($slot->starts_at)) {
             return (int) $at->diffInSeconds($slot->starts_at, true);
         }
-        if ($at->gte($slot->ends_at)) {
-            return (int) $slot->ends_at->diffInSeconds($at, true) + 1;
+        if ($at->gte($ends)) {
+            return (int) $ends->diffInSeconds($at, true) + 1;
         }
 
         return 0;
