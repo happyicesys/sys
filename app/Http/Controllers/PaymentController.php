@@ -135,7 +135,12 @@ class PaymentController extends Controller
 
                         return;
                     default:
-                        throw new \Exception('Payment gateway is not found');
+                        // Any other event (transfer.*, customer.*, …) carries no payment
+                        // state for us. Throwing here answered 500, which made Omise
+                        // retry the same event for days (sys, ~36 a week, 2026-10-30).
+                        Log::info('Omise event ignored', ['key' => $input['key'] ?? null, 'object' => $input['data']['object'] ?? null]);
+
+                        return;
                 }
                 // metadata.order_id is OUR stamp: present on charges we create and on
                 // refunds WE make through the API. A refund made on the Omise dashboard

@@ -30,17 +30,22 @@ class RefundPaymentGatewayEveryTenMinutes extends Command
     {
         $setting = Setting::first();
 
-        $now = now();
+        // Each run scans [last cutoff, now − REFUND_PENDING_MINUTES] and saves the new cutoff.
+        $cutoff = now()->subMinutes(PaymentGatewayLog::REFUND_PENDING_MINUTES);
+
+        // Never scanned (lsh had NULL from 2025 to 2026-10-30): a NULL bound made the query throw
+        // every run, so lsh never auto-refunded. Start a day back instead.
+        $scannedFrom = $setting->payment_gateway_log_refund_scanned_at ?? $cutoff->copy()->subDay();
 
         $paymentGatewayLogs = PaymentGatewayLog::query()
             ->with('paymentGateway')
             ->where('status', PaymentGatewayLog::STATUS_APPROVE)
-            ->where('approved_at', '>=', $setting->payment_gateway_log_refund_scanned_at)
-            ->where('approved_at', '<=', $now->subMinutes(PaymentGatewayLog::REFUND_PENDING_MINUTES))
+            ->where('approved_at', '>=', $scannedFrom)
+            ->where('approved_at', '<=', $cutoff)
             ->where('is_dispensed', false)
             ->get();
 
-        $setting->payment_gateway_log_refund_scanned_at = $now;
+        $setting->payment_gateway_log_refund_scanned_at = $cutoff;
         $setting->save();
 
         foreach ($paymentGatewayLogs as $paymentGatewayLog) {

@@ -138,7 +138,7 @@ class DeliveryPlatformService
    * (mark ready, or cancel when no channel can serve it) run in
    * ProcessDeliveryPlatformOrder, never inside this webhook: Grab gives us 10 s.
    */
-  public function createOrder($platformRefId = null, $vendCode = null, $input)
+  public function createOrder($platformRefId, $vendCode, $input)
   {
     $deliveryProductMappingVend = $this->resolveMappingVend($platformRefId, $vendCode);
 

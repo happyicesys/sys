@@ -143,4 +143,18 @@ class OmiseExternalRefundWebhookTest extends TestCase
 
         $this->assertSame(PaymentGatewayLog::STATUS_APPROVE, (int) PaymentGatewayLog::first()->status, 'a dispute alone moves no money');
     }
+
+    public function test_other_event_objects_are_acknowledged_not_500(): void
+    {
+        $this->seedPaidCharge();
+
+        $this->postJson('/api/v1/payment-gateway-status/omise', [
+            'object' => 'event',
+            'key' => 'transfer.create',
+            'data' => ['object' => 'transfer', 'id' => 'trsf_test', 'amount' => 100000],
+        ])->assertOk();
+
+        $this->assertSame(1, PaymentGatewayLog::count());
+        $this->assertSame(PaymentGatewayLog::STATUS_APPROVE, (int) PaymentGatewayLog::first()->status);
+    }
 }
