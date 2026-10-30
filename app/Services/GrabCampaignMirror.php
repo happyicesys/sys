@@ -64,7 +64,24 @@ class GrabCampaignMirror
             return ['result' => 'refused'] + $none;
         }
 
+        // Grab answered "Merchant not found" in the last day: a merchantID Grab does not
+        // know under this account (GFSBPOS-800-085, a sandbox id on HIPL's production
+        // account). Asked again after a day, not every run.
+        $lastRead = DeliveryPlatformCampaignRead::query()->where('merchant_id', $merchantId)->first();
+        if ($lastRead && $lastRead->last_status === 404 && $lastRead->last_read_at->gt(now()->subDay())) {
+            return ['result' => 'not_found', 'code' => 404, 'ongoing' => 0, 'upcoming' => 0];
+        }
+
         $account = $ref->operator_id ? $this->grabStoreService->grabAccountFor((int) $ref->operator_id) : null;
+
+        // Live stores only. The TEST operator's sandbox stores (GFSBPOS-…, 2023) answer 401:
+        // their sandbox login is long dead, and no customer sees a sandbox campaign.
+        if ($account && $account->type !== 'production') {
+            $lastRead?->delete();
+
+            return ['result' => 'sandbox'] + $none;
+        }
+
         if (! $account || ! $account->externalOauthToken?->access_token) {
             $this->recordRead($ref, null, __('This operator has no Grab account in mark1.'));
 

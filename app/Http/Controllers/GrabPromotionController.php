@@ -113,6 +113,8 @@ class GrabPromotionController extends Controller
         return match ($result['result']) {
             'ok' => back()->with('success', __('Read from Grab: :ongoing live, :upcoming upcoming on :ref.', ['ongoing' => $result['ongoing'], 'upcoming' => $result['upcoming'], 'ref' => $ref->ref_number])),
             'refused' => back()->with('error', __('Grab refuses us this store (:ref); see Grab Errors.', ['ref' => $ref->ref_number])),
+            'not_found' => back()->with('error', __('Grab does not know this store (:ref) under this operator\'s account; asked again after a day.', ['ref' => $ref->ref_number])),
+            'sandbox' => back()->with('error', __('This store is on a Grab sandbox account; only live stores are read.')),
             'no_account' => back()->with('error', __('This operator has no Grab account in mark1.')),
             default => back()->with('error', __('Grab did not answer for :ref (HTTP :code); see Grab Errors.', ['ref' => $ref->ref_number, 'code' => $result['code'] ?? '?'])),
         };

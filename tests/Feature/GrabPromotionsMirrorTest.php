@@ -184,6 +184,34 @@ class GrabPromotionsMirrorTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_a_merchant_grab_does_not_know_is_asked_once_a_day(): void
+    {
+        $this->answer(Http::response(['reason' => 'not_found', 'message' => 'Merchant not found'], 404));
+
+        $this->artisan('grab:mirror-campaigns')->assertSuccessful();
+        $this->artisan('grab:mirror-campaigns')->assertSuccessful();
+        Http::assertSentCount(1);
+
+        $this->travel(25)->hours();
+        $this->artisan('grab:mirror-campaigns')->assertSuccessful();
+        Http::assertSentCount(2);
+    }
+
+    public function test_sandbox_stores_are_not_read(): void
+    {
+        $this->grabOperator->forceFill(['type' => 'sandbox'])->save();
+        DeliveryPlatformCampaignRead::create([
+            'merchant_id' => self::MERCHANT, 'last_read_at' => now(), 'last_status' => 401, 'last_message' => 'listCampaigns Unauthorized',
+        ]);
+        Http::fake();
+
+        $this->artisan('grab:mirror-campaigns')->assertSuccessful();
+
+        Http::assertNothingSent();
+        // Its old failed read leaves the page's "could not be read" box.
+        $this->assertSame(0, DeliveryPlatformCampaignRead::query()->count());
+    }
+
     public function test_a_rate_limit_stops_the_run(): void
     {
         $this->bindGrabStore(4755, '4-SECONDSTORE', [11 => ['qty' => 5, 'capacity' => 10]]);

@@ -18,12 +18,12 @@ class GrabMirrorCampaigns extends Command
 
     public function handle(GrabCampaignMirror $mirror): int
     {
-        $counts = ['ok' => 0, 'refused' => 0, 'no_account' => 0, 'failed' => 0];
+        $counts = ['ok' => 0, 'refused' => 0, 'not_found' => 0, 'sandbox' => 0, 'no_account' => 0, 'failed' => 0];
         $campaigns = 0;
 
         foreach ($mirror->stores($this->option('store')) as $ref) {
             $result = $mirror->refresh($ref);
-            if ($result['result'] !== 'refused' && $result['result'] !== 'no_account') {
+            if (in_array($result['result'], ['ok', 'failed', 'rate_limited'], true)) {
                 usleep((int) config('grab.store_api_spacing_ms', 300) * 1000);
             }
 
@@ -41,7 +41,7 @@ class GrabMirrorCampaigns extends Command
 
         $pruned = $mirror->prune();
 
-        $this->info("Stores read: {$counts['ok']}   campaigns on Grab: {$campaigns}   failed: {$counts['failed']}   skipped (refused / no account): {$counts['refused']} / {$counts['no_account']}   ended rows pruned: {$pruned}");
+        $this->info("Stores read: {$counts['ok']}   campaigns on Grab: {$campaigns}   failed: {$counts['failed']}   skipped (refused / not found / sandbox / no account): {$counts['refused']} / {$counts['not_found']} / {$counts['sandbox']} / {$counts['no_account']}   ended rows pruned: {$pruned}");
 
         return self::SUCCESS;
     }
