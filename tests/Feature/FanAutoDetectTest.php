@@ -87,9 +87,12 @@ class FanAutoDetectTest extends TestCase
     {
         $vend = $this->vend(7002);
 
+        Carbon::setTestNow('2026-10-19 13:00:00');
         (new SyncVendParameter(['fan' => '600'], $vend))->handle();
         $this->assertFalse($vend->fresh()->is_fan_enabled, 'electrical noise below 1000 is not a fan');
+        Carbon::setTestNow('2026-10-19 15:00:00');
 
+        $this->readings($vend, array_fill(0, 12, 4300), 5);
         (new SyncVendParameter(['fan' => '4347'], $vend->fresh()))->handle();
         $this->assertTrue($vend->fresh()->is_fan_enabled);
         $this->assertSame('2026-10-19 15:00:00', $vend->fresh()->fan_detected_at->toDateTimeString());
@@ -99,6 +102,50 @@ class FanAutoDetectTest extends TestCase
         (new SyncVendParameter(['fan' => '4400'], $vend->fresh()))->handle();
         $this->assertTrue($vend->fresh()->is_fan_enabled, 'a fan reading 0 is a broken fan, never "no fan"');
         $this->assertSame('2026-10-19 15:00:00', $vend->fresh()->fan_detected_at->toDateTimeString(), 'stamped once');
+    }
+
+    /** Brian, 2026-10-30: detected only after running above 1000 for 60 min in a row. */
+    public function test_a_fan_is_detected_only_after_running_60_minutes_in_a_row(): void
+    {
+        $spike = $this->vend(7011);
+        $this->readings($spike, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 5);
+        (new SyncVendParameter(['fan' => '4400'], $spike))->handle();
+        $this->assertFalse($spike->fresh()->is_fan_enabled, 'one running reading is not a fan any more');
+
+        $short = $this->vend(7012);
+        $this->readings($short, array_fill(0, 11, 4300), 5);
+        (new SyncVendParameter(['fan' => '4300'], $short))->handle();
+        $this->assertFalse($short->fresh()->is_fan_enabled, '55 min of running is not yet 60');
+
+        $broken = $this->vend(7013);
+        $this->readings($broken, [4300, 4300, 4300, 4300, 4300, 4300, 0, 4300, 4300, 4300, 4300, 4300], 5);
+        (new SyncVendParameter(['fan' => '4300'], $broken))->handle();
+        $this->assertFalse($broken->fresh()->is_fan_enabled, 'a stop inside the hour restarts the count');
+
+        $gap = $this->vend(7014);
+        $this->readings($gap, [4300, 4300, 4300, 4300, 4300], 45);
+        $this->readings($gap, [4300, 4300, 4300, 4300, 4300], 5);
+        (new SyncVendParameter(['fan' => '4300'], $gap))->handle();
+        $this->assertFalse($gap->fresh()->is_fan_enabled, 'a 20-min silence is not running');
+
+        $steady = $this->vend(7015);
+        $this->readings($steady, array_fill(0, 12, 4300), 5);
+        (new SyncVendParameter(['fan' => '4300'], $steady))->handle();
+        $this->assertTrue($steady->fresh()->is_fan_enabled, 'running 60 min: detected');
+        $this->assertSame('2026-10-19 15:00:00', $steady->fresh()->fan_detected_at->toDateTimeString());
+    }
+
+    public function test_the_daily_backstop_uses_the_same_60_minute_rule(): void
+    {
+        $spike = $this->vend(7021, ['parameter_json' => ['fan' => '4300']]);
+        $this->readings($spike, [0, 0, 0, 4300]);
+        $steady = $this->vend(7022, ['parameter_json' => ['fan' => '4300']]);
+        $this->readings($steady, array_fill(0, 13, 4300));
+
+        $this->artisan('check:vend-fan-enabled')->assertSuccessful();
+
+        $this->assertFalse($spike->fresh()->is_fan_enabled);
+        $this->assertTrue($steady->fresh()->is_fan_enabled);
     }
 
     public function test_2a_judges_only_reported_readings(): void

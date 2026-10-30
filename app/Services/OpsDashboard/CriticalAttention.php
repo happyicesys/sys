@@ -155,14 +155,34 @@ class CriticalAttention
             ->whereIn('alert_type', array_keys(self::TEMPERATURE_GROUPS))
             ->where('is_active', true)
             ->orderBy('created_at')
-            ->get(['vend_id', 'alert_type', 'created_at'])
+            ->get(['vend_id', 'alert_type', 'created_at', 'meta_data'])
             ->each(function (VendSmartAlert $alert) use (&$out, $now) {
-                $out[$alert->alert_type][(int) $alert->vend_id] ??= $alert->created_at
-                    ? __('since :duration ago', ['duration' => $this->hours($alert->created_at->diffInMinutes($now) / 60)])
+                $since = $this->alertStartedAt($alert);
+                $out[$alert->alert_type][(int) $alert->vend_id] ??= $since
+                    ? __('since :duration ago', ['duration' => $this->hours($since->diffInMinutes($now) / 60)])
                     : __('active');
             });
 
         return $out;
+    }
+
+    /**
+     * When THIS episode began, as Machine Health reads it. A vend_smart_alerts row is one per machine and
+     * type, switched off and on again by DetectTempTrends, so its created_at is the FIRST alarm ever:
+     * a fan that came back and stopped again read "since 209.5d ago" (2301, Brian 2026-10-30).
+     */
+    private function alertStartedAt(VendSmartAlert $alert): ?Carbon
+    {
+        $meta = $alert->meta_data ?? [];
+        $start = $meta['started_at'] ?? $meta['min_timestamp'] ?? $meta['triggered_at'] ?? null;
+        if ($start) {
+            try {
+                return Carbon::parse($start);
+            } catch (\Throwable) {
+            }
+        }
+
+        return $alert->created_at;
     }
 
     /** @return array<int, string> vend id => detail; the worst of today and yesterday */

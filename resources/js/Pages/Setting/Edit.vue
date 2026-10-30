@@ -763,7 +763,7 @@
             </div>
             <div v-if="isVendingMachine" class="sm:col-span-3">
                 <!-- Detected by the system, not chosen (Brian, 2026-10-19; App\Support\FanSignal): a fan is
-                     detected the first time the board reports it running, and stays detected — a fan
+                     detected once the board reports it running for 60 min in a row (2026-10-30), and stays detected — a fan
                      that later reads 0 is broken, which the 2A alarm is for. -->
                 <label class="flex justify-start text-sm font-medium text-gray-700">
                   {{ $t('Fan speed signal') }}
@@ -784,7 +784,7 @@
                 <p class="mt-1 text-xs text-gray-500">
                   {{ fanDetected
                     ? $t('Set by the system when the board reported a running fan. Reset only after a board or fan is changed or removed.')
-                    : $t('Switches on by itself the first time the board reports a running fan (above 1000). No fan alarm until then.') }}
+                    : $t('Switches on by itself once the board reports a running fan (above 1000) for 60 minutes in a row. No fan alarm until then.') }}
                 </p>
                 <FieldAudit :entry="fieldAudit.is_fan_enabled" />
             </div>
@@ -2619,7 +2619,7 @@ async function loadCityboxRepairDevices() {
 const fanDetected = computed(() => [true, 1, '1', 'true'].includes(props.vend.is_fan_enabled))
 const fanResetting = ref(false)
 function resetFanDetection() {
-  if (!confirm(t('Reset fan detection for this machine?') + '\n\n' + t('Use this only after its board or fan was changed or removed. It shows no fan (and no fan alarm) until the board reports a running fan again.'))) return
+  if (!confirm(t('Reset fan detection for this machine?') + '\n\n' + t('Use this only after its board or fan was changed or removed. It shows no fan (and no fan alarm) until the board reports a running fan for 60 minutes in a row again.'))) return
   fanResetting.value = true
   axios.post(`/vends/${props.vend.id}/fan-detection/reset`)
     .then(() => { props.vend.is_fan_enabled = false; props.vend.fan_detected_at = null; loadFieldAudit() })

@@ -6149,8 +6149,8 @@ class VendController extends Controller
 
     /**
      * Setting/Edit "Reset fan detection" (Brian, 2026-10-19): after a board or fan is changed or
-     * removed. The machine goes back to "no fan" until its board reports a running fan again
-     * (App\Support\FanSignal); DetectTempTrends clears a 2A alarm on its next run.
+     * removed. The machine goes back to "no fan" until its board reports a running fan for 60 min
+     * in a row again (App\Support\FanSignal); DetectTempTrends clears a 2A alarm on its next run.
      */
     public function resetFanDetection($vendID)
     {
@@ -6159,7 +6159,7 @@ class VendController extends Controller
         $vend->fan_detected_at = null;
         $vend->save();
 
-        $message = 'Fan detection reset. It switches on again when the board reports a running fan.';
+        $message = 'Fan detection reset. It switches on again when the board reports a running fan for 60 minutes in a row.';
 
         return request()->expectsJson()
             ? response()->json(['message' => $message])

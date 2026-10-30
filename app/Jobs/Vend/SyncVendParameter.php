@@ -362,15 +362,15 @@ class SyncVendParameter implements ShouldQueue
             // writes parameter_json from this same $input, so `fan > 1000` here is
             // equivalent to the batch's `parameter_json->fan > 1000`. One-way latch;
             // it rides the existing isDirty()->save() in handle() — no extra query.
-            // Fan detection (2026-10-19, App\Support\FanSignal): the first running reading also
-            // stamps fan_detected_at, once. Never the other way — a fan reading 0 is a broken fan.
-            if (FanSignal::isRunning($input['fan'])) {
-                if (! $vend->is_fan_enabled) {
-                    $vend->is_fan_enabled = true;
-                }
-                if (! $vend->fan_detected_at) {
-                    $vend->fan_detected_at = now();
-                }
+            // Fan detection (App\Support\FanSignal): a fan running for 60 min in a row (2026-10-30;
+            // the first running reading before) sets it and stamps fan_detected_at, once. Never the
+            // other way — a fan reading 0 is a broken fan. The run (one indexed read of the last
+            // 75 min) is only looked up for a machine not yet detected whose reading now is running.
+            if (FanSignal::isRunning($input['fan'])
+                && (! $vend->is_fan_enabled || ! $vend->fan_detected_at)
+                && FanSignal::hasRunLongEnough($vend->id)) {
+                $vend->is_fan_enabled = true;
+                $vend->fan_detected_at ??= now();
             }
         }
     }

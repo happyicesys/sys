@@ -40,11 +40,12 @@ class CheckVendFanEnabled extends Command
     public function handle()
     {
         // Backstop for the ingest latch (SyncVendParameter): a machine whose board reports a running
-        // fan but was never stamped. One-way, like the latch (App\Support\FanSignal).
+        // fan but was never stamped. Same 60-min rule and one-way, like the latch (App\Support\FanSignal).
         $updatedCount = Vend::withoutGlobalScopes()
             ->where(fn ($q) => $q->where('is_fan_enabled', false)->orWhereNull('fan_detected_at'))
             ->where('parameter_json->fan', '>', FanSignal::RUNNING_MIN)
             ->get()
+            ->filter(fn (Vend $vend) => FanSignal::hasRunLongEnough($vend->id))
             ->each(function (Vend $vend) {
                 $vend->is_fan_enabled = true;
                 $vend->fan_detected_at ??= now();

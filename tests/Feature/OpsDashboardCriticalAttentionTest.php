@@ -144,6 +144,27 @@ class OpsDashboardCriticalAttentionTest extends TestCase
     }
 
     /**
+     * Brian, 2026-10-30 (2289 / 2301 / 2764): "since" counts from when THIS alarm began. The alert row is
+     * reused each time the alarm comes back, so its created_at was the first alarm ever (209.5d on 2301).
+     */
+    public function test_since_counts_from_the_current_episode_not_the_first_alarm_ever(): void
+    {
+        $fan = $this->vend(1101);
+        $alert = VendSmartAlert::create([
+            'vend_id' => $fan, 'alert_type' => VendSmartAlert::TYPE_COMP_FAN_OFF, 'severity' => 2, 'is_active' => true,
+            'meta_data' => ['started_at' => now()->subMinutes(90)->toIso8601String()],
+        ]);
+        $alert->forceFill(['created_at' => now()->subDays(209)])->saveQuietly();
+        $legacy = $this->vend(1102);
+        $this->alert($legacy, VendSmartAlert::TYPE_TEMPS_ABOVE_0);
+
+        $groups = collect(app(CriticalAttention::class)->forVendIds([$fan, $legacy])['groups'])->keyBy('key');
+
+        $this->assertSame('since 1.5h ago', $groups[VendSmartAlert::TYPE_COMP_FAN_OFF]['machines'][0]['detail']);
+        $this->assertSame('since 0h ago', $groups[VendSmartAlert::TYPE_TEMPS_ABOVE_0]['machines'][0]['detail'], 'no start recorded: the row\'s own time');
+    }
+
+    /**
      * Brian, 2026-10-25 (machine 2809): a stall the APK saw clear by itself 15 s later is not a
      * frozen screen — only a stall with no recovery after it is (still stuck, or it ended in a
      * reboot). Netted over today and yesterday, so a recovery just after midnight still counts.
