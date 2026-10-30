@@ -1,6 +1,7 @@
-// English / Simplified Chinese UI (Brian, 2026-10-26). Every text in the code is written in English and
-// wrapped: `$t('Save')` in a template, `t('Saved :count items', { count })` in a script. The English text
-// is the key, so a text with no translation simply shows in English. A language's wording — the shipped
+// English / Simplified Chinese UI (Brian, 2026-10-26), Bahasa Indonesia since 2026-10-30. Every text in the
+// code is written in English and wrapped: `$t('Save')` in a template, `t('Saved :count items', { count })`
+// in a script. The English text is the key, so a text with no translation simply shows in English. A
+// language's wording — the shipped
 // lang/{locale}.json with the wording people changed on top (App\Services\I18n\TranslationCatalog) —
 // is fetched once per version from /i18n/{locale}.json?v= before the app mounts.
 //
@@ -10,8 +11,8 @@
 //   - A text kept in a script and shown later (menu entries, option lists) is marked with tk('…') where it
 //     is written and shown with $t(…) — tk() only lets `php artisan i18n:scan` find it.
 //   - Never glue pieces: t('Last sale :hours ago', { hours }) — never t('Last sale') + ' ' + hours.
-//   - Counts: tc(':count freeze|:count freezes', n). Chinese gives one form.
-//   - Then run `php artisan i18n:scan --sync` and translate the new keys in lang/zh_CN.json.
+//   - Counts: tc(':count freeze|:count freezes', n). Chinese and Indonesian give one form.
+//   - Then run `php artisan i18n:scan --sync` and translate the new keys in lang/zh_CN.json and lang/id.json.
 //
 // Wording edit mode (admins, `update translations`): every text t() returns carries an invisible marker
 // naming its key, so components/I18nEditMode.vue can tell which text was clicked and edit it in place.
@@ -119,7 +120,7 @@ export async function loadLocale(i18n, canEdit = false) {
     const locale = i18n?.locale || 'en';
     state.locale = locale;
     editing = Boolean(canEdit) && readEditFlag();
-    document.documentElement.lang = locale === 'zh_CN' ? 'zh-CN' : 'en';
+    document.documentElement.lang = locale.replace('_', '-');
     loadedVersion = i18n?.version ?? null;
     if (!i18n || !i18n.version || i18n.version === 'none') {
         state.messages = {};

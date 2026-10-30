@@ -27,7 +27,14 @@ class TranslationCatalog
     public const LOCALES = [
         'en' => 'English',
         'zh_CN' => '简体中文',
+        'id' => 'Bahasa Indonesia',
     ];
+
+    /** The languages shipped as a translation file (every one but English, whose texts are the keys). */
+    public static function translated(): array
+    {
+        return array_values(array_diff(array_keys(self::LOCALES), [self::DEFAULT_LOCALE]));
+    }
 
     /** @var array<string, array<string, string>> */
     private array $base = [];

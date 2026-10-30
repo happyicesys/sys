@@ -996,7 +996,7 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div class="mt-3 px-4 flex flex-wrap items-center gap-2">
-                            <LanguageSwitch />
+                            <LanguageSwitch align="left" />
                             <WordingEditor />
                         </div>
 

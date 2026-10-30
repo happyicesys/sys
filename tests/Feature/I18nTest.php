@@ -14,10 +14,10 @@ use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
- * English / Simplified Chinese UI (Brian, 2026-10-26). Pinned: every text the code marks has a shipped
- * Chinese wording; each user's choice is kept on their account; a person's wording (Translations page or
- * the in-page editor) wins over the shipped one at once for the pages and for `__()`; only
- * `update translations` may change wording; the deep scan finds unmarked text.
+ * English / Simplified Chinese UI (Brian, 2026-10-26), Bahasa Indonesia since 2026-10-30. Pinned: every text
+ * the code marks has a shipped wording in each language; each user's choice is kept on their account; a
+ * person's wording (Translations page or the in-page editor) wins over the shipped one at once for the pages
+ * and for `__()`; only `update translations` may change wording; the deep scan finds unmarked text.
  */
 class I18nTest extends TestCase
 {
@@ -39,12 +39,15 @@ class I18nTest extends TestCase
         return $user;
     }
 
-    public function test_every_marked_text_has_a_shipped_chinese_wording(): void
+    public function test_every_marked_text_has_a_shipped_wording_in_every_language(): void
     {
-        $shipped = app(TranslationCatalog::class)->base('zh_CN');
-        $missing = array_keys(array_diff_key(TextScanner::forApp()->keys(), $shipped));
+        $used = TextScanner::forApp()->keys();
+        $this->assertSame(['zh_CN', 'id'], TranslationCatalog::translated());
+        foreach (TranslationCatalog::translated() as $locale) {
+            $missing = array_keys(array_diff_key($used, app(TranslationCatalog::class)->base($locale)));
 
-        $this->assertSame([], $missing, 'Run `php artisan i18n:scan --sync` and translate these in lang/zh_CN.json');
+            $this->assertSame([], $missing, "Run `php artisan i18n:scan --sync` and translate these in lang/{$locale}.json");
+        }
     }
 
     public function test_a_user_picks_their_language_and_only_a_known_one(): void
@@ -53,6 +56,9 @@ class I18nTest extends TestCase
 
         $this->actingAs($user)->postJson('/user/locale', ['locale' => 'zh_CN'])->assertNoContent();
         $this->assertSame('zh_CN', $user->fresh()->locale);
+
+        $this->actingAs($user)->postJson('/user/locale', ['locale' => 'id'])->assertNoContent();
+        $this->assertSame('id', $user->fresh()->locale, 'Bahasa Indonesia (Brian, 2026-10-30)');
 
         $this->actingAs($user)->postJson('/user/locale', ['locale' => 'fr'])->assertUnprocessable();
         $this->actingAs($user)->postJson('/user/locale', ['locale' => 'en'])->assertNoContent();

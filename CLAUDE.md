@@ -90,18 +90,21 @@ Site and ~356 machine begin dates were left at 16:00 / 08:00). `App\Models\Conce
 strings and Carbons are untouched. A new model edited by posting its own JSON back takes the trait too.
 Regression coverage: `tests/Feature/DateRoundTripTimezoneTest.php`.
 
-## UI language: English or Simplified Chinese, every text wrapped
+## UI language: English, Simplified Chinese or Bahasa Indonesia, every text wrapped
 
-Brian, 2026-10-26. Each user picks English (default) or 简体中文 with the top-right switch (`users.locale`,
-NULL = English; `LocaleController`); `SetUserLocale` sets it for the server too. **Every text a person reads is
-written in English and wrapped**: `$t('Save')` in templates, `t('…', { count })` / `tc('one|many', n)` in
+Brian, 2026-10-26 (Bahasa Indonesia added 2026-10-30). Each user picks English (default), 简体中文 or Bahasa
+Indonesia with the top-right language menu (`users.locale`, NULL = English; `LocaleController`); `SetUserLocale`
+sets it for the server too. **Every text a person reads is written in English and wrapped**: `$t('Save')` in templates, `t('…', { count })` / `tc('one|many', n)` in
 scripts (`resources/js/i18n/index.js`), `tk('…')` where a text is stored in a script and shown later with
 `$t()` (menus, option lists), `__('…')` in PHP for messages a page shows. The English text is the key, so
 an untranslated text shows in English. Never glue pieces (`t('Last sale :hours ago', { hours })`, not
 `t('Last sale') + hours`). Not wrapped: database data, request ids / filter values, CSV/Excel headers,
 anything sent to machines.
 
-Wording = `lang/zh_CN.json` (shipped) with `ui_translations` (one row per text a person changed, any
+The languages are `TranslationCatalog::LOCALES` (code => its own name); adding one is that line, `lang/<code>.json`
+and `lang/<code>/*.php` — the switch, the Translations page, Edit wording and `i18n:scan` all follow the list.
+
+Wording = `lang/{zh_CN,id}.json` (shipped) with `ui_translations` (one row per text a person changed, any
 language, English too) on top — `App\Services\I18n\TranslationCatalog`, the one reader for the Vue pages
 (`/i18n/{locale}.json?v=<version>`, fetched before mount, refetched when the shared `i18n.version` moves)
 and for `__()` (`OverridingTranslationLoader`). Admins change wording without a deploy on **Admin →
@@ -110,11 +113,11 @@ web address, never a file name; Brian, 2026-10-26; forms / pop-ups count as the 
 > 6 pages is "Shared", server messages name their area; a Page filter lists one page's texts) or with **Edit
 wording** on any page (`Components/I18n/WordingEditor.vue`: t() output then
 carries invisible markers naming its key; every click is captured so nothing on the page acts). Permission
-`translations` (read, update): superadmin, admin. Glossary: `lang/GLOSSARY_zh_CN.md`.
+`translations` (read, update): superadmin, admin. Glossaries: `lang/GLOSSARY_zh_CN.md`, `lang/GLOSSARY_id.md`.
 
-**After adding or changing text**: `php artisan i18n:scan --sync`, then translate the new keys in
-`lang/zh_CN.json` — `tests/Feature/I18nTest.php` fails while any marked text has no Chinese. `php artisan
-i18n:scan --hardcoded` (or `--file=Pages/X`) lists text not wrapped yet: the to-do list of the full pass
+**After adding or changing text**: `php artisan i18n:scan --sync` (every language; `--locale=id` for one), then
+translate the new keys in `lang/zh_CN.json` AND `lang/id.json` — `tests/Feature/I18nTest.php` fails while any
+marked text has no wording in either. `php artisan i18n:scan --hardcoded` (or `--file=Pages/X`) lists text not wrapped yet: the to-do list of the full pass
 (2026-10-26: ~10,800 findings in 308 files before it started). IDN is not on this code yet.
 
 ## Machine IDs link to the Operation Dashboard

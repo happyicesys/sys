@@ -3,10 +3,12 @@
 namespace App\Console\Commands;
 
 use App\Services\I18n\TextScanner;
+use App\Services\I18n\TranslationCatalog;
 use Illuminate\Console\Command;
 
 /**
- * The translation deep scan (Brian, 2026-10-26). Default: are all marked texts in lang/zh_CN.json?
+ * The translation deep scan (Brian, 2026-10-26). Default: are all marked texts in every language's
+ * lang/{locale}.json (zh_CN, id)? --locale= checks one.
  *   --sync           add the missing ones (empty = "not translated yet"; the Translations page lists them)
  *   --hardcoded      every text a person reads that is not marked yet, per file (the to-do list)
  *   --file=          narrow --hardcoded to paths containing this, and list each finding
@@ -14,7 +16,7 @@ use Illuminate\Console\Command;
  */
 class I18nScan extends Command
 {
-    protected $signature = 'i18n:scan {--sync} {--hardcoded} {--file=} {--json=} {--locale=zh_CN}';
+    protected $signature = 'i18n:scan {--sync} {--hardcoded} {--file=} {--json=} {--locale=}';
 
     protected $description = 'Check the UI translation dictionary against the code, and list texts not marked for translation yet';
 
@@ -26,10 +28,19 @@ class I18nScan extends Command
             return $this->hardcoded($scanner);
         }
 
-        $locale = (string) $this->option('locale');
+        $locales = $this->option('locale') ? [(string) $this->option('locale')] : TranslationCatalog::translated();
+        $used = $scanner->keys();
+        foreach ($locales as $locale) {
+            $this->check($locale, $used);
+        }
+
+        return self::SUCCESS;
+    }
+
+    private function check(string $locale, array $used): void
+    {
         $path = lang_path($locale.'.json');
         $dictionary = is_file($path) ? (json_decode((string) file_get_contents($path), true) ?: []) : [];
-        $used = $scanner->keys();
 
         $missing = array_diff_key($used, $dictionary);
         $empty = array_keys(array_filter($dictionary, fn ($v) => $v === '' || $v === null));
@@ -52,8 +63,6 @@ class I18nScan extends Command
             file_put_contents($path, json_encode($dictionary, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n");
             $this->info('Added '.count($missing).' text(s) to '.$locale.'.json — translate them there or on the Translations page.');
         }
-
-        return self::SUCCESS;
     }
 
     private function hardcoded(TextScanner $scanner): int
