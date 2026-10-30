@@ -116,8 +116,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('vend:retry-jobs')->everyMinute();
         $schedule->command('freezer-logs:prune --hours=72')->hourly();
         $schedule->command('freezer:run-setpoint-schedules')->everyMinute()->withoutOverlapping();
-        // Happy Hour: pick each day's lineup before its window, swap/end slots, record results.
-        $schedule->command('happy-hour:run')->everyMinute()->withoutOverlapping(5);
+        // Happy Hour: pick each day's lineup before its window, swap/end slots, record results. In the
+        // background, so it starts on the minute instead of after every command listed before it (at
+        // midnight, the daily jobs held it back past the 00:00 slot — audit 2026-10-30).
+        $schedule->command('happy-hour:run')->everyMinute()->withoutOverlapping(5)->runInBackground();
         // View Screen: the system's own picture of every eligible online machine, before the day starts
         // and before ops finish (Brian, 2026-10-16). Kept in each machine's last-five history as "Auto".
         $schedule->command('screenshots:capture-scheduled')->dailyAt('07:00')->withoutOverlapping(10);

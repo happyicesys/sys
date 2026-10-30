@@ -23,7 +23,7 @@ class HappyHourSlot extends Model
     public const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [
-        'happy_hour_campaign_id', 'vend_id', 'product_id', 'slot_date', 'position', 'starts_at', 'ends_at',
+        'happy_hour_campaign_id', 'vend_id', 'product_id', 'slot_date', 'position', 'starts_at', 'ends_at', 'planned_ends_at',
         'original_price', 'promo_price', 'discount_pct', 'rank', 'is_priority', 'qty_at_pick', 'capacity_at_pick',
         'avg_daily_sales', 'days_of_cover', 'status', 'checked_at', 'units_sold', 'revenue_cents', 'discount_cents',
     ];
@@ -32,6 +32,7 @@ class HappyHourSlot extends Model
         'slot_date' => 'date',
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
+        'planned_ends_at' => 'datetime',
         'checked_at' => 'datetime',
         'original_price' => 'integer',
         'promo_price' => 'integer',
@@ -61,6 +62,22 @@ class HappyHourSlot extends Model
     public function vend(): BelongsTo
     {
         return $this->belongsTo(Vend::class)->withoutGlobalScopes();
+    }
+
+    /**
+     * Until when a sale can still be this slot's: its PLANNED end. `ends_at` moves earlier when the slot is
+     * cancelled, swapped or sold out, but a board that missed the nudge keeps charging the promo until then.
+     */
+    public function taggableUntil(): \Carbon\CarbonInterface
+    {
+        return $this->planned_ends_at !== null && $this->planned_ends_at->gt($this->ends_at) ? $this->planned_ends_at : $this->ends_at;
+    }
+
+    /** Whether a sale at $at is inside the slot, give or take $graceSeconds (up to its planned end). */
+    public function covers(\Carbon\CarbonInterface $at, int $graceSeconds): bool
+    {
+        return $this->starts_at->copy()->subSeconds($graceSeconds)->lte($at)
+            && $this->taggableUntil()->copy()->addSeconds($graceSeconds)->gt($at);
     }
 
     /** A slot that still offers its price (not ended, sold out or cancelled). */

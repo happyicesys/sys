@@ -1230,7 +1230,8 @@ only when eaten from it (cup, tub, fruit tray) (Brian, 2026-10-08: Magnum/Yakoo/
 photo. Regression coverage: `tests/Feature/ProductWelcomeSketchTest.php`.
 
 **Happy Hour campaigns** (Brian, 2026-10-09; Machine Management → Happy Hour Campaign, permission
-`happy-hour-campaigns`: superadmin, admin).
+`happy-hour-campaigns`: superadmin, admin, and since the 2026-10-15 sheet sync supervisor and technician).
+Audit 2026-10-30: `HAPPY_HOUR_AUDIT_2026-10-30.md` (its nine "fix first" items are in; the rest is listed there).
 
 Operator isolation (2026-10-12): `happy_hour_campaigns.operator_id` is the OWNER (the creator's operator;
 backfilled from `created_by`, else HIPL). `OperatorHappyHourCampaignScope` (global) shows an operator-restricted
@@ -1258,6 +1259,9 @@ What a campaign is:
   exclusion rule needs its own key, or the page files it under "Other".
 - The Campaign column shows Total sales / Total $disc / Total qty / Avg daily qty per VM, last 24 h over last 30 days,
   and "Show graph" opens daily bar charts for a chosen range (default 7 days, `/{id}/stats`) — Brian, 2026-10-16.
+  They are an Inertia deferred prop (Brian, 2026-10-30), and EVERY other prop of the page is a closure: the browser's
+  follow-up request names `campaignStats` only, and a plain value is computed again on it (the first cut re-ran the
+  whole page). A new prop on this page must be a closure too.
   `HappyHourCampaignStats` owns the figures: the campaign's TAGGED sales (`HappyHourSales::dailyTotals`, the slot
   results' rules) on machines the viewer may see; "per VM" = per machine-day on which it ran a slot (cancelled slots
   never ran), so a young campaign is not divided by 30.
@@ -1270,8 +1274,21 @@ What a campaign is:
   HH + the rest on sales, units and units per machine, with a `non_hh_*_pct` line (0–100%); the Campaign column shows
   "Related sales" and "Non-HH %". The related total is clamped to never read below the HH part.
 
-`HappyHourPlanner` is the only writer of `happy_hour_slots`. It runs as `happy-hour:run` every minute, and once
-on each save. It:
+`HappyHourPlanner` is the only writer of `happy_hour_slots`. It runs as `happy-hour:run` every minute (in the
+background, so it starts on the minute — at midnight it used to wait behind the daily jobs), and once after each
+save or delete. **One writer at a time** (audit 2026-10-30): both hold the `happy-hour-plan` lock
+(`HappyHourPlanner::exclusively`); before, a save re-planning during a run gave 1358/1371/1372 two slot groups at
+once (2026-10-15 21:57). A save or delete only writes the campaign; `FollowHappyHourCampaignSave` runs right after
+the response (`dispatchAfterResponse`, not queued) under the lock: it takes the old slots back (again, so a slot a
+run in flight wrote from the old settings goes too), group campaigns follow, the campaign plans, unbound machines
+re-read `/parameters`. Without the lock in 120 s it runs anyway (a cancel is never lost); the minute run waits 45 s,
+then skips that minute. A save re-plans only when how it picks or prices changes — the SKU lists are SETS (sorted
+on save; re-ordering the Prioritize list once cancelled 445 live slots on 223 machines). Each step of the run is
+isolated (one bad slot never stops the rest), and it also takes back open slots that no longer belong — campaign
+paused or deleted, machine left or no longer eligible (`endOrphaned`). Finished slots are totalled last, at most
+300 a run. Slots are picked `lead_minutes` ahead across midnight too (the 00:00 slot at 23:58), and Hours To
+"23:59" means the end of the day (`windowOn`: the last slot ends at 00:00). The nudge debounce lives exactly
+the 5 s delay (it lived 20 s, so a change 5–20 s after a nudge sent none). It:
 1. picks each slot's SKU **just in time**, `lead_minutes` (2) before the slot starts, from that machine's live
    stock (Brian, 2026-10-11 — never a whole day ahead): `HappyHourRanker`, default rule highest balance %
    (qty ÷ Real Capacity; unknown capacity last), or days of cover (stock ÷ average daily sales from
@@ -1283,7 +1300,8 @@ on each save. It:
    `(vend_id, starts_at, product_id)`), so sold-out, swap, sale tagging and totals all work per SKU: a SKU that
    stops qualifying as the group starts, or sells out mid-slot, is replaced by the best one not already on offer;
 2. freezes each slot's product and both prices (integer cents, Site tier, rounded UP to the step since 2026-10-14 `72f1b9f0cd` — Brian: ceiling, not floor; if rounding up would remove the discount it rounds down; screens advertise the campaign's own %);
-3. swaps a SKU that no longer qualifies as its slot starts;
+3. swaps a SKU that no longer qualifies as its slot starts — the old slot is CANCELLED (keeping its id) and the
+   replacement is a NEW row, since a board that missed the nudge still sells the old SKU under the old id;
 4. ends a slot early when its SKU sells out;
 5. records units / takings / discount when the slot closes, from the settled sales TAGGED with it (below).
 
@@ -1428,6 +1446,18 @@ Which sales a slot priced (Brian, 2026-10-11): `happy_hour_slot_id` on `vend_tra
 - A line is the slot's when the same machine sold the slot's product at EXACTLY its promo price within the
   slot ± `happy_hour.sale_grace_seconds` (300; a cart from the last minute is paid after the slot). Price is
   the proof, time only picks between slots. Tagged once, so a later campaign edit never re-attributes a sale.
+- "Within the slot" runs to its **planned end** (`happy_hour_slots.planned_ends_at`, 2026-10-30): `ends_at` moves
+  earlier when a slot is cancelled, swapped or sold out, but a machine that missed the nudge charges the promo
+  until then. Of two slots at that price, the one the sale fell inside wins. A vending line is also inside when
+  the moment the TRADE reached mark1 (`created_at`) is: boards stamp TIME on their own clock, ~29 run 1–4.5 min
+  ahead, and the `HH` entry is the proof anyway. A vending single sale at or above its list price is never tagged
+  (a stale `HH` entry). Readers search `transaction_datetime` with 15 min of clock slack.
+- **The list price is frozen with the tag** (`happy_hour_list_price` on the single sale's header / the basket's
+  item, 2026-10-30): a freezer's = the slot's price; a vending line's = what `/thumbnails` priced it from (the
+  channel's board price on a board-price machine, else the slot's). Every discount reads it first — it used to read
+  today's `vend_channels.amount`, so a later price change or re-map rewrote past discounts (212 sales). Lines
+  tagged before it: `happy-hour:freeze-list-prices [--apply]` (of the slot's price and the channel's price now,
+  the one whose promo was charged).
 - A single sale (`is_multiple = 0`) is its header row only — the freezer writes NO item row for it (prod
   2026-10: 15 sales, 6 items). A multiple purchase is tagged per promo item AND on its header ("includes a
   promo unit"; one slot per machine at a time).

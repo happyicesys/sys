@@ -488,6 +488,69 @@ class HappyHourVendingTest extends TestCase
         $this->assertSame([3, 260, (160 - 90) + (140 - 80) + (160 - 90)], [$slot->units_sold, $slot->revenue_cents, $slot->discount_cents]);
     }
 
+    public function test_a_fast_board_clock_still_tags_and_the_discount_keeps_the_price_the_screen_showed(): void
+    {
+        $vend = $this->vending(2245, [11 => ['A', 160, 9, 10]]);
+        $this->campaign([$vend]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $slot = HappyHourSlot::where('vend_id', $vend->id)->firstOrFail(); // 14:00–15:00
+        $a = $this->products['A']->id;
+        $promo = HappyHourPricing::promoPrice(160, 40, 10);
+        $hh = [['SId' => 11, 'HHId' => $slot->id]];
+
+        // Paid at 15:02:30 on mark1's clock (the app keeps a promo cart 180 s past the end), stamped 15:07:00
+        // by a board running 4.5 min ahead (2869, 2026-10-30): the arrival time is inside the grace.
+        $fast = $this->sale($vend, $a, 11, $promo, '2026-10-09 15:07:00', $hh, arrivedAt: '2026-10-09 15:02:30');
+        $this->assertSame($slot->id, (int) $fast->fresh()->happy_hour_slot_id);
+        $this->assertSame(160, (int) $fast->fresh()->happy_hour_list_price, 'the list price is frozen with the tag');
+        $late = $this->sale($vend, $a, 11, $promo, '2026-10-09 15:07:00', $hh, arrivedAt: '2026-10-09 15:07:00');
+        $this->assertNull($late->fresh()->happy_hour_slot_id, 'both times past the slot + grace');
+
+        // A stale HH entry on a full-price single sale is no promo sale.
+        $this->assertNull($this->sale($vend, $a, 11, 160, '2026-10-09 14:20:00', $hh)->fresh()->happy_hour_slot_id);
+
+        // Ops re-price the channel later: the past discount stays what the screen gave.
+        DB::table('vend_channels')->where('vend_id', $vend->id)->where('code', 11)->update(['amount' => 300]);
+        Carbon::setTestNow('2026-10-09 15:30:00');
+        $this->planner()->run(now());
+        $slot->refresh();
+        $this->assertSame([1, $promo, 160 - $promo], [$slot->units_sold, $slot->revenue_cents, $slot->discount_cents]);
+        $this->assertSame(160 - $promo, (int) collect(app(HappyHourSales::class)->dailyTotals([$vend->id], Carbon::parse('2026-10-09'), Carbon::parse('2026-10-10')))->sum('discount'));
+
+        // Sales tagged before the price was frozen: the backfill takes the price whose promo was charged.
+        DB::table('vend_transactions')->where('id', $fast->id)->update(['happy_hour_list_price' => null]);
+        $this->artisan('happy-hour:freeze-list-prices')->assertSuccessful();
+        $this->assertNull($fast->fresh()->happy_hour_list_price, 'a dry run writes nothing');
+        $this->artisan('happy-hour:freeze-list-prices', ['--apply' => true])->assertSuccessful();
+        $this->assertSame(160, (int) $fast->fresh()->happy_hour_list_price, "the slot's price (its promo was charged), not today's 300");
+    }
+
+    public function test_a_board_that_missed_a_swap_still_tags_its_sales_to_the_slot_it_was_given(): void
+    {
+        $vend = $this->vending(2245, [11 => ['A', 160, 9, 10], 21 => ['B', 200, 8, 10]]);
+        $this->campaign([$vend]);
+        Carbon::setTestNow('2026-10-09 13:58:00');
+        $this->planner()->run(now());
+        $old = HappyHourSlot::where('vend_id', $vend->id)->sole();
+        $a = $this->products['A']->id;
+        $this->assertSame($a, $old->product_id);
+
+        // A sells down to 1 before its slot: as it starts, B takes the time on a NEW slot row.
+        DB::table('vend_channels')->where('vend_id', $vend->id)->where('code', 11)->update(['qty' => 1]);
+        Carbon::setTestNow('2026-10-09 13:59:00');
+        $this->planner()->run(now());
+        $old->refresh();
+        $this->assertSame([$a, HappyHourSlot::STATUS_CANCELLED], [$old->product_id, $old->status]);
+        $new = HappyHourSlot::open()->where('vend_id', $vend->id)->sole();
+        $this->assertSame($this->products['B']->id, $new->product_id);
+        $this->assertSame(['2026-10-09 14:00:00', '2026-10-09 15:00:00'], [$new->starts_at->toDateTimeString(), $new->ends_at->toDateTimeString()]);
+
+        // The board never heard: at 14:30 it sells A at A's promo under the old slot id — still the old slot's.
+        $sale = $this->sale($vend, $a, 11, HappyHourPricing::promoPrice(160, 40, 10), '2026-10-09 14:30:00', [['SId' => 11, 'HHId' => $old->id]]);
+        $this->assertSame($old->id, (int) $sale->fresh()->happy_hour_slot_id);
+    }
+
     public function test_a_basket_stored_at_board_prices_is_repriced_to_what_the_screen_charged(): void
     {
         // A vending TRADE has one Price for the basket and none per line, so the ingest stores each item at
@@ -832,14 +895,14 @@ class HappyHourVendingTest extends TestCase
     }
 
     /** A vending single sale (header only), tagged as the ingest does. */
-    private function sale(Vend $vend, int $productId, int $channel, int $cents, string $at, mixed $hh = null): VendTransaction
+    private function sale(Vend $vend, int $productId, int $channel, int $cents, string $at, mixed $hh = null, ?string $arrivedAt = null): VendTransaction
     {
         $frame = ['SId' => $channel, 'Price' => $cents] + ($hh === null ? [] : ['HH' => $hh]);
         $id = DB::table('vend_transactions')->insertGetId([
             'vend_id' => $vend->id, 'order_id' => 'VH-'.uniqid(), 'transaction_datetime' => $at, 'amount' => $cents,
             'product_id' => $productId, 'vend_channel_code' => $channel, 'qty' => 1, 'is_multiple' => 0,
             'settlement_status' => VendTransaction::SETTLEMENT_SETTLED, 'vend_transaction_json' => json_encode($frame),
-            'created_at' => $at, 'updated_at' => $at,
+            'created_at' => $arrivedAt ?? $at, 'updated_at' => $arrivedAt ?? $at,
         ]);
         $sale = VendTransaction::withoutGlobalScopes()->findOrFail($id);
         app(HappyHourSales::class)->tag($vend, $sale, $frame);

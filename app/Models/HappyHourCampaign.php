@@ -151,14 +151,20 @@ class HappyHourCampaign extends Model
         return ($mask & (1 << ($day->isoWeekday() - 1))) !== 0;
     }
 
-    /** @return array{0: CarbonImmutable, 1: CarbonImmutable} the window on that day, app timezone */
+    /**
+     * The window on that day, app timezone. "23:59" is the latest Hours To the form takes and means the
+     * end of the day: the window runs to midnight, so the last slot leaves no 23:59–00:00 gap.
+     *
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
     public function windowOn(CarbonInterface $day): array
     {
         $date = $day->toDateString();
+        $end = CarbonImmutable::parse($date.' '.$this->window_end);
 
         return [
             CarbonImmutable::parse($date.' '.$this->window_start),
-            CarbonImmutable::parse($date.' '.$this->window_end),
+            $end->format('H:i') === '23:59' ? $end->addDay()->startOfDay() : $end,
         ];
     }
 

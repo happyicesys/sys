@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\HappyHour\HappyHourCampaignRequest;
+use App\Jobs\FollowHappyHourCampaignSave;
 use App\Models\HappyHourCampaign;
 use App\Models\HappyHourSlot;
 use App\Models\Product;
@@ -12,11 +13,9 @@ use App\Services\HappyHour\HappyHourCampaignStats;
 use App\Services\HappyHour\HappyHourEligibility;
 use App\Services\HappyHour\HappyHourMachineGroups;
 use App\Services\HappyHour\HappyHourPause;
-use App\Services\HappyHour\HappyHourPlanner;
 use App\Services\HappyHour\HappyHourRanker;
 use App\Services\HappyHour\HappyHourSales;
 use App\Services\HappyHour\HappyHourSkipped;
-use App\Services\HappyHour\HappyHourWelcomeFallback;
 use App\Services\UserLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -43,11 +42,37 @@ class HappyHourCampaignController extends Controller
         'bestseller_hold_hours', 'bestseller_hold_count', 'bestseller_lookback_days',
     ];
 
-    public function __construct(private readonly HappyHourPlanner $planner) {}
-
     public function index(): Response
     {
         $now = Carbon::now();
+        // Every prop is a closure (audit 2026-10-30): the browser's follow-up request for the deferred
+        // figures asks for `campaignStats` only, and a plain value would have run all of this again.
+        $memo = [];
+        $page = function () use (&$memo, $now) {
+            return $memo['page'] ??= $this->indexPage($now);
+        };
+        $machines = function () use (&$memo, $now) {
+            return $memo['machines'] ??= $this->machineOptions($now);
+        };
+
+        return Inertia::render('HappyHourCampaign/Index', [
+            'campaigns' => fn () => $page(),
+            // The Campaign column's figures, last 24 h over last 30 days (Brian, 2026-10-16), keyed by campaign
+            // id. Deferred (Brian, 2026-10-30): ~1 s of queries that grows with the 30 days, so the page draws
+            // first and the browser fetches these right after.
+            'campaignStats' => Inertia::defer(fn () => $this->campaignStats(HappyHourCampaign::query()->get(['id']), $now)),
+            'machines' => fn () => $machines(),
+            'products' => fn () => $this->productOptions(collect($machines())->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)->pluck('id')->all()),
+            'rules' => collect(HappyHourCampaign::RULES)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
+            'minApkVersion' => HappyHourEligibility::minFreezerApk(),
+            'minVendingApkVersion' => HappyHourEligibility::minVendingApk(),
+            'machineGroups' => collect(HappyHourMachineGroups::GROUPS)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
+        ]);
+    }
+
+    /** The `campaigns` prop: each campaign with its machines and the slot each runs now. */
+    private function indexPage(Carbon $now)
+    {
         $campaigns = HappyHourCampaign::query()
             // Only the viewer's own machines are listed (a HIPL campaign may span operators).
             ->with(['vends' => fn ($q) => $this->visibleVends($q)
@@ -73,24 +98,11 @@ class HappyHourCampaignController extends Controller
         $sold = app(HappyHourSales::class)->slotTotals($slots->pluck('vend_id'), $now->copy()->subDay(), $now->copy()->addSeconds($grace));
         $slots = $slots->groupBy('happy_hour_campaign_id');
 
-        $machines = $this->machineOptions($now);
         // The failsafe (a machine bound to a UI Setting ignores Happy Hour), for the chips' icon.
         $boundVends = $campaigns->flatMap(fn ($c) => $c->vends);
         $paused = HappyHourPause::forVends($boundVends->pluck('id'), $now, $boundVends->mapWithKeys(fn (Vend $v) => [$v->id => $v->codeLabel()])->all());
 
-        return Inertia::render('HappyHourCampaign/Index', [
-            'campaigns' => $campaigns->map(fn (HappyHourCampaign $c) => $this->campaignPayload($c, $slots->get($c->id, collect()), $paused, $stock, $sold))->values(),
-            // The Campaign column's figures, last 24 h over last 30 days (Brian, 2026-10-16), keyed by campaign
-            // id. Deferred (Brian, 2026-10-30): ~1 s of queries that grows with the 30 days, so the page draws
-            // first and the browser fetches these right after.
-            'campaignStats' => Inertia::defer(fn () => $this->campaignStats($campaigns, $now)),
-            'machines' => $machines,
-            'products' => $this->productOptions(collect($machines)->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)->pluck('id')->all()),
-            'rules' => collect(HappyHourCampaign::RULES)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
-            'minApkVersion' => HappyHourEligibility::minFreezerApk(),
-            'minVendingApkVersion' => HappyHourEligibility::minVendingApk(),
-            'machineGroups' => collect(HappyHourMachineGroups::GROUPS)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
-        ]);
+        return $campaigns->map(fn (HappyHourCampaign $c) => $this->campaignPayload($c, $slots->get($c->id, collect()), $paused, $stock, $sold))->values();
     }
 
     /**
@@ -122,10 +134,9 @@ class HappyHourCampaignController extends Controller
 
             return $campaign;
         });
-        // A machine picked by name leaves any group campaign now, before this one plans it.
-        $this->followGroups();
-        $this->planNow($campaign);
-        HappyHourWelcomeFallback::nudgeUnbound($this->memberIds($campaign));
+        // After the response, under the planner lock: a machine picked by name leaves any group campaign,
+        // then this one plans its machines.
+        FollowHappyHourCampaignSave::dispatchAfterResponse($campaign->id, null);
 
         return back()->with('success', __('Happy Hour ":name" saved.', ['name' => $campaign->name]));
     }
@@ -133,27 +144,21 @@ class HappyHourCampaignController extends Controller
     public function update(HappyHourCampaignRequest $request, int $id): RedirectResponse
     {
         $campaign = HappyHourCampaign::findOrFail($id);
-        $now = Carbon::now();
         $membersBefore = $this->memberIds($campaign);
 
-        DB::transaction(function () use ($request, $campaign, $now) {
+        $cancel = DB::transaction(function () use ($request, $campaign) {
             $campaign->fill([...$this->fields($request, $campaign), 'updated_by' => auth()->id()]);
-            $reschedule = $campaign->isDirty(self::SCHEDULE_FIELDS);
+            $reschedule = $this->scheduleChanged($campaign);
             $campaign->save();
             $removed = $this->syncVends($campaign, $request->input('vend_ids', []));
 
-            if ($reschedule) {
-                $this->planner->cancel($campaign, $now);
-            } elseif ($removed !== []) {
-                $this->planner->cancel($campaign, $now, $removed);
-            }
+            return $reschedule ? 'all' : ($removed ?: null);
         });
-        // Picked by name now (or no longer): group campaigns give the machine up / take it back now.
-        $this->followGroups();
-        $this->planNow($campaign->fresh());
-        // Machines added, kept or taken out: those without a UI Setting re-read /parameters, so
-        // the bear comes on or goes off now (HappyHourWelcomeFallback).
-        HappyHourWelcomeFallback::nudgeUnbound([...$membersBefore, ...$this->memberIds($campaign)]);
+        // After the response, under the planner lock: the old slots are taken back (a schedule change: all
+        // of them; else those of the machines taken out), group campaigns follow (picked by name now, or no
+        // longer), the campaign re-plans, and machines added, kept or taken out without a UI Setting re-read
+        // /parameters, so the bear comes on or goes off (HappyHourWelcomeFallback).
+        FollowHappyHourCampaignSave::dispatchAfterResponse($campaign->id, $cancel, $membersBefore);
 
         return back()->with('success', __('Happy Hour ":name" updated.', ['name' => $campaign->name]));
     }
@@ -162,11 +167,10 @@ class HappyHourCampaignController extends Controller
     {
         $campaign = HappyHourCampaign::findOrFail($id);
         $members = $this->memberIds($campaign);
-        $this->planner->cancel($campaign, Carbon::now());
         $campaign->delete();
-        // Its machines picked by name go back to any group campaign that covers them.
-        $this->followGroups();
-        HappyHourWelcomeFallback::nudgeUnbound($members);
+        // After the response, under the planner lock: its slots are taken back and its machines picked by
+        // name go back to any group campaign that covers them. Deleted, it plans nothing.
+        FollowHappyHourCampaignSave::dispatchAfterResponse($campaign->id, 'all', $members);
 
         return back()->with('success', __('Happy Hour ":name" deleted.', ['name' => $campaign->name]));
     }
@@ -297,27 +301,25 @@ class HappyHourCampaignController extends Controller
             ->values()->all();
     }
 
-    /** Group campaigns follow their members now; a hiccup here waits for the minute run. */
-    private function followGroups(): void
-    {
-        try {
-            $this->planner->followGroups(Carbon::now());
-        } catch (\Throwable $e) {
-            report($e);
-        }
-    }
-
     /**
-     * Plans at once so the freezers hear within seconds. The campaign is already saved: if planning
-     * fails here (a cache or queue hiccup), the minute run plans it instead of the save erroring.
+     * Whether a save changes how the campaign picks or prices, so its live slots are taken back and
+     * re-planned. The SKU lists are sets: re-ordering one is no change (audit 2026-10-30 — re-ordering
+     * the Prioritize list cancelled 445 live slots on 223 machines).
      */
-    private function planNow(HappyHourCampaign $campaign): void
+    private function scheduleChanged(HappyHourCampaign $campaign): bool
     {
-        try {
-            $this->planner->planCampaign($campaign, Carbon::now());
-        } catch (\Throwable $e) {
-            report($e);
+        $lists = ['excluded_product_ids', 'priority_product_ids'];
+        if ($campaign->isDirty(array_diff(self::SCHEDULE_FIELDS, $lists))) {
+            return true;
         }
+        $set = fn ($ids) => collect((array) $ids)->map(fn ($id) => (int) $id)->unique()->sort()->values()->all();
+        foreach ($lists as $list) {
+            if ($set($campaign->getOriginal($list)) !== $set($campaign->getAttribute($list))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @return array<string, mixed> */
@@ -333,10 +335,12 @@ class HappyHourCampaignController extends Controller
                 ->merge(array_diff($previous, $visible))
                 ->unique()->sort()->values()->all() ?: null;
         }
-        $data['excluded_product_ids'] = array_values(array_map('intval', $data['excluded_product_ids'] ?? [])) ?: null;
+        // Stored sorted: a list is a set (scheduleChanged).
+        $ids = fn (?array $list) => collect($list ?? [])->map(fn ($id) => (int) $id)->unique()->sort()->values()->all() ?: null;
+        $data['excluded_product_ids'] = $ids($data['excluded_product_ids'] ?? null);
         // Absent (an old tab) = keep the stored list.
         if (array_key_exists('priority_product_ids', $data)) {
-            $data['priority_product_ids'] = array_values(array_map('intval', $data['priority_product_ids'] ?? [])) ?: null;
+            $data['priority_product_ids'] = $ids($data['priority_product_ids']);
         }
         $data['machine_groups'] = array_values(array_unique($data['machine_groups'] ?? [])) ?: null;
         // Stored as TIME ("14:00:00"); match it so an unchanged window is not seen as an edit.

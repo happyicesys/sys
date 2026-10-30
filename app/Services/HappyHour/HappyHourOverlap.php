@@ -7,8 +7,8 @@ use App\Models\Scopes\OperatorHappyHourCampaignScope;
 
 /**
  * One machine, one Happy Hour at a time: two active campaigns may share a machine only if their
- * dates, days or hours never meet. Checked when a campaign is saved; the slot table's unique
- * (vend_id, starts_at) index is the backstop.
+ * dates, days or hours never meet. Checked when a campaign is saved; the planner lock (one slot writer at a
+ * time) and the slot table's unique (vend_id, starts_at, product_id) index are the backstops.
  */
 final class HappyHourOverlap
 {

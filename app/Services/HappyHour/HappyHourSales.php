@@ -32,6 +32,9 @@ use Illuminate\Support\Facades\Log;
  */
 final class HappyHourSales
 {
+    /** How far a board's own clock may run from mark1's (prod 2026-10-30: up to ~4.5 min ahead). */
+    private const CLOCK_SLACK_SECONDS = 900;
+
     /**
      * Tags the promo lines of a sale that has just been written (its items included). Never
      * throws: the sale is already committed and must not fail over a label.
@@ -67,7 +70,7 @@ final class HappyHourSales
      */
     public function results(HappyHourSlot $slot): array
     {
-        [$from, $to] = $this->searchWindow($slot->starts_at, $slot->ends_at);
+        [$from, $to] = $this->searchWindow($slot->starts_at, $slot->taggableUntil());
         // A vending machine on the board price prices each channel from its own board price, and two
         // channels of one SKU may differ: its discount is each line's channel price less what it
         // took (the slot's original price where the channel has none), not units × the slot's.
@@ -90,9 +93,9 @@ final class HappyHourSales
             ->where('t.is_refunded', 0)
             ->where(fn ($q) => $q->whereNull('e.code')->orWhereIn('e.code', DispenseVerdict::SALE_CODES))
             ->selectRaw('COALESCE(SUM(GREATEST(t.qty, 1)), 0) AS units, COALESCE(SUM(t.amount), 0) AS revenue')
-            ->when($perChannel, fn ($q) => $q->selectRaw(
-                'COALESCE(SUM(GREATEST(GREATEST(t.qty, 1) * COALESCE(NULLIF(vc.amount, 0), ?) - t.amount, 0)), 0) AS discount', [$original]
-            ))
+            ->selectRaw($perChannel
+                ? 'COALESCE(SUM(GREATEST(GREATEST(t.qty, 1) * COALESCE(t.happy_hour_list_price, NULLIF(vc.amount, 0), ?) - t.amount, 0)), 0) AS discount'
+                : 'COALESCE(SUM(GREATEST(GREATEST(t.qty, 1) * COALESCE(t.happy_hour_list_price, ?) - t.amount, 0)), 0) AS discount', [$original])
             ->first();
 
         // A multiple purchase: one item row per unit, each with its own verdict and refund flag.
@@ -108,16 +111,14 @@ final class HappyHourSales
             ->where(fn ($q) => $q->whereNull('i.vend_channel_error_code')->orWhereIn('i.vend_channel_error_code', DispenseVerdict::SALE_CODES))
             ->where(fn ($q) => $q->whereNull('i.is_refunded')->orWhere('i.is_refunded', 0))
             ->selectRaw('COUNT(*) AS units, COALESCE(SUM(i.unit_price_amount), 0) AS revenue')
-            ->when($perChannel, fn ($q) => $q->selectRaw(
-                'COALESCE(SUM(GREATEST(COALESCE(NULLIF(vc.amount, 0), ?) - i.unit_price_amount, 0)), 0) AS discount', [$original]
-            ))
+            ->selectRaw($perChannel
+                ? 'COALESCE(SUM(GREATEST(COALESCE(i.happy_hour_list_price, NULLIF(vc.amount, 0), ?) - i.unit_price_amount, 0)), 0) AS discount'
+                : 'COALESCE(SUM(GREATEST(COALESCE(i.happy_hour_list_price, ?) - i.unit_price_amount, 0)), 0) AS discount', [$original])
             ->first();
 
         $units = (int) $single->units + (int) $multi->units;
         $revenue = (int) $single->revenue + (int) $multi->revenue;
-        $discount = $perChannel
-            ? (int) $single->discount + (int) $multi->discount
-            : max(0, $units * $slot->original_price - $revenue);
+        $discount = (int) $single->discount + (int) $multi->discount;
 
         return ['units' => $units, 'revenue' => $revenue, 'discount' => $discount];
     }
@@ -183,7 +184,8 @@ final class HappyHourSales
             ->selectRaw('t.happy_hour_slot_id AS slot_id, s.happy_hour_campaign_id AS campaign_id, s.vend_id, s.original_price,
                 DATE(t.transaction_datetime) AS day, 0 AS multiple, COUNT(*) AS transactions,
                 SUM(GREATEST(t.qty, 1)) AS units, SUM(t.amount) AS revenue,
-                SUM(GREATEST(GREATEST(t.qty, 1) * COALESCE(NULLIF(vc.amount, 0), s.original_price) - t.amount, 0)) AS channel_discount')
+                SUM(GREATEST(GREATEST(t.qty, 1) * COALESCE(t.happy_hour_list_price, NULLIF(vc.amount, 0), s.original_price) - t.amount, 0)) AS channel_discount,
+                SUM(GREATEST(GREATEST(t.qty, 1) * COALESCE(t.happy_hour_list_price, s.original_price) - t.amount, 0)) AS slot_discount')
             ->get();
 
         $multi = DB::table('vend_transaction_items as i')
@@ -201,7 +203,8 @@ final class HappyHourSales
             ->selectRaw('i.happy_hour_slot_id AS slot_id, s.happy_hour_campaign_id AS campaign_id, s.vend_id, s.original_price,
                 DATE(t.transaction_datetime) AS day, 1 AS multiple, 0 AS transactions,
                 COUNT(*) AS units, SUM(i.unit_price_amount) AS revenue,
-                SUM(GREATEST(COALESCE(NULLIF(vc.amount, 0), s.original_price) - i.unit_price_amount, 0)) AS channel_discount')
+                SUM(GREATEST(COALESCE(i.happy_hour_list_price, NULLIF(vc.amount, 0), s.original_price) - i.unit_price_amount, 0)) AS channel_discount,
+                SUM(GREATEST(COALESCE(i.happy_hour_list_price, s.original_price) - i.unit_price_amount, 0)) AS slot_discount')
             ->get();
 
         return $single->concat($multi)->map(function ($row) use ($perChannel) {
@@ -217,9 +220,9 @@ final class HappyHourSales
                 'transactions' => (int) $row->transactions,
                 'units' => $units,
                 'revenue' => $revenue,
-                'discount' => isset($perChannel[(int) $row->vend_id])
-                    ? (int) $row->channel_discount
-                    : max(0, $units * (int) $row->original_price - $revenue),
+                // The price frozen at tagging first; untagged-era rows fall back to the channel's (board price)
+                // or the slot's price.
+                'discount' => isset($perChannel[(int) $row->vend_id]) ? (int) $row->channel_discount : (int) $row->slot_discount,
             ];
         })->values()->all();
     }
@@ -323,17 +326,20 @@ final class HappyHourSales
         }
 
         $grace = (int) config('happy_hour.sale_grace_seconds', 300);
+        // Up to each slot's PLANNED end: a freezer that missed the nudge of a cancel or swap still charges
+        // the promo until then. Of two slots at that price, the one the sale fell inside wins.
         $slots = HappyHourSlot::query()
             ->where('vend_id', $vend->id)
             ->whereIn('product_id', array_unique(array_column($lines, 0)))
             ->where('starts_at', '<=', $at->copy()->addSeconds($grace))
-            ->where('ends_at', '>', $at->copy()->subSeconds($grace))
-            ->get(['id', 'product_id', 'promo_price', 'starts_at', 'ends_at', 'units_sold']);
+            ->whereRaw('COALESCE(planned_ends_at, ends_at) > ?', [$at->copy()->subSeconds($grace)])
+            ->get(['id', 'product_id', 'original_price', 'promo_price', 'starts_at', 'ends_at', 'planned_ends_at', 'units_sold']);
         if ($slots->isEmpty()) {
             return 0;
         }
 
         $tagged = []; // slot id => item ids
+        $listPrices = []; // line key => the price before the discount
         foreach ($lines as $key => [$productId, $unit]) {
             $slot = $slots
                 ->filter(fn (HappyHourSlot $s) => $s->product_id === $productId && $s->promo_price === $unit)
@@ -341,10 +347,12 @@ final class HappyHourSales
                 ->first();
             if ($slot) {
                 $tagged[$slot->id][] = $key;
+                // A freezer sells at the slot's price (Site tier), one price per SKU.
+                $listPrices[$key] = (int) $slot->original_price;
             }
         }
 
-        return $this->write($sale, $tagged, $slots);
+        return $this->write($sale, $tagged, $slots, $listPrices);
     }
 
     /**
@@ -383,28 +391,47 @@ final class HappyHourSales
             $lines[0] = [$sale->product_id ? (int) $sale->product_id : null, (int) $sale->vend_channel_code];
         }
 
+        // The `HH` entry is the proof of which slot priced a line; time only rules out a stale one. The sale
+        // is the slot's when the board's TIME or the moment it reached mark1 falls inside the slot ± grace,
+        // up to its planned end: the board prices on mark1's clock but stamps TIME from its own, and ~29 big
+        // boards run 1–4.5 min ahead (audit 2026-10-30), which pushed sales near a slot's end out of it.
         $at = Carbon::parse($sale->transaction_datetime);
+        $arrived = $sale->created_at ? Carbon::parse($sale->created_at) : $at;
         $grace = (int) config('happy_hour.sale_grace_seconds', 300);
         $slots = HappyHourSlot::query()
             ->whereIn('id', array_values(array_unique($slotBySid)))
             ->where('vend_id', $vend->id)
-            ->where('starts_at', '<=', $at->copy()->addSeconds($grace))
-            ->where('ends_at', '>', $at->copy()->subSeconds($grace))
-            ->get(['id', 'product_id', 'promo_price', 'starts_at', 'ends_at', 'units_sold'])
+            ->get(['id', 'product_id', 'original_price', 'promo_price', 'starts_at', 'ends_at', 'planned_ends_at', 'units_sold'])
+            ->filter(fn (HappyHourSlot $s) => $s->covers($at, $grace) || $s->covers($arrived, $grace))
             ->keyBy('id');
         if ($slots->isEmpty()) {
             return 0;
         }
 
+        // The price each line's screen showed before the discount, as /thumbnails priced it: a board-price
+        // machine's channel price, else the slot's (the Site tier the machine follows).
+        $channelPrices = ! (bool) $vend->is_using_server_price
+            ? DB::table('vend_channels')->where('vend_id', $vend->id)
+                ->whereIn('code', array_unique(array_column($lines, 1)))->pluck('amount', 'code')->map(fn ($a) => (int) $a)->all()
+            : [];
+
         $tagged = []; // slot id => line keys
+        $listPrices = []; // line key => the price before the discount
         foreach ($lines as $key => [$productId, $channel]) {
             $slot = $slots->get($slotBySid[$channel] ?? 0);
-            if ($slot && ($productId === null || $slot->product_id === $productId)) {
-                $tagged[$slot->id][] = $key;
+            if (! $slot || ($productId !== null && $slot->product_id !== $productId)) {
+                continue;
             }
+            $list = ($channelPrices[$channel] ?? 0) > 0 ? $channelPrices[$channel] : (int) $slot->original_price;
+            // A single sale charged at full price is not a promo sale, whatever a stale `HH` entry says.
+            if ($key === 0 && $list > 0 && (int) $sale->amount >= max(1, (int) $sale->qty) * $list) {
+                continue;
+            }
+            $tagged[$slot->id][] = $key;
+            $listPrices[$key] = $list;
         }
 
-        $count = $this->write($sale, $tagged, $slots->values());
+        $count = $this->write($sale, $tagged, $slots->values(), $listPrices);
         if ($count > 0 && $sale->is_multiple) {
             $this->repriceVendingBasket($sale->id);
         }
@@ -532,22 +559,29 @@ final class HappyHourSales
     /**
      * @param  array<int, list<int>>  $tagged  slot id => line keys (0 = the header of a single sale)
      * @param  \Illuminate\Support\Collection<int, HappyHourSlot>  $slots
+     * @param  array<int, int>  $listPrices  line key => the price before the discount, frozen with the tag (a later
+     *                                       board-price change or channel re-map never rewrites the discount)
      */
-    private function write(VendTransaction $sale, array $tagged, $slots): int
+    private function write(VendTransaction $sale, array $tagged, $slots, array $listPrices = []): int
     {
         if ($tagged === []) {
             return 0;
         }
 
-        DB::transaction(function () use ($sale, $tagged, $slots) {
+        DB::transaction(function () use ($sale, $tagged, $slots, $listPrices) {
             foreach ($tagged as $slotId => $keys) {
-                $itemIds = array_values(array_filter($keys));
-                if ($itemIds !== []) {
-                    DB::table('vend_transaction_items')->whereIn('id', $itemIds)->update(['happy_hour_slot_id' => $slotId]);
+                $byPrice = collect(array_values(array_filter($keys)))->groupBy(fn ($itemId) => $listPrices[$itemId] ?? 0);
+                foreach ($byPrice as $list => $itemIds) {
+                    DB::table('vend_transaction_items')->whereIn('id', $itemIds->all())
+                        ->update(['happy_hour_slot_id' => $slotId, 'happy_hour_list_price' => $list ?: null]);
                 }
             }
-            // The header names the slot too (for a multiple purchase: "includes a promo unit").
-            DB::table('vend_transactions')->where('id', $sale->id)->update(['happy_hour_slot_id' => array_key_first($tagged)]);
+            // The header names the slot too (for a multiple purchase: "includes a promo unit"); a single sale's
+            // header is its line, so it keeps the list price too.
+            DB::table('vend_transactions')->where('id', $sale->id)->update([
+                'happy_hour_slot_id' => array_key_first($tagged),
+                ...(isset($listPrices[0]) ? ['happy_hour_list_price' => $listPrices[0] ?: null] : []),
+            ]);
 
             // A TRADE that lands after its slot was totalled re-opens the totals; the minute run recounts.
             $closed = $slots->whereIn('id', array_keys($tagged))->whereNotNull('units_sold')->pluck('id')->all();
@@ -572,11 +606,17 @@ final class HappyHourSales
         return 0;
     }
 
-    /** @return array{0: CarbonInterface, 1: CarbonInterface} */
+    /**
+     * Where a slot's tagged sales sit on `transaction_datetime` (the index every reader goes through): the
+     * slot ± grace, up to its planned end, plus CLOCK_SLACK_SECONDS — a vending sale is tagged by the moment
+     * it reached mark1 too, and the board's own TIME may run minutes ahead.
+     *
+     * @return array{0: CarbonInterface, 1: CarbonInterface}
+     */
     private function searchWindow(CarbonInterface $starts, CarbonInterface $ends): array
     {
-        $grace = (int) config('happy_hour.sale_grace_seconds', 300);
+        $margin = (int) config('happy_hour.sale_grace_seconds', 300) + self::CLOCK_SLACK_SECONDS;
 
-        return [$starts->copy()->subSeconds($grace), $ends->copy()->addSeconds($grace)];
+        return [$starts->copy()->subSeconds($margin), $ends->copy()->addSeconds($margin)];
     }
 }
