@@ -778,11 +778,32 @@ Brian picked "Promotions mirror" next.
   - chips filter by state and by who made it, and there is an "Ended" view;
   - a box lists stores whose last read failed, each with "Read again", which is a GET on Grab.
   - Grab Stores rows show "n promotions on Grab". Visibility is the same as Grab Stores.
-  - Since 2026-10-30 (Brian: "don't use extra sub tabs for nothing") Grab Campaign has no menu entry: it is the
-    "Set up in mark1" view of Grab Promotions, next to "Running on Grab". Steps 3b / §8 rebuild that view.
+  - Since 2026-10-30 (Brian: "don't use extra sub tabs for nothing") Grab Campaign has no menu entry. Superseded
+    2026-10-31 by step 3b below.
 - **Not in this step:** an "End it" button and the leftover "End all". Both write to Grab, so they come with
   step 3b after you've seen what the first mirror run finds.
 - **Tests:** `tests/Feature/GrabPromotionsMirrorTest.php` (10). Page-by-page before / after: `GRAB_PAGES_BEFORE_AFTER_2026-10-30.md`.
+
+### Step 3b as built (2026-10-31): Grab Promotions as one page, Grab the only source
+
+Brian, 2026-10-31: "merge the creation and the display together … the source of truth from Grab API only. So no
+need to record for what we have created?" — so ConnectVend keeps no campaign of its own.
+- **List** = the 3a mirror, grouped (maker + Grab account + name + discount + conditions + quotas → one row; one
+  promotion on 48 stores is one row).
+- **New / Edit / End** on the list: `GrabPromotionService` queues one `SendGrabPromotion` per store (POST / PUT /
+  DELETE `/partner/v1/campaigns`), sent once, the store re-read straight after. Items are the Grab menu's
+  `delivery_product_mapping_items.id`; the form is checked against `Grab::CAMPAIGN_MAPPINGS` and the menu.
+- **Send log** `delivery_platform_campaign_sends` (migration `2026_10_31_100000`): who asked what, the body, Grab's
+  answer. Shown as "Sent to Grab in the last 24 hours"; a successful create makes the row "Made in ConnectVend".
+  Never read as what is live.
+- **Gone:** `DeliveryPlatformCampaignController`, its three pages, `CreateDeliveryPlatformCampaign` and the two-view
+  switch. `/delivery-platform-campaigns` redirects. The old tables stay as history (step 5 may drop them).
+- **Unbind** ends the promotions ConnectVend made on the store (and leftovers), found in the mirror.
+- **Not built:** "End all leftovers" in one press (End per row works), drift alerts, per-store working hours (all
+  day as before).
+- **Not yet proven against Grab:** PUT on an ongoing campaign (its start time is in the past; Grab may refuse a
+  change to it — the refusal is shown).
+- **Tests:** `tests/Feature/GrabPromotionsPageTest.php` (7).
 
 ### Order of work (replaces the ordering in §4 / §7 where they differ)
 

@@ -83,7 +83,7 @@ class GrabCampaignMirror
         }
 
         if (! $account || ! $account->externalOauthToken?->access_token) {
-            $this->recordRead($ref, null, __('This operator has no Grab account in mark1.'));
+            $this->recordRead($ref, null, __('This operator has no Grab account in ConnectVend.'));
 
             return ['result' => 'no_account'] + $none;
         }

@@ -269,8 +269,8 @@ const navigation = computed(() => [
         children: [
             {name: tk('Grab Stores'), href: '/grab-stores', permission: 'read delivery-platform-vends'},
             {name: tk('Grab Errors'), href: '/grab-errors', permission: 'read delivery-platform-vends'},
-            // Grab Campaign (set-up in mark1) is the second view of Grab Promotions since 2026-10-30.
-            {name: tk('Grab Promotions'), href: '/grab-promotions', also: ['/delivery-platform-campaigns'], permission: 'read delivery-platform-campaigns'},
+            // The old Grab Campaign pages are gone (2026-10-31): Grab Promotions makes, changes and ends promotions on Grab.
+            {name: tk('Grab Promotions'), href: '/grab-promotions', permission: 'read delivery-platform-campaigns'},
             {name: tk('Grab Orders'), href: '/delivery-platform-orders', permission: 'read delivery-platform-orders'},
             {name: tk('Grab Product Mapping'), href: '/delivery-product-mappings', permission: 'read delivery-platform-product-mappings'},
         ]

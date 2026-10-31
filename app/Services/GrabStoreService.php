@@ -29,7 +29,6 @@ class GrabStoreService
     public function __construct(
         protected DeliveryPlatformService $deliveryPlatformService,
         protected DeliveryProductMappingService $deliveryProductMappingService,
-        protected DeliveryPlatformCampaignService $deliveryPlatformCampaignService,
     ) {}
 
     /** A ref number already on file for this merchantID, with or without its "4-". */
@@ -64,7 +63,7 @@ class GrabStoreService
     {
         $account = $this->grabAccountFor($operatorId);
         if (! $account) {
-            return ['ok' => false, 'message' => __('This operator has no Grab account in mark1.'), 'is_open' => null, 'code' => null];
+            return ['ok' => false, 'message' => __('This operator has no Grab account in ConnectVend.'), 'is_open' => null, 'code' => null];
         }
 
         try {
@@ -466,21 +465,13 @@ class GrabStoreService
         }
     }
 
-    // What unbindVend did before Grab Stores: campaigns sent for this period are
-    // deleted on Grab, unsent ones dropped.
+    // The promotions ConnectVend made on this store end on Grab (as unbindVend did
+    // before Grab Stores), found in Grab's own list, not in records of ours.
     private function afterClose(DeliveryProductMappingVend $binding, bool $pauseOnGrab): void
     {
-        foreach ($binding->deliveryPlatformCampaignItemVends as $campaignItemVend) {
-            if ($campaignItemVend->is_submitted && $campaignItemVend->platform_ref_id) {
-                $response = $this->safely(fn () => $this->deliveryPlatformCampaignService->deleteCampaign($campaignItemVend), 'delete campaign');
-                $campaignItemVend->update([
-                    'datetime_to' => Carbon::now(),
-                    'is_active' => false,
-                    'submission_response_json' => $response,
-                ]);
-            } else {
-                $campaignItemVend->delete();
-            }
+        $ref = $binding->deliveryPlatformRefNumber;
+        if ($ref) {
+            $this->safely(fn () => app(GrabPromotionService::class)->endForStore($ref, auth()->id()), 'end promotions');
         }
 
         if ($pauseOnGrab) {

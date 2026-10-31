@@ -15,7 +15,7 @@ class DeliveryPlatformLiveCampaign extends Model
     const STATE_UPCOMING = 'upcoming';
 
     // Who made it, as the page shows it.
-    const SOURCE_MARK1 = 'mark1';
+    const SOURCE_CONNECTVEND = 'connectvend';
 
     const SOURCE_LEFTOVER = 'leftover';
 
@@ -66,17 +66,30 @@ class DeliveryPlatformLiveCampaign extends Model
         return $this->belongsTo(DeliveryPlatformCampaignItemVend::class);
     }
 
+    // ConnectVend's send that made it (Grab answered the create with this id).
+    public function createSend()
+    {
+        return $this->hasOne(DeliveryPlatformCampaignSend::class, 'grab_campaign_id', 'grab_campaign_id')
+            ->where('action', DeliveryPlatformCampaignSend::ACTION_CREATE)
+            ->where('status', DeliveryPlatformCampaignSend::STATUS_OK);
+    }
+
     public function scopeLive($query)
     {
         return $query->whereNull('gone_at');
     }
 
     /**
-     * mark1 made it and still wants it; mark1 made it but believes it ended (the D2 /
-     * "same item in two campaigns" case); or someone else made it.
+     * ConnectVend made it (from this page, or from the old campaign pages and still
+     * wanted there); the old pages made it but believe it ended (the D2 / "same item in
+     * two campaigns" case); or someone else made it.
      */
     public function source(): string
     {
+        if ($this->createSend) {
+            return self::SOURCE_CONNECTVEND;
+        }
+
         $itemVend = $this->deliveryPlatformCampaignItemVend;
         if ($itemVend) {
             $wanted = $itemVend->is_active
@@ -84,7 +97,7 @@ class DeliveryPlatformLiveCampaign extends Model
                 && $itemVend->deliveryProductMappingVend
                 && ! $itemVend->deliveryProductMappingVend->end_date;
 
-            return $wanted ? self::SOURCE_MARK1 : self::SOURCE_LEFTOVER;
+            return $wanted ? self::SOURCE_CONNECTVEND : self::SOURCE_LEFTOVER;
         }
 
         $by = strtolower((string) $this->created_by);

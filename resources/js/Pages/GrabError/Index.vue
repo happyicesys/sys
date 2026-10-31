@@ -11,7 +11,7 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 py-3">
         <p class="text-sm text-gray-600 mb-3">
-          {{ $t('Every failed exchange with Grab: our calls Grab refused or never answered, Grab\'s callbacks we answered with an error, and orders Grab has that never reached mark1. Kept :days days.', { days: keepDays }) }}
+          {{ $t('Every failed exchange with Grab: our calls Grab refused or never answered, Grab\'s callbacks we answered with an error, and orders Grab has that never reached ConnectVend. Kept :days days.', { days: keepDays }) }}
         </p>
         <div class="flex flex-wrap gap-2 mb-3">
           <button

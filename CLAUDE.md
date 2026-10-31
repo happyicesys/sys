@@ -2282,22 +2282,36 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   - **Who sees what:** client users see only their own stores' errors; HIPL also sees errors tied to no store.
   - **Updates for unknown orders:** an order update for an order we never stored answers 404, never 500. In
     2026-10 it crashed 96 times on machine 4754, whose orders had been refused while Grab reopened it.
-- **Grab is the truth for which campaigns ARE live; mark1's own campaign rows are not** (plan §9.3, built
-  2026-10-30). Delivery Platform → **Grab Promotions** `/grab-promotions` shows the mirror, and each Grab Stores
-  row counts it. It is ONE menu entry with two views (`Components/GrabPromotionViews.vue`): "Running on Grab" (the
-  mirror) and "Set up in mark1" (the old Grab Campaign pages, `/delivery-platform-campaigns`, which have no menu entry
-  of their own — the entry's `also:` paths light it up there and `TranslationPlaces` files their texts under it).
-  - The mirror is filled by `grab:mirror-campaigns` (at :05, :15 …, never in the pause re-assert's minute) through
-    `App\Services\GrabCampaignMirror`. It reads `GET /partner/v1/campaigns` (ongoing + upcoming, ≤ 100 each) per
-    Active / bound store into `delivery_platform_live_campaigns`, plus one `delivery_platform_campaign_reads` row
-    per store.
-  - It is **read only on Grab**: it never creates, changes or ends a campaign.
-  - A campaign a good read no longer lists gets `gone_at`, and gone rows are pruned after 30 days. A failed read
-    changes no row.
-  - Ours = `delivery_platform_campaign_item_vends.platform_ref_id`. If mark1 shows that item vend inactive,
-    past its end, or on a closed binding, the campaign is a **leftover**. That is how a failed DELETE shows
-    itself, and why a new create is refused with "same item in two campaigns".
-  - Never decide that a campaign is gone from mark1's rows; read the mirror.
+- **Grab is the ONLY source for promotions; ConnectVend keeps no campaign of its own** (Brian, 2026-10-31: "single
+  source of truth … from Grab API only"). Delivery Platform → **Grab Promotions** `/grab-promotions` is one page: the
+  list is what Grab runs, and New / Edit / End on it call Grab. The old Grab Campaign pages
+  (`DeliveryPlatformCampaignController`, `Pages/DeliveryPlatformCampaign/*`) are gone; `/delivery-platform-campaigns`
+  redirects. Their tables (`delivery_platform_campaigns`, `_items`, `_item_vends`) stay as history and are never
+  written; nothing new reads them except the leftover check below.
+  - **The list** is the mirror: `grab:mirror-campaigns` (at :05, :15 …, never in the pause re-assert's minute)
+    through `App\Services\GrabCampaignMirror` reads `GET /partner/v1/campaigns` (ongoing + upcoming, ≤ 100 each)
+    per Active / bound store into `delivery_platform_live_campaigns`, plus one `delivery_platform_campaign_reads` row
+    per store. A campaign a good read no longer lists gets `gone_at` (pruned after 30 days); a failed read changes
+    no row. The page groups rows by maker + Grab account + name + discount + conditions + quotas, so one promotion
+    on 48 stores is one row (`GrabPromotionController::group`).
+  - **Writes** go through `App\Services\GrabPromotionService`, one queued `SendGrabPromotion` per store
+    (POST / PUT / DELETE `/partner/v1/campaigns`), sent ONCE (`tries = 1`, claimed pending → sending): a lost answer
+    may already be a campaign on Grab, and Grab refuses the same items in two campaigns. The store is re-read right
+    after each send. While a send to a campaign is open, Edit / End on it are refused.
+  - **The send log** `delivery_platform_campaign_sends` (GrabPromotionService its only writer) records who asked
+    what, the exact body and Grab's answer. It is the page's "Sent to Grab in the last 24 hours" box and how a row
+    reads "Made in ConnectVend" (a successful create carrying that Grab id, `DeliveryPlatformLiveCampaign::createSend`).
+    It is never read as what is live.
+  - **The form** builds Grab's body from a Grab menu (`delivery_product_mappings`): the stores on it now, and its
+    `delivery_product_mapping_items.id` as `objectIDs` — validated against that menu, types / scopes / eater types
+    from `Grab::CAMPAIGN_MAPPINGS`. Amounts are validated as cents and sent to Grab in dollars, times in UTC.
+  - **Leftover** = a campaign the OLD pages made (`delivery_platform_campaign_item_vends.platform_ref_id`) that they
+    believe ended (inactive, past its end, or on a closed binding) while Grab still runs it — the failed-DELETE case
+    behind "same item in two campaigns". End it from the page.
+  - **A store leaving its machine** ends the promotions ConnectVend made on it (and leftovers), found in the mirror
+    (`GrabPromotionService::endForStore`, from `GrabStoreService::afterClose`); merchant-app and Grab-team ones stay.
+  - Never decide what runs from ConnectVend's rows; read the mirror. Regression coverage:
+    `tests/Feature/GrabPromotionsPageTest.php`, `tests/Feature/GrabPromotionsMirrorTest.php`.
 - **The order webhook answers fast and is idempotent.** One writer per orderID (cache lock); a repeat answers
   200 with the stored order; a Grab edit (`featureFlags.isMexEditOrder`) is kept in `request_history_json` +
   `is_edited` for a person, never re-allocated blind. Grab calls (mark ready, cancel) run in

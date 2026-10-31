@@ -182,7 +182,7 @@
         <div>
           <label class="block font-medium text-gray-700">{{ $t('Grab merchant ID') }}</label>
           <input v-model="addForm.ref_number" type="text" :class="inputClass" placeholder="4-C7..." />
-          <p class="text-xs text-gray-500 mt-1">{{ $t('mark1 asks Grab about it before saving.') }}</p>
+          <p class="text-xs text-gray-500 mt-1">{{ $t('ConnectVend asks Grab about it before saving.') }}</p>
           <InputError :message="addForm.errors.ref_number" />
         </div>
         <div>
@@ -315,7 +315,7 @@
         <div>
           <label class="block font-medium text-gray-700">{{ $t('Grab merchant ID') }}</label>
           <input v-model="editForm.ref_number" type="text" :class="inputClass" />
-          <p v-if="merchantIdChanged" class="text-xs text-gray-500 mt-1">{{ $t('mark1 asks Grab about the new merchant ID before saving.') }}</p>
+          <p v-if="merchantIdChanged" class="text-xs text-gray-500 mt-1">{{ $t('ConnectVend asks Grab about the new merchant ID before saving.') }}</p>
           <InputError :message="editForm.errors.ref_number" />
         </div>
         <div>

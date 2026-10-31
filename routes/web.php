@@ -16,7 +16,6 @@ use App\Http\Controllers\CommissionSettlementController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DeliveryPlatformCampaignController;
 use App\Http\Controllers\DeliveryPlatformOrderController;
 use App\Http\Controllers\DeliveryPlatformRefNumberController;
 use App\Http\Controllers\DeliveryProductMappingController;
@@ -414,19 +413,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/monthly-sales-popup', [DashboardController::class, 'monthlySalesPopup'])->name('dashboard.monthly-sales-popup');
     });
 
-    Route::prefix('delivery-platform-campaigns')->group(function () {
-        Route::get('/', [DeliveryPlatformCampaignController::class, 'index'])->name('delivery-platform-campaigns');
-        Route::get('/create', [DeliveryPlatformCampaignController::class, 'create']);
-        Route::get('/{id}/edit', [DeliveryPlatformCampaignController::class, 'edit'])->name('delivery-platform-campaigns.edit');
-        Route::post('/store', [DeliveryPlatformCampaignController::class, 'store']);
-        Route::post('/{id}/create-item', [DeliveryPlatformCampaignController::class, 'createItem']);
-        Route::post('/{id}/submit-platform', [DeliveryPlatformCampaignController::class, 'submitPlatform']);
-        Route::post('/{id}/item-vend', [DeliveryPlatformCampaignController::class, 'createItemVend']);
-        Route::post('/{id}/batch-item-vend', [DeliveryPlatformCampaignController::class, 'batchCreateItemVend']);
-        Route::delete('/item/{deliveryPlatformCampaignItemID}', [DeliveryPlatformCampaignController::class, 'deleteItem']);
-        Route::delete('/item-vend/{delPlaCamItemVendID}', [DeliveryPlatformCampaignController::class, 'deleteItemVend']);
-        Route::delete('/{id}', [DeliveryPlatformCampaignController::class, 'destroy']);
-    });
+    // The old Grab Campaign pages kept ConnectVend's own campaign records; Grab Promotions
+    // (2026-10-31) reads Grab instead. Old links land there.
+    Route::redirect('/delivery-platform-campaigns', '/grab-promotions')->name('delivery-platform-campaigns');
     Route::prefix('delivery-platform-orders')->group(function () {
         Route::get('/', [DeliveryPlatformOrderController::class, 'index'])->name('delivery-platform-orders');
         Route::get('/excel', [DeliveryPlatformOrderController::class, 'exportExcel']);
@@ -465,9 +454,16 @@ Route::middleware(['auth', 'cors'])->group(function () {
     // Grab Errors: every failed exchange with Grab, both ways, last 30 days.
     Route::get('/grab-errors', [GrabErrorController::class, 'index'])->name('grab-errors')->middleware('can:read delivery-platform-vends');
 
-    // Grab Promotions (plan §9.3, first part): what Grab has live per store; read only.
-    Route::get('/grab-promotions', [GrabPromotionController::class, 'index'])->name('grab-promotions')->middleware('can:read delivery-platform-campaigns');
-    Route::post('/grab-promotions/stores/{refId}/refresh', [GrabPromotionController::class, 'refresh'])->name('grab-promotions.refresh')->middleware('can:read delivery-platform-campaigns');
+    // Grab Promotions (2026-10-31): what Grab runs, read from Grab, and New / Edit / End,
+    // sent to Grab store by store. ConnectVend keeps only the log of what it asked.
+    Route::prefix('grab-promotions')->group(function () {
+        Route::get('/', [GrabPromotionController::class, 'index'])->name('grab-promotions')->middleware('can:read delivery-platform-campaigns');
+        Route::get('/menus/{mappingId}', [GrabPromotionController::class, 'menu'])->name('grab-promotions.menu')->middleware('can:read delivery-platform-campaigns');
+        Route::post('/', [GrabPromotionController::class, 'store'])->name('grab-promotions.store')->middleware('can:create delivery-platform-campaigns');
+        Route::post('/update', [GrabPromotionController::class, 'update'])->name('grab-promotions.update')->middleware('can:update delivery-platform-campaigns');
+        Route::post('/end', [GrabPromotionController::class, 'end'])->name('grab-promotions.end')->middleware('can:delete delivery-platform-campaigns');
+        Route::post('/stores/{refId}/refresh', [GrabPromotionController::class, 'refresh'])->name('grab-promotions.refresh')->middleware('can:read delivery-platform-campaigns');
+    });
 
     // Grab Stores (plan §9 step 1): Grab Platform ID + Machines on one page.
     Route::prefix('grab-stores')->group(function () {

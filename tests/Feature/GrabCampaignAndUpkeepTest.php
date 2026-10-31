@@ -2,10 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\DeliveryPlatformCampaignController;
-use App\Models\DeliveryPlatformCampaign;
-use App\Models\DeliveryPlatformCampaignItem;
-use App\Models\DeliveryPlatformCampaignItemVend;
 use App\Models\DeliveryPlatformMenuRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -13,8 +9,9 @@ use Tests\Support\Grab\BuildsGrabStore;
 use Tests\TestCase;
 
 /**
- * Campaign deletes that end the campaign on Grab, the scheduled pause re-assert that
- * asks Grab first, and menu-record pruning. GRAB_REVAMP_PLAN_2026-10-29.md D2, A3, C8.
+ * The scheduled pause re-assert that asks Grab first, and menu-record pruning.
+ * GRAB_REVAMP_PLAN_2026-10-29.md A3, C8. (D2, ending a campaign on Grab, lives in
+ * GrabPromotionsPageTest since the old campaign pages went, 2026-10-31.)
  */
 class GrabCampaignAndUpkeepTest extends TestCase
 {
@@ -28,58 +25,6 @@ class GrabCampaignAndUpkeepTest extends TestCase
         config(['grab.store_api_spacing_ms' => 0]);
         $this->buildGrabOperator();
         $this->grabItem('U-49', 11, 280);
-    }
-
-    private function campaign(array $itemVends): DeliveryPlatformCampaign
-    {
-        $mappingVend = $this->bindGrabStore(4416, '4-STORE', [11 => ['qty' => 5, 'capacity' => 10]]);
-
-        $campaign = DeliveryPlatformCampaign::forceCreate([
-            'delivery_platform_operator_id' => $this->grabOperator->id,
-            'delivery_product_mapping_id' => $this->grabMapping->id,
-            'name' => 'test campaign',
-        ]);
-        $item = DeliveryPlatformCampaignItem::forceCreate(['delivery_platform_campaign_id' => $campaign->id, 'settings_json' => []]);
-
-        foreach ($itemVends as $attributes) {
-            DeliveryPlatformCampaignItemVend::forceCreate($attributes + [
-                'delivery_platform_campaign_id' => $campaign->id,
-                'delivery_platform_campaign_item_id' => $item->id,
-                'delivery_product_mapping_vend_id' => $mappingVend->id,
-                'vend_code' => 4416,
-                'settings_json' => [],
-            ]);
-        }
-
-        return $campaign;
-    }
-
-    public function test_deleting_a_campaign_ends_its_live_grab_campaigns_only(): void
-    {
-        Http::fake(['*/partner/v1/campaigns/*' => Http::response(null, 204)]);
-        $campaign = $this->campaign([
-            ['is_submitted' => true, 'platform_ref_id' => 'LIVE-1', 'datetime_to' => now()->addWeek()],
-            ['is_submitted' => true, 'platform_ref_id' => 'ENDED-1', 'datetime_to' => now()->subDay()],
-            ['is_submitted' => false, 'platform_ref_id' => null, 'datetime_to' => now()->addWeek()],
-        ]);
-
-        app(DeliveryPlatformCampaignController::class)->destroy($campaign->id);
-
-        Http::assertSentCount(1);
-        Http::assertSent(fn ($request) => $request->method() === 'DELETE' && str_ends_with($request->url(), '/partner/v1/campaigns/LIVE-1'));
-        $this->assertFalse((bool) DeliveryPlatformCampaignItemVend::where('platform_ref_id', 'LIVE-1')->value('is_active'));
-        $this->assertNull(DeliveryPlatformCampaign::find($campaign->id));
-    }
-
-    public function test_deleting_a_campaign_item_ends_it_on_grab_before_the_rows_go(): void
-    {
-        Http::fake(['*/partner/v1/campaigns/*' => Http::response(null, 204)]);
-        $campaign = $this->campaign([['is_submitted' => true, 'platform_ref_id' => 'LIVE-2', 'datetime_to' => now()->addWeek()]]);
-
-        app(DeliveryPlatformCampaignController::class)->deleteItem($campaign->deliveryPlatformCampaignItems()->value('id'));
-
-        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/partner/v1/campaigns/LIVE-2'));
-        $this->assertSame(0, DeliveryPlatformCampaignItemVend::count());
     }
 
     public function test_the_pause_reassert_leaves_a_store_grab_still_holds_closed(): void

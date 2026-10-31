@@ -1,7 +1,7 @@
 # Grab pages: before and after the revamp (2026-10-30)
 
 What each page under **Delivery Platform** did before the Grab revamp, and what it does now. Everything below is
-live on prod as of 2026-10-30 15:05. Source: `GRAB_REVAMP_PLAN_2026-10-29.md` (§6, §9 "Step 1 as built", "Step 3a as
+live on prod as of 2026-10-30 15:05, except Grab Promotions as one page (section 3, built 2026-10-31). Source: `GRAB_REVAMP_PLAN_2026-10-29.md` (§6, §9 "Step 1 as built", "Step 3a as
 built"), checked against the code and prod.
 
 ## The menu
@@ -12,13 +12,14 @@ built"), checked against the code and prod.
 |---|---|
 | Grab Platform ID | **Grab Stores** (new; replaces Grab Platform ID + Machines) |
 | Machines | **Grab Errors** (new) |
-| Grab Orders | **Grab Promotions** (new; includes Grab Campaign) |
+| Grab Orders | **Grab Promotions** (new; replaces Grab Campaign) |
 | Grab Product Mapping | Grab Orders |
 | Grab Campaign | Grab Product Mapping |
 
 Eight entries became five on 2026-10-30. Grab Platform ID and Machines left the menu once Grab Stores could do
-everything they did. Grab Campaign became the second view of Grab Promotions ("Set up in mark1"), next to "Running
-on Grab". Every old address still opens, so bookmarks keep working.
+everything they did. Grab Campaign is gone: since 2026-10-31 promotions are made, changed and ended on Grab
+Promotions itself (section 3), and its address opens Grab Promotions. Every other old address still opens, so
+bookmarks keep working.
 
 ---
 
@@ -67,25 +68,31 @@ unless they went looking. An order Grab took but never sent to us was invisible.
 The page lists them; each Grab Stores row shows its count, and the store's History shows the details. Client users
 see only their own stores' errors. Customer details and secrets are never stored.
 
-## 3. Grab Promotions (`/grab-promotions`) — new; two views
+## 3. Grab Promotions (`/grab-promotions`) — new; one page, Grab is the only source
 
-Two views at the top of the page:
-- **Running on Grab** — what Grab really runs, read from Grab (below). Read only.
-- **Set up in mark1** — the old Grab Campaign pages (section 7), where campaigns are still created, sent and ended.
+Brian, 2026-10-31: one list, the truth from Grab only. ConnectVend keeps no campaign of its own.
 
-**Before.** mark1 only knew what it had sent to Grab. It never asked Grab what was actually live. When an end
-request to Grab failed, mark1 still marked the campaign ended. Grab kept it running, and the next campaign for that
+**Before.** ConnectVend only knew what it had sent to Grab. It never asked Grab what was actually live. When an end
+request to Grab failed, ConnectVend still marked the campaign ended. Grab kept it running, and the next campaign for that
 store was refused ("same item in two campaigns"). That is the error ops saw when they moved a machine or re-ran a
 deal.
 
-**Now.** Every 10 minutes mark1 reads each live store's ongoing and upcoming campaigns from Grab and shows them:
-- **Each row:** store and machine, the deal in words ("20% off, up to $3"), the items or category by name, from →
-  to, and Live now / Upcoming / Gone.
-- **Who made it:** Made in mark1 / **Leftover** (red: mark1 thinks it ended, Grab still runs it) / Grab merchant app
-  / Grab team / Not found in mark1.
+**Now.** The list is what Grab runs, read from Grab every 10 minutes and again right after every change made here:
+- **One row per promotion:** the same deal on 48 stores is one row ("3 stores: 2331, 2480, 2502"); open it for each
+  store, its machine, its Grab campaign ID and "End on this store".
+- **Each row:** the deal in words ("Any 3 for $9.90"), the items or category by name, from → to, and Live now /
+  Upcoming / Gone.
+- **Who made it:** Made in ConnectVend (with the person) / **Leftover** (red: the old campaign pages think it ended,
+  Grab still runs it) / Grab merchant app / Grab team / Not made in ConnectVend.
+- **New promotion:** pick a Grab menu, the stores on it (all ticked), the type, the items or category, the value,
+  limits and dates. It is sent to Grab store by store, once each.
+- **Edit / End** send the change to every store of the promotion. A promotion made in the merchant app or by Grab
+  has no Edit; End is offered, but Grab may refuse it.
+- **"Sent to Grab in the last 24 hours":** each press, who pressed it, how many stores Grab accepted, and Grab's
+  reason for each refusal. The page follows Grab's answers while any are pending.
 - **Chips** filter by state and by who made it; an "Ended" view lists what has gone from Grab (kept 30 days).
 - **"Could not be read" box:** stores whose last read failed, each with "Read again" (a read, never a change).
-- **It never creates, changes or ends anything on Grab.** "End it" and "End all leftovers" are the next step (3b).
+- **A store taken off its machine** has the promotions ConnectVend made on it ended on Grab.
 
 First run on prod (14:45): 70 stores read, **no campaigns live or upcoming anywhere, so no leftovers.** One
 store, GFSBPOS-800-085 on machine 2002, is a sandbox merchantID on the live account. Grab answers "Merchant not
@@ -132,20 +139,18 @@ Still the same: the template is copied from the machine mapping and matched by c
 the wrong product on stores whose machine mapping has changed. It is fixed by step 2 (Grab Menu & Prices), which
 is not built yet.
 
-## 7. Grab Campaign (`/delivery-platform-campaigns`) — now Grab Promotions → "Set up in mark1"
+## 7. Grab Campaign (`/delivery-platform-campaigns`) — gone; use Grab Promotions
 
-No menu entry of its own since 2026-10-30; it opens from the "Set up in mark1" view of Grab Promotions, and the menu
-lights up Grab Promotions while it is open. The pages work as before.
+Removed 2026-10-31; the address opens Grab Promotions.
 
-| | Before | Now |
+| | Before | Now (Grab Promotions) |
 |---|---|---|
-| Delete a campaign or an item | Removed it in mark1 only; Grab kept running it | Ends it on Grab first |
-| Which store a campaign goes to | Found by machine code | Found by merchantID, the same as menu and pause |
-| What is live on Grab | Not known | Shown on Grab Promotions |
+| Where a campaign is kept | ConnectVend's own copy, pushed to Grab | Only on Grab; ConnectVend logs what it asked |
+| Set-up | Per template, then per machine, then "Submit" | One form: menu, stores, deal, dates → sent |
+| Delete / end | Marked ended even when Grab refused | Ended only when Grab no longer lists it |
+| What is live on Grab | Not known | The list itself |
 
-Still the same: the campaign is set up per template, then per machine, then "Submit". The Edit page's Save still
-writes to the wrong record (a product mapping with the same id). Both are replaced by step 3b / §8 (one promotion
-per operator).
+The old tables stay as history; nothing writes them.
 
 ## 8. Grab Orders (`/delivery-platform-orders`)
 
@@ -180,7 +185,8 @@ attention" view.
 
 - **Step 2, Grab Menu & Prices:** the menu follows the machine mapping, by product, with prices from RP. This fixes
   the wrong-product bug.
-- **Step 3b:** "End it" / "End all leftovers" on Grab Promotions, then one promotion per operator (§8).
+- **Step 3b:** done as Grab Promotions as one page (2026-10-31). Still open from §8: an "End all leftovers" button
+  and drift alerts.
 - **Step 4, Grab Orders clean-up:** broken buttons removed, items by product, a "Needs attention" view, and a
   daily `grab:health` email.
 - **Step 5:** batch stock updates, then removing templates and the old campaign tables.

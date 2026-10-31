@@ -19,7 +19,7 @@ use Tests\TestCase;
 
 /**
  * Grab Promotions mirror (plan §9.3, 2026-10-30): what Grab has live per store, read
- * from Grab, never written to it; mark1's own campaigns it believes ended show as
+ * from Grab, never written to it; the old campaign pages' campaigns they believe ended show as
  * leftovers.
  */
 class GrabPromotionsMirrorTest extends TestCase
@@ -117,7 +117,7 @@ class GrabPromotionsMirrorTest extends TestCase
         $rows = DeliveryPlatformLiveCampaign::query()->with('deliveryPlatformCampaignItemVend.deliveryProductMappingVend')->get()->keyBy('grab_campaign_id');
         $this->assertCount(3, $rows);
         $this->assertSame('ongoing', $rows['C-OURS']->state);
-        $this->assertSame('mark1', $rows['C-OURS']->source());
+        $this->assertSame('connectvend', $rows['C-OURS']->source());
         $this->assertSame('merchant_app', $rows['C-APP']->source());
         $this->assertSame('upcoming', $rows['C-SOON']->state);
         $this->assertSame('grab_team', $rows['C-SOON']->source());
@@ -249,16 +249,16 @@ class GrabPromotionsMirrorTest extends TestCase
         $this->actingAs($hipl)->get('/grab-promotions')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->component('GrabPromotion/Index')
-                ->has('campaigns.data', 2)
+                ->has('promotions.data', 2)
                 ->where('totals.leftover', 1)
                 ->where('totals.merchant_app', 1)
-                ->where('campaigns.data.0.vend_code', 4754)
-                ->where('campaigns.data.0.objects.0.name', 'U-49 Product U-49'));
+                ->where('promotions.data.0.stores.0.vend_code', 4754)
+                ->where('promotions.data.0.objects.0.name', 'U-49 Product U-49'));
 
         $this->actingAs($hipl)->get('/grab-promotions?source=leftover')
-            ->assertInertia(fn ($page) => $page->has('campaigns.data', 1)
-                ->where('campaigns.data.0.grab_campaign_id', 'C-LEFT')
-                ->where('campaigns.data.0.mark1_campaign_id', 7));
+            ->assertInertia(fn ($page) => $page->has('promotions.data', 1)
+                ->where('promotions.data.0.stores.0.grab_campaign_id', 'C-LEFT')
+                ->where('promotions.data.0.leftover_vend_code', '4754'));
 
         // Grab Stores counts them on the store's row.
         $this->actingAs($hipl)->get('/grab-stores')
@@ -270,7 +270,7 @@ class GrabPromotionsMirrorTest extends TestCase
         $clientUser = User::factory()->create(['operator_id' => $client->id]);
         $clientUser->givePermissionTo('read delivery-platform-campaigns');
         $this->actingAs($clientUser)->get('/grab-promotions')
-            ->assertInertia(fn ($page) => $page->has('campaigns.data', 0));
+            ->assertInertia(fn ($page) => $page->has('promotions.data', 0));
 
         // Nor may it read another operator's store from Grab.
         $ref = DeliveryPlatformRefNumber::query()->where('ref_number', self::MERCHANT)->first();
