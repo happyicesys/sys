@@ -91,12 +91,24 @@ class PaymentMerchantsMenuVariantTest extends TestCase
     private function machine(int $code, ?string $variant, ?string $codePrefix = null, string $operatorCode = 'OPX'): int
     {
         $operator = Operator::withoutGlobalScopes()->firstOrCreate(['code' => $operatorCode], ['name' => $operatorCode, 'is_active' => true]);
+        $this->withQrKeys($operator->id);
         $this->switchOnVariant($operator->id, $variant);
 
         return DB::table('vends')->insertGetId([
             'code' => $code, 'code_prefix' => $codePrefix, 'name' => "Machine {$code}", 'operator_id' => $operator->id,
             'is_testing' => 0, 'created_at' => now(), 'updated_at' => now(),
         ]);
+    }
+
+    /** Only an operator with QR keys is served wallets (OperatorPaymentMenu::operatorTakesQr); sandbox outside production. */
+    private function withQrKeys(int $operatorId): void
+    {
+        if (! DB::table('operator_payment_gateways')->where('operator_id', $operatorId)->exists()) {
+            DB::table('operator_payment_gateways')->insert([
+                'operator_id' => $operatorId, 'payment_gateway_id' => $this->gatewayId, 'key1' => 'pk', 'key2' => 'sk',
+                'type' => 'sandbox', 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
     }
 
     private function switchOnVariant(int $operatorId, ?string $variant): void
@@ -172,6 +184,7 @@ class PaymentMerchantsMenuVariantTest extends TestCase
         $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=2788')->assertJsonCount(2);
 
         $himd = Operator::withoutGlobalScopes()->create(['code' => 'HIMD', 'name' => 'HI Mindef', 'is_active' => true]);
+        $this->withQrKeys($himd->id);
         $this->switchOnVariant($himd->id, 'mindef');
         DB::table('vends')->where('id', $vendId)->update(['operator_id' => $himd->id]);
 
@@ -197,5 +210,39 @@ class PaymentMerchantsMenuVariantTest extends TestCase
         Cache::flush();
         $this->assertSame($plain, $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=1001')->getContent());
         $this->assertSame($plain, $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=garbage')->getContent());
+    }
+
+    public function test_a_machine_of_an_operator_with_no_qr_keys_gets_no_wallets(): void
+    {
+        // ARK / EATZ / KMY on prod (2026-10-31): no payment account, so a QR request can only fail. App 322 offers QR
+        // only when this list is not empty.
+        $operator = Operator::withoutGlobalScopes()->create(['code' => 'ARK', 'name' => 'ARK', 'is_active' => true]);
+        DB::table('vends')->insert([
+            'code' => 4755, 'name' => 'Machine 4755', 'operator_id' => $operator->id, 'is_testing' => 0,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=4755')->assertOk()->assertExactJson([]);
+        // A request that names no machine is not judged by any operator: the normal menu, as before.
+        $this->getJson('/api/v1/payment-merchants/SG/omise')->assertJsonCount(2);
+    }
+
+    public function test_keys_for_the_other_environment_do_not_count(): void
+    {
+        // PaymentGatewayService charges with the keys of the server's own environment only.
+        $operator = Operator::withoutGlobalScopes()->create(['code' => 'OPY', 'name' => 'OPY', 'is_active' => true]);
+        DB::table('operator_payment_gateways')->insert([
+            'operator_id' => $operator->id, 'payment_gateway_id' => $this->gatewayId, 'key1' => 'pk', 'key2' => 'sk',
+            'type' => 'production', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('vends')->insert([
+            'code' => 4756, 'name' => 'Machine 4756', 'operator_id' => $operator->id, 'is_testing' => 0,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=4756')->assertExactJson([]);
+
+        config(['app.env' => 'production']);
+        $this->getJson('/api/v1/payment-merchants/SG/omise?machineID=4756')->assertJsonCount(2);
     }
 }

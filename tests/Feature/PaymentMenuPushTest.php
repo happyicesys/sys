@@ -76,7 +76,9 @@ class PaymentMenuPushTest extends TestCase
         $operator = Operator::withoutGlobalScopes()->create(['code' => $code, 'name' => $code, 'is_active' => true]);
         DB::table('operator_payment_gateways')->insert([
             'operator_id' => $operator->id, 'payment_gateway_id' => $gatewayId, 'key1' => 'pk', 'key2' => 'sk',
-            'type' => 'production', 'created_at' => now(), 'updated_at' => now(),
+            // Outside production QR uses the sandbox keys, and only an operator with keys is served wallets
+            // (OperatorPaymentMenu::operatorTakesQr).
+            'type' => 'sandbox', 'created_at' => now(), 'updated_at' => now(),
         ]);
 
         return $operator;

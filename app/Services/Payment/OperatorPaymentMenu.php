@@ -63,6 +63,14 @@ class OperatorPaymentMenu
      */
     public function menu(string $countryCode, string $gatewayName, ?string $menuVariant = null, ?int $operatorId = null): array
     {
+        // An operator with no payment account for this server cannot be charged by QR at all: the QR request fails in
+        // PaymentGatewayService ("Payment Gateway is not set within operator"). Serving it wallets put a QR button on
+        // the screen that never produced a code. From app 322 (Brian, 2026-10-31) a board offers QR only when this list
+        // is not empty, so an empty answer is what takes the dead button away.
+        if ($operatorId !== null && ! $this->operatorTakesQr($operatorId)) {
+            return [];
+        }
+
         $menuVariant = $menuVariant !== null ? strtolower($menuVariant) : null;
         $choices = $menuVariant === null && $operatorId !== null ? $this->choices($operatorId) : [];
         $cacheKey = PaymentMethod::menuCacheKey($countryCode, $gatewayName, $menuVariant, $choices ? $operatorId : null);
@@ -121,6 +129,18 @@ class OperatorPaymentMenu
                 ];
             })->toArray();
         });
+    }
+
+    /**
+     * Whether the operator has a payment account for this server's environment — the same test
+     * PaymentGatewayService::getOperatorPaymentGateway() applies before it creates a QR.
+     */
+    public function operatorTakesQr(int $operatorId): bool
+    {
+        return DB::table('operator_payment_gateways')
+            ->where('operator_id', $operatorId)
+            ->where('type', config('app.env') === 'production' ? 'production' : 'sandbox')
+            ->exists();
     }
 
     /** What identifies one exact menu reply: the same JSON a machine receives. */
