@@ -14,6 +14,7 @@ use App\Services\HappyHour\HappyHourEligibility;
 use App\Services\HappyHour\HappyHourMachineGroups;
 use App\Services\HappyHour\HappyHourPause;
 use App\Services\HappyHour\HappyHourPlanner;
+use App\Services\HappyHour\HappyHourPriceStep;
 use App\Services\HappyHour\HappyHourRanker;
 use App\Services\HappyHour\HappyHourSales;
 use App\Services\HappyHour\HappyHourSkipped;
@@ -68,7 +69,31 @@ class HappyHourCampaignController extends Controller
             'minApkVersion' => HappyHourEligibility::minFreezerApk(),
             'minVendingApkVersion' => HappyHourEligibility::minVendingApk(),
             'machineGroups' => collect(HappyHourMachineGroups::GROUPS)->map(fn ($label, $id) => ['id' => $id, 'name' => $label])->values(),
+            // Brian, 2026-10-31: amounts on this page in the viewer's currency (Rp with no decimals in Indonesia),
+            // and a new campaign's price steps in its owner's currency — the creator's operator, HIPL when unset.
+            'currency' => fn () => $this->viewerCurrency(),
+            'newPriceStep' => fn () => HappyHourPriceStep::choices(HappyHourPriceStep::currencyOfOperator($this->ownerOperatorId())),
         ]);
+    }
+
+    /** The operator a campaign created now belongs to (store()): the creator's, HIPL when unset. */
+    private function ownerOperatorId(): int
+    {
+        return (int) auth()->user()->operator_id ?: OperatorVendFilterScope::UNRESTRICTED_OPERATOR_ID;
+    }
+
+    /** @return array{symbol: string, exponent: int, hidden: bool} the viewer's currency, as OpsPerformance shares it */
+    private function viewerCurrency(): array
+    {
+        $country = DB::table('operators')->join('countries', 'countries.id', '=', 'operators.country_id')
+            ->where('operators.id', $this->ownerOperatorId())
+            ->first(['countries.currency_symbol', 'countries.currency_exponent', 'countries.is_currency_exponent_hidden']);
+
+        return [
+            'symbol' => (string) ($country->currency_symbol ?? '$'),
+            'exponent' => (int) ($country->currency_exponent ?? 2),
+            'hidden' => (bool) ($country->is_currency_exponent_hidden ?? false),
+        ];
     }
 
     /** The `campaigns` prop: each campaign with its machines and the slot each runs now. */
@@ -103,7 +128,13 @@ class HappyHourCampaignController extends Controller
         $boundVends = $campaigns->flatMap(fn ($c) => $c->vends);
         $paused = HappyHourPause::forVends($boundVends->pluck('id'), $now, $boundVends->mapWithKeys(fn (Vend $v) => [$v->id => $v->codeLabel()])->all());
 
-        return $campaigns->map(fn (HappyHourCampaign $c) => $this->campaignPayload($c, $slots->get($c->id, collect()), $paused, $stock, $sold))->values();
+        // Each campaign's price steps follow its owner's currency (HappyHourPriceStep), one query for the page.
+        $currencies = HappyHourPriceStep::currenciesOfOperators($campaigns->pluck('operator_id')->all());
+
+        return $campaigns->map(fn (HappyHourCampaign $c) => [
+            ...$this->campaignPayload($c, $slots->get($c->id, collect()), $paused, $stock, $sold),
+            'price_step' => HappyHourPriceStep::choices($currencies[(int) $c->operator_id] ?? null),
+        ])->values();
     }
 
     /**
@@ -127,7 +158,7 @@ class HappyHourCampaignController extends Controller
             $campaign = HappyHourCampaign::create([
                 ...$this->fields($request),
                 // The owner (OperatorHappyHourCampaignScope): the creator's operator, HIPL when unset.
-                'operator_id' => (int) auth()->user()->operator_id ?: OperatorVendFilterScope::UNRESTRICTED_OPERATOR_ID,
+                'operator_id' => $this->ownerOperatorId(),
                 'created_by' => auth()->id(),
                 'updated_by' => auth()->id(),
             ]);

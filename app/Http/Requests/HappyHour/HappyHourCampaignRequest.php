@@ -8,6 +8,7 @@ use App\Models\Vend;
 use App\Services\HappyHour\HappyHourEligibility;
 use App\Services\HappyHour\HappyHourMachineGroups;
 use App\Services\HappyHour\HappyHourOverlap;
+use App\Services\HappyHour\HappyHourPriceStep;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -41,7 +42,8 @@ class HappyHourCampaignRequest extends FormRequest
             'discount_pct' => ['required', 'integer', 'min:1', 'max:90'],
             'min_balance_pct' => ['required', 'integer', 'min:0', 'max:99'],
             'min_qty' => ['required', 'integer', 'min:1', 'max:999'],
-            'price_step_cents' => ['required', 'integer', Rule::in([1, 5, 10, 50, 100])],
+            // The owner's currency decides the steps (HappyHourPriceStep): rupiah Rp 100 / 500 / 1,000, else cents.
+            'price_step_cents' => ['required', 'integer', Rule::in(array_keys(HappyHourPriceStep::steps($this->ownerCurrency())))],
             'allow_below_cost' => ['required', 'boolean'],
             // Absent = keep the stored value (on by default).
             'skip_unavailable' => ['sometimes', 'boolean'],
@@ -64,6 +66,25 @@ class HappyHourCampaignRequest extends FormRequest
             'excluded_vend_ids' => ['sometimes', 'nullable', 'array'],
             'excluded_vend_ids.*' => ['integer', 'distinct'],
         ];
+    }
+
+    /** A step the owner's currency does not offer (a tab opened before 2026-10-31) becomes its default. */
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'price_step_cents' => HappyHourPriceStep::normalise($this->ownerCurrency(), $this->input('price_step_cents')),
+        ]);
+    }
+
+    /** The currency of the campaign's owner: the campaign's operator on edit, the creator's on create. */
+    private function ownerCurrency(): string
+    {
+        $id = $this->route('id');
+        $operatorId = $id
+            ? HappyHourCampaign::query()->whereKey($id)->value('operator_id')
+            : ((int) $this->user()?->operator_id ?: OperatorVendFilterScope::UNRESTRICTED_OPERATOR_ID);
+
+        return HappyHourPriceStep::currencyOfOperator($operatorId ? (int) $operatorId : null);
     }
 
     /** @return array<string, string> */

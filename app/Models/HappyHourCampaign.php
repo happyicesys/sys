@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Scopes\OperatorHappyHourCampaignScope;
+use App\Services\HappyHour\HappyHourPriceStep;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,6 +24,17 @@ class HappyHourCampaign extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new OperatorHappyHourCampaignScope);
+
+        // The price step always fits the owner's currency (Brian, 2026-10-31): a rupiah campaign never stores
+        // a cent step, whichever path saves it.
+        static::saving(function (self $campaign) {
+            if ($campaign->isDirty(['price_step_cents', 'operator_id'])) {
+                $campaign->price_step_cents = HappyHourPriceStep::normalise(
+                    HappyHourPriceStep::currencyOfOperator($campaign->operator_id),
+                    $campaign->price_step_cents,
+                );
+            }
+        });
     }
 
     public const RULE_DAYS_OF_COVER = 'days_of_cover';

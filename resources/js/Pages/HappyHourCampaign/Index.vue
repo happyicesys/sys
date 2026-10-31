@@ -363,12 +363,9 @@
             </div>
             <div class="md:col-span-2">
               <label class="block text-sm font-medium text-gray-700">{{ $t('Round promo price up to') }}</label>
+              <!-- The steps follow the campaign owner's currency (HappyHourPriceStep): Rp 100 / 500 / 1,000 for rupiah. -->
               <select v-model.number="form.price_step_cents" :class="inputClass">
-                <option :value="1">1¢</option>
-                <option :value="5">5¢</option>
-                <option :value="10">10¢</option>
-                <option :value="50">50¢</option>
-                <option :value="100">$1</option>
+                <option v-for="o in priceStepChoices.options" :key="o.value" :value="o.value">{{ o.label }}</option>
               </select>
             </div>
 
@@ -593,6 +590,9 @@ const props = defineProps({
   minApkVersion: Number,
   minVendingApkVersion: Number,
   machineGroups: { type: Array, default: () => [] },
+  // The viewer's currency for amounts, and a new campaign's price steps (Brian, 2026-10-31).
+  currency: { type: Object, default: () => ({ symbol: '$', exponent: 2, hidden: false }) },
+  newPriceStep: { type: Object, default: () => ({ default: 10, options: [] }) },
   // Deferred (Inertia::defer): undefined until the browser's follow-up request returns. Campaign id => windows.
   campaignStats: { type: Object, default: null },
 })
@@ -612,13 +612,15 @@ const blank = () => ({
   name: '', is_active: true, starts_on: null, ends_on: null, days_mask: 127,
   window_start: '14:00', window_end: '18:00', slot_minutes: 60, sku_count: 4, skus_per_slot: 1,
   selection_rule: 'balance_pct', lookback_days: 14, discount_pct: 40,
-  min_balance_pct: 15, min_qty: 2, price_step_cents: 10, allow_below_cost: false, skip_unavailable: true,
+  min_balance_pct: 15, min_qty: 2, price_step_cents: props.newPriceStep.default, allow_below_cost: false, skip_unavailable: true,
   bestseller_hold_hours: 0, bestseller_hold_count: 0, bestseller_lookback_days: 7,
   excluded_product_ids: [], priority_product_ids: [], vend_ids: [], machine_groups: [], excluded_vend_ids: [],
 })
 
 const form = useForm(blank())
 const editingId = ref(null)
+// The campaign being edited keeps its own owner's steps; a new one takes the creator's.
+const priceStepChoices = computed(() => props.campaigns.find(c => c.id === editingId.value)?.price_step ?? props.newPriceStep)
 const showForm = ref(false)
 const selectedMachines = ref([])
 const selectedExcludedVends = ref([])
@@ -776,7 +778,12 @@ function statusClass(status) {
 }
 
 function money(cents) {
-  return cents === null || cents === undefined ? '' : '$' + (cents / 100).toFixed(2)
+  if (cents === null || cents === undefined) return ''
+  // A currency shown without decimals (rupiah: "Rp 28,000"); every other one as before ("$1.80").
+  if (props.currency.hidden) {
+    return `${props.currency.symbol} ${Math.round(cents / 10 ** props.currency.exponent).toLocaleString('en-US')}`
+  }
+  return '$' + (cents / 100).toFixed(2)
 }
 
 const productNames = (ids) => props.products.filter(p => ids.includes(p.id)).map(p => p.name).join(', ')

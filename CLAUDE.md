@@ -1302,6 +1302,12 @@ the 5 s delay (it lived 20 s, so a change 5–20 s after a nudge sent none). It:
    `(vend_id, starts_at, product_id)`), so sold-out, swap, sale tagging and totals all work per SKU: a SKU that
    stops qualifying as the group starts, or sells out mid-slot, is replaced by the best one not already on offer;
 2. freezes each slot's product and both prices (integer cents, Site tier, rounded UP to the step since 2026-10-14 `72f1b9f0cd` — Brian: ceiling, not floor; if rounding up would remove the discount it rounds down; screens advertise the campaign's own %);
+   **the step follows the campaign OWNER's currency** (Brian, 2026-10-31; `HappyHourPriceStep`, operator → country →
+   `currency_name`): rupiah offers Rp 100 / 500 / 1,000 (stored 10000 / 50000 / 100000), default **Rp 1,000**, so a
+   rupiah promo is always whole rupiah (Midtrans QRIS takes no decimals); every other currency keeps 1¢–$1. The request
+   and a `saving` hook on `HappyHourCampaign` both normalise a step the currency does not offer to its default, and the
+   page shows amounts in the viewer's currency (Rp, no decimals, where the country hides them). Regression coverage:
+   `tests/Feature/HappyHourRupiahPriceStepTest.php`.
 3. swaps a SKU that no longer qualifies as its slot starts — the old slot is CANCELLED (keeping its id) and the
    replacement is a NEW row, since a board that missed the nudge still sells the old SKU under the old id;
 4. ends a slot early when its SKU sells out;
