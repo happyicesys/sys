@@ -89,7 +89,8 @@ class HappyHourRupiahPriceStepTest extends TestCase
 
     public function test_any_save_path_keeps_the_step_in_the_owners_currency(): void
     {
-        $campaign = HappyHourCampaign::withoutGlobalScopes()->create([...$this->form(['price_step_cents' => 10]), 'operator_id' => $this->idr->id]);
+        $fields = collect($this->form(['price_step_cents' => 10]))->except('vend_ids')->all();
+        $campaign = HappyHourCampaign::withoutGlobalScopes()->create([...$fields, 'operator_id' => $this->idr->id]);
         $this->assertSame(100000, $campaign->price_step_cents);
     }
 
