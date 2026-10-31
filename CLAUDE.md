@@ -118,7 +118,7 @@ carries invisible markers naming its key; every click is captured so nothing on 
 **After adding or changing text**: `php artisan i18n:scan --sync` (every language; `--locale=id` for one), then
 translate the new keys in `lang/zh_CN.json` AND `lang/id.json` — `tests/Feature/I18nTest.php` fails while any
 marked text has no wording in either. `php artisan i18n:scan --hardcoded` (or `--file=Pages/X`) lists text not wrapped yet: the to-do list of the full pass
-(2026-10-26: ~10,800 findings in 308 files before it started). IDN is not on this code yet.
+(2026-10-26: ~10,800 findings in 308 files before it started). IDN runs this code (its users can pick Bahasa Indonesia).
 
 ## Machine IDs link to the Operation Dashboard
 
@@ -156,12 +156,14 @@ operator_admin (Edit refused). lsh turned out ~170 grants behind (Stock Count, S
 Happy Hour, the `picker` role, …); the full sync was run there the same day (Brian's go-ahead)
 and lsh now matches sys grant for grant. **After every deploy that touches the seeder, run it on
 lsh too.** **Indonesia (`idn-sys.happyice.net`, `forge@178.128.31.69`, plain checkout
-`/home/forge/idn-sys.happyice.net`, DB `idn_sys`) is not deployed by a push at all** — its checkout
-sat at 2026-09-21, 754 commits behind, on 2026-10-28. That day (Brian: "same roles and permission
-access level" on all three) main's seeder was run against IDN's DB from a temp copy under a renamed
-class, leaving its old code untouched; sys, lsh and IDN then matched exactly (331 permissions, 18
-roles, 1,580 grants). Permissions IDN's old code never checks are inert there. Sync IDN the same way
-after a seeder change. `observer_transactions` holds zero permissions on both hosts (it did before, too).
+`/home/forge/idn-sys.happyice.net`, DB `idn_sys`) is deployed by a push too since 2026-10-31**
+(Brian turned on Forge auto-deploy; first proven with `679c5dcc11`: code, migrations and Horizon follow
+within ~2 min). Like lsh, nothing seeds its permissions: **run the seeder on IDN after a deploy that touches
+it.** Its deploy does NOT restart the MQTT listener (`daemon-787381`, `subscribe:mqtt`): restart it with
+`sudo -n supervisorctl restart daemon-787381:daemon-787381_00` when a deploy changes what it runs (TRADE /
+`P` ingest — `VendDataService`, `SubscribeMqtt`, the models and jobs they call). Before 2026-10-31 its
+checkout was pulled by hand (2026-10-28 it sat 754 commits behind; the seeder was then run against IDN's
+DB from a temp copy, and sys, lsh and IDN matched exactly: 331 permissions, 18 roles, 1,580 grants). `observer_transactions` holds zero permissions on both hosts (it did before, too).
 
 Amending it:
 
