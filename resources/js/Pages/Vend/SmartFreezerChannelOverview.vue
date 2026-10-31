@@ -21,6 +21,10 @@
           <span v-if="vend.customer_code" class="text-gray-600 text-sm">
             ({{ vend.customer_code }}) {{ vend.customer_name }}
           </span>
+          <!-- The Site's selling-price tier the prices below come from (a freezer always sells at it). -->
+          <span v-if="priceType" class="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-gray-700 ring-1 ring-gray-200">
+            RP{{ priceType }}
+          </span>
         </div>
       </template>
 
@@ -133,6 +137,7 @@ function formatStockUpdatedAt(iso) {
 }
 const productMappingId = ref(null)
 const productMappingName = ref('')
+const priceType = ref(null)
 
 const boundCount = computed(() => items.value.filter(item => item && item.product_id).length)
 
@@ -160,6 +165,7 @@ onMounted(() => {
       stockUpdatedAt.value = data.stock_updated_at || ''
       productMappingId.value = data.product_mapping_id || null
       productMappingName.value = data.product_mapping_name || ''
+      priceType.value = data.price_type || null
     })
     .catch(() => {
       loadError.value = true

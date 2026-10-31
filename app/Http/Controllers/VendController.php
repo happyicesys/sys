@@ -3576,7 +3576,7 @@ class VendController extends Controller
     {
         $vend = Vend::with([
             'productMapping.productMappingItems.product.thumbnail',
-        ])->find($id, ['id', 'code', 'product_mapping_id']);
+        ])->find($id, ['id', 'code', 'product_mapping_id', 'customer_id', 'machine_type', 'is_using_server_price']);
 
         if (! $vend || ! $vend->productMapping) {
             return response()->json([
@@ -3590,9 +3590,28 @@ class VendController extends Controller
         $mapping = $vend->productMapping;
 
         $qtyByCode = $this->smartStockByChannelCode($vend->id);
+        $mappingItems = $mapping->productMappingItems ?? collect();
 
-        $items = ($mapping->productMappingItems ?? collect())
-            ->map(fn ($item) => $this->smartPlanogramItem($item, $qtyByCode))
+        // What the machine charges (Brian, 2026-10-31: the popup shows balance / capacity and the price, and
+        // its RP like every other machine's). A freezer always sells at the Site's RP (Vend::requiresServerPrice),
+        // the same selling_prices row /menu sends as server_price; integer cents here, /100 only at display.
+        $priceType = $vend->serverPriceType();
+        $priceCents = $priceType
+            ? SellingPrice::where('type', $priceType)
+                ->whereIn('product_id', $mappingItems->pluck('product_id')->filter()->unique())
+                ->get()
+                ->mapWithKeys(fn ($price) => [$price->product_id => (int) $price->getRawOriginal('amount')])
+            : collect();
+
+        // Stock is per SKU on a freezer, so capacity is too: the sum over the SKU's codes (SkuPlanogram's rule),
+        // each a mapping item's Real Capacity else the product's pieces per freezer slot. 0 = unmeasured.
+        $machineType = $vend->machine_type ?: Vend::MACHINE_TYPE_SMART_FREEZER;
+        $capacityByProduct = $mappingItems->filter(fn ($item) => $item->product_id)
+            ->groupBy('product_id')
+            ->map(fn ($items) => $items->sum(fn ($item) => $item->effectiveCapacity($machineType)));
+
+        $items = $mappingItems
+            ->map(fn ($item) => $this->smartPlanogramItem($item, $qtyByCode, $priceCents, $capacityByProduct))
             ->sortBy('channel_code', SORT_NATURAL)
             ->values();
 
@@ -3601,6 +3620,7 @@ class VendController extends Controller
             'is_smart' => (bool) $mapping->is_smart,
             'product_mapping_id' => $mapping->id,
             'product_mapping_name' => $mapping->name,
+            'price_type' => $priceType,
             'has_stock_feed' => $qtyByCode->isNotEmpty(),
             'stock_updated_at' => $qtyByCode->max('updated_at'),
             'basket_layout' => $this->smartBasketLayout($mapping, $items),
@@ -3629,7 +3649,7 @@ class VendController extends Controller
     /**
      * One planogram slot: the mapping row plus whatever stock we know about it.
      */
-    private function smartPlanogramItem(ProductMappingItem $item, Collection $qtyByCode): array
+    private function smartPlanogramItem(ProductMappingItem $item, Collection $qtyByCode, Collection $priceCents, Collection $capacityByProduct): array
     {
         $code = (string) $item->channel_code;
         $product = $item->product;
@@ -3645,11 +3665,11 @@ class VendController extends Controller
             'product_code' => $product?->code,
             'product_name' => $product?->name,
             'thumbnail' => $product?->thumbnail?->full_url,
-            // Integer cents on the wire (estate rule: divide by 100 only at display).
-            // getRawOriginal bypasses the model's dollars get-accessor.
-            'price_cents' => $item->getRawOriginal('server_amount'),
+            // Integer cents on the wire (estate rule: divide by 100 only at display): the Site's RP price, else
+            // the mapping item's own server amount (getRawOriginal bypasses the model's dollars get-accessor).
+            'price_cents' => $priceCents->get($product?->id) ?? $item->getRawOriginal('server_amount'),
             'qty' => $channel?->qty,
-            'capacity' => $channel?->capacity ?: null,
+            'capacity' => ($capacityByProduct->get($product?->id) ?: $channel?->capacity) ?: null,
         ];
     }
 

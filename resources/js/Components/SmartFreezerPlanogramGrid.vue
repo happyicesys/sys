@@ -100,7 +100,7 @@
                       :class="qtyClass(cell.item.qty)"
                       v-tooltip="qtyTooltip(cell.item)"
                     >
-                      {{ qtyLabel(cell.item.qty) }}
+                      {{ qtyLabel(cell.item) }}
                     </span>
                   </slot>
                 </div>
@@ -130,7 +130,7 @@ import { t } from '@/i18n'
 const props = defineProps({
   // [{ basket: 1..6, divisions: n }], sorted by basket.
   basketLayout: { type: Array, default: () => [] },
-  // [{ channel_code, product_code, product_name, thumbnail, price_cents, qty, capacity }]
+  // [{ channel_code, product_code, product_name, thumbnail, price_cents, qty, capacity }] — capacity = the SKU's pieces
   items: { type: Array, default: () => [] },
   // Per-slot / per-basket qty badges. Off where no stock is known (a mapping preview).
   showQty: { type: Boolean, default: false },
@@ -182,8 +182,10 @@ function basketQty(basket) {
   return known.length ? known.reduce((sum, qty) => sum + qty, 0) : null
 }
 
-function qtyLabel(qty) {
-  return Number.isFinite(qty) ? `×${qty}` : '—'
+// Balance / capacity, "1 / 10" (Brian, 2026-10-31); "1 / -" while the SKU's capacity is unmeasured.
+function qtyLabel(item) {
+  if (!Number.isFinite(item.qty)) return '—'
+  return `${item.qty} / ${item.capacity || '-'}`
 }
 
 function qtyClass(qty) {
