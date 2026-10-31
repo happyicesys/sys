@@ -170,11 +170,10 @@
                       {{ $t('Operator') }}
                     </TableHead>
                     <TableHead>
-                      {{ $t('Default Capacity') }}
+                      {{ $t('Smart Freezer') }}
                     </TableHead>
                     <TableHead>
-                      {{ $t('Shelf Life') }} <br>
-                      <span class="text-xs text-gray-500">{{ $t('(days)') }}</span>
+                      {{ $t('Smart Chiller') }}
                     </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
                       {{ $t('Unit Cost') }} <br>
@@ -274,18 +273,17 @@
                           {{ product.operator.code }}
                         </span>
                       </TableData>
-                      <!-- Pieces per smart-freezer slot / smart-chiller channel (Product → Edit): the capacity a
-                           mapping item uses unless it carries its own "Real Capacity" override. -->
+                      <!-- One column per machine kind (Brian, 2026-10-31), each showing that kind's fields from Product → Edit.
+                           Capacity = pieces per freezer slot / chiller channel, used unless a mapping item carries its own
+                           "Real Capacity" override. Shelf life is a CityBox (chiller) field only. -->
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
-                        <div class="flex flex-col space-y-0.5 text-xs whitespace-nowrap" v-if="product.freezer_slot_qty || product.chiller_slot_qty">
-                          <span v-if="product.freezer_slot_qty">{{ $t('Freezer') }} <b class="text-sm">{{ product.freezer_slot_qty }}</b></span>
-                          <span v-if="product.chiller_slot_qty">{{ $t('Chiller') }} <b class="text-sm">{{ product.chiller_slot_qty }}</b></span>
-                        </div>
-                        <span v-else class="text-gray-400">—</span>
+                        <span v-if="product.freezer_slot_qty" class="text-sm whitespace-nowrap">{{ $t(':count pcs', { count: product.freezer_slot_qty }) }}</span>
                       </TableData>
-                      <!-- CityBox products only (Product → Edit, Smart Chiller section); blank for vending and freezer. -->
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
-                        {{ product.shelf_life_days ?? '' }}
+                        <div class="flex flex-col space-y-0.5 text-sm whitespace-nowrap" v-if="product.chiller_slot_qty || product.shelf_life_days">
+                          <span v-if="product.chiller_slot_qty">{{ $t(':count pcs', { count: product.chiller_slot_qty }) }}</span>
+                          <span v-if="product.shelf_life_days">{{ $tc(':count day|:count days', product.shelf_life_days) }}</span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-right" v-if="permissions.includes('admin-access products')">
                         {{ product.latestUnitCost ? (product.latestUnitCost.cost).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
