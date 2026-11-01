@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DeliveryPlatformApiError;
+use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformStoreEvent;
@@ -29,6 +30,9 @@ class GrabStoreController extends Controller
 {
     public const STATUSES = ['selling', 'paused', 'off', 'no_machine'];
 
+    // Grab sales columns, sortable (Brian, 2026-11-01: which machines to keep on Grab).
+    public const SORTS = ['sales_7d', 'sales_30d'];
+
     public function __construct(protected GrabStoreService $grabStores) {}
 
     public function index(Request $request)
@@ -36,8 +40,19 @@ class GrabStoreController extends Controller
         $operatorIds = GrabStoreVisibility::narrow($request->operators);
         $status = in_array($request->status, self::STATUSES, true) ? $request->status : 'all';
         $search = trim((string) $request->search);
+        $sort = in_array($request->sort, self::SORTS, true) ? $request->sort : null;
 
         $base = DeliveryPlatformRefNumber::query()->whereIn('operator_id', $operatorIds);
+        // What the search box and the status chips narrow the list to.
+        $listed = function ($query) use ($search, $status) {
+            $query->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('ref_number', 'LIKE', "%{$search}%")
+                        ->orWhereExists($this->openBinding(fn ($binding) => $binding->where('b.vend_code', 'LIKE', "{$search}%")));
+                });
+            });
+            $this->filterStatus($query, $status);
+        };
 
         $refs = (clone $base)
             ->with([
@@ -53,6 +68,10 @@ class GrabStoreController extends Controller
             ->addSelect([
                 'last_order_at' => $this->orderSubquery('MAX(o.order_created_at)'),
                 'orders_30d' => $this->orderSubquery('COUNT(*)', Carbon::now()->subDays(30)),
+                'sales_7d' => $this->salesSubquery('COALESCE(SUM(o.subtotal_amount - o.promo_amount), 0)', 7),
+                'sales_7d_orders' => $this->salesSubquery('COUNT(*)', 7),
+                'sales_30d' => $this->salesSubquery('COALESCE(SUM(o.subtotal_amount - o.promo_amount), 0)', 30),
+                'sales_30d_orders' => $this->salesSubquery('COUNT(*)', 30),
                 'errors_7d' => DB::table('delivery_platform_api_errors')->selectRaw('COUNT(*)')
                     ->whereColumn('delivery_platform_ref_number_id', 'delivery_platform_ref_numbers.id')
                     ->where('created_at', '>=', Carbon::now()->subDays(7)),
@@ -60,13 +79,8 @@ class GrabStoreController extends Controller
                     ->whereColumn('delivery_platform_ref_number_id', 'delivery_platform_ref_numbers.id')
                     ->whereNull('gone_at'),
             ])
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('ref_number', 'LIKE', "%{$search}%")
-                        ->orWhereExists($this->openBinding(fn ($binding) => $binding->where('b.vend_code', 'LIKE', "{$search}%")));
-                });
-            })
-            ->tap(fn ($query) => $this->filterStatus($query, $status))
+            ->tap($listed)
+            ->when($sort, fn ($query, $sort) => $query->orderByDesc($sort))
             ->orderByRaw('status = ? DESC', [DeliveryPlatformRefNumber::STATUS_ACTIVE])
             ->orderBy('ref_number')
             ->paginate($request->numberPerPage === 'All' ? 10000 : (int) ($request->numberPerPage ?: 100))
@@ -82,6 +96,18 @@ class GrabStoreController extends Controller
         }
         $totals['all'] = (clone $base)->count();
 
+        // The same figures summed over every store the filters list, not just this page.
+        $listedIds = (clone $base)->tap($listed)->select('id');
+        $salesTotals = DB::table('delivery_platform_orders as o')
+            ->join('delivery_product_mapping_vend as ob', 'ob.id', '=', 'o.delivery_product_mapping_vend_id')
+            ->whereIn('ob.delivery_platform_ref_number_id', $listedIds)
+            ->whereNull('ob.end_date')
+            ->where('o.status', DeliveryPlatformOrder::STATUS_DELIVERED)
+            ->where('o.order_created_at', '>=', Carbon::now()->subDays(30))
+            ->selectRaw('COALESCE(SUM(CASE WHEN o.order_created_at >= ? THEN o.subtotal_amount - o.promo_amount END), 0) AS sales_7d', [Carbon::now()->subDays(7)])
+            ->selectRaw('COALESCE(SUM(o.subtotal_amount - o.promo_amount), 0) AS sales_30d')
+            ->first();
+
         return Inertia::render('GrabStore/Index', [
             // The shape Paginator.vue reads (a resource collection's links + meta).
             'stores' => [
@@ -90,10 +116,15 @@ class GrabStoreController extends Controller
                 'meta' => ['from' => $refs->firstItem(), 'to' => $refs->lastItem(), 'total' => $refs->total()],
             ],
             'totals' => $totals,
+            'salesTotals' => [
+                'sales_7d' => (int) $salesTotals->sales_7d,
+                'sales_30d' => (int) $salesTotals->sales_30d,
+            ],
             'filters' => [
                 'operators' => $request->operators,
                 'search' => $search,
                 'status' => $status,
+                'sort' => $sort,
                 'numberPerPage' => $request->numberPerPage ?: 100,
             ],
             'templateOptions' => DeliveryProductMapping::query()
@@ -480,6 +511,10 @@ class GrabStoreController extends Controller
             'bindings_count' => (int) $ref->bindings_count,
             'last_order_at' => $ref->last_order_at ? Carbon::parse($ref->last_order_at)->toIso8601String() : null,
             'orders_30d' => (int) $ref->orders_30d,
+            'sales_7d' => (int) $ref->sales_7d,
+            'sales_7d_orders' => (int) $ref->sales_7d_orders,
+            'sales_30d' => (int) $ref->sales_30d,
+            'sales_30d_orders' => (int) $ref->sales_30d_orders,
             'errors_7d' => (int) $ref->errors_7d,
             'promotions_live' => (int) $ref->promotions_live,
             'binding' => $binding ? [
@@ -539,6 +574,21 @@ class GrabStoreController extends Controller
             ->selectRaw($select)
             ->whereColumn('ob.delivery_platform_ref_number_id', 'delivery_platform_ref_numbers.id')
             ->when($since, fn ($query) => $query->where('o.order_created_at', '>=', $since));
+    }
+
+    /**
+     * Grab sales of the store's machine now (its open binding): delivered orders only,
+     * less Grab promo, in cents — the rule the Grab Orders page totals by.
+     */
+    private function salesSubquery(string $select, int $days)
+    {
+        return DB::table('delivery_platform_orders as o')
+            ->join('delivery_product_mapping_vend as ob', 'ob.id', '=', 'o.delivery_product_mapping_vend_id')
+            ->selectRaw($select)
+            ->whereColumn('ob.delivery_platform_ref_number_id', 'delivery_platform_ref_numbers.id')
+            ->whereNull('ob.end_date')
+            ->where('o.status', DeliveryPlatformOrder::STATUS_DELIVERED)
+            ->where('o.order_created_at', '>=', Carbon::now()->subDays($days));
     }
 
     /** @return array<int, string> binding id => partnerMerchantID of its latest order */

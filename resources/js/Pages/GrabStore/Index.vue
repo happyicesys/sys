@@ -52,9 +52,14 @@
             <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
             <span>{{ $t('Search') }}</span>
           </Button>
-          <p class="text-sm text-gray-700">
-            {{ $t('Showing :from to :to of :total results', { from: stores.meta.from ?? 0, to: stores.meta.to ?? 0, total: stores.meta.total }) }}
-          </p>
+          <div class="text-right">
+            <p class="text-sm text-gray-700">
+              {{ $t('Showing :from to :to of :total results', { from: stores.meta.from ?? 0, to: stores.meta.to ?? 0, total: stores.meta.total }) }}
+            </p>
+            <p class="text-sm text-gray-700">
+              {{ $t('Grab sales of these stores: :week last 7 days · :month last 30 days', { week: money(salesTotals?.sales_7d), month: money(salesTotals?.sales_30d) }) }}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -68,6 +73,12 @@
               <TableHead>{{ $t('Status') }}</TableHead>
               <TableHead>{{ $t('Grab\'s machine ID') }}</TableHead>
               <TableHead>{{ $t('Orders') }}</TableHead>
+              <TableHead v-for="column in salesColumns" :key="column.key">
+                <button type="button" class="inline-flex items-center gap-1 hover:text-indigo-700" :title="$t('Sort by this, highest first')" @click="sortBy(column.key)">
+                  <span>{{ column.name }}</span>
+                  <span :class="filters.sort === column.key ? 'text-indigo-700' : 'text-gray-300'">▼</span>
+                </button>
+              </TableHead>
               <TableHead></TableHead>
             </tr>
           </thead>
@@ -141,6 +152,22 @@
                   class="mt-1 inline-block rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700 hover:underline"
                   @click.stop
                 >{{ $tc(':count promotion on Grab|:count promotions on Grab', store.promotions_live) }}</a>
+              </TableData>
+              <TableData
+                v-for="column in salesColumns"
+                :key="column.key"
+                :currentIndex="index"
+                :totalLength="rows.length"
+                inputClass="text-right whitespace-nowrap"
+              >
+                <template v-if="store.binding">
+                  <div class="font-semibold">{{ money(store[column.key]) }}</div>
+                  <div class="text-xs text-gray-500">{{ $tc(':count order|:count orders', store[column.key + '_orders']) }}</div>
+                  <div v-if="daysOnMachine(store) < column.days" class="text-xs text-amber-700">
+                    {{ $tc('Only :count day on this machine|Only :count days on this machine', daysOnMachine(store)) }}
+                  </div>
+                </template>
+                <span v-else class="text-gray-400">—</span>
               </TableData>
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
                 <div class="flex flex-wrap gap-1">
@@ -511,6 +538,7 @@ const props = defineProps({
   templateOptions: Array,
   unbindReasons: Object,
   canUpdate: Boolean,
+  salesTotals: Object,
 })
 
 const page = usePage()
@@ -572,7 +600,27 @@ const filters = ref({
   search: props.filters.search ?? '',
   status: props.filters.status ?? 'all',
   numberPerPage: props.filters.numberPerPage ?? 100,
+  sort: props.filters.sort ?? null,
 })
+
+// Grab sales of the store's machine now: delivered orders less Grab promo.
+const salesColumns = [
+  { key: 'sales_7d', days: 7, name: t('Grab sales, last 7 days') },
+  { key: 'sales_30d', days: 30, name: t('Grab sales, last 30 days') },
+]
+
+function sortBy(key) {
+  filters.value.sort = filters.value.sort === key ? null : key
+  search()
+}
+
+// Whole days the machine has been on this store, so a new one is not read as a slow one.
+function daysOnMachine(store) {
+  if (!store.binding?.since) {
+    return Infinity
+  }
+  return Math.max(0, moment().diff(moment(store.binding.since), 'days'))
+}
 
 function search() {
   router.get('/grab-stores', {
@@ -580,6 +628,7 @@ function search() {
     search: filters.value.search,
     status: filters.value.status,
     numberPerPage: filters.value.numberPerPage,
+    sort: filters.value.sort,
   }, { preserveState: true, replace: true })
 }
 

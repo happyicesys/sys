@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatformStoreEvent;
 use App\Models\DeliveryProductMappingVend;
@@ -308,6 +309,55 @@ class GrabStoresTest extends TestCase
             ->assertOk()
             ->assertJsonPath('bindings.0.vend_code', 2867)
             ->assertJsonPath('store.ref_number', self::MERCHANT);
+    }
+
+    public function test_each_store_shows_its_machines_grab_sales_over_7_and_30_days_and_sorts_by_them(): void
+    {
+        $slow = $this->bindGrabStore(2867, self::MERCHANT, [11 => ['qty' => 5, 'capacity' => 10]]);
+        $busy = $this->bindGrabStore(2868, '4-BUSY', [11 => ['qty' => 5, 'capacity' => 10]]);
+        $order = function (DeliveryProductMappingVend $binding, int $daysAgo, int $cents, int $status = DeliveryPlatformOrder::STATUS_DELIVERED, int $promo = 0) {
+            static $n = 0;
+            $n++;
+            DeliveryPlatformOrder::withoutGlobalScopes()->forceCreate([
+                'delivery_platform_id' => $this->grabOperator->delivery_platform_id,
+                'delivery_platform_operator_id' => $this->grabOperator->id,
+                'order_id' => "ORDER-{$n}",
+                'short_order_id' => "GF-{$n}",
+                'order_created_at' => now()->subDays($daysAgo),
+                'platform_ref_id' => $binding->platform_ref_id,
+                'vend_code' => $binding->vend_code,
+                'delivery_product_mapping_vend_id' => $binding->id,
+                'status' => $status,
+                'subtotal_amount' => $cents,
+                'promo_amount' => $promo,
+            ]);
+        };
+        $order($slow, 2, 1000);
+        $order($slow, 20, 500);
+        $order($slow, 3, 9900, DeliveryPlatformOrder::STATUS_CANCELLED); // never a sale
+        $order($slow, 40, 9900);                                         // older than 30 days
+        $order($busy, 1, 3000, DeliveryPlatformOrder::STATUS_DELIVERED, 200);
+        $order($busy, 10, 4000);
+
+        $this->actingAs($this->user)->get('/grab-stores?sort=sales_7d')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('stores.data.0.ref_number', '4-BUSY')
+                ->where('stores.data.0.sales_7d', 2800)
+                ->where('stores.data.0.sales_7d_orders', 1)
+                ->where('stores.data.0.sales_30d', 6800)
+                ->where('stores.data.1.ref_number', self::MERCHANT)
+                ->where('stores.data.1.sales_7d', 1000)
+                ->where('stores.data.1.sales_30d', 1500)
+                ->where('stores.data.1.sales_30d_orders', 2)
+                ->where('filters.sort', 'sales_7d')
+                ->where('salesTotals.sales_7d', 3800)
+                ->where('salesTotals.sales_30d', 8300));
+
+        // A store moved to another machine counts only the machine it is on now.
+        $this->service()->move($slow, $this->machine(2869), null, $this->user->id);
+        $this->actingAs($this->user)->get('/grab-stores?search=4-C7AF')
+            ->assertInertia(fn ($page) => $page->where('stores.data.0.sales_30d', 0)->where('salesTotals.sales_30d', 0));
     }
 
     public function test_edit_changes_merchant_id_and_remarks_and_records_both(): void
