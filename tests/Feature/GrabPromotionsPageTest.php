@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\SendGrabPromotion;
+use App\Models\Customer;
 use App\Models\DeliveryPlatformCampaignSend;
 use App\Models\DeliveryPlatformLiveCampaign;
 use App\Models\DeliveryPlatformRefNumber;
@@ -271,10 +272,16 @@ class GrabPromotionsPageTest extends TestCase
 
     public function test_the_form_lists_the_stores_on_machines_and_only_the_deals_that_need_nothing_picked(): void
     {
+        // The site shows beside the machine, so a store can be found by its site name.
+        $site = Customer::create(['name' => 'Carissa Park Condo', 'code' => '15653', 'operator_id' => $this->grabMapping->operator_id, 'status_id' => Customer::STATUS_ACTIVE]);
+        DeliveryProductMappingVend::query()->withoutGlobalScopes()->where('platform_ref_id', self::STORE_A)->update(['customer_id' => $site->id]);
+
         $this->actingAs($this->user)->get('/grab-promotions')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->has('formStores', 2)
             ->where('formStores.0.vend_code', 4754)
             ->where('formStores.0.merchant_id', self::STORE_A)
+            ->where('formStores.0.site', '15653 Carissa Park Condo')
+            ->where('formStores.1.site', null)
             ->where('formStores.0.items', 2)
             ->where('formStores.0.has_account', true)
             ->has('deals', 8)

@@ -423,6 +423,7 @@ class GrabPromotionController extends Controller
             ->get()
             ->keyBy('id');
         $items = app(GrabPromotionService::class)->menuItemIds($bindings->pluck('delivery_platform_ref_number_id'));
+        $bindings->load(['customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code')]);
         $grabStores = app(GrabStoreService::class);
         $accounts = [];
 
@@ -435,6 +436,7 @@ class GrabPromotionController extends Controller
                 'ref_id' => $binding->delivery_platform_ref_number_id,
                 'merchant_id' => $ref?->ref_number,
                 'vend_code' => $binding->vend_code,
+                'site' => $binding->siteName(),
                 'operator_code' => $ref?->operator?->code,
                 'items' => count($items[$binding->delivery_platform_ref_number_id] ?? []),
                 'has_account' => $accounts[$operatorId],
@@ -449,7 +451,7 @@ class GrabPromotionController extends Controller
             ->whereNull('end_date')
             ->whereIn('delivery_platform_ref_number_id', $refIds)
             ->orderByDesc('id')
-            ->get(['id', 'delivery_platform_ref_number_id', 'delivery_product_mapping_id', 'vend_code'])
+            ->get(['id', 'delivery_platform_ref_number_id', 'delivery_product_mapping_id', 'vend_code', 'customer_id'])
             ->unique('delivery_platform_ref_number_id')
             ->values();
     }

@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Models\Scopes\OperatorDeliveryProductMappingVendFilterScope;
 use App\Traits\GetUserTimezone;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\Model;
 
 class DeliveryProductMappingVend extends Model
@@ -71,6 +70,18 @@ class DeliveryProductMappingVend extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    // The site as Grab Stores and Grab Promotions show it: "code name".
+    public function siteName(): ?string
+    {
+        $customer = $this->customer;
+        if (! $customer) {
+            return null;
+        }
+        $code = $customer->code ?: trim(($customer->virtual_customer_prefix ?? '').($customer->virtual_customer_code ?? ''));
+
+        return trim(($code ? $code.' ' : '').$customer->name);
     }
 
     // relationships
@@ -151,42 +162,42 @@ class DeliveryProductMappingVend extends Model
     public function scopeFilterIndex($query, $request)
     {
         $query = $query
-            ->when($request->delivery_platform_operator_id, function($query, $search) {
-                if($search != 'all') {
-                    $query->whereHas('deliveryProductMapping', function($query) use ($search) {
+            ->when($request->delivery_platform_operator_id, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereHas('deliveryProductMapping', function ($query) use ($search) {
                         $query->where('delivery_platform_operator_id', $search);
                     });
                 }
             })
-            ->when($request->delivery_product_mapping_id, function($query, $search) {
-                if($search != 'all') {
+            ->when($request->delivery_product_mapping_id, function ($query, $search) {
+                if ($search != 'all') {
                     $query->where('delivery_product_mapping_id', $search);
                 }
             })
-            ->when($request->delivery_platform_type_id, function($query, $search) {
-                if($search != 'all') {
-                    $query->whereHas('deliveryProductMapping.deliveryPlatformOperator', function($query) use ($search) {
+            ->when($request->delivery_platform_type_id, function ($query, $search) {
+                if ($search != 'all') {
+                    $query->whereHas('deliveryProductMapping.deliveryPlatformOperator', function ($query) use ($search) {
                         $query->where('type', $search);
                     });
                 }
             })
-            ->when($request->operators, function($query, $search) {
-                if(!in_array('all', $search)){
-                    $query->whereHas('deliveryProductMapping', function($query) use ($search) {
+            ->when($request->operators, function ($query, $search) {
+                if (! in_array('all', $search)) {
+                    $query->whereHas('deliveryProductMapping', function ($query) use ($search) {
                         $query->whereIn('operator_id', $search);
                     });
                 }
             })
-            ->when($request->platform_ref_id, function($query, $search) {
+            ->when($request->platform_ref_id, function ($query, $search) {
                 $query->where('platform_ref_id', 'LIKE', "{$search}%");
             })
-            ->when($request->vend_code, function($query, $search) use ($request) {
+            ->when($request->vend_code, function ($query, $search) {
                 $query->where('vend_code', 'LIKE', "{$search}%");
             })
-            ->when($request->is_active, function($query, $search) use ($request) {
+            ->when($request->is_active, function ($query, $search) {
                 // dd($request->all());
-                if($search != 'all') {
-                    if($search == 'true') {
+                if ($search != 'all') {
+                    if ($search == 'true') {
                         $query->whereNull('end_date');
                     } else {
                         $query->whereNotNull('end_date');

@@ -164,7 +164,7 @@ class GrabStoreController extends Controller
                 'id' => $binding->id,
                 'vend_code' => $binding->vend_code,
                 'vend' => $binding->vend?->only(['id', 'code', 'code_prefix', 'name']),
-                'site' => $this->siteName($binding),
+                'site' => $binding->siteName(),
                 'template' => $binding->deliveryProductMapping?->name,
                 'from' => $binding->start_date?->toIso8601String(),
                 'to' => $binding->end_date?->toIso8601String(),
@@ -521,7 +521,7 @@ class GrabStoreController extends Controller
                 'id' => $binding->id,
                 'vend_code' => $binding->vend_code,
                 'vend' => $binding->vend?->only(['id', 'code', 'code_prefix', 'name']),
-                'site' => $this->siteName($binding),
+                'site' => $binding->siteName(),
                 'template_id' => $binding->delivery_product_mapping_id,
                 'template' => $binding->deliveryProductMapping?->name,
                 'since' => $binding->start_date?->toIso8601String(),
@@ -609,17 +609,6 @@ class GrabStoreController extends Controller
             ->filter(fn ($row) => $row->partner !== null && $row->partner !== 'null' && $row->partner !== '')
             ->mapWithKeys(fn ($row) => [$row->delivery_product_mapping_vend_id => $row->partner])
             ->all();
-    }
-
-    private function siteName(DeliveryProductMappingVend $binding): ?string
-    {
-        $customer = $binding->customer;
-        if (! $customer) {
-            return null;
-        }
-        $code = $customer->code ?: trim(($customer->virtual_customer_prefix ?? '').($customer->virtual_customer_code ?? ''));
-
-        return trim(($code ? $code.' ' : '').$customer->name);
     }
 
     private function accessibleRef($id): DeliveryPlatformRefNumber

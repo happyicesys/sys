@@ -252,21 +252,22 @@
           <div class="flex items-center justify-between">
             <label class="block font-medium text-gray-700">{{ $t('Grab stores') }}</label>
             <span class="text-xs">
+              <span class="text-gray-500 mr-2">{{ $tc(':count of :total picked|:count of :total picked', form.ref_ids.length, { count: form.ref_ids.length, total: storeOptions.filter(option => !option.disabled).length }) }}</span>
               <button type="button" class="text-indigo-700 underline mr-2" @click="pickStores(true)">{{ $t('All') }}</button>
               <button type="button" class="text-indigo-700 underline" @click="pickStores(false)">{{ $t('None') }}</button>
             </span>
           </div>
-          <input v-model="storeSearch" type="text" :placeholder="$t('Find a machine or Grab store')" :class="inputClass" />
-          <div class="mt-1 max-h-48 overflow-y-auto border rounded-md p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
-            <label v-for="store in shownStores" :key="store.ref_id" class="flex items-center gap-2" :class="store.has_account ? '' : 'text-gray-400'">
-              <input v-model="form.ref_ids" type="checkbox" :value="store.ref_id" :disabled="!store.has_account" class="rounded border-gray-300" />
-              <span class="font-medium">{{ store.vend_code }}</span>
-              <span class="font-mono text-xs text-gray-500">{{ store.merchant_id }}</span>
-              <span v-if="!store.has_account" class="text-xs">{{ $t('no Grab account') }}</span>
-              <span v-else-if="!store.items" class="text-xs text-amber-700">{{ $t('nothing on its Grab menu') }}</span>
-            </label>
-            <p v-if="!shownStores.length" class="text-gray-500">{{ $t('No Grab store matches.') }}</p>
-          </div>
+          <MultiSelect
+            v-model="pickedStores"
+            :options="storeOptions"
+            mode="tags"
+            trackBy="id"
+            valueProp="id"
+            label="label"
+            :placeholder="$t('Search by machine ID, site name or Grab merchant ID')"
+            :clearOnBlur="false"
+            class="mt-1"
+          />
           <InputError :message="form.errors.ref_ids" />
         </div>
         <p v-else class="text-gray-600">
@@ -389,6 +390,7 @@ import Button from '@/Components/Button.vue';
 import InputError from '@/Components/InputError.vue';
 import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Modal from '@/Components/Modal.vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import TableData from '@/Components/TableData.vue';
@@ -570,7 +572,6 @@ const current = ref(null)
 const editing = ref(false)
 const nameTouched = ref(false)
 const moreOptions = ref(false)
-const storeSearch = ref('')
 
 function closeModal() {
   modal.value = null
@@ -622,19 +623,22 @@ watch(suggestedName, (name) => {
   if (!nameTouched.value) form.name = name.trim()
 })
 
-const shownStores = computed(() => {
-  const needle = storeSearch.value.trim().toLowerCase()
-  if (!needle) return props.formStores ?? []
-  return (props.formStores ?? []).filter(store => [store.vend_code, store.merchant_id, store.operator_code]
-    .some(text => String(text ?? '').toLowerCase().includes(needle)))
+// One option per store, searchable by machine ID, site name and Grab merchant ID.
+const storeOptions = computed(() => (props.formStores ?? []).map(store => {
+  const note = !store.has_account ? t('no Grab account') : (!store.items ? t('nothing on its Grab menu') : null)
+  return {
+    id: store.ref_id,
+    label: [store.vend_code, store.site, store.merchant_id].filter(Boolean).join(' · ') + (note ? ' (' + note + ')' : ''),
+    disabled: !store.has_account,
+  }
+}))
+const pickedStores = computed({
+  get: () => storeOptions.value.filter(option => form.ref_ids.includes(option.id)),
+  set: (options) => { form.ref_ids = (options ?? []).map(option => option.id) },
 })
 
-// All / None act on the stores the search shows.
 function pickStores(all) {
-  const shown = shownStores.value.filter(store => store.has_account).map(store => store.ref_id)
-  form.ref_ids = all
-    ? [...new Set([...form.ref_ids, ...shown])]
-    : form.ref_ids.filter(id => !shown.includes(id))
+  form.ref_ids = all ? storeOptions.value.filter(option => !option.disabled).map(option => option.id) : []
 }
 
 function local(value) {
@@ -647,7 +651,6 @@ function openCreate() {
   editing.value = false
   nameTouched.value = false
   moreOptions.value = false
-  storeSearch.value = ''
   form.starts_at = moment().add(10, 'minutes').format('YYYY-MM-DDTHH:mm')
   form.ends_at = moment().add(1, 'month').endOf('day').format('YYYY-MM-DDTHH:mm')
   form.name = suggestedName.value.trim()
