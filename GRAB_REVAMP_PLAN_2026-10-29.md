@@ -851,7 +851,14 @@ identical with the vend product mapping." This settles §7 and §9 step 2 where 
   3. **Custom price per SKU** (integer cents).
 - A SKU with no price under its mode is not sold (never at $0) and is flagged on the page — the only way a
   machine's SKU is missing from Grab.
-- Still to confirm with Brian (proposed 2026-11-01, not yet answered): mode chosen per operator (not per store);
-  "RP" = each store's Site tier (`customers.selling_price_type`) rather than one fixed tier; Grab commission 30%
-  for all, shown only as "kept after commission"; what "round up to the cent" means for a multiplied price
-  (whole cents, e.g. $2.75 × 1.1 = $3.025 → $3.03) vs a 10¢ step ($3.10).
+- **Answered by Brian (2026-11-01, later):**
+  - **Per operator.** HIPL staff see every operator and may set any operator's pricing and menu on its behalf;
+    a subsidiary / client sees and sets only its own (the `GrabStoreVisibility` rule).
+  - **"RP" = one chosen tier per operator**, not each Site's tier. RP = reference pricing, RP1–RP5 per product on
+    Product → Edit; machines normally sell at RP2. An operator may later give Grab its own tier (e.g. one RP kept
+    only for Grab), which mode 1 covers with no new code. So the six Grab stores whose Site has no tier need nothing.
+  - **Multiplier rounding: always UP, to 10¢** (or to the dollar).
+  - **Grab commission: the 30% was an assumption** (a typical published GrabFood/GrabMart rate), not our data.
+    Grab's orders do not carry it: `price.merchantChargeFee` is 0 on all 899 delivered orders of the last 90 days,
+    so the true rate is only in each operator's Grab contract / statement. Leave the "kept after commission" column
+    out unless Brian gives a rate (per operator).
