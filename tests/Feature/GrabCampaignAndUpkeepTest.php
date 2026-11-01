@@ -91,7 +91,10 @@ class GrabCampaignAndUpkeepTest extends TestCase
             ->expectsOutputToContain('refused this store in the last 24 h')
             ->assertSuccessful();
 
-        Http::assertSentCount(1); // one status call, no pause, nothing on the second run
+        // One status call and one try for a new token (GrabTokenKeeper; none given here), no
+        // pause, nothing on the second run.
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/grabid/v1/oauth2/token'));
     }
 
     public function test_the_pause_reassert_stops_at_grabs_rate_limit(): void
