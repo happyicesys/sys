@@ -215,8 +215,9 @@ class GrabApiErrorsTest extends TestCase
         $binding->forceFill(['start_date' => now()->subDays(5), 'is_active' => false])->save();
         Http::fake(['*' => Http::response(null, 401)]);
 
+        // The 401 asks once for a new token (GrabTokenKeeper), refused here too: two rows.
         $this->artisan('delivery:sync-store-pause --apply --only-if-open')->assertSuccessful();
-        $this->assertSame(1, DeliveryPlatformApiError::count());
+        $this->assertSame(['oauth_token', 'store_status'], DeliveryPlatformApiError::query()->orderBy('action')->pluck('action')->all());
 
         \Illuminate\Support\Facades\Cache::flush();
         $this->artisan('delivery:sync-store-pause --apply --only-if-open')
@@ -224,8 +225,8 @@ class GrabApiErrorsTest extends TestCase
             ->assertSuccessful();
         $this->artisan('grab:missed-orders')->assertSuccessful();
 
-        Http::assertSentCount(1);
-        $this->assertSame(1, DeliveryPlatformApiError::count());
+        Http::assertSentCount(2);
+        $this->assertSame(2, DeliveryPlatformApiError::count());
     }
 
     public function test_errors_older_than_30_days_are_deleted(): void

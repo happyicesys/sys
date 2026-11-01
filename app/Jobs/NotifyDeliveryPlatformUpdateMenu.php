@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\DeliveryPlatformApiError;
 use App\Models\DeliveryProductMappingVend;
 use App\Services\DeliveryPlatformService;
 use Illuminate\Bus\Queueable;
@@ -34,10 +35,19 @@ class NotifyDeliveryPlatformUpdateMenu implements ShouldBeUniqueUntilProcessing,
     // true = the daily full sync: send even when nothing changed.
     protected bool $force;
 
-    public function __construct(DeliveryProductMappingVend $deliveryProductMappingVend, bool $force = false)
+    // A 409 "too frequently" is asked again at most this many times.
+    const MAX_RETRIES = 3;
+
+    const DEFAULT_RETRY_SECONDS = 310;
+
+    // How many times this notify was put back after a 409.
+    protected int $retries = 0;
+
+    public function __construct(DeliveryProductMappingVend $deliveryProductMappingVend, bool $force = false, int $retries = 0)
     {
         $this->deliveryProductMappingVend = $deliveryProductMappingVend;
         $this->force = $force;
+        $this->retries = $retries;
     }
 
     public static function debounced(DeliveryProductMappingVend $deliveryProductMappingVend): void
@@ -65,10 +75,36 @@ class NotifyDeliveryPlatformUpdateMenu implements ShouldBeUniqueUntilProcessing,
             return;
         }
 
+        // Grab answered "merchant not be integrated yet" (403) in the last day: the store is
+        // not live on Grab's side (ARK 4-C73WV2JKAFCABE, 52 refusals 10-30..11-01); asking
+        // on every change only adds refusals. Asked again after a day.
+        $merchantId = $deliveryPlatformService->merchantIdFromMappingVend($mappingVend);
+        if ($merchantId && DeliveryPlatformApiError::refusedRecently($merchantId, [403])) {
+            return;
+        }
+
         if (! $this->force && ! $deliveryPlatformService->menuChangedSinceLastPull($mappingVend)) {
             return;
         }
 
-        $deliveryPlatformService->notifyUpdatedMenu($mappingVend);
+        $response = $deliveryPlatformService->notifyUpdatedMenu($mappingVend);
+
+        // 409 "sync menu too frequently, retry after 310 seconds": Grab allows one menu sync
+        // per store about every 5 min. Ask again once that time is up (59 such refusals on
+        // 26 stores 10-30..11-01 were dropped, so the change waited for the next one).
+        if (($response['code'] ?? null) === 409 && $this->retries < self::MAX_RETRIES) {
+            $wait = self::retryAfterSeconds($response) ?? self::DEFAULT_RETRY_SECONDS;
+            static::dispatch($mappingVend, $this->force, $this->retries + 1)
+                ->onQueue('default')
+                ->delay(now()->addSeconds($wait + 15));
+        }
+    }
+
+    // "retry after 310 seconds" in Grab's 409 message, as seconds.
+    public static function retryAfterSeconds(?array $response): ?int
+    {
+        $message = (string) ($response['data']['message'] ?? '');
+
+        return preg_match('/retry after (\d+) seconds?/i', $message, $match) ? (int) $match[1] : null;
     }
 }

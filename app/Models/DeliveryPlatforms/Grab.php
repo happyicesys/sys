@@ -601,7 +601,8 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         return [
             'access_token' => $params['access_token'],
-            'expired_at' => $params['expires_in'],
+            // expires_in is seconds from now; it used to be written into the datetime as is (0000-00-00).
+            'expired_at' => \App\Services\Grab\GrabTokenKeeper::expiryFrom($params['expires_in'] ?? null),
             'token_type' => $params['token_type'],
         ];
     }

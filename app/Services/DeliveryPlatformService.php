@@ -18,6 +18,7 @@ use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendData;
 use App\Services\DeliveryProductMappingService;
+use App\Services\Grab\GrabTokenKeeper;
 use App\Services\Grab\Menu\GrabMachineMenu;
 use App\Services\Grab\Menu\GrabMenuItemId;
 use App\Services\Grab\Menu\MachineMenuLine;
@@ -820,23 +821,16 @@ class DeliveryPlatformService
 
     switch ($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
-        $response = $this->model->notifyUpdatedMenu([
-          'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVend),
-        ]);
-        // dd($response, $deliveryProductMappingVend->platform_ref_id);
-        if ($response['code'] === 401) {
-          SyncDeliveryPlatformOauthByOperator::dispatchSync($this->deliveryPlatformOperator);
+        $merchantId = $this->merchantIdFromMappingVend($deliveryProductMappingVend);
 
-          $response = $this->model->notifyUpdatedMenu([
-            'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVend),
-          ]);
-          // $this->notifyUpdatedMenu($deliveryProductMappingVend);
-        }
-        if ($response['success']) {
-          return $response['data'];
-        }
-        break;
+        // Grab's whole answer (success, code, message, data): the notify job acts on a 409 / 403.
+        return app(GrabTokenKeeper::class)->retryOnUnauthorized(
+          $this->deliveryPlatformOperator,
+          fn ($account) => (new Grab($account))->notifyUpdatedMenu(['merchantID' => $merchantId]),
+        );
     }
+
+    return null;
   }
 
   public function pauseStore(DeliveryProductMappingVend $deliveryProductMappingVend, bool $isPause = true)
@@ -886,9 +880,13 @@ class DeliveryPlatformService
    */
   public function storeStatus(DeliveryProductMappingVend $deliveryProductMappingVend): array
   {
-    $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
+    $merchantId = $this->merchantIdFromMappingVend($deliveryProductMappingVend);
 
-    return $this->model->getStoreStatus($this->merchantIdFromMappingVend($deliveryProductMappingVend));
+    // A lapsed token answers 401: renewed once and asked again (GrabTokenKeeper).
+    return app(GrabTokenKeeper::class)->retryOnUnauthorized(
+      $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator,
+      fn ($account) => (new Grab($account))->getStoreStatus($merchantId),
+    );
   }
 
   // The same, for a merchantID that is on no machine yet (Grab Stores → Add store).

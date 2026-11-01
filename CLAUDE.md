@@ -2330,6 +2330,16 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
 - **Stock held for Grab is read from open orders** (`DeliveryProductMappingService::heldQtyByChannel`: allocated,
   not cancelled, not dispensed, within `ORDER_EXPIRED_HOURS`, status not in `STATUSES_NOT_HOLDING_STOCK`).
   `delivery_product_mapping_vend_channels.order_qty` is a legacy counter that double-counted; nothing reads it.
+- **Grab tokens are renewed before they lapse** (2026-11-01). A token lasts 7 days; nothing renewed one on a
+  schedule, so quiet or paused accounts lapsed and every call was refused (DCVIC from 2026-10-29 19:40, LEA
+  2026-10-31). `grab:renew-tokens` (hourly at :48, `App\Services\Grab\GrabTokenKeeper`) renews production
+  accounts within 24 h of `external_oauth_tokens.expired_at`, which now holds the real expiry (it held Grab's
+  `expires_in` seconds, read as 0000-00-00); a failed renewal waits 6 h. A call answered 401 — menu notify, store
+  status, the promotions mirror — renews once and asks again (`GrabTokenKeeper::retryOnUnauthorized`).
+- **A notify Grab refuses is handled, not dropped.** 409 "sync menu too frequently, retry after N seconds" puts the
+  notify back after N + 15 s (up to 3 times); a store Grab answered 403 "merchant not be integrated yet" in the last
+  day is not notified (ARK 4-C73WV2JKAFCABE on 2804). The nightly `grab:sync-all-menu` sends one store every
+  `grab.daily_sync_spacing_seconds` (3), not all at 00:00 (429 for 13–16 stores a night).
 - **Tell Grab to re-pull only when the menu changed.** Every path goes through
   `NotifyDeliveryPlatformUpdateMenu::debounced()` (one delayed job per store, skipped when the built menu equals
   `last_menu_json`, `startTime` ignored, keys sorted); only the daily `grab:sync-all-menu` forces. Paused or

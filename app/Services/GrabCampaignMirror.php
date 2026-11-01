@@ -9,6 +9,7 @@ use App\Models\DeliveryPlatformCampaignRead;
 use App\Models\DeliveryPlatformLiveCampaign;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatforms\Grab;
+use App\Services\Grab\GrabTokenKeeper;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -89,7 +90,7 @@ class GrabCampaignMirror
         }
 
         try {
-            $response = (new Grab($account))->listCampaigns($merchantId);
+            $response = app(GrabTokenKeeper::class)->retryOnUnauthorized($account, fn ($account) => (new Grab($account))->listCampaigns($merchantId));
         } catch (\Throwable $e) {
             $this->recordRead($ref, null, $e->getMessage());
 

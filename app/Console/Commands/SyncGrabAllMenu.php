@@ -36,9 +36,13 @@ class SyncGrabAllMenu extends Command
             })
             ->get();
 
-        // The daily full sync Grab recommends: sent even when nothing changed.
-        foreach($deliveryProductMappingVends as $deliveryProductMappingVend) {
-            NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend, true)->onQueue('high');
+        // The daily full sync Grab recommends: sent even when nothing changed. Spaced
+        // apart: all ~63 at 00:00 drew 429 from Grab for 13–16 stores a night (10-31, 11-01).
+        $spacing = (int) config('grab.daily_sync_spacing_seconds', 3);
+        foreach ($deliveryProductMappingVends->values() as $index => $deliveryProductMappingVend) {
+            NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend, true)
+                ->onQueue('high')
+                ->delay(now()->addSeconds($index * $spacing));
         }
     }
 }

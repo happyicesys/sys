@@ -70,6 +70,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('sales:mark-missing-trade --apply')->dailyAt('00:01')->withoutOverlapping();
         $schedule->command('store:previous-day-vend-records')->dailyAt('00:06'); // was daily() = 00:00; must follow the marker
         $schedule->command('grab:sync-all-menu')->daily();
+        // Grab tokens last 7 days: renewed within a day of expiry, hourly at :48 (clear of the
+        // :00 / :05 Grab runs). Nothing renewed them before, so quiet accounts lapsed.
+        $schedule->command('grab:renew-tokens')->cron('48 * * * *')->withoutOverlapping(30);
         // Grab ends any pause after 24 h; re-pause stores mark1 holds paused (its
         // orders would be refused anyway). Off with GRAB_PAUSE_REASSERT=false.
         if (config('grab.pause_reassert')) {

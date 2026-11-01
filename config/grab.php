@@ -28,6 +28,12 @@ return [
     'menu_notify_delay_seconds' => (int) env('GRAB_MENU_NOTIFY_DELAY_SECONDS', 180),
 
     /*
+     * The daily full menu sync (grab:sync-all-menu) sends one store every this many
+     * seconds: sent all at once at 00:00, Grab answered 429 for 13–16 stores a night.
+     */
+    'daily_sync_spacing_seconds' => (int) env('GRAB_DAILY_SYNC_SPACING_SECONDS', 3),
+
+    /*
      * Grab ends any API pause after 24 h. While on, delivery:sync-store-pause runs
      * every 10 minutes and re-pauses each store mark1 holds paused that Grab
      * reports open again. mark1 refuses those stores' orders anyway, so a pause
