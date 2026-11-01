@@ -347,6 +347,18 @@ const settingForm = useForm({
   round_up_cents: props.setting?.round_up_cents ?? 10,
   category: props.setting?.category ?? null,
 })
+// Follow the saved rule after each save or fill (the page keeps its state across visits).
+watch(() => props.setting, (setting) => {
+  if (!setting || settingForm.isDirty) return
+  settingForm.defaults({
+    pricing_mode: setting.pricing_mode,
+    rp_type: setting.rp_type,
+    multiplier: setting.multiplier,
+    round_up_cents: setting.round_up_cents,
+    category: setting.category,
+  })
+  settingForm.reset()
+})
 const rpName = computed(() => props.rpTypes.find(rp => rp.id === Number(settingForm.rp_type))?.name ?? 'RP')
 
 // The same integer maths as GrabPriceList::multiply, on a $2.50 example.
@@ -393,17 +405,20 @@ const subCategoryChoices = computed(() => {
 })
 
 // Products
-const productFilter = ref('all')
+// Products on a machine by default; ones only remembered from old Grab menus under their own chip.
+const productFilter = ref('machines')
 const problemCount = computed(() => props.products.filter(p => p.problem && p.machines).length)
 const productChips = computed(() => [
-  { key: 'all', name: t('All'), count: props.products.length },
+  { key: 'machines', name: t('On machines'), count: props.products.filter(p => p.machines).length },
   { key: 'problem', name: t('Not on Grab yet'), count: problemCount.value },
   { key: 'listed', name: t('On Grab'), count: props.products.filter(p => !p.problem && p.machines).length },
+  { key: 'off', name: t('On no machine'), count: props.products.filter(p => !p.machines).length },
 ])
 const shownProducts = computed(() => props.products.filter(product => {
   if (productFilter.value === 'problem') return product.problem && product.machines
   if (productFilter.value === 'listed') return !product.problem && product.machines
-  return true
+  if (productFilter.value === 'off') return !product.machines
+  return product.machines > 0
 }))
 const picked = ref([])
 const bulkSubCategory = ref(null)
