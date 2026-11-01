@@ -723,7 +723,7 @@ The fix for "we keep our own data and push it, so we drift": split the truth by 
 Brian: "can start to wire the 1st … won't affect those existing one?"
 - **New page `/grab-stores`** (menu: Delivery Platform → Grab Stores). The old Grab Platform ID and Machines entries
   left the menu on 2026-10-30 (Brian), once Grab Stores gained **Edit** (merchantID, operator, remarks) and **On
-  Grab now** (the old Machines channel view, read only). Their addresses still open.
+  Grab now** (the old Machines channel view, read only). Their pages were deleted 2026-11-01; the addresses open Grab Stores.
   - One row per store: machine (link), Site, since, template, status + reason, Grab's machine ID from the last
     order (red when it is not the bound machine), orders in 30 d, last order.
   - Totals chips filter the list.

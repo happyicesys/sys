@@ -17,9 +17,7 @@ use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryPlatformOrderController;
-use App\Http\Controllers\DeliveryPlatformRefNumberController;
 use App\Http\Controllers\DeliveryProductMappingController;
-use App\Http\Controllers\DeliveryProductMappingVendController;
 use App\Http\Controllers\FreezerControlController;
 use App\Http\Controllers\GrabErrorController;
 use App\Http\Controllers\GrabMenuController;
@@ -449,9 +447,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/toggle-pause', [DeliveryProductMappingController::class, 'togglePauseDeliveryProductMappingItem']);
     });
 
-    Route::prefix('delivery-product-mapping-vends')->group(function () {
-        Route::get('/', [DeliveryProductMappingVendController::class, 'index'])->name('delivery-product-mapping-vends');
-    });
+    // Grab Platform ID and Machines left the menu 2026-10-30 and their pages went 2026-11-01:
+    // Grab Stores does both. Old links land there.
+    Route::redirect('/delivery-product-mapping-vends', '/grab-stores')->name('delivery-product-mapping-vends');
+    Route::redirect('/delivery-platform-ref-numbers/{any?}', '/grab-stores')->where('any', '.*')->name('delivery-platform-ref-numbers');
 
     // Grab Errors: every failed exchange with Grab, both ways, last 30 days.
     Route::get('/grab-errors', [GrabErrorController::class, 'index'])->name('grab-errors')->middleware('can:read delivery-platform-vends');
@@ -494,14 +493,6 @@ Route::middleware(['auth', 'cors'])->group(function () {
             Route::post('/bindings/{bindingId}/pause', [GrabStoreController::class, 'pause'])->name('grab-stores.pause');
             Route::post('/bindings/{bindingId}/resume', [GrabStoreController::class, 'resume'])->name('grab-stores.resume');
         });
-    });
-
-    Route::prefix('delivery-platform-ref-numbers')->group(function () {
-        Route::get('/', [DeliveryPlatformRefNumberController::class, 'index'])->name('delivery-platform-ref-numbers');
-        Route::get('/create', [DeliveryPlatformRefNumberController::class, 'create'])->name('delivery-platform-ref-numbers.create');
-        Route::post('/', [DeliveryPlatformRefNumberController::class, 'store'])->name('delivery-platform-ref-numbers.store');
-        Route::get('/{id}/edit', [DeliveryPlatformRefNumberController::class, 'edit'])->name('delivery-platform-ref-numbers.edit');
-        Route::post('/{id}/update', [DeliveryPlatformRefNumberController::class, 'update'])->name('delivery-platform-ref-numbers.update');
     });
 
     Route::prefix('delivery-platform-operators')->group(function () {

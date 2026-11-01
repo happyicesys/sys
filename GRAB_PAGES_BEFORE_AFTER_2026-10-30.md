@@ -98,10 +98,10 @@ First run on prod (14:45): 70 stores read, **no campaigns live or upcoming anywh
 store, GFSBPOS-800-085 on machine 2002, is a sandbox merchantID on the live account. Grab answers "Merchant not
 found" for it, so it stays in the "could not be read" box.
 
-## 4. Grab Platform ID (`/delivery-platform-ref-numbers`) — off the menu; use Grab Stores
+## 4. Grab Platform ID (`/delivery-platform-ref-numbers`) — removed; use Grab Stores
 
-The address still opens. Its Edit now goes through the same writer as Grab Stores, so a change is recorded and the
-operator cannot change while the store is on a machine.
+Off the menu 2026-10-30; the page was deleted 2026-11-01 and the address now opens Grab Stores. The table below is
+what Grab Stores does in its place.
 
 | | Before | Now |
 |---|---|---|
@@ -111,9 +111,10 @@ operator cannot change while the store is on a machine.
 | Switch it back **Active** | Grab was never reopened | Grab is reopened at once |
 | Inactive store still bound to a machine | Its menu, orders and stock kept going in some paths (GoWell 2870 sold on a closed listing) | Counts as off everywhere: menu, orders, stock, re-pause |
 
-## 5. Machines (`/delivery-product-mapping-vends`) — off the menu; use Grab Stores
+## 5. Machines (`/delivery-product-mapping-vends`) — removed; use Grab Stores
 
-The address still opens. Its channel view is now **On Grab now** on Grab Stores. Its per-channel edits are not
+Off the menu 2026-10-30; the page was deleted 2026-11-01 and the address now opens Grab Stores. Its channel view is
+**On Grab now** on Grab Stores. Its per-channel edits are not
 carried over on purpose: reserved % / reserved qty is set on no channel on prod, and a channel pause set there was
 overwritten by the next stock sync.
 
@@ -121,7 +122,7 @@ overwritten by the next stock sync.
 |---|---|---|
 | Pause | Overwrote the binding; no record kept | Recorded as a store event (who, why); Grab paused |
 | Unbind | Closed the binding but left the store **open on Grab** | Closes it with who and why, and pauses the store on Grab |
-| Status filter | Meant "has an open binding", not the store's own status | Unchanged on this page; Grab Stores uses the store's status only |
+| Status filter | Meant "has an open binding", not the store's own status | Grab Stores uses the store's status only |
 
 ## 6. Grab Product Mapping (`/delivery-product-mappings`)
 

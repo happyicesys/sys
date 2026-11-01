@@ -420,20 +420,11 @@ class GrabStoresTest extends TestCase
         $this->assertSame($other->id, (int) $ref->fresh()->operator_id);
     }
 
-    public function test_the_old_grab_platform_id_edit_goes_through_the_writer(): void
+    public function test_the_old_grab_platform_id_and_machines_addresses_land_on_grab_stores(): void
     {
-        $binding = $this->bindGrabStore(2867, 'C7CCRTEJJYUJR6', [11 => ['qty' => 5, 'capacity' => 10]]);
-        $refId = $binding->delivery_platform_ref_number_id;
-
-        $this->actingAs($this->user)->post("/delivery-platform-ref-numbers/{$refId}/update", [
-            'operator_id' => $this->grabMapping->operator_id,
-            'ref_number' => '4-C7CCRTEJJYUJR6',
-            'remarks' => 'From the old page',
-            'is_active' => 'true',
-        ])->assertRedirect();
-
-        $this->assertSame('4-C7CCRTEJJYUJR6', $binding->fresh()->platform_ref_id);
-        $this->assertSame(['renamed', 'edited'], DeliveryPlatformStoreEvent::query()->orderBy('id')->pluck('event')->all());
+        foreach (['/delivery-platform-ref-numbers', '/delivery-platform-ref-numbers/5/edit', '/delivery-product-mapping-vends'] as $old) {
+            $this->actingAs($this->user)->get($old)->assertRedirect('/grab-stores');
+        }
     }
 
     public function test_on_grab_now_lists_the_menu_grab_pulls_with_why_a_slot_cannot_be_ordered(): void
