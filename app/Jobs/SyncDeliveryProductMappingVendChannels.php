@@ -130,17 +130,23 @@ class SyncDeliveryProductMappingVendChannels implements ShouldQueue, ShouldBeUni
                     }
                   }
                 }
-              }else {
+              }elseif (! $this->usesMachineMenu()) {
                 // set the product mapping vend as inactive when no delivery product mapping item found
                 $this->deliveryProductMappingVend->update([
                   'is_active' => false,
                 ]);
               }
             }
-          }else {
+          }elseif (! $this->usesMachineMenu()) {
             $this->deliveryProductMappingVend->update([
               'is_active' => false,
             ]);
           }
+    }
+
+    // A store on the machine menu does not sell from its template, so an empty template must not switch it off.
+    private function usesMachineMenu(): bool
+    {
+        return (bool) $this->deliveryProductMappingVend->deliveryPlatformRefNumber?->usesMachineMenu();
     }
 }

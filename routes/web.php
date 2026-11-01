@@ -22,6 +22,7 @@ use App\Http\Controllers\DeliveryProductMappingController;
 use App\Http\Controllers\DeliveryProductMappingVendController;
 use App\Http\Controllers\FreezerControlController;
 use App\Http\Controllers\GrabErrorController;
+use App\Http\Controllers\GrabMenuController;
 use App\Http\Controllers\GrabPromotionController;
 use App\Http\Controllers\GrabStoreController;
 use App\Http\Controllers\HappyHourCampaignController;
@@ -456,6 +457,18 @@ Route::middleware(['auth', 'cors'])->group(function () {
 
     // Grab Promotions (2026-10-31): what Grab runs, read from Grab, and New / Edit / End,
     // sent to Grab store by store. ConnectVend keeps only the log of what it asked.
+    // Grab Menu & Prices (2026-11-01): the menu follows each machine; price per operator rule.
+    Route::prefix('grab-menu')->middleware('can:read delivery-platform-product-mappings')->group(function () {
+        Route::get('/', [GrabMenuController::class, 'index'])->name('grab-menu');
+        Route::post('/{operatorId}/setting', [GrabMenuController::class, 'updateSetting'])->name('grab-menu.setting');
+        Route::post('/{operatorId}/products/{productId}', [GrabMenuController::class, 'updateProduct'])->name('grab-menu.product');
+        Route::post('/{operatorId}/sub-categories', [GrabMenuController::class, 'updateSubCategories'])->name('grab-menu.sub-categories');
+        Route::post('/{operatorId}/fill-from-templates', [GrabMenuController::class, 'fillFromTemplates'])->name('grab-menu.fill');
+        Route::get('/{operatorId}/grab-categories', [GrabMenuController::class, 'grabCategories'])->name('grab-menu.grab-categories');
+        Route::post('/{operatorId}/menu-source', [GrabMenuController::class, 'setMenuSource'])->name('grab-menu.menu-source');
+        Route::get('/stores/{refId}/preview', [GrabMenuController::class, 'preview'])->name('grab-menu.preview');
+    });
+
     Route::prefix('grab-promotions')->group(function () {
         Route::get('/', [GrabPromotionController::class, 'index'])->name('grab-promotions')->middleware('can:read delivery-platform-campaigns');
         Route::post('/', [GrabPromotionController::class, 'store'])->name('grab-promotions.store')->middleware('can:create delivery-platform-campaigns');

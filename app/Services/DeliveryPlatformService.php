@@ -12,11 +12,15 @@ use App\Models\DeliveryPlatformOrderItem;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryProductMappingVendChannel;
+use App\Models\GrabMenuSetting;
 use App\Models\Operator;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendData;
 use App\Services\DeliveryProductMappingService;
+use App\Services\Grab\Menu\GrabMachineMenu;
+use App\Services\Grab\Menu\GrabMenuItemId;
+use App\Services\Grab\Menu\MachineMenuLine;
 use App\Services\MqttService;
 use App\Services\RunningNumberService;
 use App\Services\VendDispenseService;
@@ -260,6 +264,15 @@ class DeliveryPlatformService
     return false;
   }
 
+  // The product a slot line drops: its template item's, or (machine menu, no template) the order line's.
+  private function dispenseProduct($orderItemVendChannel): array
+  {
+    $product = $orderItemVendChannel->deliveryProductMappingItem?->product
+      ?? $orderItemVendChannel->deliveryPlatformOrderItem?->product;
+
+    return ['id' => $product?->id, 'name' => $product?->name];
+  }
+
   public function dispenseOrder(DeliveryPlatformOrder $deliveryPlatformOrder)
   {
     $this->deliveryPlatformOperator = $deliveryPlatformOrder->deliveryPlatformOperator;
@@ -294,20 +307,14 @@ class DeliveryPlatformService
           $dispenseData['channels'][] = [
             'code' => $item->vend_channel_code,
             'qty' => 1,
-            'product' => [
-              'id' => $item->deliveryProductMappingItem->product->id,
-              'name' => $item->deliveryProductMappingItem->product->name,
-            ],
+            'product' => $this->dispenseProduct($item),
           ];
         }
       } else {
         $dispenseData['channels'][] = [
           'code' => $item->vend_channel_code,
           'qty' => 1,
-          'product' => [
-            'id' => $item->deliveryProductMappingItem->product->id,
-            'name' => $item->deliveryProductMappingItem->product->name,
-          ],
+          'product' => $this->dispenseProduct($item),
         ];
       }
     }
@@ -645,7 +652,7 @@ class DeliveryPlatformService
               'operator.country:id,name,code,currency_name,currency_symbol,currency_exponent'
             ]),
         'deliveryProductMappingVendChannels:id,amount,delivery_product_mapping_item_id,delivery_product_mapping_vend_id,order_qty,is_active,vend_channel_code,vend_channel_id',
-        'deliveryPlatformRefNumber:id,ref_number'
+        'deliveryPlatformRefNumber:id,ref_number,operator_id'
       ])
       ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'delivery_platform_ref_number_id', 'vend_id', 'vend_code')
       ->findOrFail($deliveryProductMappingVend->id);
@@ -661,18 +668,68 @@ class DeliveryPlatformService
       'sellingTimes' => [$this->getGrabMenuSellingTimes()],
     ];
 
+    // Grab Menu & Prices: a switched store lists its machine's slots, not the template.
+    $machineMenu = (bool) $deliveryProductMappingVend->deliveryPlatformRefNumber?->usesMachineMenu();
+    $subCategories = $machineMenu
+      ? $this->getGrabMachineMenuSubCategories($deliveryProductMappingVend)
+      : $this->getGrabMenuSubCategoriesItems($vendChannelIds);
+
     if ($scope === 'mart.partner_api') {
       $response['categories'] = [
         [
-          ...$this->getGrabMenuCategoriesDefault($deliveryProductMappingVendObj),
-          'subCategories' => $this->getGrabMenuSubCategoriesItems($vendChannelIds),
+          ...($machineMenu ? $this->getGrabMachineMenuCategory($deliveryProductMappingVendObj) : $this->getGrabMenuCategoriesDefault($deliveryProductMappingVendObj)),
+          'subCategories' => $subCategories,
         ]
       ];
     } elseif ($scope === 'food.partner_api') {
-      $response['categories'] = $this->getGrabMenuSubCategoriesItems($vendChannelIds);
+      $response['categories'] = $subCategories;
     }
 
     return $response;
+  }
+
+  // The operator's Grab category (Grab Menu & Prices), else the template's; always open.
+  private function getGrabMachineMenuCategory($model): array
+  {
+    $operatorId = (int) ($model->deliveryPlatformRefNumber?->operator_id ?? $model->deliveryProductMapping->operator_id);
+    $category = GrabMenuSetting::forOperator($operatorId)->category_json;
+
+    return [
+      'id' => $category['id'] ?? $model->deliveryProductMapping->platform_category_id,
+      'name' => $category['name'] ?? $model->deliveryProductMapping->platform_category_name,
+      'availableStatus' => Grab::STATUS_AVAILABLE,
+      'sellingTimeID' => $this->getGrabMenuSellingTimes()['id'],
+    ];
+  }
+
+  /**
+   * The machine menu as Grab's sub-categories with their items: one item per product on
+   * the machine that has a Grab price and sub-category, id "P" + products.id.
+   */
+  private function getGrabMachineMenuSubCategories(DeliveryProductMappingVend $deliveryProductMappingVend): array
+  {
+    $sellingTimeId = $this->getGrabMenuSellingTimes()['id'];
+
+    return app(GrabMachineMenu::class)->listed($deliveryProductMappingVend)
+      ->groupBy(fn (MachineMenuLine $line) => (string) $line->subCategory['id'])
+      ->map(fn ($lines) => [
+        'id' => (string) $lines->first()->subCategory['id'],
+        'name' => $lines->first()->subCategory['name'] ?? (string) $lines->first()->subCategory['id'],
+        'availableStatus' => Grab::STATUS_AVAILABLE,
+        'sellingTimeID' => $sellingTimeId,
+        'items' => $lines->map(fn (MachineMenuLine $line) => $this->getGrabMenuItems([
+          'item_id' => $line->itemId(),
+          'item_name' => $line->product->name,
+          'translated_item_name' => $line->product->translated_names_json ? collect($line->product->translated_names_json)->pluck('name', 'id')->all() : null,
+          'desc' => $line->product->desc,
+          'amount_cents' => $line->price,
+          'image_url' => $line->product->thumbnail?->full_url,
+          'is_active' => $line->available() > 0 ? Grab::STATUS_AVAILABLE : Grab::STATUS_UNAVAILABLE,
+          'available_qty' => $line->available(),
+        ]))->values()->all(),
+      ])
+      ->values()
+      ->all();
   }
 
   /**
@@ -897,6 +954,15 @@ class DeliveryPlatformService
     }
     $items = collect($input['items']);
 
+    // Grab Menu & Prices: "P" ids are products on the store's machine; bare ids are template items.
+    [$machineItems, $items] = $items->partition(fn ($item) => GrabMenuItemId::productId($item['id'] ?? null) !== null);
+    if ($machineItems->isNotEmpty()) {
+      $this->createMachineMenuOrderItems($deliveryPlatformOrder, $machineItems);
+    }
+    if ($items->isEmpty()) {
+      return;
+    }
+
     // dd($deliveryPlatformOrder->toArray());
     // get all the vend channels on this vend for this product id
     // use group by product id on ver2
@@ -931,6 +997,59 @@ class DeliveryPlatformService
     $this->createOrderItemVendChannels($deliveryPlatformOrder);
   }
 
+  /**
+   * Machine-menu lines: the product must be on the store's machine now. Each line goes to
+   * the slots holding it, most stock first, and only when they hold enough together;
+   * an unallocated line cancels the order, as a template line does.
+   */
+  private function createMachineMenuOrderItems(DeliveryPlatformOrder $deliveryPlatformOrder, $items): void
+  {
+    $lines = app(GrabMachineMenu::class)->lines($deliveryPlatformOrder->deliveryProductMappingVend);
+
+    foreach ($items as $item) {
+      $productId = GrabMenuItemId::productId($item['id']);
+      $line = $lines->get($productId);
+      if (!$line) {
+        $this->abortUnservableOrder($deliveryPlatformOrder, 'Item ' . $item['id'] . ' is not on this machine.');
+      }
+
+      $qty = (int) $item['quantity'];
+      $unitCents = (int) $item['price'];
+      $orderItem = $deliveryPlatformOrder->deliveryPlatformOrderItems()->create([
+        'delivery_product_mapping_item_id' => null,
+        'amount' => $unitCents * $qty,
+        'product_id' => $productId,
+        'product_json' => $line->product,
+        'qty' => $qty,
+      ]);
+
+      if ($line->available() < $qty) {
+        continue;
+      }
+
+      $left = $qty;
+      foreach ($line->slots as $slot) {
+        $take = min($left, $slot['available']);
+        if ($take <= 0) {
+          continue;
+        }
+        $deliveryPlatformOrder->orderItemVendChannels()->create([
+          'amount' => $take * $unitCents,
+          'delivery_product_mapping_vend_channel_id' => null,
+          'delivery_product_mapping_item_id' => null,
+          'delivery_platform_order_item_id' => $orderItem->id,
+          'vend_channel_id' => $slot['vend_channel_id'],
+          'vend_channel_code' => $slot['code'],
+          'qty' => $take,
+        ]);
+        $left -= $take;
+        if ($left === 0) {
+          break;
+        }
+      }
+    }
+  }
+
   // A 4xx, not a 5xx: an order for items this store does not list fails the same way
   // on every retry. The open transaction rolls back with the abort.
   private function abortUnservableOrder(DeliveryPlatformOrder $deliveryPlatformOrder, string $message)
@@ -950,7 +1069,8 @@ class DeliveryPlatformService
   private function createOrderItemVendChannels(DeliveryPlatformOrder $deliveryPlatformOrder)
   {
     $isSuccessful = true;
-    $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems()->get();
+    // Template lines only; machine-menu lines were allocated when they were made.
+    $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems()->whereNotNull('delivery_product_mapping_item_id')->get();
     foreach ($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
       $deliveryProductMappingVendChannels =
         $deliveryPlatformOrderItem

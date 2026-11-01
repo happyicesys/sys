@@ -84,20 +84,34 @@ class DeliveryProductMapping extends Model
     public function scopeFilterIndex($query, $request)
     {
 
-        $query = $query->when($request->name, function($query, $search) {
+        $query = $query->when($request->name, function ($query, $search) {
             $query->where('name', 'LIKE', "%{$search}%");
         })
-        ->when($request->vend_code, function($query, $search) use ($request) {
-            $query->whereHas('deliveryProductMappingVends.vend', function($query) use ($request) {
-                $query->where('code', 'LIKE', "{$request->vend_code}%");
+            ->when($request->vend_code, function ($query, $search) use ($request) {
+                $query->whereHas('deliveryProductMappingVends.vend', function ($query) use ($request) {
+                    $query->where('code', 'LIKE', "{$request->vend_code}%");
+                });
+            })
+            ->when($request->platform_ref_id, function ($query, $search) {
+                $query->whereHas('deliveryProductMappingVends', function ($query) use ($search) {
+                    $query->where('platform_ref_id', 'LIKE', "{$search}%");
+                });
             });
-        })
-        ->when($request->platform_ref_id, function($query, $search) {
-            $query->whereHas('deliveryProductMappingVends', function($query) use ($search) {
-                $query->where('platform_ref_id', 'LIKE', "{$search}%");
-            });
-        });
 
         return $query;
+    }
+
+    /**
+     * Every store on this template lists its machine now (Grab Menu & Prices), so its
+     * items no longer reach Grab: the template is kept read-only, as history.
+     */
+    public function followsMachines(): bool
+    {
+        $open = fn () => DeliveryProductMappingVend::query()->withoutGlobalScopes()
+            ->where('delivery_product_mapping_id', $this->id)
+            ->whereNull('end_date');
+
+        return $open()->exists()
+            && ! $open()->whereDoesntHave('deliveryPlatformRefNumber', fn ($query) => $query->whereNotNull('menu_from_machine_at'))->exists();
     }
 }

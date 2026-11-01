@@ -585,8 +585,12 @@ const eventNames = {
   switched_on: t('Switched on'),
   renamed: t('Merchant ID changed'),
   edited: t('Store details changed'),
+  menu_source: t('Menu changed'),
 }
 const menuReasons = {
+  no_rp: t('No RP price (Grab Menu & Prices)'),
+  no_custom_price: t('No Grab price (Grab Menu & Prices)'),
+  no_sub_category: t('No Grab sub-category (Grab Menu & Prices)'),
   store_paused: t('Store paused'),
   item_off: t('Switched off in the Grab template'),
   slot_fault: t('Slot fault on the machine'),
@@ -821,6 +825,9 @@ function eventText(event) {
       parts.push(t('remarks: :text', { text: event.data.remarks.to ?? '—' }))
     }
     return parts.length ? `${name}: ${parts.join(', ')}` : name
+  }
+  if (event.event === 'menu_source') {
+    return `${name}: ${event.data?.machine_menu ? t('lists its machine') : t('back on the old Grab menu')}`
   }
   if (event.event === 'renamed') {
     return `${name}: ${event.data?.from ?? ''} → ${event.data?.to ?? ''}`

@@ -201,6 +201,7 @@ class DeliveryProductMappingController extends Controller
     public function deleteDeliveryProductMappingItem($id)
     {
         $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($id);
+        $this->abortIfFollowsMachines($deliveryProductMappingItem->delivery_product_mapping_id);
         $deliveryProductMapping = $deliveryProductMappingItem->deliveryProductMapping;
 
         if ($deliveryProductMappingItem->deliveryProductMappingVendChannels()->exists()) {
@@ -252,6 +253,7 @@ class DeliveryProductMappingController extends Controller
 
     public function storeDeliveryProductMappingItem(Request $request, $deliveryProductMappingId)
     {
+        $this->abortIfFollowsMachines((int) $deliveryProductMappingId);
         $request->validate([
             'amount' => 'required|numeric|gt:0',
             'channel_code' => 'required',
@@ -346,6 +348,8 @@ class DeliveryProductMappingController extends Controller
         // dd($this->deliveryProductMappingService->getBundleSalesOptions($deliveryProductMapping));
 
         return Inertia::render('DeliveryPlatform/Edit', [
+            // Grab Menu & Prices: every store on it lists its machine, so its items are read-only.
+            'followsMachines' => $deliveryProductMapping->followsMachines(),
             'bundleSalesOptions' => $this->deliveryProductMappingService->getBundleSalesOptions($deliveryProductMapping),
             'deliveryProductMapping' => DeliveryProductMappingResource::make(
                 $deliveryProductMapping
@@ -447,6 +451,7 @@ class DeliveryProductMappingController extends Controller
     public function togglePauseDeliveryProductMappingItem($deliveryProductMappingItemId)
     {
         $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($deliveryProductMappingItemId);
+        $this->abortIfFollowsMachines($deliveryProductMappingItem->delivery_product_mapping_id);
         $deliveryProductMappingItem->update([
             'is_active' => ! $deliveryProductMappingItem->is_active,
         ]);
@@ -575,6 +580,7 @@ class DeliveryProductMappingController extends Controller
     public function updateDeliveryProductMappingItem(Request $request, $id)
     {
         $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($id);
+        $this->abortIfFollowsMachines($deliveryProductMappingItem->delivery_product_mapping_id);
         if ($deliveryProductMappingItem->amount != $request->amount or $deliveryProductMappingItem->sub_category_json != $request->sub_category_json) {
             $deliveryProductMappingItem->update([
                 'amount' => $request->amount,
@@ -596,5 +602,13 @@ class DeliveryProductMappingController extends Controller
         $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->id, $deliveryProductMappingVendChannel->deliveryProductMappingVend->id);
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->id]);
+    }
+
+    // Grab Menu & Prices: a template whose stores all list their machines takes no item changes.
+    private function abortIfFollowsMachines(int $deliveryProductMappingId): void
+    {
+        if (DeliveryProductMapping::query()->withoutGlobalScopes()->findOrFail($deliveryProductMappingId)->followsMachines()) {
+            throw ValidationException::withMessages(['delivery_product_mapping' => __('Every store on this Grab menu lists its machine now. Set prices and sub-categories on Grab Menu & Prices.')]);
+        }
     }
 }

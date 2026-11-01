@@ -2310,9 +2310,10 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
     what, the exact body and Grab's answer. It is the page's "Sent to Grab in the last 24 hours" box and how a row
     reads "Made in ConnectVend" (a successful create carrying that Grab id, `DeliveryPlatformLiveCampaign::createSend`).
     It is never read as what is live.
-  - **The form** builds Grab's body from a Grab menu (`delivery_product_mappings`): the stores on it now, and its
-    `delivery_product_mapping_items.id` as `objectIDs` — validated against that menu, types / scopes / eater types
-    from `Grab::CAMPAIGN_MAPPINGS`. Amounts are validated as cents and sent to Grab in dollars, times in UTC.
+  - **The form** picks stores (machine · site · merchant ID) and one of 8 deals that need nothing picked
+    (`GrabPromotionController::DEALS`; Brian 2026-11-01: no SKU picking). An item deal takes every item on each
+    store's menu at send time (`GrabPromotionService::menuItemIds`: "P" ids on the machine menu, template item ids
+    otherwise). Amounts are validated as cents and sent to Grab in dollars, times in UTC.
   - **Leftover** = a campaign the OLD pages made (`delivery_platform_campaign_item_vends.platform_ref_id`) that they
     believe ended (inactive, past its end, or on a closed binding) while Grab still runs it — the failed-DELETE case
     behind "same item in two campaigns". End it from the page.
@@ -2335,6 +2336,28 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   ended stores are never notified. Never `dispatchSync` a notify again: it ran before the channel sync and sent
   ~750 full syncs a day. Stock / price changes belong in Grab's Update Menu Record / Batch (Phase 2).
 - **Menu prices are stored cents** (`getRawOriginal('amount')`), integers on the wire; never `round($dollars * 100)`.
+- **Grab Menu & Prices: the machine is the menu** (Brian, 2026-11-01: "use back the original product mapping from
+  the machine … disable the remover of any SKU"; page `/grab-menu`, plan §10). A store whose ref has
+  `menu_from_machine_at` set lists every product on its machine's active slots — one Grab item per product, id
+  **"P" + products.id** (`GrabMenuItemId`), stock summed over its slots less units on open orders
+  (`GrabMachineMenu::heldQtyByVendChannel`, by `vend_channel_id`). No SKU is added or removed by hand and there are no
+  per-store exclusions; a planogram change reaches Grab with the machine's next channel report.
+  - **Price = the operator's rule** (`grab_menu_settings`, one per operator; HIPL staff set any operator's):
+    `rp` = the chosen RP tier's `selling_prices` amount; `rp_multiplier` = that × `multiplier_bp`/10000, ALWAYS
+    rounded UP to `round_up_cents` (10¢ or $1) in integers (`GrabPriceList::multiply`); `custom` =
+    `grab_menu_products.custom_amount`. A product with no price under the rule, or no Grab sub-category
+    (`grab_menu_products.sub_category_json`), is not listed — never sold at $0. The Grab category is the operator's
+    `category_json`, always AVAILABLE.
+  - **Writers:** `GrabMenuService` (settings, products; notifies the operator's machine-menu stores) and
+    `GrabStoreService::setMenuSource` (switch a store, event `menu_source`). Product → Edit RP / name changes call
+    `GrabMenuService::productChanged`.
+  - **Orders** for "P" items are allocated to the slots holding the product, most stock first, only when they hold
+    enough together (`DeliveryPlatformService::createMachineMenuOrderItems`); the order line and slot lines carry no
+    template ids (`order_item_vend_channels.delivery_product_mapping_vend_channel_id` is nullable), and the drop reads
+    the order line's product. Bare numeric ids still go the template way, so orders in flight survive a switch.
+  - A template whose open stores are all on the machine menu is read-only (`DeliveryProductMapping::followsMachines`);
+    the bridge sync never switches a machine-menu store off for an empty template. Stores still on a template are
+    untouched. Coverage: `tests/Feature/GrabMachineMenuTest.php`.
 - **Grab ends any pause after 24 h.** `delivery:sync-store-pause --apply --only-if-open` runs every 10 min
   (`GRAB_PAUSE_REASSERT`) over open rows that are paused or whose ref number is Inactive, asks Grab's store status
   and re-pauses only a store Grab reopened; a merchant selling on another row is never paused. Calls are spaced `GRAB_STORE_API_SPACING_MS` (300; Grab allows 5 a second for the
@@ -2352,7 +2375,7 @@ Regression coverage: `tests/Feature/GrabOrderWebhookTest.php` (built from a real
 `tests/Support/Grab`), `tests/Feature/GrabMenuTest.php`, `tests/Feature/GrabWebhookAuthTest.php`,
 `tests/Feature/GrabCampaignAndUpkeepTest.php`, `tests/Feature/GrabInactiveRefNumberTest.php`,
 `tests/Feature/SyncDeliveryStorePauseTest.php`, `tests/Feature/GrabStoresTest.php`,
-`tests/Feature/GrabApiErrorsTest.php`.
+`tests/Feature/GrabApiErrorsTest.php`, `tests/Feature/GrabMachineMenuTest.php`.
 
 ## Code style
 

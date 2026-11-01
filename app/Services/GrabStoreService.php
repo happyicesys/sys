@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\NotifyDeliveryPlatformUpdateMenu;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatformStoreEvent;
@@ -322,6 +323,30 @@ class GrabStoreService
             $reason,
             $grab ? ['grab' => $grab] : null,
         );
+    }
+
+    /**
+     * Grab Menu & Prices: the store lists its machine's slots (true) or its old Grab
+     * template (false). Grab is told to read the menu again; it changes on Grab within
+     * minutes, item ids and all ("P" + product id on the machine menu).
+     */
+    public function setMenuSource(DeliveryPlatformRefNumber $ref, bool $machineMenu, ?int $userId): bool
+    {
+        if ($ref->usesMachineMenu() === $machineMenu) {
+            return false;
+        }
+
+        $ref->update(['menu_from_machine_at' => $machineMenu ? now() : null]);
+
+        foreach ($ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->get() as $binding) {
+            if ($binding->isSelling()) {
+                NotifyDeliveryPlatformUpdateMenu::debounced($binding);
+            }
+        }
+
+        $this->event($ref, DeliveryPlatformStoreEvent::EVENT_MENU_SOURCE, $userId, null, null, ['machine_menu' => $machineMenu]);
+
+        return true;
     }
 
     /**

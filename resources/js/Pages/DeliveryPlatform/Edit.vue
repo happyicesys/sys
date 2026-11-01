@@ -11,6 +11,10 @@
     </template>
 
      <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
+      <div v-if="followsMachines" class="mb-3 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+        {{ $t('Every store on this Grab menu lists its machine now, so its items no longer reach Grab and cannot be changed here.') }}
+        <a href="/grab-menu" class="underline font-medium">{{ $t('Go to Grab Menu & Prices') }}</a>
+      </div>
       <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5">
@@ -744,6 +748,7 @@ import { useToast } from "vue-toastification";
 import { t } from '@/i18n';
 
 const props = defineProps({
+    followsMachines: Boolean,
     bundleSalesOptions: [Array, Object],
     deliveryProductMapping: Object,
     productMappingItems: Object,

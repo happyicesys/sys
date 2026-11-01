@@ -13,6 +13,8 @@ use App\Models\DeliveryProductMappingVendChannel;
 use App\Models\Vend;
 use App\Services\DeliveryPlatformService;
 use App\Services\DeliveryProductMappingService;
+use App\Services\Grab\Menu\GrabMachineMenu;
+use App\Services\Grab\Menu\MachineMenuLine;
 use App\Services\GrabStoreService;
 use App\Support\Grab\GrabStoreVisibility;
 use Carbon\Carbon;
@@ -292,6 +294,10 @@ class GrabStoreController extends Controller
             'selling' => $selling,
         ];
 
+        if ($ref->usesMachineMenu()) {
+            return response()->json($base + $this->machineMenu($binding));
+        }
+
         // Built as Grab's pull builds it: with no viewer, so the viewer's own product and
         // machine limits cannot drop a line Grab does get (the store was checked above).
         $mappingService = app(DeliveryProductMappingService::class);
@@ -358,6 +364,49 @@ class GrabStoreController extends Controller
                 'available' => count(array_filter($lines, fn ($line) => $line['available'])),
             ],
         ]);
+    }
+
+    /**
+     * "On Grab now" for a store on the machine menu (Grab Menu & Prices): one line per
+     * product on the machine, listed or not, and why not.
+     */
+    private function machineMenu(DeliveryProductMappingVend $binding): array
+    {
+        try {
+            [$menu, $machineLines] = $this->withoutViewer(fn () => [
+                app(DeliveryPlatformService::class)->buildMenu($binding),
+                app(GrabMachineMenu::class)->lines($binding),
+            ]);
+        } catch (\Throwable $e) {
+            return ['error' => __('The menu could not be built: :error', ['error' => $e->getMessage()]), 'lines' => []];
+        }
+
+        $lines = $machineLines->map(fn (MachineMenuLine $line) => [
+            'sub_category' => $line->subCategory['name'] ?? null,
+            'item_id' => $line->itemId(),
+            'name' => $line->product->name,
+            'product_code' => $line->product->code,
+            'slot' => $line->slots->pluck('code')->implode(', '),
+            'price' => (int) $line->price,
+            'available' => $line->isListed() && $line->available() > 0,
+            'max_stock' => $line->available(),
+            'machine_qty' => null,
+            'held' => 0,
+            'has_photo' => (bool) $line->product->thumbnail?->full_url,
+            'reason' => $line->problem() ?? ($line->available() > 0 ? null : 'sold_out'),
+        ])->values()->all();
+
+        return [
+            'machine_menu' => true,
+            'grab_has_it' => $binding->last_menu_json
+                ? DeliveryPlatformService::comparableMenu($menu) === DeliveryPlatformService::comparableMenu($binding->last_menu_json)
+                : null,
+            'lines' => $lines,
+            'counts' => [
+                'items' => count($lines),
+                'available' => count(array_filter($lines, fn ($line) => $line['available'])),
+            ],
+        ];
     }
 
     /** Runs $read with no signed-in user (the global scopes then see what Grab's own calls see). */

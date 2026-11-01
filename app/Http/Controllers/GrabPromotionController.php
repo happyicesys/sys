@@ -9,6 +9,8 @@ use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryProductMappingItem;
 use App\Models\DeliveryProductMappingVend;
+use App\Models\Product;
+use App\Services\Grab\Menu\GrabMenuItemId;
 use App\Services\GrabCampaignMirror;
 use App\Services\GrabPromotionService;
 use App\Services\GrabStoreService;
@@ -520,6 +522,14 @@ class GrabPromotionController extends Controller
             ->filter(fn ($item) => $item->product)
             ->mapWithKeys(fn ($item) => [(string) $item->id => trim($item->product->code.' '.$item->product->name)])
             ->all() : [];
+
+        // Machine-menu items ("P" + product id).
+        $productIds = collect($ids['items'])->map(fn ($id) => GrabMenuItemId::productId($id))->filter()->unique();
+        if ($productIds->isNotEmpty()) {
+            $items += Product::query()->withoutGlobalScopes()->whereIn('id', $productIds)->get(['id', 'code', 'name'])
+                ->mapWithKeys(fn ($product) => [GrabMenuItemId::forProduct($product->id) => trim($product->code.' '.$product->name)])
+                ->all();
+        }
 
         $categories = $ids['category'] ? DeliveryProductMappingItem::query()
             ->select(DB::raw('json_unquote(json_extract(sub_category_json, "$.id")) AS sub_id'), DB::raw('json_unquote(json_extract(sub_category_json, "$.name")) AS sub_name'))

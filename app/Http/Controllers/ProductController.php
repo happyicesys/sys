@@ -25,6 +25,7 @@ use App\Models\UnitCost;
 use App\Models\Uom;
 use App\Models\VendChannel;
 use App\Services\CmsService;
+use App\Services\Grab\Menu\GrabMenuService;
 use App\Services\TagBindingService;
 use App\Services\VendChannelService;
 use App\Services\VendTransactionSalesAggregator;
@@ -1095,6 +1096,10 @@ class ProductController extends Controller
         } elseif ($priceAdded) {
             PushMappingMenuSync::scheduleForProduct($product->id, serverPriceOnly: true);
         }
+        // Grab stores on the machine menu price and name it from here (Grab Menu & Prices).
+        if ($menuChanged || $priceAdded) {
+            app(GrabMenuService::class)->productChanged($product->id);
+        }
 
         return redirect()->back()->with('success', __('Product updated successfully'));
     }
@@ -1249,6 +1254,7 @@ class ProductController extends Controller
         $sellingPrice->delete();
 
         PushMappingMenuSync::scheduleForProduct($sellingPrice->product_id, serverPriceOnly: true);
+        app(GrabMenuService::class)->productChanged((int) $sellingPrice->product_id);
 
         return redirect()->back()->with('success', __('Selling price deleted successfully'));
     }

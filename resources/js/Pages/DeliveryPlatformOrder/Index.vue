@@ -363,13 +363,13 @@
                               (#{{ deliveryPlatformOrderItem.orderItemVendChannels[0].vend_channel_code }})
                             </span>
                           </span>
-                          <span v-if="deliveryPlatformOrderItem && deliveryPlatformOrderItem.deliveryProductMappingItem && deliveryPlatformOrderItem.deliveryProductMappingItem.product">
-                            {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.code }} <br>
-                            {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.name }}
+                          <span v-if="deliveryPlatformOrderItem && lineProduct(deliveryPlatformOrderItem)">
+                            {{ lineProduct(deliveryPlatformOrderItem)?.code }} <br>
+                            {{ lineProduct(deliveryPlatformOrderItem)?.name }}
                           </span>
                           <!-- <div class="flex self-center">
-                            <a :href="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" target="_blank" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail">
-                              <img class="h-24 w-24 md:h-16 md:w-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" />
+                            <a :href="lineProduct(deliveryPlatformOrderItem).thumbnail.full_url" target="_blank" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail">
+                              <img class="h-24 w-24 md:h-16 md:w-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="lineProduct(deliveryPlatformOrderItem).thumbnail.full_url" alt="" />
                             </a>
                           </div> -->
                           <span class="self-center">
@@ -694,4 +694,9 @@ function statusClass(deliveryPlatformOrder) {
   }
 }
 
+
+// A template line names its product through the Grab template item; a machine-menu line carries it itself.
+function lineProduct(orderItem) {
+  return orderItem?.deliveryProductMappingItem?.product ?? orderItem?.product ?? null
+}
 </script>

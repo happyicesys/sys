@@ -121,6 +121,9 @@ class DeliveryPlatformOrderController extends Controller
                 'deliveryProductMappingVend.vend.customer:id,code,name',
                 'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
                 'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
+                // A machine-menu line has no template item; its own product is shown instead.
+                'deliveryPlatformOrderItems.product:id,code,name,is_active',
+                'deliveryPlatformOrderItems.product.thumbnail',
                 'deliveryPlatformOrderItems.orderItemVendChannels',
                 // 'orderItemVendChannels.deliveryProductMappingItem.product:id,code,name,is_active',
                 // 'orderItemVendChannels.deliveryProductMappingItem.product.thumbnail',
@@ -206,6 +209,9 @@ class DeliveryPlatformOrderController extends Controller
                 'deliveryPlatformOrderComplaint',
                 'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
                 'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
+                // A machine-menu line has no template item; its own product is shown instead.
+                'deliveryPlatformOrderItems.product:id,code,name,is_active',
+                'deliveryPlatformOrderItems.product.thumbnail',
                 'deliveryPlatformOrderItems.orderItemVendChannels',
                 'vendTransaction',
 

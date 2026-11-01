@@ -30,6 +30,9 @@ class DeliveryPlatformStoreEvent extends Model
 
     const EVENT_EDITED = 'edited';
 
+    // Grab Menu & Prices: data.machine_menu true = the store lists its machine's slots.
+    const EVENT_MENU_SOURCE = 'menu_source';
+
     protected $fillable = [
         'data',
         'delivery_platform_ref_number_id',

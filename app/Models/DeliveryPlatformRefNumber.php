@@ -18,14 +18,25 @@ class DeliveryPlatformRefNumber extends Model
         self::STATUS_INACTIVE => 'Inactive',
     ];
 
+    protected $casts = [
+        'menu_from_machine_at' => 'datetime',
+    ];
+
     protected $fillable = [
         'created_at',
         'delivery_platform_id',
+        'menu_from_machine_at',
         'operator_id',
         'ref_number',
         'remarks',
         'status',
     ];
+
+    // Grab Menu & Prices: the store lists its machine's slots, not its old Grab template.
+    public function usesMachineMenu(): bool
+    {
+        return $this->menu_from_machine_at !== null;
+    }
 
     public function deliveryPlatform()
     {

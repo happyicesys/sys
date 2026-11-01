@@ -281,15 +281,15 @@
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             <div class="flex justify-center">
-                              <img class="h-24 w-24 md:h-20 md:w-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product && deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail"/>
+                              <img class="h-24 w-24 md:h-20 md:w-20 rounded-lg object-contain bg-white border border-gray-200 p-1" :src="lineProduct(deliveryPlatformOrderItem).thumbnail.full_url" alt="" v-if="lineProduct(deliveryPlatformOrderItem) && lineProduct(deliveryPlatformOrderItem).thumbnail"/>
                             </div>
                           </td>
                           <td class="whitespace-normal py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left flex flex-col">
-                            <span v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product.code">
-                              {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.code }}
+                            <span v-if="lineProduct(deliveryPlatformOrderItem)?.code">
+                              {{ lineProduct(deliveryPlatformOrderItem)?.code }}
                             </span>
-                            <span class="break-words" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product.name">
-                              {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.name }}
+                            <span class="break-words" v-if="lineProduct(deliveryPlatformOrderItem)?.name">
+                              {{ lineProduct(deliveryPlatformOrderItem)?.name }}
                             </span>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
@@ -499,4 +499,9 @@ function submit() {
   }
 }
 
+
+// A template line names its product through the Grab template item; a machine-menu line carries it itself.
+function lineProduct(orderItem) {
+  return orderItem?.deliveryProductMappingItem?.product ?? orderItem?.product ?? null
+}
 </script>

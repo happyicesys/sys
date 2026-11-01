@@ -8,6 +8,8 @@ use App\Models\DeliveryPlatformLiveCampaign;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatforms\Grab;
+use App\Models\DeliveryProductMappingVend;
+use App\Services\Grab\Menu\GrabMachineMenu;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -105,25 +107,47 @@ class GrabPromotionService
     }
 
     /**
-     * What each store sells on Grab now: the products on its machine's slots, by the item
-     * id its Grab menu gives them (DeliveryPlatformService::buildMenu). A promotion on
-     * items takes all of them (Brian, 2026-11-01: use the machine's product mapping, no
-     * picking SKUs).
+     * What each store sells on Grab now, by the item id its Grab menu gives them
+     * (DeliveryPlatformService::buildMenu). A promotion on items takes all of them
+     * (Brian, 2026-11-01: use the machine's product mapping, no picking SKUs):
+     * - a store on the machine menu: "P" + product id of every product it lists;
+     * - a store still on its template: the template items on its machine's slots.
      *
      * @return array<int, list<string>> ref id => item ids
      */
     public function menuItemIds($refIds): array
     {
-        return DB::table('delivery_product_mapping_vend_channels as channel')
+        $refIds = collect($refIds)->map(fn ($id) => (int) $id)->unique()->values();
+        $machineMenuRefs = DeliveryPlatformRefNumber::query()->whereIn('id', $refIds)->whereNotNull('menu_from_machine_at')->pluck('id');
+
+        $items = DB::table('delivery_product_mapping_vend_channels as channel')
             ->join('delivery_product_mapping_vend as binding', 'binding.id', '=', 'channel.delivery_product_mapping_vend_id')
             ->whereNull('binding.end_date')
-            ->whereIn('binding.delivery_platform_ref_number_id', $refIds)
+            ->whereIn('binding.delivery_platform_ref_number_id', $refIds->diff($machineMenuRefs))
             ->distinct()
             ->orderBy('channel.delivery_product_mapping_item_id')
             ->get(['binding.delivery_platform_ref_number_id as ref_id', 'channel.delivery_product_mapping_item_id as item_id'])
             ->groupBy('ref_id')
             ->map(fn ($rows) => $rows->pluck('item_id')->map(fn ($id) => (string) $id)->values()->all())
             ->all();
+
+        if ($machineMenuRefs->isNotEmpty()) {
+            $machineMenu = app(GrabMachineMenu::class);
+            DeliveryProductMappingVend::query()->withoutGlobalScopes()
+                ->whereNull('end_date')
+                ->whereIn('delivery_platform_ref_number_id', $machineMenuRefs)
+                ->with('deliveryPlatformRefNumber')
+                ->get()
+                ->unique('delivery_platform_ref_number_id')
+                ->each(function ($binding) use (&$items, $machineMenu) {
+                    $ids = $machineMenu->listed($binding)->map->itemId()->values()->all();
+                    if ($ids) {
+                        $items[$binding->delivery_platform_ref_number_id] = $ids;
+                    }
+                });
+        }
+
+        return $items;
     }
 
     /** The queued job: one store, one call to Grab, once. */
