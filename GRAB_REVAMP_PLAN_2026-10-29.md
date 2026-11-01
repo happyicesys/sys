@@ -826,3 +826,32 @@ need to record for what we have created?" — so ConnectVend keeps no campaign o
     resume, promotions?
 20. Close the stale open binding of `4-C7CDNZDXKEBJPE` on 2658 (paused since 2025-05-19; the store sells from 2873)
     now, with a prod write?
+
+### Step 3b follow-ups (DEPLOYED 2026-11-01)
+
+- `2453ca49f9` 11:07: Grab Stores gains sortable "Grab sales, last 7 / 30 days" per store (current machine only;
+  delivered orders, subtotal − promo) + totals. Promotions form simplified (Brian: "use back its product mapping …
+  shouldn't let you choose which SKU"): no menu and no SKU pick; an item deal takes every item on each store's
+  machine at send time (`GrabPromotionService::menuItemIds`); 8 deals only (`GrabPromotionController::DEALS`).
+- `61728a6ec7`: stores picked from a searchable dropdown — machine ID · site name · merchant ID.
+
+## 10. Grab Menu & Prices: decisions (Brian, 2026-11-01)
+
+Brian: "use back the original product mapping from the machine … set which RP want to be used, or … multiplier,
+or … custom pricing for each of the SKU … disable the remover of any SKU since we want to sync as similar and as
+identical with the vend product mapping." This settles §7 and §9 step 2 where they differ:
+
+- **The machine is the menu.** A Grab store lists every SKU on its machine's slots now (`vend_channels`, active,
+  product set) — one Grab item per SKU (item id = `products.id`), stock summed over its slots. No per-store
+  exclusions and no add / remove of SKUs on the Grab side (§7 target 4 dropped). Templates go read-only, then away.
+- **Three pricing modes** (§7 had two):
+  1. **RP** — a chosen RP tier's price (`selling_prices`).
+  2. **RP × multiplier** — **always rounded UP** (standardised; no round-down option), to a chosen step:
+     to the **cent** or to the **dollar**.
+  3. **Custom price per SKU** (integer cents).
+- A SKU with no price under its mode is not sold (never at $0) and is flagged on the page — the only way a
+  machine's SKU is missing from Grab.
+- Still to confirm with Brian (proposed 2026-11-01, not yet answered): mode chosen per operator (not per store);
+  "RP" = each store's Site tier (`customers.selling_price_type`) rather than one fixed tier; Grab commission 30%
+  for all, shown only as "kept after commission"; what "round up to the cent" means for a multiplied price
+  (whole cents, e.g. $2.75 × 1.1 = $3.025 → $3.03) vs a 10¢ step ($3.10).
