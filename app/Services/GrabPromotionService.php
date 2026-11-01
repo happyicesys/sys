@@ -38,9 +38,10 @@ class GrabPromotionService
     public function create(array $setup, Collection $refs, ?int $userId): string
     {
         $batch = (string) Str::uuid();
-        DB::transaction(function () use ($setup, $refs, $userId, $batch) {
+        $items = $this->menuItemIds($refs->pluck('id'));
+        DB::transaction(function () use ($setup, $refs, $userId, $batch, $items) {
             foreach ($refs as $ref) {
-                $this->queue($batch, DeliveryPlatformCampaignSend::ACTION_CREATE, $ref, null, $this->payload($setup, $ref->ref_number), $userId);
+                $this->queue($batch, DeliveryPlatformCampaignSend::ACTION_CREATE, $ref, null, $this->payload($setup, $ref->ref_number, $items[$ref->id] ?? []), $userId);
             }
         });
 
@@ -55,9 +56,10 @@ class GrabPromotionService
     public function update(Collection $campaigns, array $setup, ?int $userId): string
     {
         $batch = (string) Str::uuid();
-        DB::transaction(function () use ($campaigns, $setup, $userId, $batch) {
+        $items = $this->menuItemIds($campaigns->pluck('delivery_platform_ref_number_id'));
+        DB::transaction(function () use ($campaigns, $setup, $userId, $batch, $items) {
             foreach ($campaigns as $campaign) {
-                $this->queue($batch, DeliveryPlatformCampaignSend::ACTION_UPDATE, $campaign->deliveryPlatformRefNumber, $campaign, $this->payload($setup, $campaign->merchant_id), $userId);
+                $this->queue($batch, DeliveryPlatformCampaignSend::ACTION_UPDATE, $campaign->deliveryPlatformRefNumber, $campaign, $this->payload($setup, $campaign->merchant_id, $items[$campaign->delivery_platform_ref_number_id] ?? []), $userId);
             }
         });
 
@@ -100,6 +102,28 @@ class GrabPromotionService
             ->whereIn('status', [DeliveryPlatformCampaignSend::STATUS_PENDING, DeliveryPlatformCampaignSend::STATUS_SENDING])
             ->when($action, fn ($query, $action) => $query->where('action', $action))
             ->exists();
+    }
+
+    /**
+     * What each store sells on Grab now: the products on its machine's slots, by the item
+     * id its Grab menu gives them (DeliveryPlatformService::buildMenu). A promotion on
+     * items takes all of them (Brian, 2026-11-01: use the machine's product mapping, no
+     * picking SKUs).
+     *
+     * @return array<int, list<string>> ref id => item ids
+     */
+    public function menuItemIds($refIds): array
+    {
+        return DB::table('delivery_product_mapping_vend_channels as channel')
+            ->join('delivery_product_mapping_vend as binding', 'binding.id', '=', 'channel.delivery_product_mapping_vend_id')
+            ->whereNull('binding.end_date')
+            ->whereIn('binding.delivery_platform_ref_number_id', $refIds)
+            ->distinct()
+            ->orderBy('channel.delivery_product_mapping_item_id')
+            ->get(['binding.delivery_platform_ref_number_id as ref_id', 'channel.delivery_product_mapping_item_id as item_id'])
+            ->groupBy('ref_id')
+            ->map(fn ($rows) => $rows->pluck('item_id')->map(fn ($id) => (string) $id)->values()->all())
+            ->all();
     }
 
     /** The queued job: one store, one call to Grab, once. */
@@ -150,11 +174,11 @@ class GrabPromotionService
 
     /**
      * Grab's campaign body for one store, from the page's setup:
-     * type, scope (items | category | order), object_ids, eater_type, value_cents,
-     * cap_cents, qty, min_basket_cents, total_count, total_count_per_user, name,
-     * starts_at, ends_at (Carbon, app time). Grab takes dollars and UTC.
+     * type, scope (items | order), eater_type, value_cents, cap_cents, qty,
+     * min_basket_cents, total_count, total_count_per_user, name, starts_at, ends_at
+     * (Carbon, app time); $objectIds = the store's menu items. Grab takes dollars and UTC.
      */
-    public function payload(array $setup, string $merchantId): array
+    public function payload(array $setup, string $merchantId, array $objectIds = []): array
     {
         $days = collect(['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'])
             ->mapWithKeys(fn ($day) => [$day => ['periods' => [['startTime' => Grab::START_TIME, 'endTime' => Grab::END_TIME]]]])
@@ -162,7 +186,7 @@ class GrabPromotionService
 
         $scope = ['type' => $setup['scope']];
         if ($setup['scope'] !== Grab::CAMPAIGN_SCOPE_ORDER) {
-            $scope['objectIDs'] = array_values(array_map('strval', $setup['object_ids'] ?? []));
+            $scope['objectIDs'] = array_values(array_map('strval', $objectIds));
         }
 
         $quotas = array_filter([

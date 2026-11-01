@@ -458,7 +458,6 @@ Route::middleware(['auth', 'cors'])->group(function () {
     // sent to Grab store by store. ConnectVend keeps only the log of what it asked.
     Route::prefix('grab-promotions')->group(function () {
         Route::get('/', [GrabPromotionController::class, 'index'])->name('grab-promotions')->middleware('can:read delivery-platform-campaigns');
-        Route::get('/menus/{mappingId}', [GrabPromotionController::class, 'menu'])->name('grab-promotions.menu')->middleware('can:read delivery-platform-campaigns');
         Route::post('/', [GrabPromotionController::class, 'store'])->name('grab-promotions.store')->middleware('can:create delivery-platform-campaigns');
         Route::post('/update', [GrabPromotionController::class, 'update'])->name('grab-promotions.update')->middleware('can:update delivery-platform-campaigns');
         Route::post('/end', [GrabPromotionController::class, 'end'])->name('grab-promotions.end')->middleware('can:delete delivery-platform-campaigns');

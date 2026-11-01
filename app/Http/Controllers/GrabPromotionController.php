@@ -7,7 +7,6 @@ use App\Models\DeliveryPlatformCampaignSend;
 use App\Models\DeliveryPlatformLiveCampaign;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatforms\Grab;
-use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingItem;
 use App\Models\DeliveryProductMappingVend;
 use App\Services\GrabCampaignMirror;
@@ -28,6 +27,10 @@ use Inertia\Inertia;
  * and grouped: one promotion sent to 48 stores is one row. New / Edit / End call Grab
  * store by store through GrabPromotionService; ConnectVend keeps no campaign of its own,
  * only the log of what it asked Grab.
+ *
+ * A promotion takes every item on the store's Grab menu, or the whole order (Brian,
+ * 2026-11-01: "use back its product mapping … shouldn't let you choose which SKU"), so
+ * the form offers only the deals that need nothing picked.
  */
 class GrabPromotionController extends Controller
 {
@@ -37,6 +40,18 @@ class GrabPromotionController extends Controller
         DeliveryPlatformLiveCampaign::SOURCE_MERCHANT_APP,
         DeliveryPlatformLiveCampaign::SOURCE_GRAB_TEAM,
         DeliveryPlatformLiveCampaign::SOURCE_UNKNOWN,
+    ];
+
+    // The deals the New / Edit form offers, as Grab's type + scope.
+    const DEALS = [
+        ['type' => Grab::CAMPAIGN_TYPE_BUNDLE_DIFF_FIXED, 'scope' => Grab::CAMPAIGN_SCOPE_ITEM],
+        ['type' => Grab::CAMPAIGN_TYPE_BUNDLE_DIFF_DOLLAR, 'scope' => Grab::CAMPAIGN_SCOPE_ITEM],
+        ['type' => Grab::CAMPAIGN_TYPE_BUNDLE_DIFF_PERCENT, 'scope' => Grab::CAMPAIGN_SCOPE_ITEM],
+        ['type' => Grab::CAMPAIGN_TYPE_DOLLAR, 'scope' => Grab::CAMPAIGN_SCOPE_ITEM],
+        ['type' => Grab::CAMPAIGN_TYPE_PERCENT, 'scope' => Grab::CAMPAIGN_SCOPE_ITEM],
+        ['type' => Grab::CAMPAIGN_TYPE_DOLLAR, 'scope' => Grab::CAMPAIGN_SCOPE_ORDER],
+        ['type' => Grab::CAMPAIGN_TYPE_PERCENT, 'scope' => Grab::CAMPAIGN_SCOPE_ORDER],
+        ['type' => Grab::CAMPAIGN_TYPE_DELIVERY, 'scope' => Grab::CAMPAIGN_SCOPE_ORDER],
     ];
 
     // How far back the page lists ConnectVend's sends.
@@ -92,6 +107,7 @@ class GrabPromotionController extends Controller
         $page = max(1, (int) $request->page);
         $pageGroups = $filtered->forPage($page, $perPage)->values();
         $names = $this->objectNames($pageGroups->map(fn ($group) => $group['first']));
+        $menuItems = app(GrabPromotionService::class)->menuItemIds($pageGroups->map(fn ($group) => $group['first']->delivery_platform_ref_number_id));
 
         $paginator = new LengthAwarePaginator($pageGroups, $filtered->count(), $perPage, $page, [
             'path' => $request->url(),
@@ -102,15 +118,15 @@ class GrabPromotionController extends Controller
 
         return Inertia::render('GrabPromotion/Index', [
             'promotions' => [
-                'data' => $pageGroups->map(fn ($group) => $this->groupRow($group, $machines, $bindings, $names))->values(),
+                'data' => $pageGroups->map(fn ($group) => $this->groupRow($group, $machines, $bindings, $names, $menuItems))->values(),
                 'links' => ['prev' => $paginator->previousPageUrl(), 'next' => $paginator->nextPageUrl()],
                 'meta' => ['from' => $paginator->firstItem(), 'to' => $paginator->lastItem(), 'total' => $paginator->total()],
             ],
             'totals' => $totals,
             'reads' => $this->readsSummary($refIds, $machines),
             'sends' => $this->recentSends($refIds, $machines),
-            'menus' => $this->menus($bindings),
-            'campaignTypes' => Grab::CAMPAIGN_MAPPINGS,
+            'formStores' => $this->formStores($bindings),
+            'deals' => $this->deals(),
             'filters' => ['view' => $view, 'state' => $state, 'source' => $source, 'search' => $search],
             'keepGoneDays' => DeliveryPlatformLiveCampaign::KEEP_GONE_DAYS,
             'can' => [
@@ -121,60 +137,21 @@ class GrabPromotionController extends Controller
         ]);
     }
 
-    // A Grab menu's stores and items, for the New / Edit form.
-    public function menu($mappingId)
-    {
-        $mapping = DeliveryProductMapping::query()->withoutGlobalScopes()->findOrFail($mappingId);
-        $bindings = $this->openBindings($this->visibleRefIds())->where('delivery_product_mapping_id', $mapping->id);
-        abort_if($bindings->isEmpty(), 404);
-
-        $refs = DeliveryPlatformRefNumber::query()
-            ->whereIn('id', $bindings->pluck('delivery_platform_ref_number_id'))
-            ->with(['operator' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code')])
-            ->get()
-            ->keyBy('id');
-        $grabStores = app(GrabStoreService::class);
-
-        return response()->json([
-            'id' => $mapping->id,
-            'name' => $mapping->name,
-            'stores' => $bindings->map(fn ($binding) => [
-                'ref_id' => $binding->delivery_platform_ref_number_id,
-                'merchant_id' => $refs[$binding->delivery_platform_ref_number_id]?->ref_number,
-                'vend_code' => $binding->vend_code,
-                'operator_code' => $refs[$binding->delivery_platform_ref_number_id]?->operator?->code,
-                'has_account' => (bool) $grabStores->grabAccountFor((int) $refs[$binding->delivery_platform_ref_number_id]?->operator_id)?->externalOauthToken?->access_token,
-            ])->sortBy('vend_code')->values(),
-            'items' => $this->menuItems($mapping->id)->map(fn ($item) => [
-                'id' => (string) $item->id,
-                'slot' => $item->channel_code,
-                'product_code' => $item->product?->code,
-                'product_name' => $item->product?->name,
-                'sub_category' => $item->sub_category_json,
-            ])->values(),
-            'categories' => $this->menuCategories($mapping->id),
-        ]);
-    }
-
     public function store(Request $request, GrabPromotionService $service)
     {
         $request->validate([
-            'delivery_product_mapping_id' => ['required', 'integer'],
             'ref_ids' => ['required', 'array', 'min:1'],
             'ref_ids.*' => ['integer'],
         ]);
 
-        $mappingId = (int) $request->delivery_product_mapping_id;
-        $bound = $this->openBindings($this->visibleRefIds())
-            ->where('delivery_product_mapping_id', $mappingId)
-            ->pluck('delivery_platform_ref_number_id')
-            ->map(fn ($id) => (int) $id);
+        $bindings = $this->openBindings($this->visibleRefIds());
         $refIds = collect($request->ref_ids)->map(fn ($id) => (int) $id)->unique();
-        if ($refIds->diff($bound)->isNotEmpty()) {
-            throw ValidationException::withMessages(['ref_ids' => __('Pick stores that are on this Grab menu now.')]);
+        if ($refIds->diff($bindings->pluck('delivery_platform_ref_number_id')->map(fn ($id) => (int) $id))->isNotEmpty()) {
+            throw ValidationException::withMessages(['ref_ids' => __('Pick Grab stores that are on a machine now.')]);
         }
 
-        $setup = $this->setup($request, $mappingId);
+        $setup = $this->setup($request);
+        $this->checkMenus($setup, $refIds, $bindings, 'ref_ids');
         $refs = DeliveryPlatformRefNumber::query()->whereIn('id', $refIds)->get();
         $service->create($setup, $refs, auth()->id());
 
@@ -183,19 +160,17 @@ class GrabPromotionController extends Controller
 
     public function update(Request $request, GrabPromotionService $service)
     {
-        $request->validate(['delivery_product_mapping_id' => ['required', 'integer']]);
         $campaigns = $this->changeable($request, 'update');
-        $mappingId = (int) $request->delivery_product_mapping_id;
+        $refIds = $campaigns->pluck('delivery_platform_ref_number_id');
 
-        // The items are checked against this menu, so it must be the one the stores sell now.
-        $onMenu = $this->openBindings($campaigns->pluck('delivery_platform_ref_number_id'))
-            ->where('delivery_product_mapping_id', $mappingId)
-            ->pluck('delivery_platform_ref_number_id');
-        if ($campaigns->pluck('delivery_platform_ref_number_id')->diff($onMenu)->isNotEmpty()) {
-            throw ValidationException::withMessages(['ids' => __('Some of these stores are not on this Grab menu now; change them one menu at a time.')]);
+        // The items are each store's menu now, so every store must be on a machine.
+        $bindings = $this->openBindings($refIds);
+        if ($refIds->diff($bindings->pluck('delivery_platform_ref_number_id'))->isNotEmpty()) {
+            throw ValidationException::withMessages(['ids' => __('Some of these stores are on no machine now; end the promotion there instead.')]);
         }
 
-        $setup = $this->setup($request, $mappingId);
+        $setup = $this->setup($request);
+        $this->checkMenus($setup, $refIds, $bindings, 'ids');
         $service->update($campaigns, $setup, auth()->id());
 
         return back()->with('success', trans_choice('Saving on :count Grab store.|Saving on :count Grab stores.', $campaigns->count(), ['count' => $campaigns->count()]));
@@ -254,14 +229,14 @@ class GrabPromotionController extends Controller
     }
 
     /**
-     * The setup the form sends, checked against Grab's rules for the type and against
-     * the menu's own items, in the shape GrabPromotionService::payload() takes.
+     * The setup the form sends, checked against Grab's rules for the deal, in the shape
+     * GrabPromotionService::payload() takes.
      */
-    private function setup(Request $request, int $mappingId): array
+    private function setup(Request $request): array
     {
         $types = collect(Grab::CAMPAIGN_MAPPINGS)->keyBy('id');
         $request->validate([
-            'type' => ['required', 'string', 'in:'.$types->keys()->implode(',')],
+            'type' => ['required', 'string'],
             'name' => ['required', 'string', 'max:255'],
             'scope' => ['required', 'string'],
             'eater_type' => ['required', 'string'],
@@ -272,33 +247,18 @@ class GrabPromotionController extends Controller
             'min_basket' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'total_count' => ['nullable', 'integer', 'min:0'],
             'total_count_per_user' => ['nullable', 'integer', 'min:0'],
-            'object_ids' => ['nullable', 'array'],
-            'object_ids.*' => ['string'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['required', 'date', 'after:starts_at', 'after:now'],
         ]);
 
+        if (! collect(self::DEALS)->contains(fn ($deal) => $deal['type'] === $request->type && $deal['scope'] === $request->scope)) {
+            throw ValidationException::withMessages(['type' => __('Pick a deal.')]);
+        }
         $type = $types[$request->type];
         $scope = collect($type['scope'])->firstWhere('id', $request->scope);
         $errors = [];
-        if (! $scope) {
-            $errors['scope'] = __('This promotion type cannot apply to that.');
-        } elseif (! collect($scope['eaterType'])->contains('id', $request->eater_type)) {
+        if (! collect($scope['eaterType'])->contains('id', $request->eater_type)) {
             $errors['eater_type'] = __('Pick who the promotion is for.');
-        }
-
-        $objectIds = collect($request->object_ids ?? [])->map(fn ($id) => (string) $id)->unique()->values();
-        if ($scope && $scope['id'] !== Grab::CAMPAIGN_SCOPE_ORDER) {
-            $allowed = $scope['id'] === Grab::CAMPAIGN_SCOPE_CATEGORY
-                ? collect($this->menuCategories($mappingId))->pluck('id')
-                : $this->menuItems($mappingId)->pluck('id')->map(fn ($id) => (string) $id);
-            if ($objectIds->isEmpty()) {
-                $errors['object_ids'] = $scope['id'] === Grab::CAMPAIGN_SCOPE_CATEGORY ? __('Pick a category.') : __('Pick at least one item.');
-            } elseif ($scope['singleObjectOnly'] && $objectIds->count() > 1) {
-                $errors['object_ids'] = __('This promotion type takes one item only.');
-            } elseif ($objectIds->diff($allowed)->isNotEmpty()) {
-                $errors['object_ids'] = __('Pick items from this Grab menu.');
-            }
         }
 
         $value = (float) $request->value;
@@ -321,7 +281,6 @@ class GrabPromotionController extends Controller
             'type' => $type['id'],
             'name' => trim($request->name),
             'scope' => $scope['id'],
-            'object_ids' => $scope['id'] === Grab::CAMPAIGN_SCOPE_ORDER ? [] : $objectIds->all(),
             'eater_type' => $request->eater_type,
             'value_cents' => $cents($request->value) ?? 0,
             'cap_cents' => $type['cap'] ? $cents($request->cap) : null,
@@ -332,6 +291,21 @@ class GrabPromotionController extends Controller
             'starts_at' => Carbon::parse($request->starts_at, config('app.timezone')),
             'ends_at' => Carbon::parse($request->ends_at, config('app.timezone')),
         ];
+    }
+
+    // A deal on items needs items: every store must sell something on Grab.
+    private function checkMenus(array $setup, Collection $refIds, Collection $bindings, string $field): void
+    {
+        if ($setup['scope'] === Grab::CAMPAIGN_SCOPE_ORDER) {
+            return;
+        }
+
+        $items = app(GrabPromotionService::class)->menuItemIds($refIds);
+        $empty = $refIds->reject(fn ($refId) => ! empty($items[$refId]));
+        if ($empty->isNotEmpty()) {
+            $machines = $bindings->whereIn('delivery_platform_ref_number_id', $empty)->pluck('vend_code')->filter()->implode(', ');
+            throw ValidationException::withMessages([$field => __('Nothing is on the Grab menu of :machines; pick a whole-order deal or leave those stores out.', ['machines' => $machines ?: '?'])]);
+        }
     }
 
     /**
@@ -366,7 +340,7 @@ class GrabPromotionController extends Controller
             ->values();
     }
 
-    private function groupRow(array $group, $machines, Collection $bindings, array $names): array
+    private function groupRow(array $group, $machines, Collection $bindings, array $names, array $menuItems): array
     {
         $first = $group['first'];
         $json = $first->campaign_json ?? [];
@@ -389,8 +363,10 @@ class GrabPromotionController extends Controller
             'gone_at' => $group['rows']->max('gone_at')?->toIso8601String(),
             'made_by_user' => $group['rows']->map(fn ($campaign) => $campaign->createSend?->user?->name)->filter()->first(),
             'created_by' => $first->created_by,
-            // Edit picks items from the menu the stores are on now.
-            'mapping_id' => $group['rows']->map(fn ($campaign) => $mappingByRef[$campaign->delivery_platform_ref_number_id] ?? null)->filter()->first(),
+            // Edit sends each store's menu as it is now, so every store must be on a machine.
+            'editable' => $this->isDeal($json) && $group['rows']->every(fn ($campaign) => isset($mappingByRef[$campaign->delivery_platform_ref_number_id])),
+            // Every item the store sells on Grab, as a ConnectVend promotion takes them.
+            'all_menu_items' => $objectIds && collect($objectIds)->sort()->values()->all() == collect($menuItems[$first->delivery_platform_ref_number_id] ?? [])->sort()->values()->all(),
             'leftover_vend_code' => $itemVend?->vend_code,
             'leftover_binding_closed' => $itemVend ? (bool) $itemVend->deliveryProductMappingVend?->end_date : null,
             'campaign_json' => $json,
@@ -410,39 +386,60 @@ class GrabPromotionController extends Controller
         ];
     }
 
-    /** @return Collection<int, DeliveryProductMappingItem> */
-    private function menuItems(int $mappingId): Collection
+    private function isDeal(array $json): bool
     {
-        return DeliveryProductMappingItem::query()
-            ->where('delivery_product_mapping_id', $mappingId)
-            ->with(['product' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name')])
-            ->orderBy('channel_code')
-            ->orderBy('id')
-            ->get(['id', 'product_id', 'sub_category_json', 'channel_code']);
+        return collect(self::DEALS)->contains(fn ($deal) => $deal['type'] === ($json['discount']['type'] ?? null)
+            && $deal['scope'] === ($json['discount']['scope']['type'] ?? null));
     }
 
-    private function menuCategories(int $mappingId): array
+    // Each deal with what the form asks for it, from Grab's rules for the type.
+    private function deals(): array
     {
-        return $this->menuItems($mappingId)
-            ->map(fn ($item) => $item->sub_category_json)
-            ->filter(fn ($sub) => ! empty($sub['id']))
-            ->unique('id')
-            ->map(fn ($sub) => ['id' => (string) $sub['id'], 'name' => $sub['name'] ?? $sub['id']])
-            ->values()
-            ->all();
+        $types = collect(Grab::CAMPAIGN_MAPPINGS)->keyBy('id');
+
+        return collect(self::DEALS)->map(function ($deal) use ($types) {
+            $type = $types[$deal['type']];
+            $scope = collect($type['scope'])->firstWhere('id', $deal['scope']);
+
+            return [
+                'key' => $deal['type'].':'.$deal['scope'],
+                'type' => $deal['type'],
+                'scope' => $deal['scope'],
+                'qty' => $type['qty'],
+                'value' => $type['promo_value'],
+                'cap' => $type['cap'],
+                'min_basket' => $scope['minBasketAmount'],
+                'eater_types' => collect($scope['eaterType'])->pluck('id')->all(),
+            ];
+        })->all();
     }
 
-    // Grab menus a store of the viewer's is on now, for the New form's first pick.
-    private function menus(Collection $bindings): array
+    // The viewer's Grab stores on a machine now, for the New form.
+    private function formStores(Collection $bindings): array
     {
-        $counts = $bindings->countBy('delivery_product_mapping_id');
+        $refs = DeliveryPlatformRefNumber::query()
+            ->whereIn('id', $bindings->pluck('delivery_platform_ref_number_id'))
+            ->with(['operator' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code')])
+            ->get()
+            ->keyBy('id');
+        $items = app(GrabPromotionService::class)->menuItemIds($bindings->pluck('delivery_platform_ref_number_id'));
+        $grabStores = app(GrabStoreService::class);
+        $accounts = [];
 
-        return DeliveryProductMapping::query()->withoutGlobalScopes()
-            ->whereIn('id', $counts->keys())
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn ($mapping) => ['id' => $mapping->id, 'name' => $mapping->name, 'stores' => $counts[$mapping->id] ?? 0])
-            ->all();
+        return $bindings->map(function ($binding) use ($refs, $items, $grabStores, &$accounts) {
+            $ref = $refs[$binding->delivery_platform_ref_number_id] ?? null;
+            $operatorId = (int) $ref?->operator_id;
+            $accounts[$operatorId] ??= (bool) $grabStores->grabAccountFor($operatorId)?->externalOauthToken?->access_token;
+
+            return [
+                'ref_id' => $binding->delivery_platform_ref_number_id,
+                'merchant_id' => $ref?->ref_number,
+                'vend_code' => $binding->vend_code,
+                'operator_code' => $ref?->operator?->code,
+                'items' => count($items[$binding->delivery_platform_ref_number_id] ?? []),
+                'has_account' => $accounts[$operatorId],
+            ];
+        })->sortBy('vend_code')->values()->all();
     }
 
     // The store's open machine binding (one per store), newest first.

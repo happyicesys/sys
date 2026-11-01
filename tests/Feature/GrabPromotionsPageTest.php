@@ -12,6 +12,7 @@ use App\Services\GrabPromotionService;
 use App\Services\GrabStoreService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia;
@@ -22,7 +23,8 @@ use Tests\TestCase;
 /**
  * Grab Promotions, one page (Brian, 2026-10-31: "single source of truth … from Grab API
  * only"): a promotion is made, changed and ended on Grab store by store, the list is
- * what Grab answers, and ConnectVend keeps only the log of what it asked.
+ * what Grab answers, and ConnectVend keeps only the log of what it asked. A promotion
+ * takes every item on each store's Grab menu (Brian, 2026-11-01: no picking SKUs).
  */
 class GrabPromotionsPageTest extends TestCase
 {
@@ -79,12 +81,10 @@ class GrabPromotionsPageTest extends TestCase
     private function promotion(array $overrides = []): array
     {
         return $overrides + [
-            'delivery_product_mapping_id' => $this->grabMapping->id,
             'ref_ids' => $this->refIds(),
             'type' => 'bundleDiffFixPrice',
             'scope' => 'items',
             'eater_type' => 'all',
-            'object_ids' => [(string) $this->itemA->id, (string) $this->itemB->id],
             'qty' => 2,
             'value' => '5.90',
             'name' => 'Any 2 for $5.90',
@@ -96,6 +96,16 @@ class GrabPromotionsPageTest extends TestCase
     private function refIds(): array
     {
         return DeliveryPlatformRefNumber::query()->orderBy('id')->pluck('id')->all();
+    }
+
+    // Take one item off a store's machine: its Grab menu no longer sells it.
+    private function dropFromMenu(string $merchant, $item): void
+    {
+        $binding = DeliveryProductMappingVend::query()->withoutGlobalScopes()->where('platform_ref_id', $merchant)->whereNull('end_date')->sole();
+        DB::table('delivery_product_mapping_vend_channels')
+            ->where('delivery_product_mapping_vend_id', $binding->id)
+            ->when($item, fn ($query) => $query->where('delivery_product_mapping_item_id', $item->id))
+            ->delete();
     }
 
     private function runQueuedSends(): void
@@ -123,7 +133,7 @@ class GrabPromotionsPageTest extends TestCase
         $this->assertSame(self::STORE_A, $body['merchantID']);
         $this->assertSame(5.9, $body['discount']['value'], 'Grab takes dollars; ConnectVend validated cents');
         $this->assertSame(2, $body['conditions']['bundleQuantity']);
-        $this->assertSame([(string) $this->itemA->id, (string) $this->itemB->id], $body['discount']['scope']['objectIDs']);
+        $this->assertSame([(string) $this->itemA->id, (string) $this->itemB->id], $body['discount']['scope']['objectIDs'], 'every item on the machine, none picked');
         $this->assertStringEndsWith('Z', $body['conditions']['startTime']);
         $this->assertArrayNotHasKey('quotas', $body, 'no limit = no quota sent');
 
@@ -147,7 +157,8 @@ class GrabPromotionsPageTest extends TestCase
             ->has('promotions.data.0.stores', 2)
             ->where('promotions.data.0.source', 'connectvend')
             ->where('promotions.data.0.made_by_user', $this->user->name)
-            ->where('promotions.data.0.mapping_id', $this->grabMapping->id)
+            ->where('promotions.data.0.editable', true)
+            ->where('promotions.data.0.all_menu_items', true)
             ->where('sends.0.ok', 2)
             ->where('can.create', true));
     }
@@ -168,25 +179,43 @@ class GrabPromotionsPageTest extends TestCase
         $this->assertSame(0, DeliveryPlatformLiveCampaign::count());
     }
 
-    public function test_the_form_is_checked_against_grabs_rules_and_the_menu(): void
+    public function test_the_form_is_checked_against_grabs_rules_and_offers_no_item_picking(): void
     {
-        $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['object_ids' => ['999999']]))->assertSessionHasErrors('object_ids');
         $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['type' => 'bundleDiffPercentage', 'value' => 150]))->assertSessionHasErrors('value');
         $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['qty' => 1]))->assertSessionHasErrors('qty');
-        $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['type' => 'freeItem', 'object_ids' => [(string) $this->itemA->id, (string) $this->itemB->id]]))->assertSessionHasErrors('object_ids');
         $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['ends_at' => now()->subDay()->format('Y-m-d H:i')]))->assertSessionHasErrors('ends_at');
         $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['ref_ids' => [999999]]))->assertSessionHasErrors('ref_ids');
+        // Deals that need one item or a category picked are not offered.
+        $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['type' => 'freeItem', 'value' => null]))->assertSessionHasErrors('type');
+        $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['type' => 'bundleSameFixPrice']))->assertSessionHasErrors('type');
+        $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['type' => 'net', 'scope' => 'category', 'value' => '1']))->assertSessionHasErrors('type');
         $this->assertSame(0, DeliveryPlatformCampaignSend::count());
 
-        // A free item needs no value; it goes to Grab as 0.
-        $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['type' => 'freeItem', 'object_ids' => [(string) $this->itemA->id], 'value' => null, 'min_basket' => '15']))->assertSessionHasNoErrors();
-        $free = DeliveryPlatformCampaignSend::query()->first()->request_json;
-        $this->assertSame(0, $free['discount']['value']);
-        $this->assertSame(15, $free['conditions']['minBasketAmount']);
+        // A whole-order deal sends no items, with its min. spend.
+        $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['type' => 'net', 'scope' => 'order', 'eater_type' => 'new', 'value' => '2', 'min_basket' => '15']))->assertSessionHasNoErrors();
+        $order = DeliveryPlatformCampaignSend::query()->first()->request_json;
+        $this->assertSame(['type' => 'order'], $order['discount']['scope']);
+        $this->assertSame(15, $order['conditions']['minBasketAmount']);
+        $this->assertSame('new', $order['conditions']['eaterType']);
 
         $reader = User::factory()->create(['operator_id' => $this->grabMapping->operator_id]);
         $reader->givePermissionTo('read delivery-platform-campaigns');
         $this->actingAs($reader)->post('/grab-promotions', $this->promotion())->assertForbidden();
+    }
+
+    public function test_each_store_gets_its_own_machines_items_and_an_empty_menu_is_refused(): void
+    {
+        $this->dropFromMenu(self::STORE_B, $this->itemB);
+        $this->actingAs($this->user)->post('/grab-promotions', $this->promotion())->assertSessionHasNoErrors();
+        $sends = DeliveryPlatformCampaignSend::query()->orderBy('id')->get();
+        $this->assertSame([(string) $this->itemA->id, (string) $this->itemB->id], $sends[0]->request_json['discount']['scope']['objectIDs']);
+        $this->assertSame([(string) $this->itemA->id], $sends[1]->request_json['discount']['scope']['objectIDs']);
+
+        // Nothing on a store's menu: an item deal is refused, naming the machine; a whole-order one goes.
+        $this->dropFromMenu(self::STORE_B, null);
+        $this->actingAs($this->user)->post('/grab-promotions', $this->promotion())->assertSessionHasErrors(['ref_ids' => 'Nothing is on the Grab menu of 4755; pick a whole-order deal or leave those stores out.']);
+        $this->actingAs($this->user)->post('/grab-promotions', $this->promotion(['type' => 'delivery', 'scope' => 'order', 'value' => '1']))->assertSessionHasNoErrors();
+        $this->assertSame(4, DeliveryPlatformCampaignSend::count());
     }
 
     public function test_edit_and_end_go_to_every_store_of_the_promotion_and_wait_for_grab(): void
@@ -198,10 +227,13 @@ class GrabPromotionsPageTest extends TestCase
         $this->runQueuedSends();
         $ids = DeliveryPlatformLiveCampaign::query()->orderBy('id')->pluck('id')->all();
 
+        // A change takes each store's menu as it is now.
+        $this->dropFromMenu(self::STORE_B, $this->itemB);
         $this->actingAs($this->user)->post('/grab-promotions/update', $this->promotion(['ids' => $ids, 'value' => '4.90']))->assertSessionHasNoErrors();
-        $updates = DeliveryPlatformCampaignSend::query()->where('action', 'update')->get();
+        $updates = DeliveryPlatformCampaignSend::query()->where('action', 'update')->orderBy('id')->get();
         $this->assertCount(2, $updates);
         $this->assertSame(4.9, $updates[0]->request_json['discount']['value']);
+        $this->assertSame([(string) $this->itemA->id], $updates[1]->request_json['discount']['scope']['objectIDs']);
 
         // Nothing else may go to a campaign while a change is on its way.
         $this->actingAs($this->user)->post('/grab-promotions/end', ['ids' => $ids])->assertSessionHasErrors('ids');
@@ -237,14 +269,17 @@ class GrabPromotionsPageTest extends TestCase
         $this->actingAs($this->user)->get('/delivery-platform-campaigns')->assertRedirect('/grab-promotions');
     }
 
-    public function test_the_menu_lists_the_stores_and_items_for_the_form(): void
+    public function test_the_form_lists_the_stores_on_machines_and_only_the_deals_that_need_nothing_picked(): void
     {
-        $this->actingAs($this->user)->getJson('/grab-promotions/menus/'.$this->grabMapping->id)
-            ->assertOk()
-            ->assertJsonCount(2, 'stores')
-            ->assertJsonPath('stores.0.has_account', true)
-            ->assertJsonCount(2, 'items')
-            ->assertJsonPath('items.0.product_code', 'U-49')
-            ->assertJsonPath('categories.0.name', 'Ice Cream Sticks');
+        $this->actingAs($this->user)->get('/grab-promotions')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('formStores', 2)
+            ->where('formStores.0.vend_code', 4754)
+            ->where('formStores.0.merchant_id', self::STORE_A)
+            ->where('formStores.0.items', 2)
+            ->where('formStores.0.has_account', true)
+            ->has('deals', 8)
+            ->where('deals.0.key', 'bundleDiffFixPrice:items')
+            ->where('deals.7.key', 'delivery:order')
+            ->where('deals.5.eater_types', ['all', 'new']));
     }
 }

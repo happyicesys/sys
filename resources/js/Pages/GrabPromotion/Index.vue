@@ -154,6 +154,7 @@
                 </TableData>
                 <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left text-sm">
                   <template v-if="promotion.discount?.scope?.type === 'order'">{{ $t('Whole order') }}</template>
+                  <template v-else-if="promotion.all_menu_items">{{ $t('Every item on the menu') }}</template>
                   <template v-else>
                     <div v-for="object in promotion.objects.slice(0, 3)" :key="object.id">{{ object.name || object.id }}</div>
                     <div v-if="promotion.objects.length > 3" class="text-xs text-gray-500">{{ $t('+ :count more', { count: promotion.objects.length - 3 }) }}</div>
@@ -243,115 +244,96 @@
       <Paginator v-if="rows.length" :links="promotions.links" :meta="promotions.meta" class="mt-3" />
     </div>
 
-    <!-- New promotion / Edit: sent to Grab store by store. -->
+    <!-- New promotion / Edit: sent to Grab store by store, on each machine's own Grab menu. -->
     <Modal :open="modal === 'form'" @modalClose="closeModal">
       <template #header>{{ editing ? $t('Edit promotion on Grab') : $t('New Grab promotion') }}</template>
       <div class="space-y-3 text-sm">
         <div v-if="!editing">
-          <label class="block font-medium text-gray-700">{{ $t('Grab menu') }}</label>
-          <select v-model="form.delivery_product_mapping_id" :class="inputClass" @change="loadMenu(form.delivery_product_mapping_id, true)">
-            <option :value="null" disabled>{{ $t('Pick the menu the stores sell') }}</option>
-            <option v-for="option in menus" :key="option.id" :value="option.id">{{ $tc(':name (:count store)|:name (:count stores)', option.stores, { name: option.name, count: option.stores }) }} · #{{ option.id }}</option>
-          </select>
-          <InputError :message="form.errors.delivery_product_mapping_id" />
+          <div class="flex items-center justify-between">
+            <label class="block font-medium text-gray-700">{{ $t('Grab stores') }}</label>
+            <span class="text-xs">
+              <button type="button" class="text-indigo-700 underline mr-2" @click="pickStores(true)">{{ $t('All') }}</button>
+              <button type="button" class="text-indigo-700 underline" @click="pickStores(false)">{{ $t('None') }}</button>
+            </span>
+          </div>
+          <input v-model="storeSearch" type="text" :placeholder="$t('Find a machine or Grab store')" :class="inputClass" />
+          <div class="mt-1 max-h-48 overflow-y-auto border rounded-md p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
+            <label v-for="store in shownStores" :key="store.ref_id" class="flex items-center gap-2" :class="store.has_account ? '' : 'text-gray-400'">
+              <input v-model="form.ref_ids" type="checkbox" :value="store.ref_id" :disabled="!store.has_account" class="rounded border-gray-300" />
+              <span class="font-medium">{{ store.vend_code }}</span>
+              <span class="font-mono text-xs text-gray-500">{{ store.merchant_id }}</span>
+              <span v-if="!store.has_account" class="text-xs">{{ $t('no Grab account') }}</span>
+              <span v-else-if="!store.items" class="text-xs text-amber-700">{{ $t('nothing on its Grab menu') }}</span>
+            </label>
+            <p v-if="!shownStores.length" class="text-gray-500">{{ $t('No Grab store matches.') }}</p>
+          </div>
+          <InputError :message="form.errors.ref_ids" />
         </div>
         <p v-else class="text-gray-600">
           {{ $tc('Saved on Grab for :count store this promotion runs on.|Saved on Grab for each of the :count stores this promotion runs on.', form.ids.length, { count: form.ids.length }) }}
-          <span v-if="menu">{{ $t('Menu: :name', { name: menu.name }) }}</span>
         </p>
-        <p v-if="menuLoading" class="text-gray-500">{{ $t('Loading…') }}</p>
 
-        <template v-if="menu">
-          <div v-if="!editing">
-            <div class="flex items-center justify-between">
-              <label class="block font-medium text-gray-700">{{ $t('Grab stores') }}</label>
-              <span class="text-xs">
-                <button type="button" class="text-indigo-700 underline mr-2" @click="form.ref_ids = menu.stores.filter(s => s.has_account).map(s => s.ref_id)">{{ $t('All') }}</button>
-                <button type="button" class="text-indigo-700 underline" @click="form.ref_ids = []">{{ $t('None') }}</button>
-              </span>
-            </div>
-            <div class="mt-1 max-h-40 overflow-y-auto border rounded-md p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
-              <label v-for="store in menu.stores" :key="store.ref_id" class="flex items-center gap-2" :class="store.has_account ? '' : 'text-gray-400'">
-                <input v-model="form.ref_ids" type="checkbox" :value="store.ref_id" :disabled="!store.has_account" class="rounded border-gray-300" />
-                <span class="font-mono text-xs">{{ store.merchant_id }}</span>
-                <span>{{ store.vend_code }}</span>
-                <span v-if="!store.has_account" class="text-xs">{{ $t('no Grab account') }}</span>
-              </label>
-            </div>
-            <InputError :message="form.errors.ref_ids" />
+        <div>
+          <label class="block font-medium text-gray-700">{{ $t('Deal') }}</label>
+          <select v-model="dealKey" :class="inputClass">
+            <option v-for="option in deals" :key="option.key" :value="option.key">{{ dealName[option.key] ?? option.key }}</option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">
+            {{ currentDeal?.scope === 'order' ? $t('On the whole Grab order.') : $t('On every item each machine sells on Grab, from its product mapping.') }}
+          </p>
+          <InputError :message="form.errors.type" />
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div v-if="currentDeal?.qty">
+            <label class="block font-medium text-gray-700">{{ $t('Items in bundle') }}</label>
+            <input v-model="form.qty" type="number" min="2" step="1" :class="inputClass" />
+            <InputError :message="form.errors.qty" />
           </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="block font-medium text-gray-700">{{ $t('Promotion type') }}</label>
-              <select v-model="form.type" :class="inputClass" @change="onTypeChange">
-                <option v-for="option in campaignTypes" :key="option.id" :value="option.id">{{ typeName[option.id] ?? option.name }}</option>
-              </select>
-              <InputError :message="form.errors.type" />
-            </div>
-            <div>
-              <label class="block font-medium text-gray-700">{{ $t('Applies to') }}</label>
-              <select v-model="form.scope" :class="inputClass" @change="onScopeChange">
-                <option v-for="option in currentType?.scope ?? []" :key="option.id" :value="option.id">{{ scopeName[option.id] ?? option.name }}</option>
-              </select>
-              <InputError :message="form.errors.scope" />
-            </div>
+          <div v-if="currentDeal?.value">
+            <label class="block font-medium text-gray-700">{{ valueLabel }}</label>
+            <input v-model="form.value" type="number" min="0" :step="isPercent ? 1 : 0.01" :class="inputClass" />
+            <InputError :message="form.errors.value" />
           </div>
-
-          <div v-if="currentScope && currentScope.id !== 'order'">
-            <label class="block font-medium text-gray-700">
-              {{ currentScope.id === 'category' ? $t('Category') : (currentScope.singleObjectOnly ? $t('Item (one)') : $t('Items')) }}
-            </label>
-            <div v-if="currentScope.id === 'category'" class="mt-1 max-h-40 overflow-y-auto border rounded-md p-2 space-y-1">
-              <label v-for="category in menu.categories" :key="category.id" class="flex items-center gap-2">
-                <input v-model="form.object_ids" type="checkbox" :value="category.id" class="rounded border-gray-300" />
-                <span>{{ category.name }}</span>
-              </label>
-            </div>
-            <div v-else class="mt-1 max-h-48 overflow-y-auto border rounded-md p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
-              <label v-for="item in menu.items" :key="item.id" class="flex items-center gap-2">
-                <input
-                  v-if="currentScope.singleObjectOnly"
-                  type="radio"
-                  :checked="form.object_ids[0] === item.id"
-                  class="border-gray-300"
-                  @change="form.object_ids = [item.id]"
-                />
-                <input v-else v-model="form.object_ids" type="checkbox" :value="item.id" class="rounded border-gray-300" />
-                <span><span class="mr-1 text-xs text-gray-500">{{ $t('Slot :slot', { slot: item.slot }) }}</span><span class="mr-1">{{ item.product_code }}</span><span class="text-gray-600">{{ item.product_name }}</span></span>
-              </label>
-            </div>
-            <InputError :message="form.errors.object_ids" />
+          <div v-if="currentDeal?.cap">
+            <label class="block font-medium text-gray-700">{{ $t('Up to ($)') }}</label>
+            <input v-model="form.cap" type="number" min="0" step="0.01" :class="inputClass" />
+            <InputError :message="form.errors.cap" />
           </div>
-
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div v-if="currentType?.qty">
-              <label class="block font-medium text-gray-700">{{ $t('Items in bundle') }}</label>
-              <input v-model="form.qty" type="number" min="2" step="1" :class="inputClass" />
-              <InputError :message="form.errors.qty" />
-            </div>
-            <div v-if="currentType?.promo_value">
-              <label class="block font-medium text-gray-700">{{ valueLabel }}</label>
-              <input v-model="form.value" type="number" min="0" :step="isPercent ? 1 : 0.01" :class="inputClass" />
-              <InputError :message="form.errors.value" />
-            </div>
-            <div v-if="currentType?.cap">
-              <label class="block font-medium text-gray-700">{{ $t('Up to ($)') }}</label>
-              <input v-model="form.cap" type="number" min="0" step="0.01" :class="inputClass" />
-              <InputError :message="form.errors.cap" />
-            </div>
-            <div v-if="currentScope?.minBasketAmount">
-              <label class="block font-medium text-gray-700">{{ $t('Min. spend ($)') }}</label>
-              <input v-model="form.min_basket" type="number" min="0" step="0.01" :class="inputClass" />
-              <InputError :message="form.errors.min_basket" />
-            </div>
+          <div v-if="currentDeal?.min_basket">
+            <label class="block font-medium text-gray-700">{{ $t('Min. spend ($)') }}</label>
+            <input v-model="form.min_basket" type="number" min="0" step="0.01" :class="inputClass" />
+            <InputError :message="form.errors.min_basket" />
           </div>
+        </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-gray-700">{{ $t('Starts') }}</label>
+            <input v-model="form.starts_at" type="datetime-local" :class="inputClass" />
+            <InputError :message="form.errors.starts_at" />
+          </div>
+          <div>
+            <label class="block font-medium text-gray-700">{{ $t('Ends') }}</label>
+            <input v-model="form.ends_at" type="datetime-local" :class="inputClass" />
+            <InputError :message="form.errors.ends_at" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-gray-700">{{ $t('Name on Grab') }}</label>
+          <input v-model="form.name" type="text" maxlength="255" :class="inputClass" @input="nameTouched = true" />
+          <p class="text-xs text-gray-500 mt-1">{{ $t('Filled in from the deal; change it if you like.') }}</p>
+          <InputError :message="form.errors.name" />
+        </div>
+
+        <details :open="moreOptions" class="rounded-md border border-gray-200 px-3 py-2">
+          <summary class="cursor-pointer text-gray-700">{{ $t('More options') }}</summary>
+          <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div v-if="(currentDeal?.eater_types ?? []).length > 1">
               <label class="block font-medium text-gray-700">{{ $t('For') }}</label>
               <select v-model="form.eater_type" :class="inputClass">
-                <option v-for="option in currentScope?.eaterType ?? []" :key="option.id" :value="option.id">{{ eaterName[option.id] ?? option.name }}</option>
+                <option v-for="option in currentDeal.eater_types" :key="option" :value="option">{{ eaterName[option] ?? option }}</option>
               </select>
               <InputError :message="form.errors.eater_type" />
             </div>
@@ -366,34 +348,14 @@
               <InputError :message="form.errors.total_count_per_user" />
             </div>
           </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="block font-medium text-gray-700">{{ $t('Starts') }}</label>
-              <input v-model="form.starts_at" type="datetime-local" :class="inputClass" />
-              <InputError :message="form.errors.starts_at" />
-            </div>
-            <div>
-              <label class="block font-medium text-gray-700">{{ $t('Ends') }}</label>
-              <input v-model="form.ends_at" type="datetime-local" :class="inputClass" />
-              <InputError :message="form.errors.ends_at" />
-            </div>
-          </div>
-
-          <div>
-            <label class="block font-medium text-gray-700">{{ $t('Name on Grab') }}</label>
-            <input v-model="form.name" type="text" maxlength="255" :class="inputClass" @input="nameTouched = true" />
-            <p class="text-xs text-gray-500 mt-1">{{ $t('Filled in from the deal; change it if you like.') }}</p>
-            <InputError :message="form.errors.name" />
-          </div>
-          <InputError :message="form.errors.ids" />
-        </template>
+        </details>
+        <InputError :message="form.errors.ids" />
 
         <div class="flex justify-end gap-2 pt-2">
           <button
             type="button"
             :class="primaryClass"
-            :disabled="form.processing || !menu || (!editing && !form.ref_ids.length)"
+            :disabled="form.processing || (!editing && !form.ref_ids.length)"
             @click="submitForm"
           >
             {{ editing ? $tc('Save on :count Grab store|Save on :count Grab stores', form.ids.length, { count: form.ids.length }) : $tc('Send to :count Grab store|Send to :count Grab stores', form.ref_ids.length, { count: form.ref_ids.length }) }}
@@ -433,7 +395,6 @@ import TableData from '@/Components/TableData.vue';
 import TableHead from '@/Components/TableHead.vue';
 import { MagnifyingGlassIcon, PlusIcon } from '@heroicons/vue/20/solid';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import axios from 'axios';
 import moment from 'moment';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { t } from '@/i18n';
@@ -443,8 +404,8 @@ const props = defineProps({
   totals: Object,
   reads: Object,
   sends: Array,
-  menus: Array,
-  campaignTypes: Array,
+  formStores: Array,
+  deals: Array,
   filters: Object,
   keepGoneDays: Number,
   can: Object,
@@ -495,22 +456,16 @@ const actionName = {
   update: t('Change'),
   end: t('End'),
 }
-const typeName = {
-  net: t('Dollar off'),
-  percentage: t('Percent off'),
-  bundleSameFixPrice: t('Buy several of one item for a fixed price'),
-  bundleDiffFixPrice: t('Any mix of items for a fixed price'),
-  bundleSameNet: t('Buy several of one item, dollar off'),
-  bundleDiffNet: t('Any mix of items, dollar off'),
-  bundleSamePercentage: t('Buy several of one item, percent off'),
-  bundleDiffPercentage: t('Any mix of items, percent off'),
-  delivery: t('Delivery fee off'),
-  freeItem: t('Free item'),
-}
-const scopeName = {
-  items: t('Items'),
-  category: t('Category'),
-  order: t('Whole order'),
+// The deals the form offers (GrabPromotionController::DEALS), by type:scope.
+const dealName = {
+  'bundleDiffFixPrice:items': t('Any mix of items for a fixed price'),
+  'bundleDiffNet:items': t('Any mix of items, dollar off'),
+  'bundleDiffPercentage:items': t('Any mix of items, percent off'),
+  'net:items': t('Dollar off each item'),
+  'percentage:items': t('Percent off each item'),
+  'net:order': t('Dollar off the order'),
+  'percentage:order': t('Percent off the order'),
+  'delivery:order': t('Delivery fee off'),
 }
 const eaterName = {
   all: t('All customers'),
@@ -591,7 +546,7 @@ function leftoverReason(promotion) {
 }
 
 function canEdit(promotion) {
-  return props.can.update && !promotion.gone_at && promotion.mapping_id
+  return props.can.update && !promotion.gone_at && promotion.editable
     && !['merchant_app', 'grab_team'].includes(promotion.source)
 }
 
@@ -613,22 +568,20 @@ onBeforeUnmount(() => poll && clearInterval(poll))
 const modal = ref(null)
 const current = ref(null)
 const editing = ref(false)
-const menu = ref(null)
-const menuLoading = ref(false)
 const nameTouched = ref(false)
+const moreOptions = ref(false)
+const storeSearch = ref('')
 
 function closeModal() {
   modal.value = null
 }
 
 const form = useForm({
-  delivery_product_mapping_id: null,
   ref_ids: [],
   ids: [],
   type: 'bundleDiffFixPrice',
   scope: 'items',
   eater_type: 'all',
-  object_ids: [],
   qty: 2,
   value: '',
   cap: '',
@@ -641,8 +594,17 @@ const form = useForm({
 })
 const endForm = useForm({ ids: [] })
 
-const currentType = computed(() => props.campaignTypes.find(option => option.id === form.type))
-const currentScope = computed(() => currentType.value?.scope.find(option => option.id === form.scope))
+const currentDeal = computed(() => props.deals.find(option => option.type === form.type && option.scope === form.scope))
+const dealKey = computed({
+  get: () => form.type + ':' + form.scope,
+  set: (key) => {
+    const option = props.deals.find(candidate => candidate.key === key)
+    if (!option) return
+    form.type = option.type
+    form.scope = option.scope
+    if (!option.eater_types.includes(form.eater_type)) form.eater_type = option.eater_types[0] ?? 'all'
+  },
+})
 const isPercent = computed(() => (form.type ?? '').toLowerCase().includes('percentage'))
 const valueLabel = computed(() => {
   if (isPercent.value) return t('Percent off')
@@ -653,38 +615,26 @@ const valueLabel = computed(() => {
 // The name Grab shows the merchant: the deal in words until someone types one.
 const suggestedName = computed(() => {
   const text = dealText({ type: form.type, value: form.value || 0, cap: form.cap || 0 }, form.qty)
-  return form.scope === 'order' ? text : text + ' ' + (scopeName[form.scope] ?? '')
+  if (form.type === 'delivery') return text
+  return text + ' ' + (form.scope === 'order' ? t('on the order') : t('every item'))
 })
 watch(suggestedName, (name) => {
   if (!nameTouched.value) form.name = name.trim()
 })
 
-function onTypeChange() {
-  const scopes = currentType.value?.scope ?? []
-  if (!scopes.some(option => option.id === form.scope)) form.scope = scopes[0]?.id ?? ''
-  onScopeChange()
-}
+const shownStores = computed(() => {
+  const needle = storeSearch.value.trim().toLowerCase()
+  if (!needle) return props.formStores ?? []
+  return (props.formStores ?? []).filter(store => [store.vend_code, store.merchant_id, store.operator_code]
+    .some(text => String(text ?? '').toLowerCase().includes(needle)))
+})
 
-function onScopeChange() {
-  const eaters = currentScope.value?.eaterType ?? []
-  if (!eaters.some(option => option.id === form.eater_type)) form.eater_type = eaters[0]?.id ?? 'all'
-  if (form.scope === 'order') form.object_ids = []
-  if (currentScope.value?.singleObjectOnly && form.object_ids.length > 1) form.object_ids = form.object_ids.slice(0, 1)
-}
-
-async function loadMenu(id, selectAll) {
-  menu.value = null
-  if (!id) return
-  menuLoading.value = true
-  try {
-    const { data } = await axios.get('/grab-promotions/menus/' + id)
-    menu.value = data
-    if (selectAll) form.ref_ids = data.stores.filter(store => store.has_account).map(store => store.ref_id)
-  } catch (e) {
-    form.setError('delivery_product_mapping_id', t('This menu could not be loaded.'))
-  } finally {
-    menuLoading.value = false
-  }
+// All / None act on the stores the search shows.
+function pickStores(all) {
+  const shown = shownStores.value.filter(store => store.has_account).map(store => store.ref_id)
+  form.ref_ids = all
+    ? [...new Set([...form.ref_ids, ...shown])]
+    : form.ref_ids.filter(id => !shown.includes(id))
 }
 
 function local(value) {
@@ -696,14 +646,11 @@ function openCreate() {
   form.clearErrors()
   editing.value = false
   nameTouched.value = false
-  menu.value = null
+  moreOptions.value = false
+  storeSearch.value = ''
   form.starts_at = moment().add(10, 'minutes').format('YYYY-MM-DDTHH:mm')
   form.ends_at = moment().add(1, 'month').endOf('day').format('YYYY-MM-DDTHH:mm')
   form.name = suggestedName.value.trim()
-  if (props.menus.length === 1) {
-    form.delivery_product_mapping_id = props.menus[0].id
-    loadMenu(form.delivery_product_mapping_id, true)
-  }
   modal.value = 'form'
 }
 
@@ -713,12 +660,10 @@ function openEdit(promotion) {
   form.clearErrors()
   editing.value = true
   current.value = promotion
-  form.delivery_product_mapping_id = promotion.mapping_id
   form.ids = promotion.stores.filter(store => !store.gone_at).map(store => store.id)
   form.ref_ids = []
   form.type = discount.type
   form.scope = discount.scope?.type ?? 'items'
-  form.object_ids = (discount.scope?.objectIDs ?? []).map(String)
   form.eater_type = conditions.eaterType ?? 'all'
   form.qty = conditions.bundleQuantity || 2
   form.value = discount.value ?? ''
@@ -730,7 +675,7 @@ function openEdit(promotion) {
   form.ends_at = local(promotion.ends_at)
   form.name = promotion.name ?? ''
   nameTouched.value = true
-  loadMenu(promotion.mapping_id, false)
+  moreOptions.value = form.eater_type !== 'all' || !!form.total_count || !!form.total_count_per_user
   modal.value = 'form'
 }
 
