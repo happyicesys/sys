@@ -13,6 +13,7 @@ class Profile extends Model
         'name',
         'alias',
         'uen',
+        'gst_reg_no',
         'base_currency_id',
     ];
 

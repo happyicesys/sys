@@ -59,6 +59,7 @@ use App\Http\Controllers\ServiceNoticeController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SimcardController;
 use App\Http\Controllers\SiteGroupingController;
+use App\Http\Controllers\SmartFreezer\FreezerReceiptController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\StockCheckController;
 use App\Http\Controllers\TagController;
@@ -1369,6 +1370,13 @@ Route::post('/refund/by-order', [RefundFormController::class, 'byOrder'])->middl
 Route::post('/refund/candidates', [RefundFormController::class, 'candidates'])->middleware('throttle:60,1')->name('refund.candidates');
 Route::post('/refund/machine-products', [RefundFormController::class, 'machineProducts'])->middleware('throttle:60,1')->name('refund.machine-products');
 Route::post('/refund', [RefundFormController::class, 'store'])->middleware('throttle:20,1')->name('refund.store');
+
+/*
+| Public live invoice behind the smart freezer's thank-you QR (no auth; the
+| link's signature is the authorisation). See App\Services\SmartFreezer\FreezerReceipt.
+*/
+Route::get('/r/{code}/{ref}', [FreezerReceiptController::class, 'show'])->middleware('throttle:60,1')->name('freezer-receipt.show');
+Route::get('/r/{code}/{ref}/state', [FreezerReceiptController::class, 'state'])->middleware('throttle:120,1')->name('freezer-receipt.state');
 
 /*
 | Admin refund management (auth + Spatie permissions).

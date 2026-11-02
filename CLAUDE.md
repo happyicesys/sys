@@ -1523,6 +1523,21 @@ CONFIRMs before unlocking, so the no-dispense refund cannot fire). 404/409/422 =
 "freezer unfulfilled refund refused", the order waits for a person. Coverage:
 `tests/Feature/FreezerUnfulfilledRefundTest.php`.
 
+**Live invoice behind the thank-you QR** (Brian, 2026-11-02; freezer app 41+). After the lid closes the
+freezer shows a QR to `GET /r/{code}/{SFREF}?s=<sig>` — public, no login, `noindex`, the link's signature is the
+authorisation: first 24 hex of HMAC-SHA256(the vend's signing key — `VerifyDeviceSignature::keyFor`, so the fleet
+key on every freezer today — `"receipt\n<code>\n<SFREF>"`), computed OFFLINE on the freezer
+(`domain/receipt/ReceiptLinks.kt`, pinned byte for byte by both test suites). `FreezerReceipt` owns the page state:
+`calculating` (T05 hold waiting for the AI, or its sale still `audit_pending_at`) → `final` (what was CHARGED, itemised
+from `FreezerSaleAudit`'s rebuilt items, "Taken extra" / "Not taken – not charged" badges from `meta_json.audit`
+basket_paid vs basket_charged, GST-inclusive subtotal/GST) / `nothing` (hold released) / `review` (a person must key
+in the charge — `personNeededBecause`) / `not_completed`. PayNow / NETS sales are `final` as soon as the sale exists.
+The page polls `/state` and reloads when its version changes. The first valid open is stored in `freezer_receipts`
+and checked against that row afterwards, so a key change never breaks a link a customer holds (links never expire).
+The heading reads "Tax Invoice" only once the operator's profile (`operators.profile_id` → `profiles`, HIPL → HAPPY
+ICE PTE LTD) has `gst_reg_no`; otherwise "Receipt". Customer-facing, so English only (like the refund form). The
+bear art (`public/img/freezer-receipt/`) is the freezer APK's own. Regression coverage: `tests/Feature/FreezerReceiptTest.php`.
+
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
 permission `ai-recognition` read: superadmin/admin/supervisor) lists every recognition:
 machine, Zijia's order no + our SF ref, links to the original videos, the AI's answer
