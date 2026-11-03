@@ -8,6 +8,7 @@ use App\Models\RefundTicketAttachment;
 use App\Models\RefundTicketItem;
 use App\Services\CardSettlement\CardSettlementRefundReconciler;
 use App\Services\Refund\RefundEmailService;
+use App\Services\Refund\RefundRegion;
 use App\Services\Refund\RefundItemPrice;
 use App\Services\Refund\RefundPayoutCsvService;
 use App\Services\Refund\RefundTicketService;
@@ -125,6 +126,7 @@ class RefundController extends Controller
             'statuses' => $this->statusLabels(),
             'banks' => \App\Services\Refund\BankTemplates\BankTemplateRegistry::all(),
             'defaultBank' => config('refund.default_bank', 'cimb'),
+            'region' => RefundRegion::forServer()->toArray(),
         ]);
     }
 
@@ -246,10 +248,11 @@ class RefundController extends Controller
                             ->when($min !== null, fn ($x) => $x->where('amount', '>=', $min))
                             ->when($max !== null, fn ($x) => $x->where('amount', '<=', $max));
                     })->orWhereExists(function ($sub) use ($min, $max) {
+                        $region = RefundRegion::forServer();
                         $sub->selectRaw('1')->from('payment_gateway_logs')
                             ->whereColumn('payment_gateway_logs.id', 'refund_tickets.payment_gateway_log_id')
-                            ->when($min !== null, fn ($x) => $x->where('amount', '>=', $min))
-                            ->when($max !== null, fn ($x) => $x->where('amount', '<=', $max));
+                            ->when($min !== null, fn ($x) => $x->where('amount', '>=', $region->gatewayAmount($min)))
+                            ->when($max !== null, fn ($x) => $x->where('amount', '<=', $region->gatewayAmount($max)));
                     });
                 });
             })
@@ -617,6 +620,7 @@ class RefundController extends Controller
                 ->filter()
                 ->all(),
             'statuses' => $this->statusLabels(),
+            'region' => RefundRegion::forVend($ticket->vend)->toArray(),
         ]);
     }
 
@@ -968,7 +972,7 @@ class RefundController extends Controller
         ]);
 
         $tickets = RefundTicket::whereIn('id', $data['ticket_ids'])
-            ->where('refund_method', 'paypal')
+            ->whereIn('refund_method', [RefundTicket::METHOD_PAYPAL, RefundTicket::METHOD_LOCAL_TRANSFER])
             ->where('status', RefundTicket::STATUS_APPROVED)
             ->get();
 
@@ -1006,7 +1010,7 @@ class RefundController extends Controller
     public function updateFinalAmount(Request $request, RefundTicket $ticket)
     {
         $data = $request->validate([
-            'final_refund_amount' => ['required', 'numeric', 'min:0', 'max:99999.99'],
+            'final_refund_amount' => ['required', 'numeric', 'min:0', 'max:'.RefundRegion::forVend($ticket->vend)->maxFinalAmount()],
             'final_refund_remarks' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -1025,9 +1029,10 @@ class RefundController extends Controller
             'final_refund_remarks' => $remarks,
         ]);
 
-        $note = 'Final refund amount set to $'.number_format($cents / 100, 2)
-            .' (claim $'.number_format((int) $ticket->claimed_amount_cents / 100, 2).')'
-            .($prev !== $cents ? ' — was $'.number_format($prev / 100, 2) : '')
+        $region = RefundRegion::forVend($ticket->vend);
+        $note = 'Final refund amount set to '.$region->label($cents)
+            .' (claim '.$region->label((int) $ticket->claimed_amount_cents).')'
+            .($prev !== $cents ? ' — was '.$region->label((int) $prev) : '')
             .($remarks ? ' — '.$remarks : '');
         $this->tickets->log($ticket, 'final_amount', null, null, $note, auth()->user()?->name ?? 'Admin', auth()->id());
 
@@ -1360,7 +1365,7 @@ class RefundController extends Controller
         // Transaction details come from the matched source; manual tickets show
         // nothing here until Ops matches the Order ID.
         $txnDate = $txn?->transaction_datetime ?? $log?->approved_at ?? $log?->created_at;
-        $paidCents = $txn?->amount ?? $log?->amount;
+        $paidCents = $txn?->amount ?? ($log ? RefundRegion::forServer()->gatewayCents($log->amount) : null);
 
         // Delta = elapsed time between the transaction and the refund submission
         // (how long after buying the customer raised the claim), as "Xd Yh Zm".
@@ -1406,7 +1411,8 @@ class RefundController extends Controller
             'refund_method' => $t->refund_method,
             // PayNow number shown under the method (PayPal email is intentionally
             // omitted to save space). paynow_duplicate drives the red reuse warning.
-            'payout_destination' => $t->refund_method === RefundTicket::METHOD_PAYNOW ? $t->payout_destination : null,
+            // A local e-wallet / bank line is shown too: it is what staff pay from.
+            'payout_destination' => in_array($t->refund_method, [RefundTicket::METHOD_PAYNOW, RefundTicket::METHOD_LOCAL_TRANSFER], true) ? $t->payout_destination : null,
             // Method-agnostic destination for the Excel export only (PayNow number OR
             // PayPal email). The UI keeps 'payout_destination' above, which stays null
             // for non-PayNow so the screen is unchanged.
@@ -1655,14 +1661,15 @@ class RefundController extends Controller
         // Amount — customer's stated amount paid vs the actual transaction amount.
         if ($t->entered_amount_cents !== null) {
             $ok = (int) $t->entered_amount_cents === (int) $txn->amount;
-            $paid = number_format($t->entered_amount_cents / 100, 2);
-            $act = number_format($txn->amount / 100, 2);
+            $region = RefundRegion::forServer();
+            $paid = $region->label((int) $t->entered_amount_cents);
+            $act = $region->label((int) $txn->amount);
             $checks[] = [
                 'key' => 'amount', 'ok' => $ok, 'soft' => false,
                 'label' => $ok ? 'Amount matches' : 'Amount mismatch',
                 'detail' => $ok
-                    ? "The customer's amount (\${$paid}) matches the transaction."
-                    : "The customer said they paid \${$paid}, but this transaction is \${$act}. Double-check the Order ID.",
+                    ? "The customer's amount ({$paid}) matches the transaction."
+                    : "The customer said they paid {$paid}, but this transaction is {$act}. Double-check the Order ID.",
             ];
         }
 

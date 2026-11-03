@@ -60,6 +60,9 @@ class RefundTicket extends Model
 
     const METHOD_PAYPAL = 'paypal';
 
+    // E-wallet or bank account where PayNow does not exist (Indonesia): paid by hand, like PayPal.
+    const METHOD_LOCAL_TRANSFER = 'local_transfer';
+
     const METHOD_NAYAX_AUTO = 'nayax_auto';
 
     const METHOD_NONE = 'none';

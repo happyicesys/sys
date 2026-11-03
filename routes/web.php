@@ -1022,10 +1022,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::delete('/{id}', [RolePermissionController::class, 'deleteRole']);
     });
 
-    // English / Simplified Chinese UI (2026-10-26): the top-right switch, the dictionary the pages
-    // load, and the Translations page where wording is changed without a deploy.
+    // English / Simplified Chinese UI (2026-10-26): the top-right switch and the Translations page where
+    // wording is changed without a deploy. The dictionary the pages load is public, below.
     Route::post('/user/locale', [LocaleController::class, 'update'])->name('user.locale');
-    Route::get('/i18n/{locale}.json', [TranslationDictionaryController::class, 'show'])->name('i18n.dictionary');
     Route::prefix('translations')->group(function () {
         Route::get('/', [TranslationController::class, 'index'])->name('translations')
             ->middleware('can:read translations');
@@ -1350,6 +1349,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
 
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions');
 });
+
+// The UI's wording, labels only. Public since 2026-11-03: a customer on the refund form has no login but
+// reads it in the machine's language (RefundRegion::customerLocale).
+Route::get('/i18n/{locale}.json', [TranslationDictionaryController::class, 'show'])->middleware('throttle:120,1')->name('i18n.dictionary');
 
 /*
 | Public customer refund form (no auth). Reached from the machine QR:

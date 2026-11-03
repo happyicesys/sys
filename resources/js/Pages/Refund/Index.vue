@@ -8,6 +8,7 @@ import { ref, computed, watch } from 'vue';
 import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
 import { netsReportBadge } from '@/constants/netsReportBadge';
 import { t } from '@/i18n';
+import { formatRefundMoney } from '@/utils/refundMoney';
 
 const page = usePage();
 const can = (p) => (page.props.auth?.roles || []).includes('superadmin') || (page.props.auth?.permissions || []).includes(p);
@@ -34,7 +35,11 @@ const props = defineProps({
     defaultBank: { type: String, default: 'cimb' },
     paymentMethods: { type: Object, default: () => ({ data: [] }) },
     cardTerminalOptions: { type: Object, default: () => ({ data: [] }) },
+    region: { type: Object, default: () => ({ symbol: '$', whole_units: false, methods: ['paynow', 'paypal'] }) },
 });
+const money = (v) => formatRefundMoney(v, props.region);
+// Paid by hand and marked done here: PayPal, and an e-wallet or bank where PayNow does not exist.
+const paidByHand = (t) => ['paypal', 'local_transfer'].includes(t.refund_method);
 
 // ---- batch selection / push to settlement ----
 const selected = ref([]);
@@ -64,7 +69,7 @@ const autoRefundTriggerLabel = (trigger) => ({
 
 const eligible = (t) => toNum(t.final_refund_amount) > 0
     && (t.status === 'approved'
-        || (t.refund_method === 'paypal' && t.status === 'insufficient_info'));
+        || (paidByHand(t) && t.status === 'insufficient_info'));
 const pushing = ref(false);
 const pushMsg = ref('');
 function pushToSettlement() {
@@ -86,7 +91,9 @@ const marking = ref(false);
 function markDonePaypal() {
     const ids = paypalDoneIds.value;
     if (!ids.length) { pushMsg.value = t('Select at least one Approved PayPal ticket.'); return; }
-    if (!confirm(t('Mark :count PayPal refund(s) as done? This emails each customer their completion notice.', { count: ids.length }))) return;
+    if (!confirm(anyLocalTransfer.value
+        ? t('Mark :count refund(s) as done? Do this only after you have paid them.', { count: ids.length })
+        : t('Mark :count PayPal refund(s) as done? This emails each customer their completion notice.', { count: ids.length }))) return;
     marking.value = true; pushMsg.value = '';
     router.post('/refunds/batch/complete', { ticket_ids: ids }, {
         preserveScroll: true,
@@ -104,7 +111,7 @@ const flagging = ref(false);
 function markInsufficientInfoPaypal() {
     const ids = paypalFlagIds.value;
     if (!ids.length) { pushMsg.value = t('Select at least one Approved PayPal ticket.'); return; }
-    if (!confirm(t('Flag :count PayPal refund(s) as Insufficient Info (e.g. wrong PayPal email)? No email is sent — handle the payout by hand, then mark it done.', { count: ids.length }))) return;
+    if (!confirm(anyLocalTransfer.value ? t('Flag :count refund(s) as Insufficient Info (wrong account details)? Contact the customer, then mark it done.', { count: ids.length }) : t('Flag :count PayPal refund(s) as Insufficient Info (e.g. wrong PayPal email)? No email is sent — handle the payout by hand, then mark it done.', { count: ids.length }))) return;
     flagging.value = true; pushMsg.value = '';
     router.post('/refunds/batch/insufficient-info', { ticket_ids: ids }, {
         preserveScroll: true,
@@ -130,6 +137,7 @@ const selectedTickets = computed(() => props.tickets.data.filter((t) => selected
 const selMethods = computed(() => [...new Set(selectedTickets.value.map((t) => t.refund_method))]);
 const allPaynow = computed(() => selMethods.value.length === 1 && selMethods.value[0] === 'paynow');
 const allPaypal = computed(() => selMethods.value.length === 1 && selMethods.value[0] === 'paypal');
+const anyLocalTransfer = computed(() => selMethods.value.includes('local_transfer'));
 const mixedMethods = computed(() => selMethods.value.length > 1);
 // Method-specific subsets of the current selection, so a mixed selection can run
 // each action on its own group (PayNow → settlement, PayPal → mark done here).
@@ -137,8 +145,8 @@ const paynowSelectedIds = computed(() => selectedTickets.value.filter((t) => t.s
 // PayPal actions: "Mark as Done" covers Approved + already-flagged Insufficient-Info
 // (details fixed); "Mark Insufficient Info" applies only to Approved PayPal (can't
 // re-flag one that's already parked).
-const paypalDoneIds = computed(() => selectedTickets.value.filter((t) => t.refund_method === 'paypal' && ['approved', 'insufficient_info'].includes(t.status)).map((t) => t.id));
-const paypalFlagIds = computed(() => selectedTickets.value.filter((t) => t.refund_method === 'paypal' && t.status === 'approved').map((t) => t.id));
+const paypalDoneIds = computed(() => selectedTickets.value.filter((t) => paidByHand(t) && ['approved', 'insufficient_info'].includes(t.status)).map((t) => t.id));
+const paypalFlagIds = computed(() => selectedTickets.value.filter((t) => paidByHand(t) && t.status === 'approved').map((t) => t.id));
 // status options as {id: key, value: label} for the tags MultiSelect. "All" is a
 // pseudo-status handled by the backend (it skips the status filter entirely), so it
 // shows every ticket including Completed — unlike an empty selection, which applies
@@ -440,6 +448,7 @@ const sortedRows = computed(() => {
                             <option value="">{{ $t('All methods') }}</option>
                             <option value="paynow">PayNow</option>
                             <option value="paypal">PayPal</option>
+                            <option v-if="region.methods.includes('local_transfer')" value="local_transfer">{{ $t('E-wallet or bank') }}</option>
                             <option value="nayax_auto">{{ $t('Nayax (auto)') }}</option>
                             <option value="none">{{ $t('None') }}</option>
                         </select>
@@ -484,7 +493,7 @@ const sortedRows = computed(() => {
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">{{ $t('Paid Amount ($)') }}</label>
+                    <label class="block text-xs font-medium text-gray-700">{{ region.whole_units ? $t('Paid Amount (:symbol)', { symbol: region.symbol }) : $t('Paid Amount ($)') }}</label>
                     <div class="mt-1 flex items-center space-x-1">
                         <input v-model="filters.paid_min" type="number" step="0.01" min="0" :placeholder="$t('Min')"
                             class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
@@ -613,6 +622,7 @@ const sortedRows = computed(() => {
             <div class="flex items-center gap-3">
                 <span class="text-sm font-semibold text-teal-800">{{ $t(':count selected', { count: selected.length }) }}</span>
                 <span v-if="allPaynow" class="text-xs text-gray-500">{{ $t('PayNow — push into the Refund Settlement (the CIMB file is exported from there).') }}</span>
+                <span v-else-if="anyLocalTransfer" class="text-xs text-gray-500">{{ $t('Paid by hand to the account on each request. Mark them done here, or flag Insufficient Info if the details are wrong.') }}</span>
                 <span v-else-if="allPaypal" class="text-xs text-gray-500">{{ $t('PayPal — paid manually. Mark them done here (emails the customer), or flag Insufficient Info if the payout details are wrong. Not settled via CIMB.') }}</span>
                 <span v-else class="text-xs text-gray-500">{{ $t('Mixed selection — PayNow tickets are pushed to a settlement, PayPal tickets are marked done here.') }}</span>
             </div>
@@ -623,14 +633,14 @@ const sortedRows = computed(() => {
                 </button>
                 <button v-if="paypalDoneIds.length" @click="markDonePaypal" :disabled="marking"
                     class="bg-green-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
-                    {{ marking ? $t('Marking…') : $t('✓ Mark as Done — PayPal (:count)', { count: paypalDoneIds.length }) }}
+                    {{ marking ? $t('Marking…') : anyLocalTransfer ? $t('✓ Mark as Done (:count)', { count: paypalDoneIds.length }) : $t('✓ Mark as Done — PayPal (:count)', { count: paypalDoneIds.length }) }}
                 </button>
                 <button v-if="paypalFlagIds.length" @click="markInsufficientInfoPaypal" :disabled="flagging"
                     class="bg-red-600 text-white rounded-md px-4 py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
                     :title="$t('PayPal only: the payout details are wrong (e.g. a bad PayPal email). Parks the ticket as Insufficient Info — no email is sent.')">
-                    {{ flagging ? $t('Flagging…') : $t('⚠ Mark Insufficient Info — PayPal (:count)', { count: paypalFlagIds.length }) }}
+                    {{ flagging ? $t('Flagging…') : anyLocalTransfer ? $t('⚠ Mark Insufficient Info (:count)', { count: paypalFlagIds.length }) : $t('⚠ Mark Insufficient Info — PayPal (:count)', { count: paypalFlagIds.length }) }}
                 </button>
-                <a href="/refund-settlements" class="text-xs text-teal-700 underline whitespace-nowrap">{{ $t('Open Refund Settlement →') }}</a>
+                <a v-if="region.methods.includes('paynow')" href="/refund-settlements" class="text-xs text-teal-700 underline whitespace-nowrap">{{ $t('Open Refund Settlement →') }}</a>
             </div>
             <span v-if="pushMsg" class="block mt-2 text-xs text-red-600">{{ pushMsg }}</span>
         </div>
@@ -735,9 +745,9 @@ const sortedRows = computed(() => {
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <div class="text-gray-700">
-                                <template v-if="t.matched && t.paid_amount">${{ t.paid_amount }}</template>
+                                <template v-if="t.matched && t.paid_amount">{{ money(t.paid_amount) }}</template>
                                 <span v-else-if="t.entered_amount" class="italic text-amber-700"
-                                    v-tooltip="$t('Amount keyed in by the customer on the manual form')">${{ t.entered_amount }}</span>
+                                    v-tooltip="$t('Amount keyed in by the customer on the manual form')">{{ money(t.entered_amount) }}</span>
                                 <template v-else>—</template>
                             </div>
                             <div class="text-xs text-gray-600 mt-1">
@@ -777,10 +787,10 @@ const sortedRows = computed(() => {
                              lost signal / never uploaded its transaction can still be paid. -->
                         <td class="px-4 py-3 font-medium border-l border-gray-100">
                             <template v-if="t.matched || t.final_refund_overridden">
-                                <div>${{ t.final_refund_overridden ? t.final_refund_amount : t.amount }}</div>
+                                <div>{{ money(t.final_refund_overridden ? t.final_refund_amount : t.amount) }}</div>
                                 <div v-if="t.final_refund_overridden" class="text-[11px] font-normal text-amber-600 mt-0.5"
-                                    v-tooltip="(t.matched ? $t('Final refund amount overridden from the original claim of $:amount.', { amount: t.amount }) : $t('Final refund amount set by an admin (no matched transaction to derive a claim from).')) + (t.final_refund_remarks ? ' ' + $t('Remark: :remark', { remark: t.final_refund_remarks }) : '')">
-                                    <span v-if="t.matched"><span class="line-through text-gray-400">${{ t.amount }}</span> {{ $t('was') }}</span>
+                                    v-tooltip="(t.matched ? $t('Final refund amount overridden from the original claim of :amount.', { amount: money(t.amount) }) : $t('Final refund amount set by an admin (no matched transaction to derive a claim from).')) + (t.final_refund_remarks ? ' ' + $t('Remark: :remark', { remark: t.final_refund_remarks }) : '')">
+                                    <span v-if="t.matched"><span class="line-through text-gray-400">{{ money(t.amount) }}</span> {{ $t('was') }}</span>
                                     <span v-else>{{ $t('admin-set') }}</span>
                                     <span v-if="t.final_refund_remarks" class="block text-gray-500 italic break-words">“{{ t.final_refund_remarks }}”</span>
                                 </div>
@@ -789,7 +799,7 @@ const sortedRows = computed(() => {
                                  claim (italic amber). It becomes payable only after matching or an
                                  admin-set Final Refund Amount — settlement still reads those, not this. -->
                             <span v-else-if="t.entered_amount" class="italic text-amber-700 font-normal"
-                                v-tooltip="$t('Claimed by the customer on the manual form — becomes payable only after matching or an admin-set Final Refund Amount')">${{ t.entered_amount }}</span>
+                                v-tooltip="$t('Claimed by the customer on the manual form — becomes payable only after matching or an admin-set Final Refund Amount')">{{ money(t.entered_amount) }}</span>
                             <template v-else>—</template>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap">
@@ -802,6 +812,7 @@ const sortedRows = computed(() => {
                                     : $t('PayNow number the refund will be paid to.')">
                                 {{ t.payout_destination }}
                             </div>
+                            <div v-else-if="t.refund_method === 'local_transfer' && t.payout_destination" class="text-xs mt-1 text-gray-600 break-all">{{ t.payout_destination }}</div>
                         </td>
                         <!-- System self-checking -->
                         <td class="px-4 py-3 text-center border-l border-gray-100">

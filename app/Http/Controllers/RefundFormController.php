@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\RefundTicket;
 use App\Services\Refund\RefundEmailService;
 use App\Services\Refund\RefundMatchingService;
+use App\Services\Refund\RefundRegion;
 use App\Services\Refund\RefundTicketService;
 use App\Support\SgMobile;
 use Illuminate\Http\Request;
@@ -79,10 +81,36 @@ class RefundFormController extends Controller
         return optional(Customer::withoutGlobalScopes()->find($vend->customer_id))->name;
     }
 
+    /** The money, payout methods and language of the machine a request names. */
+    protected function regionOf(Request $request, ?string $machineID): RefundRegion
+    {
+        $region = RefundRegion::forVend(filled($machineID) ? $this->matching->resolveMachine($machineID) : null);
+
+        // A signed-in person keeps their own language (SetUserLocale); a customer reads the machine's.
+        if (! $request->user() && $region->customerLocale()) {
+            app()->setLocale($region->customerLocale());
+        }
+
+        return $region;
+    }
+
+    /** The shared `i18n` prop for a customer, who has no language of their own. */
+    protected function customerI18n(string $locale): array
+    {
+        $catalog = app(\App\Services\I18n\TranslationCatalog::class);
+
+        return [
+            'locale' => $locale,
+            'version' => $catalog->version($locale),
+            'locales' => \App\Services\I18n\TranslationCatalog::LOCALES,
+        ];
+    }
+
     public function show(Request $request)
     {
         $machineID = (string) $request->query('machineID', '');
         [$vend, $blocked] = $this->resolveEligibleMachine($machineID);
+        $region = $this->regionOf($request, $machineID);
 
         // order_id from the dispense-failure QR (APK ORDRID: digits, ~19 chars).
         // Anything else is ignored rather than rejected — the form still works
@@ -101,6 +129,8 @@ class RefundFormController extends Controller
             'reasonCodes' => collect(self::REASON_CODES)->map(fn ($label, $code) => ['code' => $code, 'label' => $label])->values(),
             'allowedDays' => config('refund.match.days', ['today', 'yesterday']),
             'maxLookbackDays' => (int) config('refund.match.max_lookback_days', 14),
+            'region' => $region->toArray(),
+            ...(! $request->user() && $region->customerLocale() ? ['i18n' => $this->customerI18n($region->customerLocale())] : []),
         ]);
     }
 
@@ -141,6 +171,7 @@ class RefundFormController extends Controller
             'machineID' => $data['machineID'],
             'machineName' => $vend?->name,
             'siteName' => $this->siteName($vend),
+            'region' => $this->regionOf($request, $data['machineID'])->toArray(),
         ]);
     }
 
@@ -198,7 +229,7 @@ class RefundFormController extends Controller
             // 'today' | 'yesterday' | a YYYY-MM-DD custom date. dayRange() enforces
             // the eligibility window; out-of-range dates yield no candidates.
             'day' => ['required', 'string', 'max:20'],
-            'amount' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'amount' => ['required', 'numeric', 'min:0', 'max:'.$this->regionOf($request, (string) $request->input('machineID'))->maxAmount()],
         ]);
 
         [$vend] = $this->resolveEligibleMachine($data['machineID']);
@@ -215,6 +246,31 @@ class RefundFormController extends Controller
         ]);
     }
 
+    /**
+     * "GoPay 081234567890 (Budi Santoso)", the one line staff pay from. The provider, account and holder
+     * are all compulsory: a wrong or partial one is money sent to the wrong person.
+     */
+    protected function localPayoutDestination(array $data): string
+    {
+        $provider = (string) ($data['payout_provider'] ?? '');
+        if ($provider === RefundRegion::OTHER_PROVIDER) {
+            $provider = trim((string) ($data['payout_provider_other'] ?? ''));
+        }
+        $account = preg_replace('/[\s.-]/', '', (string) ($data['payout_account'] ?? ''));
+        $name = trim((string) ($data['payout_name'] ?? ''));
+
+        $errors = array_filter([
+            'payout_provider' => $provider === '' ? __('Please choose your e-wallet or bank.') : null,
+            'payout_account' => preg_match('/^\d{6,30}$/', $account) ? null : __('Please enter a valid phone or account number (digits only).'),
+            'payout_name' => $name === '' ? __('Please enter the name on the account.') : null,
+        ]);
+        if ($errors) {
+            throw \Illuminate\Validation\ValidationException::withMessages($errors);
+        }
+
+        return "{$provider} {$account} ({$name})";
+    }
+
     public function store(Request $request)
     {
         // On the manual-review path (no matched transaction) every descriptive
@@ -224,6 +280,7 @@ class RefundFormController extends Controller
         // Matched claims derive all of that from the transaction, so the same
         // fields stay optional there.
         $isManual = $request->boolean('is_manual');
+        $region = $this->regionOf($request, (string) $request->input('machineID'));
         $manualRequired = fn (array $rules) => array_merge($isManual ? ['required'] : ['nullable'], $rules);
 
         $data = $request->validate([
@@ -236,22 +293,26 @@ class RefundFormController extends Controller
             'reason_text' => $manualRequired(['string', 'max:2000']),
             'manual_items_summary' => $manualRequired(['string', 'max:1000']),
             'manual_pay_method' => $manualRequired(['string', 'max:100']),
-            'refund_method' => ['nullable', 'string', 'in:paynow,paypal'],
+            'refund_method' => ['nullable', 'string', 'in:'.implode(',', $region->methods())],
             'payout_destination' => ['nullable', 'string', 'max:191'],
+            'payout_provider' => ['nullable', 'string', 'in:'.implode(',', [...RefundRegion::LOCAL_PROVIDERS, RefundRegion::OTHER_PROVIDER])],
+            'payout_provider_other' => ['nullable', 'string', 'max:60'],
+            'payout_account' => ['nullable', 'string', 'max:60'],
+            'payout_name' => ['nullable', 'string', 'max:100'],
             'contact_name' => ['nullable', 'string', 'max:191'],
             'contact_email' => ['required', 'email', 'max:191'], // email is compulsory
             'contact_phone' => ['nullable', 'string', 'max:60'],
             'is_manual' => ['nullable', 'boolean'],
             'entered_day' => ['nullable', 'string', 'max:30'],
             'entered_amount' => $isManual
-                ? ['required', 'numeric', 'gt:1', 'max:100000']
-                : ['nullable', 'numeric', 'min:0', 'max:100000'],
+                ? ['required', 'numeric', 'gt:1', 'max:'.$region->maxAmount()]
+                : ['nullable', 'numeric', 'min:0', 'max:'.$region->maxAmount()],
             'approx_time' => $manualRequired(['string', 'max:191']),
             'photos' => ['nullable', 'array', 'max:'.config('refund.attachments.max_count', 3)],
             'photos.*' => ['file', 'mimetypes:image/*,video/*', 'max:'.config('refund.attachments.max_kb', 30720)],
         ], [
             'entered_amount.required' => 'Please enter the total amount you paid.',
-            'entered_amount.gt' => 'The amount you paid must be more than $1.',
+            'entered_amount.gt' => __('The amount you paid must be more than :amount.', ['amount' => $region->label(100)]),
             'approx_time.required' => 'Please tell us roughly what time you bought it.',
             'manual_pay_method.required' => 'Please select how you paid.',
             'manual_items_summary.required' => 'Please add the affected item(s), or pick "Not sure / not listed".',
@@ -266,6 +327,10 @@ class RefundFormController extends Controller
         }
         $method = $data['refund_method'] ?? null;
         $dest = trim((string) ($data['payout_destination'] ?? ''));
+
+        if ($method === RefundTicket::METHOD_LOCAL_TRANSFER) {
+            $data['payout_destination'] = $this->localPayoutDestination($data);
+        }
 
         if ($method === 'paynow') {
             if ($dest === '') {

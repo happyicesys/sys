@@ -7,6 +7,7 @@ import { ref, computed } from 'vue';
 import { netsReportBadge, retainedCreditAdvice } from '@/constants/netsReportBadge';
 // `t` is the ticket on this page, so the translator is imported as `translate`; tk() marks each key for i18n:scan.
 import { t as translate, tk } from '@/i18n';
+import { formatRefundMoney } from '@/utils/refundMoney';
 
 const props = defineProps({
     ticket: { type: Object, required: true },
@@ -15,7 +16,9 @@ const props = defineProps({
     nextTicket: { type: Object, default: null },
     emailTemplates: { type: Object, default: () => ({}) },
     emailTemplateContents: { type: Object, default: () => ({}) },
+    region: { type: Object, default: () => ({ symbol: '$', whole_units: false }) },
 });
+const money = (v) => formatRefundMoney(v, props.region);
 
 const page = usePage();
 const can = (p) => (page.props.auth?.roles || []).includes('superadmin') || (page.props.auth?.permissions || []).includes(p);
@@ -303,7 +306,7 @@ const claimedSkus = computed(() => {
 });
 // Multiple purchase = the matched transaction basket carried more than one item.
 const multiplePurchase = computed(() => (t.value.matched ? flaggedRows.value.length > 1 : null));
-const payoutLabel = computed(() => (t.value.refund_method === 'paypal' ? tk('PayPal email address') : tk('PayNow mobile number')));
+const payoutLabel = computed(() => ({ paypal: tk('PayPal email address'), local_transfer: tk('E-wallet or bank') }[t.value.refund_method] ?? tk('PayNow mobile number')));
 // Only append the resolved (yymmdd) date when the choice is relative (Today/Yesterday).
 const isRelativeDay = computed(() => ['today', 'yesterday'].includes((t.value.entered_day || '').toLowerCase()));
 // Manual claims have no matched basket — surface the customer's typed items as the SKU name.
@@ -551,7 +554,7 @@ function actionBadge(l) {
                             <span class="capitalize">{{ t.entered_day || '—' }}</span>
                             <span v-if="t.entered_day_date && isRelativeDay" class="text-gray-500"> ({{ t.entered_day_date }})</span>
                         </dd>
-                        <dt class="text-gray-500">{{ $t('Amount paid') }}</dt><dd class="col-span-2 font-medium">{{ t.entered_amount ? '$' + t.entered_amount : '—' }}</dd>
+                        <dt class="text-gray-500">{{ $t('Amount paid') }}</dt><dd class="col-span-2 font-medium">{{ t.entered_amount ? money(t.entered_amount) : '—' }}</dd>
                         <dt class="text-gray-500">{{ $t('Payment Method') }}</dt>
                         <dd class="col-span-2 font-medium">
                             <span v-if="payMethodDisplay">{{ payMethodDisplay }}</span>
@@ -576,7 +579,7 @@ function actionBadge(l) {
                         </dd>
                         <dt class="text-gray-500">{{ $t('Channel #') }}</dt><dd class="col-span-2 font-medium">{{ claimedChannels || '—' }}</dd>
                         <dt class="text-gray-500">{{ $t('SKU name') }}</dt><dd class="col-span-2 font-medium">{{ skuDisplay }}</dd>
-                        <dt class="text-gray-500">{{ $t('Refund Amount') }}</dt><dd class="col-span-2 font-semibold">${{ t.amount }}</dd>
+                        <dt class="text-gray-500">{{ $t('Refund Amount') }}</dt><dd class="col-span-2 font-semibold">{{ money(t.amount) }}</dd>
                         <dt class="text-gray-500">{{ $t('Refund Reason') }}</dt><dd class="col-span-2 font-medium">{{ t.reason_code || '—' }}</dd>
                         <dt class="text-gray-500">{{ $t('Note') }}</dt><dd class="col-span-2 font-medium">{{ t.reason_text || '—' }}</dd>
                         <!-- Final Refund Amount + Remarks moved to the "Overwritten" section at the bottom. -->
@@ -651,7 +654,7 @@ function actionBadge(l) {
                             <span v-if="it.claimed" class="ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-700">{{ $t('claimed') }}</span>
                             <span v-if="it.product_sku" class="block text-xs text-gray-500">{{ it.product_sku }}<span v-if="it.vend_channel_code"> · {{ $t('Ch :code', { code: it.vend_channel_code }) }}</span></span>
                         </td>
-                        <td>{{ it.unit_price !== null && it.unit_price !== undefined ? '$' + it.unit_price : '—' }}</td>
+                        <td>{{ it.unit_price !== null && it.unit_price !== undefined ? money(it.unit_price) : '—' }}</td>
                         <td>
                             <span v-if="it.had_channel_error" class="text-red-600 font-medium">
                                 {{ it.channel_error_desc || $t('code :code', { code: it.vend_channel_error_code }) }}
@@ -678,7 +681,7 @@ function actionBadge(l) {
                 <!-- header: amount + method + status badges -->
                 <div class="flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b border-gray-200 px-4 py-2.5">
                     <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-lg font-bold text-gray-900 tracking-tight">${{ r.amount }}</span>
+                        <span class="text-lg font-bold text-gray-900 tracking-tight">{{ money(r.amount) }}</span>
                         <!-- Method, then the terminal's supplier in brackets, then the
                              "Auto refund" flag on its OWN line under it (Brian,
                              2026-09-09) — same three facts as the Refund Request list. -->
@@ -783,7 +786,7 @@ function actionBadge(l) {
                         <div class="flex flex-col divide-y divide-gray-50">
                             <div v-for="(it, i) in r.items" :key="i" class="flex items-center justify-between gap-3 py-1">
                                 <span class="text-sm text-gray-800">{{ it.product }}</span>
-                                <span class="text-xs text-gray-400 shrink-0">{{ it.product_code || '—' }}<span v-if="it.channel"> · {{ $t('Ch :code', { code: it.channel }) }}</span> · ${{ it.price }}</span>
+                                <span class="text-xs text-gray-400 shrink-0">{{ it.product_code || '—' }}<span v-if="it.channel"> · {{ $t('Ch :code', { code: it.channel }) }}</span> · {{ money(it.price) }}</span>
                             </div>
                         </div>
                     </div>
@@ -828,11 +831,11 @@ function actionBadge(l) {
                     <div v-if="canEditFinal" class="space-y-2">
                         <div class="flex flex-wrap items-center gap-2">
                             <div class="flex items-center">
-                                <span class="text-gray-500 mr-1">$</span>
+                                <span class="text-gray-500 mr-1">{{ region.symbol }}</span>
                                 <input v-model="finalAmount" @keyup.enter="saveFinalAmount" type="text" inputmode="decimal"
-                                    class="w-28 border rounded px-2 py-1 text-sm" placeholder="0.00" />
+                                    class="w-28 border rounded px-2 py-1 text-sm" :placeholder="region.whole_units ? '0' : '0.00'" />
                             </div>
-                            <span v-if="t.final_refund_overridden" class="text-[11px] text-amber-600">{{ $t('Differs from claim ($:amount)', { amount: t.amount }) }}</span>
+                            <span v-if="t.final_refund_overridden" class="text-[11px] text-amber-600">{{ $t('Differs from claim (:amount)', { amount: money(t.amount) }) }}</span>
                         </div>
                         <textarea v-model="finalRemarks" rows="2" class="w-full border rounded px-2 py-1 text-sm"
                             :placeholder="$t('Final Refund Remarks — reason for the adjustment (optional)')"></textarea>
@@ -841,8 +844,8 @@ function actionBadge(l) {
                     </div>
                     <div v-else class="text-sm">
                         <div class="font-semibold">
-                            ${{ t.final_refund_amount }}
-                            <span v-if="t.final_refund_overridden" class="text-[11px] font-normal text-amber-600 ml-1">({{ $t('claim $:amount', { amount: t.amount }) }})</span>
+                            {{ money(t.final_refund_amount) }}
+                            <span v-if="t.final_refund_overridden" class="text-[11px] font-normal text-amber-600 ml-1">({{ $t('claim :amount', { amount: money(t.amount) }) }})</span>
                             <span v-if="finalAmountLocked" class="text-[11px] font-normal text-gray-400 ml-1">· {{ $t('locked (:status)', { status: statuses[s] || s }) }}</span>
                         </div>
                         <p v-if="t.final_refund_remarks" class="text-xs text-gray-500 mt-1">{{ t.final_refund_remarks }}</p>

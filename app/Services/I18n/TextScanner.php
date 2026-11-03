@@ -256,7 +256,8 @@ class TextScanner
     {
         $blank = fn ($c) => preg_replace('/[^\n]/', ' ', $c[0]);
         $source = preg_replace_callback('/<!--.*?-->/s', $blank, $source);
-        $source = preg_replace_callback('/\/\*.*?\*\//s', $blank, $source);
+        // Not after a word: accept="image/*" opens no comment (it hid the rest of Refund/Form.vue).
+        $source = preg_replace_callback('/(?<!\w)\/\*.*?\*\//s', $blank, $source);
 
         return preg_replace_callback('/(?<![:\'"\\\\\w])\/\/[^\n]*/', $blank, $source);
     }

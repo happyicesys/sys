@@ -260,6 +260,8 @@ class RefundEmailService
             $rows['Refund to'] = trim('PayPal ' . ($ticket->payout_destination ?? ''));
         } elseif ($ticket->refund_method === 'paynow' && $ticket->payout_destination) {
             $rows['Refund to'] = 'PayNow ' . $ticket->payout_destination;
+        } elseif ($ticket->refund_method === RefundTicket::METHOD_LOCAL_TRANSFER) {
+            $rows['Refund to'] = (string) $ticket->payout_destination;
         }
 
         if ($ticket->created_at) {

@@ -1,0 +1,1 @@
+function m(n,t){const i=Number(String(n!=null?n:0).replace(/,/g,""))||0;return t!=null&&t.whole_units?`${t.symbol} ${Math.round(i).toLocaleString("en-US")}`:`$${i.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`}export{m as f};

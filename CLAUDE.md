@@ -481,7 +481,17 @@ a terminal's own reversal "server" would credit us with money we did not
 return. Adding a gateway source without a trigger fails
 `tests/Unit/AutoRefundTriggerTest.php`.
 
-Manual PayNow/PayPal payouts never set `is_refunded` — they live on
+**The public refund form follows the machine's country** (Brian, 2026-11-03; `App\Services\Refund\RefundRegion`,
+the one rule): the machine's operator's country, else the server's when every operator shares one, else today's
+default ("$", two decimals, PayNow + PayPal). An IDR machine shows Rp with no decimals, opens in Bahasa Indonesia for
+a visitor who is not signed in, and pays back by **E-wallet or bank** (`local_transfer`: provider + account + holder,
+stored as one `payout_destination` line) or PayPal — never PayNow, which the server refuses there as it refuses
+`local_transfer` elsewhere. `local_transfer` is paid by hand like PayPal: no settlement, Mark as Done on Refund
+Requests. **Rupiah has two units:** `vend_transactions` / `refund_tickets` ×100 (Rp 20,000 = 2000000), Midtrans'
+`payment_gateway_logs.amount` whole (20000.00) — cross only through `gatewayCents()` / `gatewayAmount()`. Regression
+coverage: `tests/Feature/RefundFormIndonesiaTest.php`, `tests/Feature/RefundStaffIndonesiaTest.php`.
+
+Manual payouts (PayNow, PayPal, e-wallet or bank) never set `is_refunded` — they live on
 `refund_tickets`. History + reasoning: `REFUND_INTEGRITY_AUDIT_2026-08-23.md`.
 Regression coverage: `tests/Unit/PreCreatedSettlementResolverTest.php`,
 `tests/Feature/CardSettlementRefundReconcilerTest.php`,
@@ -1572,7 +1582,7 @@ in the charge — `personNeededBecause`) / `not_completed`. PayNow / NETS sales 
 The page polls `/state` and reloads when its version changes. The first valid open is stored in `freezer_receipts`
 and checked against that row afterwards, so a key change never breaks a link a customer holds (links never expire).
 The heading reads "Tax Invoice" only once the operator's profile (`operators.profile_id` → `profiles`, HIPL → HAPPY
-ICE PTE LTD) has `gst_reg_no`; otherwise "Receipt". Customer-facing, so English only (like the refund form). The
+ICE PTE LTD) has `gst_reg_no`; otherwise "Receipt". Customer-facing, so English only. The
 bear art (`public/img/freezer-receipt/`) is the freezer APK's own. Regression coverage: `tests/Feature/FreezerReceiptTest.php`.
 
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,

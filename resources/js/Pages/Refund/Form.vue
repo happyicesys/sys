@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import { t } from '@/i18n';
+import { t, tk, currentLocale } from '@/i18n';
+import { formatRefundMoney } from '@/utils/refundMoney';
 
 const props = defineProps({
     machineID: { type: String, default: '' },
@@ -19,7 +20,18 @@ const props = defineProps({
     // matched purchase, or null if it had not synced yet at page load.
     orderId: { type: String, default: '' },
     prefilledCandidate: { type: Object, default: null },
+    // The machine's money, payout methods and providers (RefundRegion::toArray). A machine ID typed by
+    // hand brings its own from /refund/resolve.
+    region: { type: Object, default: () => ({ symbol: '$', whole_units: false, max_amount: 100000, methods: ['paynow', 'paypal'], providers: [] }) },
 });
+
+const region = ref(props.region);
+const wholeUnits = computed(() => !!region.value.whole_units);
+const money = (v) => formatRefundMoney(v, region.value);
+const isLocalMethods = computed(() => region.value.methods.includes('local_transfer'));
+// The reason labels come from the server (RefundFormController::REASON_CODES), shown with $t().
+tk('Product did not dispense'); tk('Only part of my order dispensed'); tk('Wrong item dispensed');
+tk('Quality issue'); tk('Charged twice'); tk('Other');
 
 // machineID may be missing/invalid (QR without it, or a broken APK) — fall back to a manual entry page.
 const machineId = ref(props.machineID || '');
@@ -43,8 +55,13 @@ const selectedRawIds = ref([]); // the specific item rows the customer tapped
 const reasonCode = ref('not_dispensed');
 const reasonText = ref('');
 const customerName = ref('');
-const refundMethod = ref('paynow');
+const refundMethod = ref(props.region.methods[0]);
 const payoutDestination = ref('');
+// E-wallet or bank (local_transfer): the server builds the one payout line from these.
+const payoutProvider = ref('');
+const payoutProviderOther = ref('');
+const payoutAccount = ref('');
+const payoutName = ref('');
 const contactEmail = ref('');
 const contactPhone = ref('');
 
@@ -85,12 +102,14 @@ function startManual() {
     manualMode.value = true;
     step.value = '4c';
 }
-const manualPayMethods = [
-    { value: 'PayNow / QR code', label: t('PayNow / QR code') },
+const manualPayMethods = computed(() => [
+    isLocalMethods.value
+        ? { value: 'QRIS / e-wallet', label: t('QRIS / e-wallet') }
+        : { value: 'PayNow / QR code', label: t('PayNow / QR code') },
     { value: 'Credit / debit card', label: t('Credit / debit card (tap)') },
     { value: 'Cash / coins', label: t('Cash / coins') },
     { value: 'Not sure', label: t('Not sure') },
-];
+]);
 
 async function loadMachineProducts() {
     if (productsLoaded.value || !machineId.value) return;
@@ -132,7 +151,7 @@ function appendPhotos(fd) {
 const result = ref(null);
 
 // date labels for the Today / Yesterday cards
-const fmtDate = (d) => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+const fmtDate = (d) => d.toLocaleDateString(currentLocale() === 'id' ? 'id-ID' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 const todayLabel = fmtDate(new Date());
 const yesterdayLabel = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return fmtDate(d); })();
 
@@ -239,23 +258,29 @@ function firstError(e, fallback) {
 
 // ATM-style cents entry: user types digits only, decimal auto-places.
 // e.g. "9" -> 0.09, "90" -> 0.90, "900" -> 9.00
-function onAmountInput(e) {
+// A currency with no decimals is typed as it reads: "20000" -> 20000, shown "20,000".
+function readAmount(e) {
     const digits = String(e.target.value).replace(/\D/g, '');
-    const cents = digits ? Math.min(parseInt(digits, 10), 100000 * 100) : 0;
-    amount.value = cents ? (cents / 100).toFixed(2) : '';
-    e.target.value = amount.value;
+    const max = region.value.max_amount;
+    if (wholeUnits.value) return digits ? String(Math.min(parseInt(digits, 10), max)) : '';
+    const cents = digits ? Math.min(parseInt(digits, 10), max * 100) : 0;
+    return cents ? (cents / 100).toFixed(2) : '';
+}
+const amountShown = (v) => (wholeUnits.value && v ? Number(v).toLocaleString('en-US') : v);
+
+function onAmountInput(e) {
+    amount.value = readAmount(e);
+    e.target.value = amountShown(amount.value);
 }
 
 function onManualAmountInput(e) {
-    const digits = String(e.target.value).replace(/\D/g, '');
-    const cents = digits ? Math.min(parseInt(digits, 10), 100000 * 100) : 0;
-    manualAmount.value = cents ? (cents / 100).toFixed(2) : '';
-    e.target.value = manualAmount.value;
+    manualAmount.value = readAmount(e);
+    e.target.value = amountShown(manualAmount.value);
 }
 
-// Machine ID is a 4-digit code — strip anything non-numeric and cap at 4 digits.
+// Machine IDs run 4 digits (Singapore) to 5 (Indonesia) — strip anything non-numeric.
 function onMachineIdInput(e) {
-    const digits = String(e.target.value).replace(/\D/g, '').slice(0, 4);
+    const digits = String(e.target.value).replace(/\D/g, '').slice(0, 6);
     machineId.value = digits;
     e.target.value = digits;
     if (!props.machineFound) machineResolved.value = false;
@@ -277,7 +302,7 @@ async function startRefund() {
     }
 
     const code = (machineId.value || '').trim();
-    if (!/^\d{4}$/.test(code)) { errorMsg.value = t('Please enter the 4-digit Machine ID.'); return; }
+    if (!/^\d{4,6}$/.test(code)) { errorMsg.value = t('Please enter the Machine ID printed on the machine.'); return; }
     loading.value = true;
     try {
         const { data } = await window.axios.post('/refund/resolve', { machineID: code });
@@ -285,6 +310,10 @@ async function startRefund() {
             machineId.value = data.machineID;
             machineName.value = data.machineName;
             siteName.value = data.siteName;
+            if (data.region) {
+                region.value = data.region;
+                refundMethod.value = data.region.methods[0];
+            }
             machineResolved.value = true;
             step.value = 2;
         } else if (data.blocked) {
@@ -369,13 +398,13 @@ const selectedItemIds = computed(() => {
 });
 
 const selectedAmount = computed(() => {
-    if (!selected.value) return '0.00';
+    if (!selected.value) return 0;
     const items = (selected.value.items || []);
-    if (items.length <= 1) return Number(selected.value.amount).toFixed(2);
+    if (items.length <= 1) return Number(selected.value.amount);
     const cents = items
         .filter(i => selectedItemIds.value.includes(i.vend_transaction_item_id))
         .reduce((s, i) => s + (i.unit_price_cents || 0), 0);
-    return (cents / 100).toFixed(2);
+    return cents / 100;
 });
 
 function next() {
@@ -401,7 +430,20 @@ function next() {
         step.value = isAuto.value ? 8 : 7; return;
     }
     if (s === 7) {
-        if (refundMethod.value === 'paypal') {
+        if (refundMethod.value === 'local_transfer') {
+            if (!payoutProvider.value || (payoutProvider.value === 'Other bank' && !payoutProviderOther.value.trim())) {
+                errorMsg.value = t('Please choose your e-wallet or bank.');
+                return;
+            }
+            if (!/^\d{6,30}$/.test(payoutAccount.value.replace(/[\s.-]/g, ''))) {
+                errorMsg.value = t('Please enter a valid phone or account number (digits only).');
+                return;
+            }
+            if (!payoutName.value.trim()) {
+                errorMsg.value = t('Please enter the name on the account.');
+                return;
+            }
+        } else if (refundMethod.value === 'paypal') {
             if (!payoutDestination.value || !payoutDestination.value.trim()) {
                 errorMsg.value = t('Please enter your PayPal email address.');
                 return;
@@ -431,7 +473,10 @@ function next() {
         // check a claim against machine records without them.
         if (!manualTime.value) { errorMsg.value = t('Please tell us roughly what time you bought it.'); return; }
         const paid = parseFloat(manualAmount.value);
-        if (!manualAmount.value || isNaN(paid) || paid <= 1) { errorMsg.value = t('Please enter the total amount you paid (must be more than $1).'); return; }
+        if (!manualAmount.value || isNaN(paid) || paid <= 1) {
+            errorMsg.value = wholeUnits.value ? t('Please enter the total amount you paid.') : t('Please enter the total amount you paid (must be more than $1).');
+            return;
+        }
         if (!manualPayMethod.value) { errorMsg.value = t('Please select how you paid.'); return; }
         if (manualItems.value.length === 0 && !manualNotSure.value) { errorMsg.value = t('Please add the affected item(s) — or pick "Not sure / not listed".'); return; }
         if (!manualText.value.trim()) { errorMsg.value = t('Please explain what happened.'); return; }
@@ -456,6 +501,26 @@ function back() {
     else if (s === 8) step.value = isAuto.value ? 6 : 7;
 }
 
+function appendPayout(fd) {
+    fd.append('refund_method', refundMethod.value);
+    if (refundMethod.value === 'local_transfer') {
+        fd.append('payout_provider', payoutProvider.value);
+        if (payoutProviderOther.value) fd.append('payout_provider_other', payoutProviderOther.value);
+        fd.append('payout_account', payoutAccount.value);
+        fd.append('payout_name', payoutName.value);
+    } else if (payoutDestination.value) {
+        fd.append('payout_destination', payoutDestination.value);
+    }
+}
+// The review line, as the server will store it.
+const payoutSummary = computed(() => {
+    if (refundMethod.value === 'local_transfer') {
+        const provider = payoutProvider.value === 'Other bank' ? payoutProviderOther.value : payoutProvider.value;
+        return `${provider} · ${payoutAccount.value} · ${payoutName.value}`;
+    }
+    return `${refundMethod.value === 'paypal' ? 'PayPal' : 'PayNow'} · ${payoutDestination.value}`;
+});
+
 async function submit() {
     loading.value = true; errorMsg.value = '';
     try {
@@ -466,10 +531,7 @@ async function submit() {
         selectedItemIds.value.forEach(id => fd.append('selected_item_ids[]', id));
         fd.append('reason_code', reasonCode.value);
         if (reasonText.value) fd.append('reason_text', reasonText.value);
-        if (!isAuto.value) {
-            fd.append('refund_method', refundMethod.value);
-            if (payoutDestination.value) fd.append('payout_destination', payoutDestination.value);
-        }
+        if (!isAuto.value) appendPayout(fd);
         if (customerName.value) fd.append('contact_name', customerName.value);
         if (contactEmail.value) fd.append('contact_email', contactEmail.value);
         if (contactPhone.value) fd.append('contact_phone', contactPhone.value);
@@ -509,9 +571,8 @@ async function submitManual() {
             .join('; ');
         if (itemsSummary) fd.append('manual_items_summary', itemsSummary);
         if (manualPayMethod.value) fd.append('manual_pay_method', manualPayMethod.value);
-        // How to refund them (PayNow / PayPal) — same as the auto-matched flow.
-        fd.append('refund_method', refundMethod.value);
-        if (payoutDestination.value) fd.append('payout_destination', payoutDestination.value);
+        // How to refund them — same as the auto-matched flow.
+        appendPayout(fd);
         if (customerName.value) fd.append('contact_name', customerName.value);
         if (contactEmail.value) fd.append('contact_email', contactEmail.value);
         appendPhotos(fd);
@@ -582,7 +643,7 @@ async function submitManual() {
             </div>
             <template v-if="!machineResolved">
                 <label class="fld">{{ $t('Machine ID') }} <span class="req">*</span></label>
-                <input class="inp" v-model="machineId" inputmode="numeric" maxlength="4" :placeholder="$t('e.g. :value', { value: '1234' })" @input="onMachineIdInput" @keyup.enter="startRefund" />
+                <input class="inp" v-model="machineId" inputmode="numeric" maxlength="6" :placeholder="$t('e.g. :value', { value: '1234' })" @input="onMachineIdInput" @keyup.enter="startRefund" />
             </template>
             <label class="fld">{{ $t('Your name') }} <span class="req">*</span></label>
             <input class="inp" v-model="customerName" :placeholder="$t('Enter your name')" @keyup.enter="startRefund" autocapitalize="words" />
@@ -606,15 +667,15 @@ async function submitManual() {
         <div v-else-if="step === 3">
             <div class="h2">{{ $t('How much did you pay?') }}</div>
             <p class="p">{{ $t('Enter the amount shown on the machine or your bank app.') }}</p>
-            <div class="amtbox"><span class="cur">$</span><input ref="amtInputRef" class="amtinput" type="text" inputmode="numeric" :value="amount" @input="onAmountInput" placeholder="0.00" /></div>
+            <div class="amtbox"><span class="cur">{{ region.symbol }}</span><input ref="amtInputRef" class="amtinput" :class="{ whole: wholeUnits }" type="text" inputmode="numeric" :value="amountShown(amount)" @input="onAmountInput" :placeholder="wholeUnits ? '0' : '0.00'" /></div>
         </div>
 
         <!-- 4 candidates -->
         <div v-else-if="step === 4">
             <div class="h2">{{ $t('Is this your purchase?') }}</div>
-            <p class="p">{{ $t('We found these') }} <b>${{ amount }}</b> {{ $t('purchases') }} <b>{{ dayLabel }}</b>{{ $t('. Tap yours.') }}</p>
+            <p class="p">{{ $t('We found these') }} <b>{{ money(amount) }}</b> {{ $t('purchases') }} <b>{{ dayLabel }}</b>{{ $t('. Tap yours.') }}</p>
             <div v-for="(c, idx) in candidates" :key="idx" class="txn" :class="{ sel: selected === c }" @click="chooseCandidate(c)">
-                <div class="top"><span class="pill">{{ c.payment_method || c.payment_channel }}</span><span class="amt">${{ Number(c.amount).toFixed(2) }}</span></div>
+                <div class="top"><span class="pill">{{ c.payment_method || c.payment_channel }}</span><span class="amt">{{ money(c.amount) }}</span></div>
                 <div class="prodlist" v-if="c.items && c.items.length">
                     <div v-for="(it, ix) in c.items" :key="ix" class="prodline">
                         <span class="prodthumb">
@@ -638,7 +699,7 @@ async function submitManual() {
             <div class="emptywrap">
                 <div class="e">🔍</div>
                 <div class="h2">{{ $t('We couldn\'t find that purchase') }}</div>
-                <p class="p" style="text-align:center">{{ $t('No $:amount purchase :day at this machine. Try a different amount or day — or send it for manual checking.', { amount, day: dayLabel }) }}</p>
+                <p class="p" style="text-align:center">{{ $t('No :amount purchase :day at this machine. Try a different amount or day — or send it for manual checking.', { amount: money(amount), day: dayLabel }) }}</p>
             </div>
             <button class="btn ghost" @click="step = 3">{{ $t('↩ Change amount / day') }}</button>
             <button class="btn" style="margin-top:10px" @click="showNoTxnInfo = true">{{ $t('Submit for manual review →') }}</button>
@@ -649,7 +710,7 @@ async function submitManual() {
                     <div class="modal-e">💡</div>
                     <div class="h2" style="text-align:center"><span class="hlred">{{ $t('Can\'t find') }}</span> {{ $t('your transaction in our record?') }}<br>{{ $t('Most likely the payment has') }} <span class="hlred">{{ $t('NOT') }}</span> {{ $t('gone through') }}</div>
                     <div class="tipcard">
-                        <div class="tiprow"><span class="tipico">📱</span><span><b>{{ $t('PayNow / QR:') }}</b> {{ $t('the bank usually') }} <b>{{ $t('refunds it by itself') }}</b> {{ $t('— check your banking app (up to 1–2 working days).') }}</span></div>
+                        <div class="tiprow"><span class="tipico">📱</span><span><b>{{ isLocalMethods ? $t('QRIS / e-wallet:') : $t('PayNow / QR:') }}</b> {{ $t('the bank usually') }} <b>{{ $t('refunds it by itself') }}</b> {{ $t('— check your banking app (up to 1–2 working days).') }}</span></div>
                         <div class="tiprow"><span class="tipico">💳</span><span><b>{{ $t('Card (tap):') }}</b> {{ $t('money is only') }} <b>{{ $t('on hold') }}</b> {{ $t('— the bank releases it within a few days.') }}</span></div>
                     </div>
                     <button class="btn" style="margin-top:14px" @click="showNoTxnInfo = false">{{ $t('OK, I\'ll check my bank app first') }}</button>
@@ -667,7 +728,7 @@ async function submitManual() {
             <input class="inp" type="time" v-model="manualTime" />
 
             <label class="fld">{{ $t('Total amount paid') }} <span class="req">*</span> <span class="dayhint">{{ $t('(total from your bill)') }}</span></label>
-            <div class="amtrow"><span class="cur2">$</span><input class="inp amt2" type="text" inputmode="numeric" :value="manualAmount" @input="onManualAmountInput" placeholder="0.00" /></div>
+            <div class="amtrow"><span class="cur2">{{ region.symbol }}</span><input class="inp amt2" type="text" inputmode="numeric" :value="amountShown(manualAmount)" @input="onManualAmountInput" :placeholder="wholeUnits ? '0' : '0.00'" /></div>
 
             <label class="fld">{{ $t('How did you pay?') }} <span class="req">*</span></label>
             <select class="inp" v-model="manualPayMethod">
@@ -691,7 +752,7 @@ async function submitManual() {
                     <span class="ddname">{{ it.name }}</span>
                     <span class="ddmeta">
                         <span class="ddchan" v-if="it.channel_code">{{ $t('Channel #:code', { code: it.channel_code }) }}</span>
-                        <span class="ddprice-inline" v-if="it.price_cents">${{ (it.price_cents / 100).toFixed(2) }}</span>
+                        <span class="ddprice-inline" v-if="it.price_cents">{{ money(it.price_cents / 100) }}</span>
                     </span>
                 </span>
                 <div class="stepper sm">
@@ -717,13 +778,13 @@ async function submitManual() {
                             <span class="ddname">{{ p.name }}</span>
                             <span class="ddchan" v-if="p.channel_code">{{ $t('Channel #:code', { code: p.channel_code }) }}</span>
                         </span>
-                        <span class="ddprice" v-if="p.price_cents">${{ (p.price_cents / 100).toFixed(2) }}</span>
+                        <span class="ddprice" v-if="p.price_cents">{{ money(p.price_cents / 100) }}</span>
                     </div>
                 </div>
             </div>
 
             <label class="fld">{{ $t('Explain what happened') }} <span class="req">*</span></label>
-            <textarea class="inp bigta" rows="6" v-model="manualText" :placeholder="$t('e.g. I paid $3.50 by PayNow around 2pm, the machine showed \'dispensing\' but nothing came out.')"></textarea>
+            <textarea class="inp bigta" rows="6" v-model="manualText" :placeholder="isLocalMethods ? $t('e.g. I paid Rp 20,000 by QRIS around 2pm, the machine showed \'dispensing\' but nothing came out.') : $t('e.g. I paid $3.50 by PayNow around 2pm, the machine showed \'dispensing\' but nothing came out.')"></textarea>
             <label class="fld">{{ $t('Email') }} <span class="req">*</span></label>
             <input class="inp" type="email" v-model="contactEmail" placeholder="you@email.com" />
             <label class="fld">{{ $t('Photos or video') }} <span class="req">*</span> <span class="dayhint">{{ $t('— up to :count, max :size MB each', { count: MAX_PHOTOS, size: MAX_MB }) }}</span></label>
@@ -758,7 +819,7 @@ async function submitManual() {
                     <small v-if="it.vend_channel_code">{{ $t('Channel #:code', { code: it.vend_channel_code }) }}</small>
                 </div>
                 <span v-if="it.is_refunded" class="pill bad">{{ $t('Refunded') }}</span>
-                <span v-else class="iprice">${{ ((it.unit_price_cents || 0) / 100).toFixed(2) }}</span>
+                <span v-else class="iprice">{{ money((it.unit_price_cents || 0) / 100) }}</span>
             </div>
         </div>
 
@@ -768,7 +829,7 @@ async function submitManual() {
             <p class="p">{{ $t('Helps us verify faster.') }}</p>
             <label class="fld">{{ $t('Reason') }}</label>
             <select class="inp" v-model="reasonCode">
-                <option v-for="r in reasonCodes" :key="r.code" :value="r.code">{{ r.label }}</option>
+                <option v-for="r in reasonCodes" :key="r.code" :value="r.code">{{ $t(r.label) }}</option>
             </select>
             <label class="fld">{{ $t('Add a note (optional)') }}</label>
             <textarea class="inp" rows="3" v-model="reasonText" :placeholder="$t('Anything else we should know?')"></textarea>
@@ -791,12 +852,16 @@ async function submitManual() {
             <p class="p" style="margin-top:6px">{{ $t('We\'ll email you updates on your refund.') }}</p>
         </div>
 
-        <!-- 7 payout (PayNow mobile or PayPal) -->
+        <!-- 7 payout (PayNow mobile or e-wallet / bank, and PayPal) -->
         <div v-else-if="step === 7">
             <div class="h2">{{ $t('How should we refund you?') }}</div>
             <p class="p">{{ $t('Choose your preferred refund method.') }}</p>
             <div class="methodsel">
-                <button type="button" class="mopt" :class="{ sel: refundMethod === 'paynow' }" @click="setMethod('paynow')">
+                <button v-if="region.methods.includes('local_transfer')" type="button" class="mopt" :class="{ sel: refundMethod === 'local_transfer' }" @click="setMethod('local_transfer')">
+                    <span class="micon">🇮🇩</span>
+                    <span class="mtxt"><b>{{ $t('E-wallet or bank') }}</b><small>{{ $t('GoPay, OVO, DANA, ShopeePay or a bank account') }}</small></span>
+                </button>
+                <button v-if="region.methods.includes('paynow')" type="button" class="mopt" :class="{ sel: refundMethod === 'paynow' }" @click="setMethod('paynow')">
                     <span class="micon">🇸🇬</span>
                     <span class="mtxt"><b>PayNow</b><small>{{ $t('Singapore mobile number') }}</small></span>
                 </button>
@@ -806,7 +871,23 @@ async function submitManual() {
                 </button>
             </div>
 
-            <template v-if="refundMethod === 'paynow'">
+            <template v-if="refundMethod === 'local_transfer'">
+                <label class="fld">{{ $t('E-wallet or bank') }} <span class="req">*</span></label>
+                <select class="inp" v-model="payoutProvider">
+                    <option value="" disabled>{{ $t('Select…') }}</option>
+                    <option v-for="p in region.providers" :key="p" :value="p">{{ p === 'Other bank' ? $t('Other bank') : p }}</option>
+                </select>
+                <template v-if="payoutProvider === 'Other bank'">
+                    <label class="fld">{{ $t('Bank name') }} <span class="req">*</span></label>
+                    <input class="inp" v-model="payoutProviderOther" maxlength="60" />
+                </template>
+                <label class="fld">{{ $t('Phone or account number') }} <span class="req">*</span></label>
+                <input class="inp" type="tel" inputmode="numeric" v-model="payoutAccount" maxlength="60" :placeholder="$t('e.g. :value', { value: '081234567890' })" />
+                <label class="fld">{{ $t('Name on the account') }} <span class="req">*</span></label>
+                <input class="inp" v-model="payoutName" maxlength="100" autocapitalize="words" />
+                <p class="p" style="margin-top:6px">{{ $t('Please check these carefully. We send your refund to this account.') }}</p>
+            </template>
+            <template v-else-if="refundMethod === 'paynow'">
                 <label class="fld">{{ $t('PayNow mobile number') }}</label>
                 <input class="inp" type="tel" inputmode="tel" v-model="payoutDestination" :placeholder="$t('e.g. :value', { value: '9123 4567' })" />
                 <p class="p" style="margin-top:6px">{{ $t('Make sure this number is registered for PayNow.') }}</p>
@@ -826,10 +907,10 @@ async function submitManual() {
             <div class="review">
                 <div class="row" v-if="siteName"><span>{{ $t('Site') }}</span><b>{{ siteName }}</b></div>
                 <div class="row"><span>{{ $t('Machine') }}</span><b>{{ machineId }}</b></div>
-                <div class="row"><span>{{ $t('Purchase') }}</span><b>${{ Number(selected.amount).toFixed(2) }} · {{ selected.datetime_label || dayLabel }}</b></div>
-                <div class="row"><span>{{ $t('Refund') }}</span><b>${{ selectedAmount }}</b></div>
-                <div class="row"><span>{{ $t('Reason') }}</span><b>{{ (reasonCodes.find(r => r.code === reasonCode) || {}).label }}</b></div>
-                <div class="row" v-if="!isAuto"><span>{{ $t('Refund to') }}</span><b>{{ refundMethod === 'paypal' ? 'PayPal' : 'PayNow' }} · {{ payoutDestination }}</b></div>
+                <div class="row"><span>{{ $t('Purchase') }}</span><b>{{ money(selected.amount) }} · {{ selected.datetime_label || dayLabel }}</b></div>
+                <div class="row"><span>{{ $t('Refund') }}</span><b>{{ money(selectedAmount) }}</b></div>
+                <div class="row"><span>{{ $t('Reason') }}</span><b>{{ $t((reasonCodes.find(r => r.code === reasonCode) || {}).label) }}</b></div>
+                <div class="row" v-if="!isAuto"><span>{{ $t('Refund to') }}</span><b>{{ payoutSummary }}</b></div>
             </div>
         </div>
 
@@ -888,6 +969,7 @@ async function submitManual() {
 .amtbox{background:#fff;border:2px solid #0ea5a4;border-radius:18px;padding:22px;display:flex;align-items:center;justify-content:center;gap:4px}
 .amtbox .cur{font-size:26px;color:#64748b;font-weight:800}
 .amtbox .amtinput{border:0;outline:none;background:transparent;font-family:inherit;font-size:46px;font-weight:800;width:200px;text-align:center;color:#0f172a}
+.amtbox .amtinput.whole{font-size:38px;width:210px}
 .amtbox .amtinput:focus,.amtbox .amtinput:focus-visible{outline:none !important;box-shadow:none !important;border:0 !important;--tw-ring-shadow:0 0 #0000 !important;--tw-ring-offset-shadow:0 0 #0000 !important;--tw-ring-color:transparent !important}
 .txn{background:#fff;border:1.5px solid #e8edf2;border-radius:18px;padding:16px;margin-bottom:12px;cursor:pointer;box-shadow:0 1px 2px rgba(15,23,42,.04);transition:border-color .15s,box-shadow .15s,transform .12s}
 .txn:hover{border-color:#cbd5e1;box-shadow:0 4px 14px rgba(15,23,42,.08)}
@@ -939,7 +1021,7 @@ label.fld{display:block;font-size:12px;font-weight:700;margin:12px 0 5px}
 label.fld .dayhint{color:#64748b;font-weight:600}
 .amtrow{display:flex;align-items:center;gap:8px}
 .amtrow .cur2{font-size:16px;font-weight:800;color:#64748b}
-.amtrow .amt2{font-size:17px;font-weight:800;max-width:140px}
+.amtrow .amt2{font-size:17px;font-weight:800;max-width:180px}
 .proddd{position:relative}
 .ddbtn{display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left}
 .ddsel{display:flex;align-items:center;gap:10px;flex:1;min-width:0}

@@ -164,9 +164,10 @@ class RefundMatchingService
         }
 
         // ---- Source B: gateway charges (by vend_code) not already covered ----
+        $region = RefundRegion::forVend($vend);
         $logs = PaymentGatewayLog::where('vend_code', $machineID)
             ->whereBetween('approved_at', [$range['from'], $range['to']])
-            ->whereBetween('amount', [$min, $max])
+            ->whereBetween('amount', [$region->gatewayAmount($min), $region->gatewayAmount($max)])
             ->whereIn('status', [PaymentGatewayLog::STATUS_APPROVE, PaymentGatewayLog::STATUS_REFUND])
             ->orderByDesc('approved_at')
             ->limit($limit)
@@ -179,7 +180,7 @@ class RefundMatchingService
             if (in_array($log->id, $ticketedLogIds, true)) {
                 continue; // already covered by an active ticket
             }
-            $candidates[] = $this->buildGatewayCandidate($log);
+            $candidates[] = $this->buildGatewayCandidate($log, $region);
         }
 
         return ['vend' => $vend, 'candidates' => $candidates];
@@ -237,7 +238,7 @@ class RefundMatchingService
             ->first();
 
         if ($log && ! in_array((int) $log->id, $ticketedLogIds, true)) {
-            return $this->buildGatewayCandidate($log);
+            return $this->buildGatewayCandidate($log, RefundRegion::forVend($vend));
         }
 
         return null;
@@ -333,8 +334,9 @@ class RefundMatchingService
         ];
     }
 
-    protected function buildGatewayCandidate(PaymentGatewayLog $log): array
+    protected function buildGatewayCandidate(PaymentGatewayLog $log, RefundRegion $region): array
     {
+        $cents = $region->gatewayCents($log->amount);
         // status may come back as a string from the driver (no int cast on the model) — compare loosely.
         $alreadyRefunded = ((int) $log->status === PaymentGatewayLog::STATUS_REFUND);
 
@@ -344,8 +346,8 @@ class RefundMatchingService
             'payment_gateway_log_id' => $log->id,
             'datetime' => optional($log->approved_at)->toDateTimeString(),
             'datetime_label' => optional($log->approved_at)->format('ymd h:i A'),
-            'amount' => round($log->amount / 100, 2),
-            'amount_cents' => (int) $log->amount,
+            'amount' => round($cents / 100, 2),
+            'amount_cents' => $cents,
             'payment_method' => $log->method ?: 'QR / PayNow',
             'payment_channel' => RefundTicket::CHANNEL_QR,
             'is_auto_refund_channel' => false,
@@ -358,7 +360,7 @@ class RefundMatchingService
                 'product_sku' => null,
                 'product_image_url' => null,
                 'vend_channel_code' => null,
-                'unit_price_cents' => (int) $log->amount,
+                'unit_price_cents' => $cents,
                 'had_channel_error' => isset($log->is_dispensed) ? ($log->is_dispensed === false) : false,
                 'vend_channel_error_code' => null,
                 'channel_error_desc' => null,
