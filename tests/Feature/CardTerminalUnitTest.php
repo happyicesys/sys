@@ -485,7 +485,7 @@ class CardTerminalUnitTest extends TestCase
 
         $this->assertSame(
             ['Terminal ID', 'Auresys Terminal ID', 'Card Terminal Company', 'Machine ID', 'Site ID', 'Site',
-                'Bound From', 'Bound At', 'Batch', 'Auto Refund?', 'Remarks'],
+                'Bound From', 'Bound At', 'Batch', 'Auto Refund?', 'SIM Card', 'SIM Package', 'Remarks'],
             array_keys($rows[0])
         );
 

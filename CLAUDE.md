@@ -643,6 +643,14 @@ Easy to confuse, so name them precisely:
 | `card_terminal_units` | Data Management → **Card Terminal** | One physical terminal: acquirer TID + its company. `terminal_id` is unique fleet-wide. |
 | `card_terminal_bindings` | machine **Setting/Edit** | That terminal sat on that machine over a date range. |
 
+**A terminal can carry a SIM** (Brian, 2026-11-03: we supply the T05's SIM). `card_terminal_units.simcard_id` points
+at the same `simcards` pool machines use, set from the dropdown on the Card Terminal edit form (any company). **One
+SIM, one place:** the column is unique, and the form refuses a SIM in a machine (`assertSimcardFree`, unscoped; its
+options use a raw NOT EXISTS, never `whereDoesntHave('vends')`), while Setting/Edit and the SIM Card page refuse a SIM
+in a terminal. Only a CHANGE is checked, so an unrelated save never 422s on it. No dated history: unlike a machine
+binding, no settlement rule reads it. The SIM Card page's Card Terminal column shows who holds it. Regression
+coverage: `tests/Feature/CardTerminalSimcardTest.php`.
+
 The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then:
 
 - **Data Management can never bind a machine.** `CardTerminalUnitController` does

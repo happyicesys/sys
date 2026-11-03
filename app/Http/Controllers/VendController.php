@@ -5894,6 +5894,17 @@ class VendController extends Controller
             'operator_id.in' => 'You can only keep this machine under your own operator.',
         ]);
 
+        // One SIM, one place: a SIM inside a card terminal cannot go in a machine.
+        // Only a change is checked, so a machine's other fields always save.
+        if ($request->simcard_id && (int) $request->simcard_id !== (int) $vend->simcard_id) {
+            $simTerminalId = CardTerminalUnit::where('simcard_id', $request->simcard_id)->value('terminal_id');
+            if ($simTerminalId) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'simcard_id' => __('This SIM card is in terminal :terminal. Take it off that terminal first.', ['terminal' => $simTerminalId]),
+                ]);
+            }
+        }
+
         // --- Machine-type ↔ mapping compatibility (2026-08-12) ---------------------------------
         // The vend's machine_type (Vending Machine / Smart Freezer / Smart Chiller) is the
         // identity; a mapping must be built FOR that machine kind. Enforced server-side so a stale

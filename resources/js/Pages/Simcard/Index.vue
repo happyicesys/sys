@@ -136,6 +136,9 @@
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
                       {{ $t('Machine ID') }}
                     </TableHeadSort>
+                    <TableHead>
+                      {{ $t('Card Terminal') }}
+                    </TableHead>
                     <TableHeadSort modelName="site" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('site')">
                       {{ $t('Site') }}
                     </TableHeadSort>
@@ -180,6 +183,13 @@
                             :code="machine.code"
                           />
                         </div>
+                        <span v-else class="text-gray-400">—</span>
+                      </TableData>
+                      <!-- The card terminal holding this SIM, if a terminal does. -->
+                      <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
+                        <a v-if="simcard.card_terminal_id" class="text-blue-700 underline font-mono" target="_blank" :href="'/card-terminal-units?terminal_id=' + encodeURIComponent(simcard.card_terminal_id)">
+                          {{ simcard.card_terminal_id }}
+                        </a>
                         <span v-else class="text-gray-400">—</span>
                       </TableData>
                       <!-- The Site each bound machine sits at — displayed Site ID

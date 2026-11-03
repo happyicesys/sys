@@ -34,6 +34,10 @@ class CardTerminalUnitResource extends JsonResource
             'is_remote_terminal' => $this->resource->isRemoteTerminal(),
             'has_access_token' => $this->resource->hasAccessToken(),
             'remarks' => $this->remarks,
+            // The SIM inside this terminal.
+            'simcard_id' => $this->simcard_id,
+            'simcard_code' => $this->simcard?->code,
+            'simcard_package' => $this->simcard?->telco?->name,
             // Hardware batch + "Auto refund?" (Brian's flag, seeded from the
             // partner workbook; null = unknown). Informational since 2026-09-09:
             // the reconciler's "NA in NETS" tick follows the report, not this.

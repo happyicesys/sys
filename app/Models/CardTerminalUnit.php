@@ -41,6 +41,9 @@ class CardTerminalUnit extends Model
         // Payrallel (T05) units only: the terminal's own access token. Write-only —
         // encrypted at rest, never in an array or a resource.
         'access_token',
+        // The SIM inside the terminal, from the same pool machines use. A SIM
+        // sits in one place: see CardTerminalUnitController::assertSimcardFree.
+        'simcard_id',
     ];
 
     protected $hidden = ['access_token'];
@@ -65,6 +68,11 @@ class CardTerminalUnit extends Model
     public function company()
     {
         return $this->belongsTo(CardTerminal::class, 'card_terminal_id');
+    }
+
+    public function simcard()
+    {
+        return $this->belongsTo(Simcard::class);
     }
 
     /**

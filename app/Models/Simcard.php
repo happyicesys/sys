@@ -38,6 +38,11 @@ class Simcard extends Model
     // and simcards has created_by / updated_by. Left to infer, the relation
     // reads a column that does not exist, resolves to null and the Index's
     // "Updated By" reads '—' for every row — which is exactly how it shipped.
+    public function cardTerminalUnit()
+    {
+        return $this->hasOne(CardTerminalUnit::class);
+    }
+
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');

@@ -607,8 +607,9 @@ class SettingController extends Controller
                     ->orderBy('name')
                     ->get()
             ),
+            // A SIM inside a card terminal is not free for a machine.
             'simcardOptions' => SimcardResource::collection(
-                Simcard::with('telco')->orderBy('code')->get()
+                Simcard::with('telco')->doesntHave('cardTerminalUnit')->orderBy('code')->get()
             ),
             'adminCustomerOptions' => CustomerResource::collection(
                 $customers

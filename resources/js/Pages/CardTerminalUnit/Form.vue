@@ -41,6 +41,29 @@
                 {{ form.errors.card_terminal_id }}
               </div>
             </div>
+            <div class="sm:col-span-6">
+              <label for="text" class="block text-sm font-medium text-gray-700">
+                {{ $t('SIM Card') }}
+              </label>
+              <MultiSelect
+                v-model="form.simcard_id"
+                :options="availableSimcards"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                :placeholder="$t('Select')"
+                open-direction="bottom"
+                :canClear="true"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-xs text-gray-500 mt-1">
+                {{ $t('Lists SIM cards that are not in a machine or another terminal. Clear it to free the SIM.') }}
+              </div>
+              <div class="text-sm text-red-600" v-if="form.errors.simcard_id">
+                {{ form.errors.simcard_id }}
+              </div>
+            </div>
             <!-- Payrallel (T05): a remote terminal — only its SN (above) and access token apply. -->
             <div v-if="isRemote" class="sm:col-span-6">
               <label for="card_terminal_unit_access_token" class="block text-sm font-medium text-gray-700">
@@ -154,6 +177,7 @@ import { useToast } from "vue-toastification";
 const props = defineProps({
   cardTerminalUnit: Object,
   cardTerminalOptions: Object,
+  simcardOptions: Array,
   type: String,
   showModal: Boolean,
 })
@@ -181,6 +205,11 @@ const companyOptions = computed(() => ((props.cardTerminalOptions?.data) ?? []).
   name: company.name,
 })))
 
+// Free SIMs plus the one this terminal already holds.
+const availableSimcards = computed(() => (props.simcardOptions ?? []).filter(simcard =>
+  !simcard.card_terminal_unit_id || simcard.card_terminal_unit_id === props.cardTerminalUnit?.id
+))
+
 // Payrallel (T05) is a remote terminal: SN + access token, none of the NETS fields.
 const PAYRALLEL = 'Payrallel (T05)'
 const isRemote = computed(() => form.value.card_terminal_id?.name === PAYRALLEL)
@@ -199,6 +228,7 @@ onMounted(() => {
     card_terminal_id: unit?.card_terminal_id
       ? companyOptions.value.find(c => c.id === unit.card_terminal_id) ?? null
       : null,
+    simcard_id: availableSimcards.value.find(simcard => simcard.id === unit?.simcard_id) ?? null,
     remarks: unit?.remarks ?? '',
     batch: unit?.batch ?? '',
     will_auto_refund: autoRefundOptions.find(o => o.id === (
@@ -216,6 +246,7 @@ function getDefaultForm() {
     terminal_id: '',
     auresys_terminal_id: '',
     card_terminal_id: null,
+    simcard_id: null,
     remarks: '',
     batch: '',
     will_auto_refund: autoRefundOptions[0],
@@ -229,6 +260,7 @@ function submit() {
   const payload = form.value.transform((data) => ({
     ...data,
     card_terminal_id: data.card_terminal_id ? data.card_terminal_id.id : null,
+    simcard_id: data.simcard_id ? data.simcard_id.id : null,
     will_auto_refund: data.will_auto_refund?.id ?? 'auto',
     access_token: data.access_token || null,
   }))

@@ -65,6 +65,8 @@ class SimcardResource extends JsonResource
             // customer relation is eager-loaded for 'sites' above only — strip it
             // here so every row does not ship the same Site twice.
             'vends' => $this->whenLoaded('vends', fn () => $this->vends->map->withoutRelations()),
+            // The terminal holding this SIM, for the Card Terminal column.
+            'card_terminal_id' => $this->whenLoaded('cardTerminalUnit', fn () => $this->cardTerminalUnit?->terminal_id),
             'vend_code' => $this->whenLoaded('vends', function () {
                 return $this->vends->map->codeLabel()->implode(', ');
             }),

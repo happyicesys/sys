@@ -172,6 +172,9 @@
                       {{ $t('Auto refund?') }}
                     </TableHeadSort>
                     <TableHead>
+                      {{ $t('SIM Card') }}
+                    </TableHead>
+                    <TableHead>
                       {{ $t('Remarks') }}
                     </TableHead>
                     <TableHead>
@@ -240,6 +243,15 @@
                         </div>
                       </TableData>
                       <TableData :currentIndex="unitIndex" :totalLength="cardTerminalUnits.length" inputClass="text-left">
+                        <span v-if="unit.simcard_code" class="flex flex-col">
+                          <a class="text-blue-700 underline font-mono" target="_blank" :href="'/simcards?code=' + encodeURIComponent(unit.simcard_code)">
+                            {{ unit.simcard_code }}
+                          </a>
+                          <span v-if="unit.simcard_package" class="text-xs text-gray-500">{{ unit.simcard_package }}</span>
+                        </span>
+                        <span v-else class="text-gray-400">-</span>
+                      </TableData>
+                      <TableData :currentIndex="unitIndex" :totalLength="cardTerminalUnits.length" inputClass="text-left">
                         {{ unit.remarks }}
                       </TableData>
                       <TableData :currentIndex="unitIndex" :totalLength="cardTerminalUnits.length" inputClass="text-center">
@@ -281,6 +293,7 @@
       v-if="showModal"
       :cardTerminalUnit="cardTerminalUnit"
       :cardTerminalOptions="cardTerminalOptions"
+      :simcardOptions="simcardOptions"
       :type="type"
       :showModal="showModal"
       @modalClose="onModalClose"
@@ -326,6 +339,7 @@ function bindingHistoryTitle(unit) {
 const props = defineProps({
   cardTerminalUnits: Object,
   cardTerminalOptions: Object,
+  simcardOptions: Array,
   filters: Object,
 })
 

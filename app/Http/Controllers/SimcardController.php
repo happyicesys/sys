@@ -11,6 +11,7 @@ use App\Support\SiteSearch;
 use App\Traits\ExportOptimizationTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Rap2hpoutre\FastExcel\FastExcel;
 
@@ -46,6 +47,7 @@ class SimcardController extends Controller
                     ->with([
                         'operator',
                         'telco',
+                        'cardTerminalUnit:id,simcard_id,terminal_id',
                         // Only what the Index page reads per bound machine
                         // (Machine ID / Machine APK / Signal Strength columns)
                         // — a bare 'vends' serialized FULL vend models into the
@@ -87,7 +89,7 @@ class SimcardController extends Controller
         // eager load, and this table is a few hundred rows — an N+1 per row over
         // vends/customers/telco would cost far more than holding them in memory.
         $simcards = $this->filteredQuery($request)
-            ->with(['telco:id,name', 'updatedBy:id,name', 'vends', 'vends.customer:id,name'])
+            ->with(['telco:id,name', 'updatedBy:id,name', 'vends', 'vends.customer:id,name', 'cardTerminalUnit:id,simcard_id,terminal_id'])
             ->get();
 
         $row = 0;
@@ -101,6 +103,7 @@ class SimcardController extends Controller
                     '#' => $row,
                     'Simcard Number' => $simcard->code,
                     'Machine ID' => $this->exportLines($simcard, fn ($vend) => $vend->codeLabel()),
+                    'Card Terminal' => $simcard->cardTerminalUnit?->terminal_id,
                     'Site' => $this->exportLines($simcard, fn ($vend) => $vend->customer
                         ? ($vend->customer->id + \App\Models\Customer::RUNNING_NUMBER_INIT).' '.$vend->customer->name
                         : null),
@@ -319,6 +322,15 @@ class SimcardController extends Controller
         ]);
 
         $simcard = Simcard::findOrFail($zoneId);
+
+        // One SIM, one place: this one is inside a card terminal.
+        $terminalId = $request->vend_id ? $simcard->cardTerminalUnit?->terminal_id : null;
+        if ($terminalId) {
+            throw ValidationException::withMessages([
+                'vend_id' => __('This SIM card is in terminal :terminal. Take it off that terminal first.', ['terminal' => $terminalId]),
+            ]);
+        }
+
         $simcard->update($request->except('vend_id'));
 
         if ($request->has('vend_id')) {

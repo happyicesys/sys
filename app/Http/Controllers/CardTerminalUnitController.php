@@ -8,6 +8,7 @@ use App\Models\CardTerminal;
 use App\Models\CardTerminalBinding;
 use App\Models\CardTerminalUnit;
 use App\Models\Customer;
+use App\Models\Simcard;
 use App\Models\Vend;
 use App\Services\CardTerminal\RemoteCardTerminalBinder;
 use App\Support\VendCode;
@@ -57,6 +58,7 @@ class CardTerminalUnitController extends Controller
         $query = $this->sorted($this->filtered($request, $today), $request, $today)
             ->with([
                 'company',
+                'simcard.telco:id,name',
                 // Whole fleet by design: a terminal can sit on any machine and
                 // this page is HappyIce-staff only, so vend lookups skip the
                 // operator scoping the way the old bindings page did.
@@ -75,6 +77,7 @@ class CardTerminalUnitController extends Controller
         return Inertia::render('CardTerminalUnit/Index', [
             'cardTerminalUnits' => CardTerminalUnitResource::collection($units),
             'cardTerminalOptions' => CardTerminalResource::collection(CardTerminal::orderBy('name')->get()),
+            'simcardOptions' => $this->simcardOptions(),
             'filters' => [
                 'terminal_id' => $request->input('terminal_id', ''),
                 'card_terminal_id' => $request->input('card_terminal_id', 'all'),
@@ -87,6 +90,32 @@ class CardTerminalUnitController extends Controller
                 'sortBy' => $request->sortBy ?? true,
             ],
         ]);
+    }
+
+    /**
+     * The SIM pool for the form's dropdown: every SIM not in a machine. A SIM in
+     * a terminal stays listed with that terminal's id, so the form can offer a
+     * unit its own SIM and hide the ones its siblings hold.
+     *
+     * A raw NOT EXISTS on purpose: whereDoesntHave('vends') applies Vend's
+     * operator scope inside the subquery, which would offer a restricted viewer
+     * the SIMs in other operators' machines.
+     */
+    private function simcardOptions(): array
+    {
+        return Simcard::query()
+            ->with(['telco:id,name', 'cardTerminalUnit:id,simcard_id'])
+            ->whereNotExists(fn ($q) => $q->select(DB::raw(1))
+                ->from('vends')
+                ->whereColumn('vends.simcard_id', 'simcards.id'))
+            ->orderBy('code')
+            ->get(['id', 'code', 'telco_id'])
+            ->map(fn (Simcard $simcard) => [
+                'id' => $simcard->id,
+                'name' => $simcard->telco ? $simcard->telco->name.' - '.$simcard->code : $simcard->code,
+                'card_terminal_unit_id' => $simcard->cardTerminalUnit?->id,
+            ])
+            ->all();
     }
 
     /**
@@ -144,13 +173,18 @@ class CardTerminalUnitController extends Controller
 
         $machines = $this->currentMachineByTerminal($today);
         $companies = CardTerminal::pluck('name', 'id');
+        $simcards = Simcard::with('telco:id,name')
+            ->whereIn('id', CardTerminalUnit::whereNotNull('simcard_id')->select('simcard_id'))
+            ->get(['id', 'code', 'telco_id'])
+            ->keyBy('id');
 
         $query = $this->sorted($this->filtered($request, $today), $request, $today);
 
         return (new FastExcel($this->exportWithCursor($query)))->download(
             $this->formatExportFilename('CardTerminals', 'xlsx'),
-            function (CardTerminalUnit $unit) use ($machines, $companies) {
+            function (CardTerminalUnit $unit) use ($machines, $companies, $simcards) {
                 $machine = $machines->get($unit->terminal_id);
+                $simcard = $simcards->get($unit->simcard_id);
 
                 return [
                     'Terminal ID' => $unit->terminal_id,
@@ -170,6 +204,8 @@ class CardTerminalUnitController extends Controller
                         false => 'No',
                         default => 'Unknown',
                     },
+                    'SIM Card' => $simcard?->code,
+                    'SIM Package' => $simcard?->telco?->name,
                     'Remarks' => $unit->remarks,
                 ];
             }
@@ -356,6 +392,32 @@ class CardTerminalUnitController extends Controller
         return redirect()->route('card-terminal-units');
     }
 
+    /**
+     * One SIM, one place. Unscoped: a SIM in another operator's machine is still
+     * physically in that machine. A SIM the terminal already holds always passes,
+     * so a save of anything else on the form is never blocked by it.
+     */
+    private function assertSimcardFree(?int $simcardId, ?CardTerminalUnit $unit): void
+    {
+        if (! $simcardId || $simcardId === $unit?->simcard_id) {
+            return;
+        }
+
+        $machine = Vend::withoutGlobalScopes()->where('simcard_id', $simcardId)->first();
+        if ($machine) {
+            throw ValidationException::withMessages([
+                'simcard_id' => __('This SIM card is in machine :machine. Take it off that machine first.', ['machine' => $machine->codeLabel()]),
+            ]);
+        }
+
+        $terminalId = CardTerminalUnit::where('simcard_id', $simcardId)->value('terminal_id');
+        if ($terminalId) {
+            throw ValidationException::withMessages([
+                'simcard_id' => __('This SIM card is in terminal :terminal. Take it off that terminal first.', ['terminal' => $terminalId]),
+            ]);
+        }
+    }
+
     protected function validated(Request $request, ?int $ignoreId = null): array
     {
         // terminal_id is unique fleet-wide, not per company: settlement
@@ -378,6 +440,7 @@ class CardTerminalUnitController extends Controller
             'will_auto_refund' => ['nullable', Rule::in(['auto', 'yes', 'no'])],
             // Payrallel (T05) units only: write-only, blank keeps the stored token.
             'access_token' => ['nullable', 'string', 'max:4000'],
+            'simcard_id' => ['nullable', 'integer', Rule::exists('simcards', 'id')],
         ]);
 
         // A Payrallel (T05) unit is a remote terminal: its terminal_id is the SN and it needs
@@ -402,6 +465,12 @@ class CardTerminalUnitController extends Controller
             $attrs['access_token'] = $token;
         } elseif (! $isRemote) {
             $attrs['access_token'] = null;
+        }
+        // Only when the form sent it: a tab opened before this field existed must
+        // not take the SIM off the terminal.
+        if (array_key_exists('simcard_id', $validated)) {
+            $this->assertSimcardFree($validated['simcard_id'], $existing);
+            $attrs['simcard_id'] = $validated['simcard_id'];
         }
         if (array_key_exists('batch', $validated)) {
             $attrs['batch'] = $validated['batch'] !== null && $validated['batch'] !== '' ? trim($validated['batch']) : null;

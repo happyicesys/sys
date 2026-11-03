@@ -69,6 +69,9 @@
                 :searchable="true"
               >
               </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.vend_id">
+                {{ form.errors.vend_id }}
+              </div>
             </div>
           </div>
           <div class="sm:col-span-6">

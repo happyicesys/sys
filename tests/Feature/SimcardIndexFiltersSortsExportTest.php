@@ -316,7 +316,7 @@ class SimcardIndexFiltersSortsExportTest extends TestCase
         $row = $this->exportSheet()[0];
 
         $this->assertSame([
-            '#', 'Simcard Number', 'Machine ID', 'Site', 'Machine APK',
+            '#', 'Simcard Number', 'Machine ID', 'Card Terminal', 'Site', 'Machine APK',
             'SimCard Package', 'Signal Strength', 'Updated By', 'Status',
         ], array_keys($row));
 
