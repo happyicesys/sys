@@ -1588,8 +1588,10 @@ bear art (`public/img/freezer-receipt/`) is the freezer APK's own. Regression co
 
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
 permission `ai-recognition` read: superadmin/admin/supervisor) lists every recognition:
-machine, Zijia's order no + our SF ref, links to the original videos, the AI's answer
-and the verdict against the sale. It reads `smart_freezer_recognitions` only — the sale
+the sale's Order ID and Transaction DateTime first (Brian, 2026-11-03: the reference and the time
+shared with Sales Transactions; they lead the sort, date filter and search, and the door session,
+when the videos reached us minutes later, stands in only until a sale is matched), machine, Zijia's
+order no + our SF ref, links to the original videos, the AI's answer and the verdict against the sale. It reads `smart_freezer_recognitions` only — the sale
 link is its `vend_transaction_id`; nothing is added to `vend_transactions`. The table has
 no global scope: an operator-restricted viewer gets only its own freezers' rows, and a
 session matched to no freezer (a supplier test cabinet) only the unrestricted operator.

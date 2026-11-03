@@ -18,7 +18,7 @@
       </div>
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <p class="text-xs text-gray-500">
-          {{ $t('Each row is one Smart Freezer door session: the camera videos Zijia pushed, what their AI saw taken, and how that compares with what the customer paid for. A sale paid on a T05 card terminal is charged by this verdict in one capture (above the checkout hold too); NETS and QR sales were charged at the machine. Nothing here changes stock.') }}
+          {{ $t('Each row is one Smart Freezer door session: the camera videos Zijia pushed, what their AI saw taken, and how that compares with what the customer paid for. A sale paid on a T05 card terminal is charged on its own only when the AI matches what was paid; anything else waits for a person to key in the charge. NETS and QR sales were charged at the machine.') }}
         </p>
 
         <!-- Filters -->
@@ -225,15 +225,18 @@
                   <TableHead>
                     #
                   </TableHead>
-                  <TableHeadSort modelName="created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('created_at')">
-                    {{ $t('Door Session') }}
+                  <TableHeadSort modelName="transaction_time" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('transaction_time')">
+                    {{ $t('Transaction DateTime') }}
                   </TableHeadSort>
+                  <TableHead>
+                    {{ $t('Order ID') }}
+                  </TableHead>
                   <TableHead>
                     {{ $t('Machine') }}
                   </TableHead>
-                  <TableHead>
-                    {{ $t('Order No') }}
-                  </TableHead>
+                  <TableHeadSort modelName="created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('created_at')">
+                    <span :title="$t('When the door videos reached us, usually minutes after the sale')">{{ $t('Door Session') }}</span>
+                  </TableHeadSort>
                   <TableHead>
                     {{ $t('Videos') }}
                   </TableHead>
@@ -263,10 +266,21 @@
                     {{ recognitions.meta.from + rowIndex }}
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
-                    <div class="flex flex-col space-y-1">
-                      <span>{{ row.created_at }}</span>
-                      <span v-if="row.completed_at" class="text-xs text-gray-500" :title="$t('When the AI result came back')">
-                        {{ $t('result :time', { time: row.completed_at.substring(11) }) }}
+                    <span v-if="row.sale && row.sale.date" class="whitespace-nowrap">{{ row.sale.date }} {{ row.sale.time }}</span>
+                    <span v-else class="text-gray-400" :title="$t('Shown once the sale is matched to this session')">—</span>
+                  </TableData>
+                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
+                    <div class="flex flex-col space-y-1 text-xs">
+                      <a v-if="row.sale" :href="saleUrl(row.sale)" target="_blank" class="text-sm font-semibold text-blue-600 hover:underline font-mono whitespace-nowrap">{{ row.sale.order_id }}</a>
+                      <span v-else class="text-gray-400" :title="$t('Shown once the sale is matched to this session')">—</span>
+                      <span class="whitespace-nowrap" :title="$t('Zijia\'s order no for the door session (tradeId sent to the AI)')">
+                        <span class="text-gray-500">Zijia:</span> <span class="font-mono">{{ row.trade_id }}</span>
+                      </span>
+                      <span v-if="row.session_ref" class="whitespace-nowrap" :title="$t('Our txnRef (SFREF on the TRADE)')">
+                        <span class="text-gray-500">{{ $t('Ours:') }}</span> <span class="font-mono">{{ row.session_ref }}</span>
+                      </span>
+                      <span v-if="row.request_id" class="whitespace-nowrap" :title="$t('The AI service\'s request id')">
+                        <span class="text-gray-500">{{ $t('AI req:') }}</span> <span class="font-mono">{{ row.request_id }}</span>
                       </span>
                     </div>
                   </TableData>
@@ -277,16 +291,11 @@
                       <span v-if="row.device_id" class="text-xs text-gray-500" :title="$t('Device no / IMEI in the push')">{{ row.device_id }}</span>
                     </div>
                   </TableData>
-                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
-                    <div class="flex flex-col space-y-1 text-xs">
-                      <span class="whitespace-nowrap" :title="$t('Zijia\'s order no for the door session (tradeId sent to the AI)')">
-                        <span class="text-gray-500">Zijia:</span> <span class="font-mono">{{ row.trade_id }}</span>
-                      </span>
-                      <span v-if="row.session_ref" class="whitespace-nowrap" :title="$t('Our txnRef (SFREF on the TRADE)')">
-                        <span class="text-gray-500">{{ $t('Ours:') }}</span> <span class="font-mono">{{ row.session_ref }}</span>
-                      </span>
-                      <span v-if="row.request_id" class="whitespace-nowrap" :title="$t('The AI service\'s request id')">
-                        <span class="text-gray-500">{{ $t('AI req:') }}</span> <span class="font-mono">{{ row.request_id }}</span>
+                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
+                    <div class="flex flex-col space-y-1">
+                      <span>{{ row.created_at }}</span>
+                      <span v-if="row.completed_at" class="text-xs text-gray-500" :title="$t('When the AI result came back')">
+                        {{ $t('result :time', { time: row.completed_at.substring(11) }) }}
                       </span>
                     </div>
                   </TableData>
@@ -385,8 +394,6 @@
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
                     <div v-if="row.sale" class="flex flex-col space-y-1 text-xs">
-                      <a :href="saleUrl(row.sale)" target="_blank" class="text-blue-600 hover:underline font-mono whitespace-nowrap">{{ row.sale.order_id }}</a>
-                      <span v-if="row.sale.date" class="text-gray-500 whitespace-nowrap" :title="$t('Sale time (the TRADE)')">{{ row.sale.date }} {{ row.sale.time }}</span>
                       <span>{{ formatCents(row.sale.amount) }}</span>
                     </div>
                     <span v-else class="text-gray-400">—</span>
@@ -416,7 +423,7 @@
                   </TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
-                  <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td colspan="11" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                     {{ $t('No Results Found') }}
                   </td>
                 </tr>
@@ -643,7 +650,7 @@ const filters = ref({
   date_to: props.filters.date_to || '',
   time_from: props.filters.time_from || '',
   time_to: props.filters.time_to || '',
-  sortKey: props.filters.sortKey || 'created_at',
+  sortKey: props.filters.sortKey || 'transaction_time',
   // Query-string round-trips turn the boolean into "true"/"false" strings.
   sortBy: String(props.filters.sortBy ?? false) === 'true',
   numberPerPage: 100,

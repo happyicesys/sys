@@ -32,7 +32,14 @@ use InvalidArgumentException;
  */
 class FreezerRecognitionController extends Controller
 {
-    private const SORTS = ['created_at', 'status', 'verdict', 'completed_at'];
+    private const SORTS = ['transaction_time', 'created_at', 'status', 'verdict', 'completed_at'];
+
+    /**
+     * The row's main time (Brian, 2026-11-03): its sale's Transaction DateTime, the time Sales
+     * Transactions shows, else the door session until a sale is matched. The door session is when
+     * the videos reached us, minutes after the sale.
+     */
+    private const TRANSACTION_TIME = '(COALESCE((SELECT vt.transaction_datetime FROM vend_transactions vt WHERE vt.id = smart_freezer_recognitions.vend_transaction_id), smart_freezer_recognitions.created_at))';
 
     public function __construct()
     {
@@ -52,7 +59,7 @@ class FreezerRecognitionController extends Controller
         ]);
 
         $numberPerPage = $request->numberPerPage ?: 100;
-        $sortKey = in_array($request->sortKey, self::SORTS, true) ? $request->sortKey : 'created_at';
+        $sortKey = in_array($request->sortKey, self::SORTS, true) ? $request->sortKey : 'transaction_time';
         $sortBy = filter_var($request->sortBy ?? false, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
 
         $query = SmartFreezerRecognition::query()
@@ -75,22 +82,25 @@ class FreezerRecognitionController extends Controller
                 default => $q,
             })
             // A time narrows its date to "from 14:00" / "to 16:30"; with no date it is a time-of-day
-            // window over every day (e.g. all door sessions between 12:00 and 14:00).
-            ->when($request->input('date_from'), fn ($q, $d) => $q->where('created_at', '>=', $d.' '.($request->input('time_from') ?: '00:00').':00'))
-            ->when($request->input('date_to'), fn ($q, $d) => $q->where('created_at', '<=', $d.' '.($request->input('time_to') ?: '23:59').':59'))
-            ->when(! $request->input('date_from') && $request->input('time_from'), fn ($q) => $q->whereTime('created_at', '>=', $request->input('time_from').':00'))
-            ->when(! $request->input('date_to') && $request->input('time_to'), fn ($q) => $q->whereTime('created_at', '<=', $request->input('time_to').':59'))
+            // window over every day (e.g. all sales between 12:00 and 14:00).
+            ->when($request->input('date_from'), fn ($q, $d) => $q->whereRaw(self::TRANSACTION_TIME.' >= ?', [$d.' '.($request->input('time_from') ?: '00:00').':00']))
+            ->when($request->input('date_to'), fn ($q, $d) => $q->whereRaw(self::TRANSACTION_TIME.' <= ?', [$d.' '.($request->input('time_to') ?: '23:59').':59']))
+            ->when(! $request->input('date_from') && $request->input('time_from'), fn ($q) => $q->whereRaw('TIME('.self::TRANSACTION_TIME.') >= ?', [$request->input('time_from').':00']))
+            ->when(! $request->input('date_to') && $request->input('time_to'), fn ($q) => $q->whereRaw('TIME('.self::TRANSACTION_TIME.') <= ?', [$request->input('time_to').':59']))
             // Machine ID box: "50001", "C6003", or a comma list for an exact set — the Sales grid's rule.
             ->when(trim((string) $request->input('codes')), fn ($q, $codes) => $q->whereIn('vend_id', Vend::withoutGlobalScopes()->select('id')
                 ->where(fn ($v) => VendCode::whereSearch($v, $codes))))
             ->when(trim((string) $request->input('search')), function ($q, $search) {
                 $q->where(fn ($q) => $q
-                    ->where('trade_id', 'LIKE', "%{$search}%")
+                    ->whereIn('vend_transaction_id', VendTransaction::withoutGlobalScopes()->select('id')->where('order_id', $search))
+                    ->orWhere('trade_id', 'LIKE', "%{$search}%")
                     ->orWhere('session_ref', 'LIKE', "%{$search}%")
                     ->orWhere('device_id', 'LIKE', "%{$search}%")
                     ->orWhereIn('vend_id', Vend::withoutGlobalScopes()->select('id')->where(fn ($v) => VendCode::whereSearch($v, $search))));
             })
-            ->orderBy($sortKey, $sortBy)
+            ->when($sortKey === 'transaction_time',
+                fn ($q) => $q->orderByRaw(self::TRANSACTION_TIME.' '.$sortBy),
+                fn ($q) => $q->orderBy($sortKey, $sortBy))
             ->orderByDesc('id');
 
         // Viewer ceiling (mark1 CLAUDE.md, operator isolation): this table has no scope of its own.

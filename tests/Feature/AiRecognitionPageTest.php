@@ -127,6 +127,41 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.0.card', null));
     }
 
+    /** Brian, 2026-11-03: Order ID is the reference shared with Sales Transactions, and its time leads. */
+    public function test_rows_follow_the_transaction_time_and_are_found_by_order_id(): void
+    {
+        $sale = fn (string $order, string $at) => VendTransaction::forceCreate([
+            'order_id' => $order, 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 100,
+            'transaction_datetime' => Carbon::parse($at), 'gst_vat_rate' => 9, 'operator_id' => 1,
+        ]);
+        // The older sale's videos arrived last, so the door session alone would list it first.
+        $this->recognition(['trade_id' => 'SDK-new', 'vend_transaction_id' => $sale('O-NEW', '2026-11-03 18:32:19')->id])
+            ->forceFill(['created_at' => Carbon::parse('2026-11-03 18:38:14')])->save();
+        $this->recognition(['trade_id' => 'SDK-old', 'vend_transaction_id' => $sale('O-OLD', '2026-11-03 18:30:00')->id])
+            ->forceFill(['created_at' => Carbon::parse('2026-11-03 18:40:00')])->save();
+        // No sale yet: its door session stands in.
+        $this->recognition(['trade_id' => 'SDK-none'])->forceFill(['created_at' => Carbon::parse('2026-11-03 18:31:00')])->save();
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('filters.sortKey', 'transaction_time')
+                ->where('recognitions.data.0.sale.order_id', 'O-NEW')
+                ->where('recognitions.data.0.sale.time', '18:32:19')
+                ->where('recognitions.data.1.trade_id', 'SDK-none')
+                ->where('recognitions.data.2.sale.order_id', 'O-OLD'));
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?search=O-OLD')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('recognitions.data', 1)
+                ->where('recognitions.data.0.sale.order_id', 'O-OLD'));
+
+        // The date filter reads the same time: 18:40 is the door session, the sale was 18:30.
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=2026-11-03&time_from=18:32&date_to=2026-11-03&time_to=18:33')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('recognitions.data', 1)
+                ->where('recognitions.data.0.sale.order_id', 'O-NEW'));
+    }
+
     public function test_a_hold_the_ai_cannot_judge_offers_key_in_charge(): void
     {
         $terminal = RemoteCardTerminal::create([
