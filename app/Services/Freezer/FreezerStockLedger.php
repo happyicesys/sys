@@ -8,6 +8,7 @@ use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendTransaction;
 use App\Support\DispenseVerdict;
+use App\Support\FreezerTestSale;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -29,6 +30,9 @@ use Illuminate\Support\Facades\DB;
  *    still in the planogram: after a mapping swap a retired SKU's returned stock must not come back.
  *  - **A sale** takes one off per unit the TRADE reports dispensed, by product (`transf_info[].goods_id`
  *    = mark1 product id), once — only when the ingest creates or first fills the row.
+ *
+ * A Testing Mode sale (TRADE `TEST`, FreezerTestSale) takes nothing off: unitsDispensed() reads
+ * no unit from it, so neither the live ledger nor `freezer:rebuild-stock` counts it.
  *
  * Never below zero: a sale the ledger never saw stocked in (the freezer went live before this
  * existed) must not leave a negative count on the dashboard. The AI verdict does not move stock yet
@@ -123,6 +127,9 @@ class FreezerStockLedger
         $frame = $sale->vend_transaction_json;
         if (is_string($frame)) {
             $frame = json_decode($frame, true);
+        }
+        if (FreezerTestSale::frameIsTest($frame)) {
+            return [];
         }
 
         $units = [];

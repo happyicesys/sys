@@ -13,6 +13,7 @@ use App\Models\VendTransactionItem;
 use App\Services\HappyHour\HappyHourSales;
 use App\Services\Sales\LateTradeTracker;
 use App\Services\SmartFreezer\FreezerRecognitionService;
+use App\Support\FreezerTestSale;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -293,6 +294,8 @@ class FreezerSaleAudit
             // for this product in this sale, else the machine's price for it today. Taking the
             // shelf price first would make the per-product figures disagree with the money.
             $unitPrice = (int) ($paidPrices[$productId]
+                // Testing Mode prices every unit at the test price (AiCaptureDecision got the same).
+                ?? (FreezerTestSale::is($sale) ? FreezerTestSale::UNIT_PRICE_CENTS : null)
                 ?? $template?->unit_price_amount
                 ?? $channel?->amount
                 ?? 0);

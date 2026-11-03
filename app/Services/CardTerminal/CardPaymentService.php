@@ -11,6 +11,7 @@ use App\Models\VendTransaction;
 use App\Services\Freezer\FreezerSaleAudit;
 use App\Services\HappyHour\HappyHourPricing;
 use App\Services\SmartFreezer\FreezerSaleLocator;
+use App\Support\FreezerTestSale;
 use Carbon\Carbon;
 use DomainException;
 use Illuminate\Support\Facades\Cache;
@@ -766,7 +767,10 @@ class CardPaymentService
                 $recognition->verdict,
                 $lines,
                 $this->sales->paidUnitPrices($sale),
-                $this->shelfPrices($intent->vend_id, $productIds, $intent->door_closed_at ?? $intent->created_at),
+                // Testing Mode: every unit at the test price, an extra of another SKU included.
+                FreezerTestSale::is($sale)
+                    ? array_fill_keys($productIds, FreezerTestSale::UNIT_PRICE_CENTS)
+                    : $this->shelfPrices($intent->vend_id, $productIds, $intent->door_closed_at ?? $intent->created_at),
             ), $recognition->id];
         }
 

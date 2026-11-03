@@ -14,8 +14,10 @@ use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
+use App\Models\VendTransaction;
 use App\Services\Freezer\FreezerStockLedger;
 use App\Services\VendTransactionService;
+use App\Support\FreezerTestSale;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
@@ -60,12 +62,44 @@ class FreezerStockLedgerTest extends TestCase
     }
 
     /** One freezer TRADE through the real ingest: one transf_info entry per unit. */
-    private function trade(string $orderId, array $units): void
+    private function trade(string $orderId, array $units, array $extra = []): void
     {
-        app(VendTransactionService::class)->create($this->vend->fresh(), [
+        app(VendTransactionService::class)->create($this->vend->fresh(), $extra + [
             'ORDRID' => $orderId, 'PAY_TYPE' => 0, 'TIME' => now()->format('Y-m-d H:i:s'), 'SErr' => $units[0], 'SId' => 41, 'Price' => 430, 'TXN_SRC' => 0,
             'transf_info' => array_map(fn ($err) => ['SId' => 41, 'SErr' => $err, 'Price' => 430, 'goods_id' => $this->cheesecake->id], $units),
         ]);
+    }
+
+    /** A Testing Mode TRADE (freezer app v45): $0.10 a unit and `TEST`. */
+    private function trialTrade(string $orderId, array $units): void
+    {
+        $this->trade($orderId, $units, [
+            'TEST' => 1, 'Price' => '0.'.str_pad((string) (10 * count($units)), 2, '0', STR_PAD_LEFT),
+            'transf_info' => array_map(fn ($err) => ['SId' => 41, 'SErr' => $err, 'Price' => 10, 'goods_id' => $this->cheesecake->id], $units),
+        ]);
+    }
+
+    public function test_a_testing_mode_sale_is_booked_in_full_but_moves_no_stock(): void
+    {
+        $this->channel->update(['qty' => 3]);
+
+        $this->trialTrade('26110313280250001', [0, 0]);
+
+        $sale = VendTransaction::withoutGlobalScopes()->where('order_id', '26110313280250001')->sole();
+        $this->assertTrue(FreezerTestSale::is($sale));
+        $this->assertSame(3, (int) $this->channel->fresh()->qty, 'a test sale takes nothing off');
+
+        $this->trade('26110313300250001', [0]);
+        $this->assertSame(2, (int) $this->channel->fresh()->qty, 'a normal sale still does');
+    }
+
+    public function test_rebuild_does_not_count_testing_mode_sales(): void
+    {
+        $this->item->update(['status' => OpsJob::STATUS_DELIVERED, 'completed_at' => now()->subMinutes(10)]);
+        $this->trialTrade('26110313280250002', [0]);
+
+        $this->artisan('freezer:rebuild-stock', ['vend' => 50091, '--apply' => true])->assertSuccessful();
+        $this->assertSame(3, (int) $this->channel->fresh()->qty, 'stocked 3, the test sale sold none');
     }
 
     public function test_stock_in_sets_count_plus_refill_and_undo_takes_the_refill_back(): void
