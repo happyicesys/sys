@@ -20,6 +20,7 @@ use App\Services\CardTerminal\CardPaymentService;
 use App\Services\CardTerminal\Payrallel\PayrallelGateway;
 use App\Services\CardTerminal\TerminalTransaction as T;
 use App\Services\Freezer\FreezerSaleAudit;
+use App\Services\Freezer\FreezerStockLedger;
 use App\Services\OpsDashboard\MachineHappyHourTrend;
 use App\Services\VendTransactionService;
 use App\Support\SaleFacts;
@@ -99,7 +100,7 @@ class FreezerSaleAuditTest extends TestCase
     }
 
     /** One freezer TRADE through the real ingest: one transf_info entry per unit paid for. */
-    private function trade(int $units = 2, ?string $session = self::SESSION, int $paymentType = 2): VendTransaction
+    private function trade(int $units = 2, ?string $session = self::SESSION, int $paymentType = 2, array $extra = []): VendTransaction
     {
         $frame = [
             'ORDRID' => 'SFA'.uniqid(), 'PAY_TYPE' => $paymentType, 'TIME' => Carbon::now()->format('Y-m-d H:i:s'),
@@ -109,7 +110,7 @@ class FreezerSaleAuditTest extends TestCase
         if ($session !== null) {
             $frame['SFREF'] = $session;
         }
-        app(VendTransactionService::class)->create($this->vend->fresh(), $frame);
+        app(VendTransactionService::class)->create($this->vend->fresh(), $extra + $frame);
 
         return VendTransaction::where('vend_id', $this->vend->id)->orderByDesc('id')->firstOrFail();
     }
@@ -312,6 +313,163 @@ class FreezerSaleAuditTest extends TestCase
         $this->assertNull($sale->audit_pending_at);
         $this->assertSame(0, $this->countedSales());
         $this->assertSame(CardPaymentIntent::STATE_VOIDED, CardPaymentIntent::sole()->state);
+    }
+
+    /** 5 on the shelf; the TRADE took the 2 paid for. */
+    private function stockOnShelf(): int
+    {
+        return (int) VendChannel::where('vend_id', $this->vend->id)->where('product_id', $this->cheesecake->id)->value('qty');
+    }
+
+    /** A second SKU on the cabinet that the AI can name. */
+    private function yakoo(): Product
+    {
+        $yakoo = Product::create(['code' => 'U-16', 'name' => 'Yakoo']);
+        $yakoo->forceFill(['barcode' => '9726436016149'])->save();
+        VendChannel::create(['vend_id' => $this->vend->id, 'code' => 42, 'product_id' => $yakoo->id, 'qty' => 5, 'capacity' => 5, 'amount' => 380, 'is_active' => 1]);
+
+        return $yakoo;
+    }
+
+    /** Pay for 2, take 1: the unit left in the cabinet goes back on the ledger, once. */
+    public function test_stock_follows_the_ai_when_less_was_taken(): void
+    {
+        $this->doorClosed();
+        $sale = $this->trade();
+        $this->assertSame(3, $this->stockOnShelf(), 'the TRADE takes off what was paid for');
+
+        $this->verdict('took_less', 1, $sale);
+        $this->service->reconcile();
+        $this->service->reconcile();
+
+        $this->assertSame(4, $this->stockOnShelf());
+        $this->assertSame([(string) $this->cheesecake->id => 1], $sale->fresh()->meta_json['audit']['stock_moved']);
+    }
+
+    public function test_stock_comes_back_when_the_ai_saw_nothing_taken(): void
+    {
+        $this->doorClosed();
+        $sale = $this->trade();
+        $this->verdict('took_less', 0, $sale);
+
+        $this->service->reconcile();
+
+        $this->assertSame(VendTransaction::SETTLEMENT_REFUNDED, (int) $sale->fresh()->settlement_status);
+        $this->assertSame(5, $this->stockOnShelf());
+    }
+
+    public function test_stock_follows_the_ai_when_more_was_taken(): void
+    {
+        $this->doorClosed(cents: 380);
+        $sale = $this->trade(units: 1);
+        SmartFreezerRecognition::query()->create([
+            'vend_id' => $this->vend->id, 'trade_id' => 'SDK-'.uniqid(), 'session_ref' => self::SESSION,
+            'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'vend_transaction_id' => $sale->id,
+            'verdict' => 'took_more', 'completed_at' => Carbon::now(), 'callback_verified' => true,
+            'verdict_lines' => [['product_id' => $this->cheesecake->id, 'code' => $this->cheesecake->barcode, 'paid' => 1, 'taken' => 2, 'delta' => 1]],
+        ]);
+
+        $this->service->reconcile();
+
+        $this->assertSame(3, $this->stockOnShelf());
+    }
+
+    /** 50001, 2026-11-03 10:37: paid for a Paddle Pop, took a Yakoo. */
+    public function test_stock_moves_between_skus_when_the_ai_saw_another_product(): void
+    {
+        $yakoo = $this->yakoo();
+        $this->doorClosed(cents: 380);
+        $sale = $this->trade(units: 1);
+        SmartFreezerRecognition::query()->create([
+            'vend_id' => $this->vend->id, 'trade_id' => 'SDK-'.uniqid(), 'session_ref' => self::SESSION,
+            'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'vend_transaction_id' => $sale->id,
+            'verdict' => 'mixed', 'completed_at' => Carbon::now(), 'callback_verified' => true,
+            'verdict_lines' => [
+                ['product_id' => $this->cheesecake->id, 'code' => $this->cheesecake->barcode, 'paid' => 1, 'taken' => 0, 'delta' => -1],
+                ['product_id' => $yakoo->id, 'code' => $yakoo->barcode, 'paid' => 0, 'taken' => 1, 'delta' => 1],
+            ],
+        ]);
+
+        $this->service->reconcile();
+
+        $this->assertSame(5, $this->stockOnShelf(), 'the paid product never left');
+        $this->assertSame(4, (int) VendChannel::where('vend_id', $this->vend->id)->where('product_id', $yakoo->id)->value('qty'));
+    }
+
+    /** A person's decision says what to charge, not what left the cabinet. */
+    public function test_a_person_keying_in_a_charge_moves_no_stock(): void
+    {
+        $this->doorClosed();
+        $this->trade();
+
+        $this->chargedByPerson(380);
+
+        $this->assertSame(3, $this->stockOnShelf());
+    }
+
+    public function test_a_person_releasing_a_hold_moves_no_stock(): void
+    {
+        $this->doorClosed();
+        $sale = $this->trade();
+
+        $this->chargedByPerson(0);
+
+        $this->assertSame(VendTransaction::SETTLEMENT_REFUNDED, (int) $sale->fresh()->settlement_status);
+        $this->assertSame(3, $this->stockOnShelf());
+    }
+
+    public function test_a_testing_mode_sale_moves_no_stock_whatever_the_ai_saw(): void
+    {
+        $this->doorClosed();
+        $sale = $this->trade(extra: ['TEST' => 1]);
+        $this->assertSame(5, $this->stockOnShelf(), 'a test sale took nothing off');
+
+        $this->verdict('took_less', 1, $sale);
+        $this->service->reconcile();
+
+        $this->assertSame(5, $this->stockOnShelf());
+    }
+
+    public function test_a_qr_sale_keeps_its_trades_stock(): void
+    {
+        $sale = $this->trade(session: null, paymentType: 0);
+        $this->verdict('took_less', 0, $sale);
+
+        $this->service->reconcile();
+
+        $this->assertSame(3, $this->stockOnShelf());
+    }
+
+    public function test_rebuild_counts_what_the_ai_saw_leave(): void
+    {
+        $this->doorClosed();
+        $sale = $this->trade();
+        $this->verdict('took_less', 1, $sale);
+        $this->service->reconcile();
+
+        $this->assertSame([$this->cheesecake->id => 1], app(FreezerStockLedger::class)->unitsOut($sale->fresh()));
+    }
+
+    /** Sales audited before stock followed the charge carry no stamp, and are corrected once. */
+    public function test_the_backfill_moves_old_audited_sales_once_and_only_on_apply(): void
+    {
+        $this->doorClosed();
+        $sale = $this->trade();
+        $this->verdict('took_less', 1, $sale);
+        $this->service->reconcile();
+
+        $meta = $sale->fresh()->meta_json;
+        unset($meta['audit']['stock_moved']);
+        $sale->fresh()->forceFill(['meta_json' => $meta])->saveQuietly();
+        VendChannel::where('vend_id', $this->vend->id)->where('product_id', $this->cheesecake->id)->update(['qty' => 3]);
+
+        $since = Carbon::now()->subHour()->toDateTimeString();
+        $this->artisan('freezer:apply-ai-stock', ['vend' => 50092, '--since' => $since])->assertSuccessful();
+        $this->assertSame(3, $this->stockOnShelf(), 'a dry run moves nothing');
+
+        $this->artisan('freezer:apply-ai-stock', ['vend' => 50092, '--since' => $since, '--apply' => true])->assertSuccessful();
+        $this->artisan('freezer:apply-ai-stock', ['vend' => 50092, '--since' => $since, '--apply' => true])->assertSuccessful();
+        $this->assertSame(4, $this->stockOnShelf());
     }
 
     /** The Ops Dashboard's Sales(qty) Today, 50001 2026-11-03: S$5.30 (5) for 3 units sold. */

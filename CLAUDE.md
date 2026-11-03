@@ -1133,10 +1133,16 @@ unrecognised). Rules:
   clock, so a miss falls back to OUR clock (`created_at` ± 2 days of the push).
   A result that lands before the TRADE waits; `smart-freezer:zijia-evaluate-pending`
   (every 10 min, last 7 days) judges it once the sale arrives.
-- **The verdict moves money only on a T05 hold; never stock.** A sale paid on a
+- **The verdict moves money and stock only on a T05 hold.** A sale paid on a
   Payrallel (T05) terminal by a freezer on app 26+ is charged by its session's
   verdict (`CardPaymentService::settleAwaitingAi`, see the Remote card terminals
-  section). NETS and QR sales were charged at the machine and nothing here touches
+  section), and its stock follows (Brian, 2026-11-03): the TRADE takes off the paid
+  cart, then settling moves the difference to the basket the decision charged for, or
+  puts it all back when the AI saw nothing taken (`FreezerSaleAudit::stockBasket`,
+  `FreezerStockLedger::followCharge`, once, recorded as `meta_json.audit.stock_moved`). A
+  cart-total fallback, a person's key-in or release, a device void and a Testing Mode
+  sale move nothing. Sales audited before this: `freezer:apply-ai-stock {vend} --since= [--apply]`.
+  NETS and QR sales were charged at the machine and nothing here touches
   them. A paid product the algorithm could
   not have named (no barcode, or a slot with no product) makes the verdict
   `incomplete`, never `took_less` — its "0 taken" is not evidence (a T05 hold then
@@ -1663,7 +1669,7 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   the hold; above the hold is the same one capture with the hold as fallback; the person is kept
   on `ai_decision.by_person`. Every such hold is in the 08:30 health email with its age — an
   uncaptured hold expires (~a month) with the goods given away. Only T05 holds come here: NETS
-  and QR sales were paid at the machine and the AI only reconciles their stock.
+  and QR sales were paid at the machine, and the AI moves neither their money nor their stock.
   The decision is made ONCE (`ai_decision`: `capture_cents`, `fallback_cents`; the first
   verdict is final); a refused capture of the hold amount (4xx) is retried every 10 min.
   **A capture whose outcome is unknown is never resent** (a lost answer may already be

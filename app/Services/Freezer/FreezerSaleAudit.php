@@ -10,6 +10,7 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
+use App\Services\CardTerminal\AiCaptureDecision;
 use App\Services\HappyHour\HappyHourSales;
 use App\Services\Sales\LateTradeTracker;
 use App\Services\SmartFreezer\FreezerRecognitionService;
@@ -59,6 +60,10 @@ use Illuminate\Support\Facades\Log;
  * those goods did leave the cabinet. Such a sale deliberately counts more units than its money
  * covers; the uncollected part is the owed amount, which the 08:30 health email reports.
  *
+ * THE STOCK FOLLOWS IT TOO (Brian, 2026-11-03). The TRADE already took the paid cart off the
+ * ledger, so settling moves the difference to what the AI saw leave ({@see stockBasket},
+ * FreezerStockLedger::followCharge) in the same transaction, recorded as `audit.stock_moved`.
+ *
  * ORDER IS NOT GUARANTEED. The TRADE and the AI verdict arrive on separate paths, and a freezer
  * that was offline uploads its TRADE long after its charge was decided. Both orders end with the
  * charged amount on the row: {@see record()} holds a sale whose charge is still open and applies
@@ -71,6 +76,7 @@ class FreezerSaleAudit
         private readonly FreezerRecognitionService $recognitions,
         private readonly LateTradeTracker $lateTrades,
         private readonly HappyHourSales $happyHour,
+        private readonly FreezerStockLedger $ledger,
     ) {}
 
     /**
@@ -146,13 +152,9 @@ class FreezerSaleAudit
             return null;
         }
 
-        $this->writeAudited(
-            $sale,
-            $chargedCents,
-            $reason,
-            $intent,
-            $chargedCents > 0 ? $this->basketFollowingTheCharge($sale, $intent) : null,
-        );
+        $basket = $chargedCents > 0 ? $this->basketFollowingTheCharge($sale, $intent) : null;
+
+        $this->writeAudited($sale, $chargedCents, $reason, $intent, $basket, $this->stockBasket($intent, $chargedCents, $basket));
 
         // The sale's money moved after it was first written. If its day has already closed,
         // tonight's rollup must rebuild that day, and the Ops Dashboard totals need a resync.
@@ -206,8 +208,33 @@ class FreezerSaleAudit
         }
     }
 
+    /**
+     * What the AI saw leave the cabinet, or null when this charge says nothing about the goods and
+     * the sale's stock stays as the TRADE left it.
+     *
+     * Only the AI's own view counts: the basket a decision charged for, or a hold it released
+     * because it saw nothing taken ([]). A charge that fell back to the cart, a person's key-in or
+     * release (no verdict to go on, and a person may waive a charge for goods that did leave) and a
+     * device void are not evidence of what left.
+     *
+     * @return array<int, int>|null product id => units
+     */
+    public function stockBasket(CardPaymentIntent $intent, int $chargedCents, ?array $basket): ?array
+    {
+        if ($basket !== null) {
+            return $basket;
+        }
+
+        $decision = (array) $intent->ai_decision;
+        $aiReleased = $chargedCents === 0
+            && ($decision['action'] ?? null) === AiCaptureDecision::VOID
+            && ! isset($decision['by_person']);
+
+        return $aiReleased ? [] : null;
+    }
+
     /** What was charged becomes the sale, and the sale counts again (or never does, at zero). */
-    private function writeAudited(VendTransaction $sale, int $chargedCents, string $reason, ?CardPaymentIntent $intent, ?array $basket): void
+    private function writeAudited(VendTransaction $sale, int $chargedCents, string $reason, ?CardPaymentIntent $intent, ?array $basket, ?array $stockBasket = null): void
     {
         $cart = (int) $sale->amount;
         $revenue = $chargedCents / (1.00 + ((float) $sale->gst_vat_rate / 100));
@@ -215,7 +242,20 @@ class FreezerSaleAudit
 
         // One transaction: a failure between the amount and the basket would leave a sale with
         // money charged and no item rows at all — counted for nothing.
-        DB::transaction(function () use ($sale, $chargedCents, $reason, $intent, $basket, $cart, $revenue, $grossProfit) {
+        DB::transaction(function () use ($sale, $chargedCents, $reason, $intent, $basket, $stockBasket, $cart, $revenue, $grossProfit) {
+            $stockMoved = null;
+            if ($stockBasket !== null) {
+                // Stock moves relative to the TRADE, so a second settle must find the row gone from
+                // the hold rather than move it twice.
+                $stillHeld = VendTransaction::withoutGlobalScopes()->whereKey($sale->id)
+                    ->whereNotNull('audit_pending_at')->lockForUpdate()->exists();
+                if (! $stillHeld) {
+                    return;
+                }
+                $vend = $sale->vend ?? Vend::withoutGlobalScopes()->find($sale->vend_id);
+                $stockMoved = $vend ? $this->ledger->followCharge($vend, $sale, $stockBasket) : [];
+            }
+
             $sale->forceFill([
                 'amount' => $chargedCents,
                 'is_zero_amount' => $chargedCents === 0,
@@ -239,6 +279,8 @@ class FreezerSaleAudit
                     // `items_json` and the TRADE's own `transf_info`.
                     'basket_paid' => $basket !== null ? $this->paidUnits($sale) : null,
                     'basket_charged' => $basket,
+                    // Present (even empty) once the stock has followed this sale; freezer:apply-ai-stock skips it.
+                    'stock_moved' => $stockMoved,
                 ], fn ($v) => $v !== null)]),
             ])->save();
 

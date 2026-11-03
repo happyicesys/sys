@@ -13,7 +13,7 @@ use Illuminate\Console\Command;
 
 /**
  * Recomputes a Smart Freezer's per-SKU stock: the last Stock In (the qty the page showed + the
- * refill) of that SKU, minus the units dispensed since. The live ledger is relative; this is the
+ * refill) of that SKU, minus the units that left since (the AI's correction included). The live ledger is relative; this is the
  * one-off baseline for freezers stocked before it existed (2026-09-30), and a check on the live
  * count. A SKU never stocked in through an ops job is left alone. Dry run unless --apply.
  */
@@ -58,7 +58,7 @@ class FreezerRebuildStock extends Command
                 ->where('vend_id', $vend->id)
                 ->where('created_at', '>=', $line->completed_at)
                 ->each(function (VendTransaction $sale) use ($ledger, $channel, &$sold) {
-                    $sold += $ledger->unitsDispensed($sale)[(int) $channel->product_id] ?? 0;
+                    $sold += $ledger->unitsOut($sale)[(int) $channel->product_id] ?? 0;
                 });
 
             $target = max(0, $stocked - $sold);

@@ -35,8 +35,15 @@ use Illuminate\Support\Facades\DB;
  * no unit from it, so neither the live ledger nor `freezer:rebuild-stock` counts it.
  *
  * Never below zero: a sale the ledger never saw stocked in (the freezer went live before this
- * existed) must not leave a negative count on the dashboard. The AI verdict does not move stock yet
- * (Brian decides what a took_more / took_less should do).
+ * existed) must not leave a negative count on the dashboard.
+ *
+ * **The AI's basket corrects a T05 sale** (Brian, 2026-11-03: 50001 read 3 Paddle Pops sold when none
+ * had been). The TRADE takes off what was paid for, because the verdict comes minutes later;
+ * followCharge() then moves the difference, once, in the transaction that settles the sale, and
+ * records it on the sale (`meta_json.audit.stock_moved`, + put back, − taken off), which
+ * unitsOut() and `freezer:rebuild-stock` read. FreezerSaleAudit::stockBasket() says when it applies:
+ * only the AI's own view of what left, never a charge a person keyed in. QR and NETS sales keep
+ * their TRADE's figure, as they keep its money.
  */
 class FreezerStockLedger
 {
@@ -119,6 +126,77 @@ class FreezerStockLedger
         }
 
         $this->refreshJson($vend);
+    }
+
+    /**
+     * Make a sale's stock movement what the AI saw leave instead of what the TRADE reported.
+     * The caller runs it once, inside the transaction that records the result on the sale.
+     *
+     * @param  array<int, int>  $taken  product id => units the AI saw leave ([] = nothing did)
+     * @return array<int, int> product id => units put back (+) or taken off (−)
+     */
+    public function followCharge(Vend $vend, VendTransaction $sale, array $taken): array
+    {
+        if (! $vend->isSmartFreezer()) {
+            return [];
+        }
+
+        $moved = $this->chargeDifference($sale, $taken);
+        foreach ($moved as $productId => $back) {
+            VendChannel::where('vend_id', $vend->id)->where('product_id', $productId)
+                ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) + '.(int) $back.', 0)')]);
+        }
+
+        if ($moved !== []) {
+            $this->refreshJson($vend);
+        }
+
+        return $moved;
+    }
+
+    /**
+     * What followCharge() would move. A Testing Mode sale moved nothing, so nothing corrects it.
+     *
+     * @param  array<int, int>  $taken  product id => units the AI saw leave
+     * @return array<int, int> product id => units put back (+) or taken off (−)
+     */
+    public function chargeDifference(VendTransaction $sale, array $taken): array
+    {
+        if (FreezerTestSale::is($sale)) {
+            return [];
+        }
+
+        $out = $this->unitsDispensed($sale);
+        $moved = [];
+        foreach (array_keys($out + $taken) as $productId) {
+            $back = ($out[$productId] ?? 0) - ($taken[$productId] ?? 0);
+            if ($back !== 0) {
+                $moved[$productId] = $back;
+            }
+        }
+        ksort($moved);
+
+        return $moved;
+    }
+
+    /**
+     * What this sale finally took out of the cabinet: the TRADE's units, corrected by the AI.
+     *
+     * @return array<int, int> product id => units
+     */
+    public function unitsOut(VendTransaction $sale): array
+    {
+        $units = $this->unitsDispensed($sale);
+        foreach ((array) (((array) $sale->meta_json)['audit']['stock_moved'] ?? []) as $productId => $back) {
+            $left = ($units[(int) $productId] ?? 0) - (int) $back;
+            if ($left === 0) {
+                unset($units[(int) $productId]);
+            } else {
+                $units[(int) $productId] = $left;
+            }
+        }
+
+        return $units;
     }
 
     /** @return array<int, int> product id => units dispensed */
