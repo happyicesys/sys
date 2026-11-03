@@ -30,7 +30,8 @@ class GrabApiErrorRecorder
 
     private const BODY_LIMIT = 8000;
 
-    private const SECRET_KEYS = '/secret|token|password|authorization|client_id/i';
+    // Also the customer at any depth: createGrabOrder takes the order under an "order" key too.
+    private const SECRET_KEYS = '/secret|token|password|authorization|client_id|receiver/i';
 
     // Path (after the endpoint base) → action, first match wins.
     private const OUTGOING_ACTIONS = [

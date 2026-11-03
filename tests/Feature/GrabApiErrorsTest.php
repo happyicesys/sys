@@ -137,6 +137,24 @@ class GrabApiErrorsTest extends TestCase
         $this->assertSame($binding->delivery_platform_ref_number_id, $error->delivery_platform_ref_number_id);
     }
 
+    public function test_a_refused_order_wrapped_in_order_keeps_no_customer_details(): void
+    {
+        // createGrabOrder also takes the order under an "order" key, so the customer can be nested.
+        $binding = $this->store();
+        app(\App\Services\GrabStoreService::class)->pause($binding, null, 'Repair');
+        Http::fake();
+
+        $this->postJson('/api/delivery/grab/order/create', ['order' => array_merge(
+            $this->grabOrderPayload(self::MERCHANT, 4754, [$this->grabItems['U-49']->id]),
+            ['receiver' => ['name' => 'A Customer', 'phones' => '91234567']],
+        )])->assertStatus(404);
+
+        $error = DeliveryPlatformApiError::query()->where('direction', 'incoming')->sole();
+        $this->assertSame(self::MERCHANT, $error->merchant_id);
+        $this->assertStringNotContainsString('A Customer', json_encode($error->request_json));
+        $this->assertStringNotContainsString('91234567', json_encode($error->request_json));
+    }
+
     public function test_a_crash_in_a_callback_is_kept_with_the_exception(): void
     {
         \Illuminate\Support\Facades\Route::middleware(['api', 'grab.callback-errors'])
