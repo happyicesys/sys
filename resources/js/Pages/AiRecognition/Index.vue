@@ -318,8 +318,9 @@
                       <span v-if="row.pushes > 1" class="text-gray-400" :title="$t('Zijia pushed this session more than once')">{{ $t(':count pushes', { count: row.pushes }) }}</span>
                     </div>
                   </TableData>
+                  <!-- Kept narrow: the long AI reason lives in a hover popup, AI Check gets the room. -->
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
-                    <div class="flex flex-col space-y-1">
+                    <div class="flex w-[4.5rem] flex-col space-y-1">
                       <span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-bold border" :class="statusBadgeClass(row.status)">
                         {{ statusLabels[row.status] ? $t(statusLabels[row.status]) : row.status }}
                       </span>
@@ -328,7 +329,7 @@
                       >
                         {{ $t(processedByLabels[row.processed_by]) }}
                       </span>
-                      <span v-if="row.algorithm_status" class="text-xs text-gray-700" :title="$t('The AI\'s own status')">{{ $t('AI: :status', { status: row.algorithm_status }) }}</span>
+                      <span v-if="row.algorithm_status" class="text-xs text-gray-700" tabindex="0" v-tooltip="$t('The AI\'s own status') + ': ' + row.algorithm_status">{{ $t('AI: :status', { status: row.algorithm_status.split(' — ')[0] }) }}</span>
                       <InformationCircleIcon v-if="row.status_reason && row.status_reason !== ('algorithm: ' + row.algorithm_status)" class="h-4 w-4 text-gray-400" tabindex="0" :aria-label="row.status_reason" v-tooltip="row.status_reason" />
                       <span v-if="row.callback_verified === false" class="text-xs text-red-700">{{ $t('Result signature NOT verified') }}</span>
                     </div>
@@ -361,7 +362,7 @@
                     <span v-if="verdictNote(row)" class="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700" tabindex="0" v-tooltip="row.status_reason || row.algorithm_status || ''">
                       <QuestionMarkCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t(verdictNote(row)) }}
                     </span>
-                    <table v-if="row.ai_check.length" class="text-xs">
+                    <table v-if="row.ai_check.length" class="w-full min-w-[20rem] text-xs">
                       <thead class="text-[11px] font-medium text-gray-500">
                         <tr>
                           <th class="pb-1 pr-3 text-left font-medium">{{ $t('Item') }}</th>
@@ -374,8 +375,8 @@
                       <tbody>
                         <tr v-for="line in row.ai_check" :key="line.product_id || line.name" class="border-t border-gray-100">
                           <td class="py-1 pr-3" tabindex="0" v-tooltip="line.code ? line.code + ' · ' + line.name : line.name">
-                            <img v-if="line.photo" :src="line.photo" :alt="line.name" loading="lazy" class="h-10 w-10 rounded object-contain bg-white" />
-                            <span v-else class="flex h-10 w-10 items-center justify-center rounded bg-gray-100 text-center text-[10px] leading-tight text-gray-600 overflow-hidden">{{ line.code || line.name }}</span>
+                            <img v-if="line.photo" :src="line.photo" :alt="line.name" loading="lazy" class="h-12 w-12 rounded object-contain bg-white" />
+                            <span v-else class="flex h-12 w-12 items-center justify-center rounded bg-gray-100 text-center text-[10px] leading-tight text-gray-600 overflow-hidden">{{ line.code || line.name }}</span>
                           </td>
                           <td class="py-1 pr-3 text-right text-gray-600">{{ line.unit_cents !== null ? formatCents(line.unit_cents) : '—' }}</td>
                           <td class="py-1 pr-3 text-center text-sm">{{ line.paid }}</td>
