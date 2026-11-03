@@ -686,6 +686,15 @@ class RefundController extends Controller
             ]);
         }
 
+        // A T05 charge refunded through Payrallel has already given money back: a PayNow / bank
+        // payout on top would pay it twice. Partial refunds do not cross the validation icon.
+        if ($ticket->vend_transaction_id && \App\Models\CardRefund::where('vend_transaction_id', $ticket->vend_transaction_id)
+            ->whereIn('state', \App\Models\CardRefund::COUNTED_STATES)->exists()) {
+            return back()->withErrors([
+                'ticket' => 'Cannot approve — money on this T05 charge was already refunded through Payrallel. Refund any more from the T05 panel, then reject or drop this claim.',
+            ]);
+        }
+
         // Manager-approval step removed: verifying a claim now moves it straight
         // to the payout-ready (Approved) gate. We carry over the double-refund
         // guard that used to live on approve() so we still block paying the same
@@ -1806,6 +1815,8 @@ class RefundController extends Controller
             'nets_report' => ($txn && $txn->cashless_mfg)
                 ? app(\App\Services\CardSettlement\CardSettlementRefundReconciler::class)->verdictFor($txn)
                 : null,
+            // The T05 (Payrallel) charge behind a freezer sale: refund it per SKU or whole from here.
+            't05_refund' => $txn ? app(\App\Services\CardTerminal\CardRefundService::class)->panelForSale($txn) : null,
             'reason_text' => $t->reason_text,
             'manual_items_summary' => $t->manual_items_summary,
             'manual_pay_method' => $t->manual_pay_method,

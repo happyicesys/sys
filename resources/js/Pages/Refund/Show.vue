@@ -1,6 +1,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import MachineIdLink from '@/Components/MachineIdLink.vue';
+import T05RefundPanel from '@/Components/T05RefundPanel.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { netsReportBadge, retainedCreditAdvice } from '@/constants/netsReportBadge';
@@ -662,6 +663,12 @@ function actionBadge(l) {
                     <tr v-if="!flaggedRows.length"><td colspan="3" class="py-3 text-xs text-gray-400">{{ $t('No items yet — enter the Order ID above to pull the transaction basket.') }}</td></tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- The T05 charge behind this sale: refund a SKU, or all of it, through Payrallel. -->
+        <div v-if="t.t05_refund" class="bg-white rounded-md border p-4">
+            <h3 class="text-xs uppercase tracking-wide text-gray-500 mb-2">{{ $t('T05 card refund') }}</h3>
+            <T05RefundPanel :initial="t.t05_refund" :can-act="can('verify refunds')" @changed="router.reload({ only: ['ticket'] })" />
         </div>
 
         <!-- Related transactions (enriched with Sales Transactions columns) -->

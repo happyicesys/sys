@@ -76,6 +76,14 @@ return [
     // an uncaptured hold expires (~a month) and gives the goods away.
     'ai_person_after_minutes' => (int) env('PAYRALLEL_AI_PERSON_AFTER_MINUTES', 30),
 
+    /*
+    | Refund a captured charge, whole or per SKU (CardRefundService). Payrallel's staff: never on the
+    | day of the charge, from the next day. Off blocks the button on that day. A slow refund must not
+    | read as "may have gone through" if it can be helped, so it gets longer than the other calls.
+    */
+    'refund_same_day' => (bool) env('PAYRALLEL_REFUND_SAME_DAY', false),
+    'refund_timeout' => (int) env('PAYRALLEL_REFUND_TIMEOUT', 20),
+
     // Accepted clock skew on device-signed requests (X-Device-Timestamp).
     'device_signature_skew_seconds' => (int) env('PAYRALLEL_DEVICE_SIGNATURE_SKEW_SECONDS', 300),
 ];

@@ -119,7 +119,7 @@ class AiRecognitionPageTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.1.card', [
-                    'id' => $intent->id, 'state' => 'captured', 'hold_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200,
+                    'id' => $intent->id, 'state' => 'captured', 'hold_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200, 'refunded_cents' => 0,
                     'judged_cents' => 960, 'increment_refused' => true, 'uncertain_cents' => null,
                     'reason' => 'AI judged took_more above the hold: one capture with auth increment', 'error' => 'further charge refused: no',
                     'person_reason' => null, 'awaits_person' => false, 'by_person' => null,

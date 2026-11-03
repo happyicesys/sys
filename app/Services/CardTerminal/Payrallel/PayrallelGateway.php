@@ -47,9 +47,16 @@ class PayrallelGateway implements RemoteCardTerminalGateway
         $this->send($terminal, 'terminal/payment-request/preauth', $this->amountBody($orderId, $cents));
     }
 
-    public function capture(RemoteCardTerminal $terminal, string $orderId, int $cents): void
+    /**
+     * Live answers (2026-11-03): a capture is a NEW transaction ("C2611…", type sale, its own
+     * amount, customOrderId null, parentTransactionId = the hold). Its id is returned for refunds.
+     */
+    public function capture(RemoteCardTerminal $terminal, string $orderId, int $cents): ?string
     {
-        $this->send($terminal, 'transactions/card/capture', $this->amountBody($orderId, $cents));
+        $body = $this->send($terminal, 'transactions/card/capture', $this->amountBody($orderId, $cents));
+        $id = $body['transaction']['transactionId'] ?? null;
+
+        return is_scalar($id) && (string) $id !== '' ? (string) $id : null;
     }
 
     /**
@@ -68,6 +75,42 @@ class PayrallelGateway implements RemoteCardTerminalGateway
     public function void(RemoteCardTerminal $terminal, string $orderId): void
     {
         $this->send($terminal, 'transactions/actions/void', ['customOrderId' => $orderId]);
+    }
+
+    /**
+     * POST transactions/actions/refund (from Payrallel, 2026-11-03; not in their public guide): one
+     * id + `amountInCents`. An unknown id answers 404 {"success":false,"error":"Refund failed: …"}.
+     * A real refund's answer has not been seen yet, so a status we do not recognise stays
+     * PROCESSING rather than being read as money returned.
+     */
+    public function refund(RemoteCardTerminal $terminal, string $transactionId, int $cents, ?string $orderId = null): TerminalTransaction
+    {
+        if ($cents <= 0) {
+            throw CardTerminalException::notSent("amount must be positive cents, got {$cents}");
+        }
+        $path = 'transactions/actions/refund';
+        $response = $this->post($terminal, $path, ['transactionId' => $transactionId, 'amountInCents' => $cents], $orderId, (int) config('payrallel.refund_timeout', 20));
+        $body = (array) ($response->json() ?? []);
+        if ($response->successful() && ($body['success'] ?? true) === false) {
+            $message = $body['error'] ?? $body['message'] ?? null;
+            throw CardTerminalException::refused('Payrallel refund refused'.(is_string($message) && $message !== '' ? ': '.mb_substr($message, 0, 180) : ''), $response->status());
+        }
+        $this->assertOk($response, $body, 'refund');
+
+        $txn = (array) ($body['transaction'] ?? $body['refund'] ?? []);
+        $providerStatus = isset($txn['status']) ? strtolower(trim((string) $txn['status'])) : null;
+
+        return new TerminalTransaction(
+            status: match ($providerStatus) {
+                null, 'approved', 'refunded', 'success', 'succeeded', 'completed' => TerminalTransaction::APPROVED,
+                'declined', 'failed', 'rejected' => TerminalTransaction::DECLINED,
+                default => TerminalTransaction::PROCESSING,
+            },
+            providerStatus: $providerStatus,
+            providerTxnId: isset($txn['transactionId']) ? (string) $txn['transactionId'] : null,
+            paymentMethod: isset($txn['paymentMethod']) ? (string) $txn['paymentMethod'] : null,
+            raw: $body,
+        );
     }
 
     public function query(RemoteCardTerminal $terminal, string $orderId): TerminalTransaction
@@ -120,16 +163,24 @@ class PayrallelGateway implements RemoteCardTerminalGateway
         return ['amountInCents' => $cents, 'customOrderId' => $orderId];
     }
 
-    private function send(RemoteCardTerminal $terminal, string $path, array $body): void
+    /** @return array<string, mixed> the provider's answer */
+    private function send(RemoteCardTerminal $terminal, string $path, array $body): array
     {
         $response = $this->post($terminal, $path, $body);
-        $this->assertOk($response, (array) ($response->json() ?? []), $path);
+        $answer = (array) ($response->json() ?? []);
+        $this->assertOk($response, $answer, $path);
+
+        return $answer;
     }
 
-    private function post(RemoteCardTerminal $terminal, string $path, array $body): Response
+    /** $logOrderId labels the timeline for a body that names no order; $timeout overrides the configured one. */
+    private function post(RemoteCardTerminal $terminal, string $path, array $body, ?string $logOrderId = null, ?int $timeout = null): Response
     {
         $client = $this->client($terminal);
-        $orderId = isset($body['customOrderId']) ? (string) $body['customOrderId'] : null;
+        if ($timeout !== null) {
+            $client = $client->timeout($timeout);
+        }
+        $orderId = $logOrderId ?? (isset($body['customOrderId']) ? (string) $body['customOrderId'] : null);
         $started = hrtime(true);
         try {
             // (object) so an empty body is sent as {} rather than [].

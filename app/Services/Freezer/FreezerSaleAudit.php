@@ -13,6 +13,7 @@ use App\Models\VendTransactionItem;
 use App\Services\HappyHour\HappyHourSales;
 use App\Services\Sales\LateTradeTracker;
 use App\Services\SmartFreezer\FreezerRecognitionService;
+use App\Support\AutoRefundSource;
 use App\Support\FreezerTestSale;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -165,6 +166,44 @@ class FreezerSaleAudit
         }
 
         return $sale;
+    }
+
+    /**
+     * Money went back on a T05 charge (CardRefundService): the sale now counts what the customer
+     * still paid. The goods left the cabinet, so stock, qty and unit cost stay as they are; the
+     * refunded units carry `is_refunded` on their item rows. Nothing left = the sale is refunded,
+     * through the one flag every refund surface reads.
+     *
+     * @param  array<string, mixed>  $entry  what happened, kept on `meta_json.t05_refunds`
+     */
+    public function applyRefund(VendTransaction $sale, int $netCents, array $entry): void
+    {
+        $meta = (array) $sale->meta_json;
+        $meta['t05_refunds'] = array_merge((array) ($meta['t05_refunds'] ?? []), [$entry]);
+
+        if ($netCents > 0) {
+            $revenue = $netCents / (1.00 + ((float) $sale->gst_vat_rate / 100));
+            $grossProfit = $revenue - (float) $sale->unit_cost;
+            $sale->forceFill([
+                'amount' => $netCents,
+                'revenue' => $revenue,
+                'gross_profit' => $grossProfit,
+                'gross_profit_margin' => $revenue ? (($grossProfit * 100) / $revenue) : 0,
+                'meta_json' => $meta,
+            ])->save();
+        } else {
+            $sale->forceFill([
+                'is_refunded' => true,
+                'auto_refund_source' => AutoRefundSource::PAYRALLEL_REFUND,
+                'settlement_status' => VendTransaction::SETTLEMENT_REFUNDED,
+                'meta_json' => $meta,
+            ])->save();
+        }
+
+        $this->lateTrades->noteLanded($sale);
+        if ($vend = $sale->vend) {
+            SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
+        }
     }
 
     /** What was charged becomes the sale, and the sale counts again (or never does, at zero). */

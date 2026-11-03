@@ -435,6 +435,20 @@ been returned, and always together with `auto_refund_source`
   report's verdict ("NETS report": Reversed / Captured, not reversed / Not
   captured / No report yet / No NETS terminal) so ops decide on evidence.
   See `CARD_SETTLEMENT_2026-09-01.md`.
+- **Payrallel (T05) — refunded by staff through their API (2026-11-03)**, per SKU or whole, from the
+  T05 panel (`T05RefundPanel.vue`) on AI Recognition and on a Refund Request; permission `verify refunds`.
+  `CardRefundService` + `card_refunds`, `POST transactions/actions/refund` (`transactionId` + `amountInCents`,
+  given to us by Payrallel, not in their public guide). **Name `card_payment_intents.capture_txn_id`, never
+  `provider_txn_id` or `customOrderId`:** a capture is its own transaction ("C2611…", type `sale`,
+  `customOrderId` null, `parentTransactionId` = the hold), so those two point at the hold. No charge id on
+  record = the panel refuses and it is done in their portal. Their staff say never on the day of the charge
+  (`payrallel.refund_same_day` off blocks it). Written ahead: a timeout or a dead run leaves the refund
+  `uncertain`, and nothing more goes out on that charge until a person checks the portal and says (the
+  panel's buttons). Only a confirmed refund moves `refunded_cents`, the sale and the claim: part of a charge
+  lowers `amount` / revenue / GP and flags the units' item rows `is_refunded`; nothing left sets
+  `is_refunded` + `payrallel_refund` + settlement REFUNDED, keeping `amount`. **Stock never moves** (the goods
+  left the cabinet). Revenue = `captured_cents − refunded_cents`. A claim already being paid another way blocks the
+  refund, and any T05 refund blocks approving a claim for payout.
 - Every write of `is_refunded` must also call
   `RefundTicketService::markAutoRefundedByCharge` so an open ticket's frozen
   verdict crosses and approved/scheduled ones are pulled out of payout.

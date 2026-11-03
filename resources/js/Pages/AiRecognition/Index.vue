@@ -325,7 +325,7 @@
                         <span v-for="good in row.submitted" :key="good.code" class="whitespace-nowrap"
                           :class="paidBarcodes(row).has(good.code) ? 'font-semibold text-gray-900' : 'text-gray-600'"
                         >
-                          {{ good.name || $t('Not a mark1 product') }}
+                          {{ good.name || $t('Not a ConnectVend product') }}
                           <span class="text-gray-400 font-mono">{{ good.code }}</span>
                           <span v-if="paidBarcodes(row).has(good.code)" class="ml-1 inline-flex rounded px-1 text-[10px] font-semibold bg-sky-50 text-sky-800 border border-sky-300">{{ $t('paid') }}</span>
                           <span v-if="seenBarcodes(row).has(good.code)" class="ml-1 inline-flex rounded px-1 text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-300">{{ $t('AI saw') }}</span>
@@ -387,6 +387,13 @@
                       <span v-if="row.card.owed_cents" class="text-red-700 whitespace-nowrap">{{ $t('Not charged yet :amount', { amount: formatCents(row.card.owed_cents) }) }}</span>
                       <span v-if="row.card.error" class="text-red-700">{{ row.card.error }}</span>
                       <span v-if="row.card.by_person" class="text-gray-600 whitespace-nowrap">{{ $t('Keyed in by :name', { name: row.card.by_person }) }}</span>
+                      <span v-if="row.card.refunded_cents" class="text-rose-700 whitespace-nowrap">{{ $t('Refunded :amount', { amount: formatCents(row.card.refunded_cents) }) }}</span>
+                      <button v-if="row.card.state === 'captured' && canRefund" type="button"
+                        class="mx-auto mt-1 inline-flex items-center rounded-md border border-rose-600 bg-white px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 whitespace-nowrap"
+                        @click="refundIntentId = row.card.id"
+                      >
+                        {{ $t('Refund') }}
+                      </button>
                       <!-- The AI answered without a verdict: the hold waits for a person, never charged on its own. -->
                       <button v-if="row.card.awaits_person && canCharge" type="button"
                         class="mx-auto mt-1 inline-flex items-center rounded-md border border-indigo-600 bg-indigo-600 px-2 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 whitespace-nowrap"
@@ -409,6 +416,11 @@
         </div>
       </div>
     </div>
+    <Modal :open="refundIntentId !== null" @modalClose="closeRefund">
+      <template #header>{{ $t('T05 card refund') }}</template>
+      <T05RefundPanel v-if="refundIntentId !== null" :key="refundIntentId" :intent-id="refundIntentId" :can-act="canRefund" @changed="refundChanged = true" />
+    </Modal>
+
     <Modal :open="charge.open" @modalClose="closeCharge">
       <template #header>
         {{ charge.step === 1 ? $t('Key in the final charge') : $t('Confirm the charge') }}
@@ -487,6 +499,7 @@ import Paginator from '@/Components/Paginator.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import MachineIdLink from '@/Components/MachineIdLink.vue';
+import T05RefundPanel from '@/Components/T05RefundPanel.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import { MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
@@ -501,6 +514,7 @@ const props = defineProps({
   statuses: Array,
   verdicts: Array,
   canCharge: Boolean,
+  canRefund: Boolean,
   sessionlessHolds: { type: Array, default: () => [] },
   orderStatusLegend: Array,
   filters: Object,
@@ -702,6 +716,17 @@ function sessionlessRow(hold) {
 
 function closeCharge() {
   if (!charge.value.sending) charge.value.open = false
+}
+
+const refundIntentId = ref(null)
+const refundChanged = ref(false)
+
+function closeRefund() {
+  refundIntentId.value = null
+  if (refundChanged.value) {
+    refundChanged.value = false
+    router.reload({ only: ['recognitions'] })
+  }
 }
 
 function parseCents(text) {

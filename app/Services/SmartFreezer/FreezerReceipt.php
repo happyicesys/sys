@@ -162,7 +162,10 @@ class FreezerReceipt
             return $state;
         }
 
-        $total = $intent !== null ? (int) $intent->captured_cents : (int) $sale?->amount;
+        // A partial T05 refund lowers what the customer paid; a full one keeps the invoice's figures
+        // under its `refunded` flag.
+        $partlyRefunded = $intent !== null && $intent->refunded_cents > 0 && $intent->refunded_cents < $intent->captured_cents;
+        $total = $intent !== null ? (int) $intent->captured_cents - ($partlyRefunded ? (int) $intent->refunded_cents : 0) : (int) $sale?->amount;
         $rate = (float) ($sale?->gst_vat_rate ?? $vend->operator?->gst_vat_rate ?? 0);
         $lines = $sale !== null ? $this->lines($sale) : [];
         $adjustment = $total - array_sum(array_column($lines, 'amount_cents'));
@@ -217,6 +220,9 @@ class FreezerReceipt
     {
         $groups = [];
         $items = $sale->is_multiple ? $sale->vendTransactionItems()->get() : collect();
+        // Units refunded on a T05 charge leave the invoice, unless that was every unit.
+        $kept = $items->reject(fn ($item) => (bool) $item->is_refunded);
+        $items = $kept->isNotEmpty() ? $kept : $items;
         if ($items->isEmpty()) {
             $qty = max(1, (int) $sale->qty);
             $groups[] = ['product_id' => (int) $sale->product_id, 'qty' => $qty, 'unit_cents' => intdiv((int) $sale->amount, $qty)];

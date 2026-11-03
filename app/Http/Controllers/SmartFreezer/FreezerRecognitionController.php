@@ -130,6 +130,7 @@ class FreezerRecognitionController extends Controller
                 RecognitionVerdict::MIXED, RecognitionVerdict::UNRECOGNISED, RecognitionVerdict::INCOMPLETE,
             ],
             'canCharge' => (bool) $request->user()?->can('charge ai-recognition'),
+            'canRefund' => (bool) $request->user()?->can('verify refunds'),
             'sessionlessHolds' => $this->sessionlessHolds($payments, $operatorId),
             // Zijia's orderStatus codes (§6.2) with ops' plain words — the legend above the table.
             'orderStatusLegend' => array_map(fn (array $l) => $l + [
@@ -247,6 +248,7 @@ class FreezerRecognitionController extends Controller
                 'hold_cents' => $card->amount_cents,
                 'captured_cents' => $card->captured_cents,
                 'owed_cents' => $card->owed_cents,
+                'refunded_cents' => (int) $card->refunded_cents,
                 'judged_cents' => $card->ai_decision['judged_cents'] ?? null,
                 // Payrallel refused to raise the authorisation: the hold was charged, the rest is owed.
                 'increment_refused' => isset($card->ai_decision['increment_refused']),
@@ -385,7 +387,7 @@ class FreezerRecognitionController extends Controller
             ->whereIn('session_ref', $refs)
             ->whereIn('vend_id', $recognitions->pluck('vend_id')->filter()->unique())
             ->orderBy('id')
-            ->get(['id', 'vend_id', 'session_ref', 'state', 'amount_cents', 'captured_cents', 'owed_cents', 'ai_decision', 'last_error'])
+            ->get(['id', 'vend_id', 'session_ref', 'state', 'amount_cents', 'captured_cents', 'refunded_cents', 'owed_cents', 'ai_decision', 'last_error'])
             ->keyBy(fn (CardPaymentIntent $i) => $i->vend_id.'|'.$i->session_ref)
             ->all();
     }

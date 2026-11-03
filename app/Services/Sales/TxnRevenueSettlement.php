@@ -286,6 +286,7 @@ class TxnRevenueSettlement
                 't05.id AS t05_id',
                 't05.state AS t05_state',
                 't05.captured_cents AS t05_captured_cents',
+                't05.refunded_cents AS t05_refunded_cents',
                 't05.amount_cents AS t05_hold_cents',
             ]);
     }
@@ -317,12 +318,16 @@ class TxnRevenueSettlement
         if ($rail === self::RAIL_CARD && ! empty($row->t05_id)) {
             $source = self::SOURCE_T05;
             if ($state === self::REV_MATCHED) {
-                $revenueCents = (int) $row->t05_captured_cents;
+                $revenueCents = (int) $row->t05_captured_cents - (int) $row->t05_refunded_cents;
                 $settlementNote = 'Payrallel\'s payout terms and dates are not in mark1, so MDR and bank-in are not shown.';
             }
             [$label, $tip] = match ($state) {
-                self::REV_MATCHED => [null, 'Payrallel captured this amount on the card (the AI-judged charge, or the hold in full).'],
-                self::REV_REFUNDED => ['Hold released', 'The T05 hold was voided (nothing taken, or the door never opened): no money was taken.'],
+                self::REV_MATCHED => [null, (int) $row->t05_refunded_cents > 0
+                    ? 'Payrallel captured this charge and part of it was refunded: this is what the customer still paid.'
+                    : 'Payrallel captured this amount on the card (the AI-judged charge, or the hold in full).'],
+                self::REV_REFUNDED => (int) $row->t05_refunded_cents > 0
+                    ? ['Refunded', 'Staff refunded this T05 charge in full through Payrallel.']
+                    : ['Hold released', 'The T05 hold was voided (nothing taken, or the door never opened): no money was taken.'],
                 self::REV_NOT_FOUND => ['No T05 charge', 'The T05 attempt never reached an approved hold: no money was taken.'],
                 self::REV_PENDING => [null, 'The T05 charge is not final yet: waiting for the AI verdict, or a charge a person must confirm in Payrallel.'],
                 default => [null, null],
@@ -457,7 +462,7 @@ class TxnRevenueSettlement
             ]);
 
         // A T05 sale has no report line: its revenue is Payrallel's capture, MDR unknown.
-        $t05Revenue = (int) $matched((clone $filtered)->whereNotNull('t05.id'))->sum('t05.captured_cents');
+        $t05Revenue = (int) $matched((clone $filtered)->whereNotNull('t05.id'))->sum(DB::raw('t05.captured_cents - t05.refunded_cents'));
 
         $cardGroups = $matched((clone $filtered)->whereRaw("($rail) = ?", [self::RAIL_CARD]))
             ->whereNotNull('tr_line.id')

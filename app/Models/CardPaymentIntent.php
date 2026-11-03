@@ -35,6 +35,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * `ai_decision` holds the AI's decision on an `awaiting_ai` hold, and the write-ahead of any
  * capture (`inflight` → `uncertain`, cents) on both paths.
+ *
+ * A captured charge stays `captured` when money goes back: CardRefundService records each refund
+ * on `card_refunds` and keeps the total in `refunded_cents` (its only write to this row).
+ * `provider_txn_id` is the HOLD; a capture is its own transaction, `capture_txn_id`, and a refund
+ * has to name that one.
  */
 class CardPaymentIntent extends Model
 {
@@ -91,6 +96,8 @@ class CardPaymentIntent extends Model
         'mode',
         'amount_cents',
         'captured_cents',
+        'capture_txn_id',
+        'refunded_cents',
         'owed_cents',
         'state',
         'provider_status',
@@ -116,6 +123,7 @@ class CardPaymentIntent extends Model
     protected $casts = [
         'amount_cents' => 'integer',
         'captured_cents' => 'integer',
+        'refunded_cents' => 'integer',
         'owed_cents' => 'integer',
         'query_count' => 'integer',
         'last_queried_at' => 'datetime',

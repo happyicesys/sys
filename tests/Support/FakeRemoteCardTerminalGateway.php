@@ -26,6 +26,10 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
 
     public ?CardTerminalException $failCapture = null;
 
+    public ?CardTerminalException $failRefund = null;
+
+    public string $refundStatus = TerminalTransaction::APPROVED;
+
     /** @var list<string> order ids whose capture throws a non-terminal error (a bug, bad data) */
     public array $explodeFor = [];
 
@@ -73,7 +77,7 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
         }
     }
 
-    public function capture(RemoteCardTerminal $terminal, string $orderId, int $cents): void
+    public function capture(RemoteCardTerminal $terminal, string $orderId, int $cents): ?string
     {
         $this->calls[] = ['capture', $orderId, $cents];
         $this->tokens[] = $terminal->access_token;
@@ -86,6 +90,18 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
         if ($this->failCapture && count($this->callsOf('capture')) > $this->failCaptureAfter) {
             throw $this->failCapture;
         }
+
+        return 'C-'.$orderId;
+    }
+
+    public function refund(RemoteCardTerminal $terminal, string $transactionId, int $cents, ?string $orderId = null): TerminalTransaction
+    {
+        $this->calls[] = ['refund', $transactionId, $cents];
+        if ($this->failRefund) {
+            throw $this->failRefund;
+        }
+
+        return new TerminalTransaction($this->refundStatus, 'refunded', 'R-'.$transactionId, 'visa', ['success' => true]);
     }
 
     public function cancelActiveRequest(RemoteCardTerminal $terminal, ?string $orderId = null, ?int $cents = null): void

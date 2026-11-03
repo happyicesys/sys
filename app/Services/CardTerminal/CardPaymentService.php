@@ -500,7 +500,7 @@ class CardPaymentService
         $decision['inflight'] = $cents;
         $intent->update(['ai_decision' => $decision]);
         try {
-            $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $cents);
+            $captureTxnId = $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $cents);
         } catch (CardTerminalException $e) {
             if ($e->mayHaveReachedTerminal) {
                 return $this->chargeUncertain($intent, $decision, $e->getMessage());
@@ -526,15 +526,16 @@ class CardPaymentService
         }
         unset($decision['inflight']);
 
-        return $this->captured($intent, $decision, $cents);
+        return $this->captured($intent, $decision, $cents, $captureTxnId);
     }
 
     /** The decided capture went through. Caller holds the lock. */
-    private function captured(CardPaymentIntent $intent, array $decision, int $cents): CardPaymentIntent
+    private function captured(CardPaymentIntent $intent, array $decision, int $cents, ?string $captureTxnId = null): CardPaymentIntent
     {
         $captured = $this->finish($intent, CardPaymentIntent::STATE_CAPTURED, [
             'ai_decision' => $decision,
             'captured_cents' => $cents,
+            'capture_txn_id' => $captureTxnId,
             'captured_at' => Carbon::now(),
             'last_error' => null,
             'last_queried_at' => null,
@@ -871,7 +872,7 @@ class CardPaymentService
         $intent->update(['state' => CardPaymentIntent::STATE_CAPTURING, 'ai_decision' => $decision]);
         $terminal = $this->terminalOf($intent);
         try {
-            $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $cents);
+            $captureTxnId = $this->gateways->for($terminal)->capture($terminal, $intent->custom_order_id, $cents);
         } catch (CardTerminalException $e) {
             if ($e->mayHaveReachedTerminal) {
                 $this->chargeUncertain($intent, $decision, "{$by} capture: ".$e->getMessage());
@@ -894,6 +895,7 @@ class CardPaymentService
         return $this->finish($intent, CardPaymentIntent::STATE_CAPTURED, [
             'ai_decision' => null,
             'captured_cents' => $cents,
+            'capture_txn_id' => $captureTxnId,
             'captured_at' => Carbon::now(),
             'last_error' => null,
         ]);
@@ -1066,7 +1068,7 @@ class CardPaymentService
      * vend's remote_card_terminals row is edited in place when its T05 is swapped, so without the
      * snapshot a capture made after a swap would go out on the new terminal's token. Never saved.
      */
-    private function terminalOf(CardPaymentIntent $intent): RemoteCardTerminal
+    public function terminalOf(CardPaymentIntent $intent): RemoteCardTerminal
     {
         $terminal = $intent->terminal;
         if ($intent->access_token && $terminal && $terminal->access_token !== $intent->access_token) {
@@ -1086,7 +1088,7 @@ class CardPaymentService
      * @param  callable(CardPaymentIntent): T  $work
      * @return T
      */
-    private function locked(CardPaymentIntent $intent, callable $work): mixed
+    public function locked(CardPaymentIntent $intent, callable $work): mixed
     {
         return Cache::lock('card-payment-intent:'.$intent->id, self::lockSeconds())
             ->block(self::LOCK_WAIT_SECONDS, fn () => $work($intent->fresh()));

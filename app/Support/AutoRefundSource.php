@@ -107,6 +107,9 @@ final class AutoRefundSource
      */
     public const CITYBOX_REFUNDED = 'citybox_refunded';
 
+    /** Staff refunded the whole of a T05 charge through Payrallel's API (CardRefundService). */
+    public const PAYRALLEL_REFUND = 'payrallel_refund';
+
     /** Our own server decided and called the refund, with no human involved. */
     public const TRIGGER_SERVER = 'server';
 
@@ -128,7 +131,7 @@ final class AutoRefundSource
     {
         return match ($source) {
             self::OMISE_NO_DISPENSE, self::OMISE_STALE_APPROVE, self::OMISE_TRADE_FAIL, self::OMISE_DOOR_NOT_OPENED => self::TRIGGER_SERVER,
-            self::OMISE_MANUAL, self::OMISE_EXTERNAL, self::MIDTRANS_EXTERNAL, self::CITYBOX_REFUNDED => self::TRIGGER_ADMIN,
+            self::OMISE_MANUAL, self::OMISE_EXTERNAL, self::MIDTRANS_EXTERNAL, self::CITYBOX_REFUNDED, self::PAYRALLEL_REFUND => self::TRIGGER_ADMIN,
             self::OMISE_DISPUTE => self::TRIGGER_CUSTOMER,
             default => null,
         };
@@ -145,6 +148,7 @@ final class AutoRefundSource
         self::OMISE_DISPUTE => 'Omise: refunded after a dispute or chargeback the customer raised',
         self::MIDTRANS_EXTERNAL => 'Midtrans — refunded at the gateway (webhook)',
         self::CITYBOX_REFUNDED => 'CityBox: refunded by CityBox (their order list)',
+        self::PAYRALLEL_REFUND => 'Payrallel (T05): refunded by staff from ConnectVend',
         self::CARD_TERMINAL_REVERSAL => 'Card terminal reversal — inferred at TRADE time (legacy, unconfirmed)',
         self::SETTLEMENT_REPORT_REVERSAL => 'Card terminal reversal — confirmed by settlement report',
         self::SETTLEMENT_REPORT_NOT_CAPTURED => 'NA in NETS — failed card sale never captured (terminal voided before batch)',

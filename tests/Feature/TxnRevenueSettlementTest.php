@@ -370,4 +370,34 @@ class TxnRevenueSettlementTest extends TestCase
         [$rows] = $this->page(['revenue_states' => ['matched'], 'rails' => ['card']]);
         $this->assertSame(['T05MORE'], array_keys($rows));
     }
+
+    /** Money refunded through Payrallel (CardRefundService) stops counting; the capture stays on record. */
+    public function test_a_t05_refund_leaves_only_what_the_customer_still_paid(): void
+    {
+        DB::table('vends')->where('id', $this->vendId)->update(['machine_type' => 'smart_freezer']);
+        $terminalId = DB::table('remote_card_terminals')->insertGetId([
+            'vend_id' => $this->vendId, 'provider' => 'payrallel', 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $intent = fn (string $session, string $ref, int $refunded) => DB::table('card_payment_intents')->insert([
+            'vend_id' => $this->vendId, 'remote_card_terminal_id' => $terminalId, 'provider' => 'payrallel', 'reference' => $ref, 'custom_order_id' => "5073-{$ref}",
+            'session_ref' => $session, 'mode' => 'preauth', 'amount_cents' => 330, 'captured_cents' => 330, 'refunded_cents' => $refunded, 'state' => 'captured',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $frame = fn (string $session, array $more = []) => $more + ['vend_transaction_json' => ['Type' => 'TRADE', 'SFREF' => $session, 'TXN_SRC' => 1],
+            'card_settlement_state' => 'unbound'];
+
+        $this->sale('T05PART', 220, $this->card, $frame('SF-5073-1-1'));
+        $intent('SF-5073-1-1', 'SF1', 110);
+        $this->sale('T05FULL', 330, $this->card, $frame('SF-5073-2-2', ['is_refunded' => 1, 'auto_refund_source' => 'payrallel_refund']));
+        $intent('SF-5073-2-2', 'SF2', 330);
+
+        [$rows, $totals] = $this->page();
+
+        $this->assertSame('matched', $rows['T05PART']['revenue_state']);
+        $this->assertSame(220, $rows['T05PART']['revenue_cents']);
+        $this->assertSame('refunded', $rows['T05FULL']['revenue_state']);
+        $this->assertSame('Refunded', $rows['T05FULL']['revenue_label']);
+        $this->assertNull($rows['T05FULL']['revenue_cents']);
+        $this->assertSame(220, $totals['revenue']['t05_cents']);
+    }
 }
