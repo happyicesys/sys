@@ -147,6 +147,17 @@
       </div>
 
       <!-- T05 holds waiting for a person whose session has no row below (Zijia never pushed its videos). -->
+      <!-- Which of each freezer's products the AI can name today (ZijiaSkuLinks); gaps are fixed on SKU Links. -->
+      <div v-if="aiCoverage.length" class="-mx-3 sm:-mx-6 lg:-mx-8 mt-3 bg-white rounded-md border px-3 py-2">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          <span class="font-medium text-gray-700">{{ $t('AI\'s product list') }}</span>
+          <span v-for="machine in aiCoverage" :key="machine.vend_id" class="tabular-nums" :class="machine.missing.length ? 'text-amber-800 font-medium' : 'text-green-700'">
+            <MachineIdLink :code="machine.code_label" />: {{ $t(':on_list of :total', { on_list: machine.on_list, total: machine.total }) }}
+          </span>
+          <Link href="/ai-recognition/sku-links" class="ml-auto font-medium text-indigo-600 hover:underline">{{ $t('SKU Links') }}</Link>
+        </div>
+      </div>
+
       <div v-if="sessionlessHolds.length" class="-mx-3 sm:-mx-6 lg:-mx-8 mt-3 bg-amber-50 rounded-md border border-amber-300 px-3 py-2">
         <p class="text-sm font-medium text-amber-900">
           {{ $t('T05 card holds with no AI session (:count)', { count: sessionlessHolds.length }) }}
@@ -506,7 +517,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { t, tk } from '@/i18n';
 
 const props = defineProps({
@@ -516,6 +527,7 @@ const props = defineProps({
   canCharge: Boolean,
   canRefund: Boolean,
   sessionlessHolds: { type: Array, default: () => [] },
+  aiCoverage: { type: Array, default: () => [] },
   orderStatusLegend: Array,
   filters: Object,
 })

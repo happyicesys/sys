@@ -29,6 +29,8 @@ class ProductResource extends JsonResource
                 'id' => $this->id,
                 'full_name' => $this->code.' - '.$this->name.' '.$this->desc,
             ],
+            // Whether a freezer's AI can be asked about it (goodsList.sn); only where the query selected it.
+            'has_barcode' => $this->when(array_key_exists('barcode', $this->resource->getAttributes()), fn () => filled($this->barcode)),
             'remarks' => $this->remarks,
             'remarks_updated_at' => $this->remarks_updated_at,
             'remarksUpdatedBy' => UserResource::make($this->whenLoaded('remarksUpdatedBy')),

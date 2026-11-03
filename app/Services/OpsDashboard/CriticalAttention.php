@@ -7,6 +7,7 @@ use App\Models\Vend;
 use App\Models\VendDailyStat;
 use App\Models\VendSmartAlert;
 use App\Services\MachineHealthDashboardService;
+use App\Services\SmartFreezer\Zijia\ZijiaSkuLinks;
 use App\Support\VendCode;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -35,6 +36,7 @@ use Illuminate\Support\Facades\DB;
  *    recovered") or no-frames, today or yesterday, or a day whose hourly page checks all failed.
  *  - No sales: a machine whose last sale is older than `vend.attention.no_sales_hours`. Every
  *    machine kind. A machine that has never sold (new) is not flagged.
+ *  - AI list: a smart freezer selling products Zijia's AI is not asked about (ZijiaSkuLinks).
  */
 class CriticalAttention
 {
@@ -45,6 +47,8 @@ class CriticalAttention
     public const GROUP_SCREEN = 'screen';
 
     public const GROUP_NO_SALES = 'no_sales';
+
+    public const GROUP_AI_LIST = 'ai_list';
 
     /** Machine Health's operation errors, with Machine Health's own wording. */
     public const TEMPERATURE_GROUPS = [
@@ -96,6 +100,7 @@ class CriticalAttention
         $groups[] = $this->group(self::GROUP_APK_RESTART, __('APK reboot (connection issue)'), 'warning', $this->connectionReboots($vendingIds, $now));
         $groups[] = $this->group(self::GROUP_SCREEN, __('Touch screen frozen'), 'warning', $this->screenFaults($vendingIds, $now));
         $groups[] = $this->group(self::GROUP_NO_SALES, __('No sales for :duration', ['duration' => $this->noSalesHours().'h']), 'warning', $this->noSales($vends, $now));
+        $groups[] = $this->group(self::GROUP_AI_LIST, __('Freezer products not on the AI\'s list'), 'warning', $this->aiListGaps($vends));
 
         $groups = array_map(function (array $group) use ($vends) {
             $group['machines'] = collect($group['machines'])
@@ -250,6 +255,26 @@ class CriticalAttention
         return $out;
     }
 
+    /** @return array<int, string> */
+    private function aiListGaps(Collection $vends): array
+    {
+        $freezers = $vends->filter(fn ($v) => $v->machine_type === Vend::MACHINE_TYPE_SMART_FREEZER)->keys()->map(fn ($id) => (int) $id)->all();
+        if ($freezers === []) {
+            return [];
+        }
+        $out = [];
+        foreach (app(ZijiaSkuLinks::class)->coverage($freezers) as $vendId => $coverage) {
+            if ($coverage['missing'] !== []) {
+                $out[$vendId] = __(':on_list of :total: missing :codes', [
+                    'on_list' => $coverage['on_list'], 'total' => $coverage['total'],
+                    'codes' => implode(', ', array_column($coverage['missing'], 'code')),
+                ]);
+            }
+        }
+
+        return $out;
+    }
+
     /** Today's and yesterday's rows of the given metrics. */
     private function dailyStats(array $vendIds, array $metrics, Carbon $now): Collection
     {
@@ -276,6 +301,7 @@ class CriticalAttention
         self::GROUP_APK_RESTART => 'APK restarts',
         self::GROUP_SCREEN => 'Screen frozen',
         self::GROUP_NO_SALES => 'No sales',
+        self::GROUP_AI_LIST => 'AI list',
     ];
 
     private function group(string $key, string $label, string $severity, array $machines): array

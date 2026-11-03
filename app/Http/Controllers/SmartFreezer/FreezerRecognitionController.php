@@ -14,6 +14,7 @@ use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\RecognitionBadges;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
+use App\Services\SmartFreezer\Zijia\ZijiaSkuLinks;
 use App\Support\VendCode;
 use DomainException;
 use Illuminate\Http\Request;
@@ -118,6 +119,8 @@ class FreezerRecognitionController extends Controller
         return Inertia::render('AiRecognition/Index', [
             // Resource-collection shape (data / links / meta) — what Components/Paginator.vue reads.
             'recognitions' => JsonResource::collection($page),
+            // Per freezer, how many of its products the AI is asked about today (SKU Links).
+            'aiCoverage' => array_values(app(ZijiaSkuLinks::class)->coverage(ZijiaSkuLinks::viewerVendIds())),
             'statuses' => [
                 SmartFreezerRecognition::STATUS_PENDING,
                 SmartFreezerRecognition::STATUS_SUBMITTING,

@@ -1454,6 +1454,13 @@ Route::middleware(['auth', 'cors', 'can:verify refunds'])->prefix('card-refunds'
 // A person keys in the final charge for a T05 hold with no AI verdict (permission:charge ai-recognition).
 Route::middleware(['auth', 'cors'])->post('/ai-recognition/card-holds/{intent}/charge', [\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class, 'charge'])
     ->name('ai-recognition.charge');
+// Which freezer products the AI is asked about, and a person's link to a SKU registered in Zijia's portal.
+Route::middleware(['auth', 'cors'])->controller(\App\Http\Controllers\SmartFreezer\ZijiaSkuLinkController::class)->prefix('ai-recognition/sku-links')->name('ai-recognition.sku-links')->group(function () {
+    Route::get('/', 'index');
+    Route::post('/link', 'link')->name('.link');
+    Route::post('/library/{sku}/dismiss', 'dismiss')->name('.dismiss');
+    Route::post('/library/{sku}/restore', 'restore')->name('.restore');
+});
 
 /*
 | Card Settlement — upload the acquirer's daily settlement report (NETS

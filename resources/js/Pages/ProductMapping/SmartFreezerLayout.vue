@@ -178,6 +178,18 @@
                   >
                     {{ cell.item.product && cell.item.product.name }}
                   </div>
+                  <!-- No barcode = not in goodsList, so the AI can never name this product (SKU Links). -->
+                  <a
+                    v-if="cell.item.product && cell.item.product.has_barcode === false"
+                    href="/ai-recognition/sku-links"
+                    target="_blank"
+                    class="mt-0.5 inline-flex rounded border border-amber-300 bg-amber-50 px-1 py-px text-[10px] font-semibold leading-4 text-amber-800 hover:underline"
+                    :title="$t('The AI cannot name this product until it is linked to a SKU registered with Zijia')"
+                    @click.stop
+                    @mousedown.stop
+                  >
+                    {{ $t('Not on AI\'s list') }}
+                  </a>
                 </div>
               </div>
 

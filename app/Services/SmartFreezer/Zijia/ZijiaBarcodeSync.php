@@ -4,29 +4,39 @@ namespace App\Services\SmartFreezer\Zijia;
 
 use App\Models\Product;
 use App\Models\Vend;
+use App\Models\ZijiaLibrarySku;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
- * Fills in `products.barcode` from Zijia's SKU library for products on a smart freezer's planogram
- * that have none (Brian, 2026-10-05). The AI only looks for products whose barcode mark1 sends in
- * `goodsList`, so a product without one is "Cannot judge" and charges the cart.
+ * Fills in `products.barcode` from Zijia's SKU library for products that have none (Brian,
+ * 2026-10-05). The AI only looks for products whose barcode mark1 sends in `goodsList`, so a product
+ * without one is "Cannot judge" and charges the cart.
  *
- * Zijia gives no approval callback yet and their library entry carries no link to our product
- * (only name, spec, barcode, photos), and the library is shared by all their customers. So a
- * barcode is written ONLY when exactly one library product has exactly our product's name
- * (case and punctuation aside) — a wrong barcode would make the AI name the wrong product and
- * charge wrongly. An existing barcode is never touched. Anything else is left for a person and
- * listed in the 08:30 health email (`lastResults`).
+ * Portal approvals send no callback and their library entry carries no link to our product (only
+ * name, spec, barcode, photos), and the library is shared by all their customers. So a barcode is
+ * written ONLY when exactly one library product has exactly our product's name (case and punctuation
+ * aside) — a wrong barcode would make the AI name the wrong product and charge wrongly. An existing
+ * barcode is never touched. Anything else is left for a person: AI Recognition → SKU Links lists it
+ * with its near matches (ZijiaSkuLinks), and the 08:30 health email says so (`lastResults`).
+ *
+ * Names are compared against ZijiaLibraryMirror's local copy as well as their search, which only
+ * finds a substring of the exact text it is sent (2026-11-03). The copy also links a product that is
+ * on no freezer yet, so it is on the AI's list from the moment it is mapped.
  */
 class ZijiaBarcodeSync
 {
     private const RESULT_CACHE_KEY = 'zijia-barcode-sync:results';
 
+    private const IMPORT_CACHE_KEY = 'zijia-barcode-sync:import-results';
+
     public function __construct(
         private readonly ZijiaAlgorithmClient $client,
         private readonly ZijiaLibraryImport $import,
+        private readonly ZijiaLibraryMirror $mirror,
     ) {}
 
     /**
@@ -34,11 +44,23 @@ class ZijiaBarcodeSync
      */
     public function run(): array
     {
+        // A server with no smart freezer (lsh, IDN) has nothing to link and no reason to call Zijia.
+        if ($this->freezerProductIds()->isEmpty()) {
+            return [];
+        }
+        try {
+            $this->mirror->refresh();
+        } catch (Throwable $e) {
+            report($e);
+        }
+
         $results = [];
+        $library = ZijiaLibrarySku::query()->whereNull('dismissed_at')->get()->groupBy('name_key');
         foreach ($this->productsWithoutBarcode() as $product) {
-            $results[$product->id] = $this->syncOne($product);
+            $results[$product->id] = $this->syncOne($product, $library);
         }
         Cache::put(self::RESULT_CACHE_KEY, $results, now()->addDay());
+        $this->linkOffFreezerProducts($library);
 
         return $results;
     }
@@ -66,6 +88,7 @@ class ZijiaBarcodeSync
             }
             $results[$product->id] = ['product_id' => $product->id, 'name' => $product->name, 'outcome' => $outcome];
         }
+        Cache::put(self::IMPORT_CACHE_KEY, $results, now()->addDay());
 
         return $results;
     }
@@ -80,19 +103,38 @@ class ZijiaBarcodeSync
         return array_filter((array) Cache::get(self::RESULT_CACHE_KEY, []), fn ($r) => ($r['outcome'] ?? '') !== 'set');
     }
 
-    /** @return array{product_id: int, name: string, outcome: string, barcode?: string, candidates?: list<string>} */
-    private function syncOne(Product $product): array
+    /**
+     * Products whose barcode their library did not list at the last run. Worse than no barcode: an
+     * `sn` they do not know makes them reject the whole session.
+     *
+     * @return list<int>
+     */
+    public function barcodesNotInLibrary(): array
+    {
+        return collect((array) Cache::get(self::IMPORT_CACHE_KEY, []))
+            ->filter(fn ($r) => ($r['outcome'] ?? '') === ZijiaLibraryImport::OUTCOME_NOT_IN_LIBRARY)
+            ->keys()->map(fn ($id) => (int) $id)->values()->all();
+    }
+
+    /**
+     * @param  Collection<string, Collection<int, ZijiaLibrarySku>>  $library  by name_key
+     * @return array{product_id: int, name: string, outcome: string, barcode?: string, candidates?: list<string>}
+     */
+    private function syncOne(Product $product, Collection $library): array
     {
         $base = ['product_id' => $product->id, 'name' => $product->name];
+        $want = self::normalise($product->name);
+        $codes = collect($library->get($want, []))->pluck('product_code')->map(fn ($c) => (string) $c);
+
+        // Their search also reaches the older library (China packs) the local copy leaves out.
         $page = $this->client->querySkus(1, 50, $product->name);
-        if ($page === null) {
+        if ($page === null && $codes->isEmpty()) {
             return $base + ['outcome' => 'unreachable'];
         }
-
-        $want = self::normalise($product->name);
-        $codes = collect($page['list'])
+        $codes = $codes->merge(collect($page['list'] ?? [])
             ->filter(fn ($sku) => self::normalise((string) ($sku['skuName'] ?? '')) === $want)
-            ->pluck('productCode')->filter()->map(fn ($c) => (string) $c)->unique()->values();
+            ->pluck('productCode')->filter()->map(fn ($c) => (string) $c))
+            ->unique()->values();
 
         if ($codes->isEmpty()) {
             return $base + ['outcome' => 'not_in_library'];
@@ -101,13 +143,50 @@ class ZijiaBarcodeSync
             return $base + ['outcome' => 'ambiguous', 'candidates' => $codes->all()];
         }
 
-        $barcode = $codes->first();
-        // Re-read under the write: a person may have set one since the query started.
+        if (! $this->writeBarcode($product, $codes->first())) {
+            return $base + ['outcome' => 'already_set'];
+        }
+
+        return $base + ['outcome' => 'set', 'barcode' => $codes->first()];
+    }
+
+    /**
+     * An unlinked library entry whose name is exactly one product's, on a freezer or not. Stricter
+     * than a freezer product's rule on purpose: the same name under another operator is another
+     * product, so a name shared by two products waits until one of them is on a freezer.
+     *
+     * @param  Collection<string, Collection<int, ZijiaLibrarySku>>  $library  by name_key
+     */
+    private function linkOffFreezerProducts(Collection $library): void
+    {
+        $linked = Product::withoutGlobalScopes()->whereNotNull('barcode')->where('barcode', '!=', '')->pluck('barcode')
+            ->map(fn ($c) => trim((string) $c))->flip();
+        $single = $library->filter(fn (Collection $entries, $key) => $key !== '' && $entries->count() === 1
+            && ! $linked->has($entries->first()->product_code));
+        if ($single->isEmpty()) {
+            return;
+        }
+
+        // A freezer product just had its own, fuller check in syncOne; "ambiguous" there stands.
+        $onFreezer = $this->freezerProductIds()->flip();
+        $products = Product::withoutGlobalScopes()->whereNotNull('name')->where('name', '!=', '')
+            ->get(['id', 'name', 'barcode'])->groupBy(fn (Product $p) => self::normalise((string) $p->name));
+        foreach ($single as $key => $entries) {
+            $named = $products->get($key);
+            if ($named !== null && $named->count() === 1 && blank($named->first()->barcode) && ! $onFreezer->has($named->first()->id)) {
+                $this->writeBarcode($named->first(), $entries->first()->product_code);
+            }
+        }
+    }
+
+    /** False when the product has a barcode by now: a person may have set one since the query started. */
+    private function writeBarcode(Product $product, string $barcode): bool
+    {
         $updated = Product::withoutGlobalScopes()->whereKey($product->id)
             ->where(fn ($q) => $q->whereNull('barcode')->orWhere('barcode', ''))
             ->update(['barcode' => $barcode, 'updated_at' => now()]);
         if ($updated === 0) {
-            return $base + ['outcome' => 'already_set'];
+            return false;
         }
 
         // Console writes are not audited by UserLogger; record this one by hand so the product's
@@ -126,7 +205,7 @@ class ZijiaBarcodeSync
         ]);
         Log::info('Zijia barcode synced', ['product_id' => $product->id, 'name' => $product->name, 'barcode' => $barcode]);
 
-        return $base + ['outcome' => 'set', 'barcode' => $barcode];
+        return true;
     }
 
     /** @return \Illuminate\Support\Collection<int, Product> products on a smart freezer's planogram with no barcode */

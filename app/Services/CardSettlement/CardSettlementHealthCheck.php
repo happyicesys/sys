@@ -10,6 +10,7 @@ use App\Models\VendTransaction;
 use App\Models\ZijiaSkuNotification;
 use App\Services\CardTerminal\CardPaymentService;
 use App\Services\SmartFreezer\Zijia\ZijiaBarcodeSync;
+use App\Services\SmartFreezer\Zijia\ZijiaSkuLinks;
 use App\Services\SmartFreezer\Zijia\ZijiaSkuApprovalService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -252,26 +253,30 @@ class CardSettlementHealthCheck
     }
 
     /**
-     * Freezer products the AI is never asked about (no barcode) that the 3-minute Zijia sync could
-     * not fill in on its own: not in their library yet (not approved), or several library products
-     * with the same name (a person picks).
+     * Products ACTIVE on a freezer that the AI is not asked about, whatever the 3-minute Zijia sync
+     * could not settle on its own, each with what a person should do. A retired planogram row is no
+     * one's problem, so it is not listed.
      */
     protected function freezerProductsWithoutBarcode(string $base): array
     {
+        $outcomes = app(ZijiaBarcodeSync::class)->lastResults();
+        $products = collect(app(ZijiaSkuLinks::class)->coverage())->flatMap(fn (array $c) => $c['missing'])->unique('product_id')->sortBy('code');
+
         $items = [];
-        foreach (app(ZijiaBarcodeSync::class)->lastResults() as $r) {
-            $why = match ($r['outcome'] ?? '') {
-                'ambiguous' => 'several products with this name in Zijia\'s library ('.implode(', ', (array) ($r['candidates'] ?? [])).') — set the right barcode by hand',
-                'not_in_library' => 'not in Zijia\'s library yet (not approved in their portal)',
-                'unreachable' => 'Zijia\'s library did not answer',
-                default => null,
+        foreach ($products as $p) {
+            $outcome = $outcomes[$p['product_id']] ?? [];
+            $suggestion = $p['suggestions'][0] ?? null;
+            $why = match (true) {
+                $p['reason'] === ZijiaSkuLinks::REASON_BARCODE_UNKNOWN => "barcode {$p['barcode']} is not in Zijia's library, so they refuse every session of a freezer carrying it",
+                ($outcome['outcome'] ?? '') === 'ambiguous' => 'several products with this name in Zijia\'s library ('.implode(', ', (array) ($outcome['candidates'] ?? [])).') — pick the right one on SKU Links',
+                ($outcome['outcome'] ?? '') === 'unreachable' => 'Zijia\'s library did not answer',
+                $suggestion !== null => "possible match in Zijia's library, \"{$suggestion['name']}\" ({$suggestion['product_code']}) — confirm it on SKU Links",
+                default => 'not registered with Zijia yet',
             };
-            if ($why !== null) {
-                $items[] = ['text' => "{$r['name']} (product #{$r['product_id']}): {$why}", 'url' => $base.'/products'];
-            }
+            $items[] = ['text' => "{$p['code']} {$p['name']} (product #{$p['product_id']}): {$why}", 'url' => $base.'/ai-recognition/sku-links'];
         }
 
-        return ['key' => 'freezer_no_barcode', 'title' => 'Freezer products the AI cannot recognise (no barcode)', 'action' => 'Until a product has its Zijia barcode, its sales are charged the checkout amount.', 'items' => $items];
+        return ['key' => 'freezer_no_barcode', 'title' => 'Freezer products the AI is not asked about', 'action' => 'Until a product is on the AI\'s list, its sales are charged the checkout amount.', 'items' => $items];
     }
 
     /** Product-audit pushes from Zijia (last 7 days) that mark1 could not apply on its own. */

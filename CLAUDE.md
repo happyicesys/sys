@@ -1152,13 +1152,22 @@ unrecognised). Rules:
   library (`smart-freezer:zijia-skus`) holds China packs; check it before modelling
   a product that may already exist. **`smart-freezer:zijia-barcode-sync` runs every 3 minutes**
   (Brian, 2026-10-05, until Zijia offers an approval callback): for each product on a smart
-  freezer's planogram with no barcode it searches their library by name and writes the barcode
-  ONLY on a unique exact name match (case/punctuation aside) — their library is shared by all
-  their customers and carries no link to our product, so a near name ("Cat, Basque Cheesecake
-  Original") or two entries with our name are left for a person; an existing barcode is never
-  touched. Each write is a `user_logs` row (`source` zijia-sync, "Zijia sync"). What it could not
-  fill is the 08:30 health email's "Freezer products the AI cannot recognise" section
-  (`ZijiaBarcodeSync`). **Product approvals land on `POST /api/smart-freezer/zijia/sku/notify`**
+  freezer's planogram with no barcode it writes the barcode ONLY on a unique exact name match
+  (case/punctuation aside) — their library is shared by all their customers and carries no link to
+  our product, so a near name ("Cat, Basque Cheesecake Original") or two entries with our name are
+  left for a person; an existing barcode is never touched. Each write is a `user_logs` row (`source`
+  zijia-sync, "Zijia sync"). **Names are compared against a local copy of the library's recent end**
+  (`ZijiaLibraryMirror`, `zijia_library_skus`, Brian 2026-11-03) as well as their search, which only
+  finds a substring of the exact text sent, so one space or hyphen hid a registered SKU for weeks. The
+  copy also links a product on no freezer yet when its name is one product's in the whole table. A
+  server with no smart freezer makes no call. **`ZijiaSkuLinks` is the one coverage rule**: a product
+  reaches the AI when it is active on the planogram with a barcode their library lists. AI Recognition
+  (count per freezer), **SKU Links** (`/ai-recognition/sku-links`: a person confirms a near match; view
+  `read ai-recognition`, link `update products`; never links by score, re-checks their live library,
+  never replaces a barcode or shares one code between products), Needs Attention (`ai_list`) and the
+  08:30 email all read it; the planogram editor marks a product with no barcode. Background and the
+  request to Zijia for an exact key: `ZIJIA_SKU_LINKS_2026-11-03.md`. Regression coverage:
+  `tests/Feature/ZijiaSkuLinksTest.php`. **Product approvals land on `POST /api/smart-freezer/zijia/sku/notify`**
   (`ZijiaSkuNotifyController`) in two shapes. (1) Their DOCUMENTED one — 算法服务接口文档 §7
   商品审批回调 (the doc is in Brian's WeChat files, `智佳算法服务接口文档 20260914.md`): plain
   UNSIGNED JSON `{pass, msg, sku:{productCode, skuName, sysSkuId, applicationNo, attach…}}`, sent
