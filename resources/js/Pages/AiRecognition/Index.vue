@@ -17,9 +17,9 @@
         {{ $page.props.flash.success }}
       </div>
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
-        <p class="text-xs text-gray-500">
-          {{ $t('Each row is one Smart Freezer door session: the camera videos Zijia pushed, what their AI saw taken, and how that compares with what the customer paid for. A sale paid on a T05 card terminal is charged on its own only when the AI matches what was paid; anything else waits for a person to key in the charge. NETS and QR sales were charged at the machine.') }}
-        </p>
+        <span class="inline-flex items-center gap-1 text-xs text-gray-500" tabindex="0" v-tooltip="$t('Each row is one Smart Freezer door session: the camera videos Zijia pushed, what their AI saw taken, and how that compares with what the customer paid for. A sale paid on a T05 card terminal is charged on its own only when the AI matches what was paid; anything else waits for a person to key in the charge. NETS and QR sales were charged at the machine.')">
+          <InformationCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t('About this page') }}
+        </span>
 
         <!-- Filters -->
         <div class="grid grid-cols-1 md:grid-cols-7 gap-2 mt-3">
@@ -211,10 +211,11 @@
             </tbody>
           </table>
           <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
-            <span class="font-semibold">{{ $t('AI Check') }}:</span>
-            <span v-for="(kind, name) in CHECK_KINDS" :key="name" class="inline-flex items-center gap-1">
-              <component :is="kind.icon" class="h-4 w-4" :class="kind.color" aria-hidden="true" />{{ $t(kind.meaning) }}
-            </span>
+            <span class="font-semibold">{{ $t('Verdict') }}:</span>
+            <span class="inline-flex items-center gap-1"><CheckCircleIcon class="h-4 w-4 text-green-600" aria-hidden="true" />{{ $t(CHECK_KINDS.ok.meaning) }}</span>
+            <span class="inline-flex items-center gap-1"><span class="rounded-full bg-red-100 px-1.5 font-bold text-red-700">+1</span>{{ $t(CHECK_KINDS.extra.meaning) }}</span>
+            <span class="inline-flex items-center gap-1"><span class="rounded-full bg-amber-100 px-1.5 font-bold text-amber-800">−1</span>{{ $t(CHECK_KINDS.missing.meaning) }}</span>
+            <span class="inline-flex items-center gap-1"><QuestionMarkCircleIcon class="h-4 w-4 text-gray-400" aria-hidden="true" />{{ $t(CHECK_KINDS.unknown.meaning) }}</span>
           </p>
           <p class="mt-2 text-xs text-gray-500">
             {{ $t('A finer reason may follow the dash, e.g. "recognition error — 503 goods not listed in the model (商品未上架)": Zijia\'s jsOrderStatus, using the same codes. Any code other than 0 leaves a T05 card hold for a person to key in the charge.') }}
@@ -252,9 +253,6 @@
                   </TableHeadSort>
                   <TableHead>
                     {{ $t('Sent to AI') }}
-                  </TableHead>
-                  <TableHead>
-                    {{ $t('Paid For') }}
                   </TableHead>
                   <TableHeadSort modelName="verdict" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('verdict')">
                     {{ $t('AI Check') }}
@@ -331,7 +329,7 @@
                         {{ $t(processedByLabels[row.processed_by]) }}
                       </span>
                       <span v-if="row.algorithm_status" class="text-xs text-gray-700" :title="$t('The AI\'s own status')">{{ $t('AI: :status', { status: row.algorithm_status }) }}</span>
-                      <span v-if="row.status_reason && row.status_reason !== ('algorithm: ' + row.algorithm_status)" class="text-xs text-gray-500">{{ row.status_reason }}</span>
+                      <InformationCircleIcon v-if="row.status_reason && row.status_reason !== ('algorithm: ' + row.algorithm_status)" class="h-4 w-4 text-gray-400" tabindex="0" :aria-label="row.status_reason" v-tooltip="row.status_reason" />
                       <span v-if="row.callback_verified === false" class="text-xs text-red-700">{{ $t('Result signature NOT verified') }}</span>
                     </div>
                   </TableData>
@@ -358,46 +356,44 @@
                     </div>
                     <span v-else class="text-gray-400" :title="$t('Not sent to the AI yet')">—</span>
                   </TableData>
+                  <!-- AI Check: one line per product (Brian's user, 2026-11-03): photo, price, paid, AI saw, verdict. -->
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
-                    <!-- The sale's TRADE: what the customer paid for. A product with no barcode in mark1 is
-                         never sent to the AI, so its "not taken" cannot be judged. -->
-                    <div v-if="row.purchased.length" class="flex flex-col space-y-1 text-xs">
-                      <span v-for="line in row.purchased" :key="line.product_id || line.name">
-                        {{ line.qty }} × {{ line.name }}
-                        <span v-if="line.unit_cents !== null" class="text-gray-500">{{ formatCents(line.unit_cents) }}</span>
-                        <span v-if="!line.has_barcode" class="ml-1 inline-flex rounded px-1 py-0.5 text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-300"
-                              :title="$t('No barcode in mark1, so the AI was not asked to look for this product')">{{ $t('no barcode — AI not asked') }}</span>
-                        <span v-else-if="line.in_submitted === false" class="ml-1 inline-flex rounded px-1 py-0.5 text-[10px] font-semibold bg-red-50 text-red-800 border border-red-300"
-                              :title="$t('This product has a barcode now, but it was not on the list sent to the AI with this session')">{{ $t('not in list sent to AI') }}</span>
-                      </span>
-                    </div>
-                    <span v-else class="text-gray-400" :title="row.sale ? '' : $t('Shown once the sale is matched to this session')">—</span>
-                  </TableData>
-                  <!-- AI Check: the verdict, then each product as paid against taken. Problems come first. -->
-                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
-                    <div v-if="row.verdict" class="flex flex-col space-y-1 text-xs min-w-[11rem]">
-                      <span class="inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 font-semibold" :class="verdictBadgeClass(row.verdict)">
-                        <component :is="verdictIcon(row.verdict)" class="h-4 w-4" aria-hidden="true" />
-                        {{ verdictLabels[row.verdict] ? $t(verdictLabels[row.verdict]) : row.verdict }}
-                      </span>
-                      <span v-for="line in aiCheckLines(row)" :key="line.key" class="flex items-start gap-1" :title="$t(CHECK_KINDS[line.kind].meaning)">
-                        <component :is="CHECK_KINDS[line.kind].icon" class="mt-px h-4 w-4 flex-none" :class="CHECK_KINDS[line.kind].color" aria-hidden="true" />
-                        <span :class="line.kind === 'ok' ? 'text-gray-700' : 'font-medium text-gray-900'">{{ line.qty }} × {{ line.name }}</span>
-                      </span>
-                      <span v-if="!aiCheckLines(row).length" class="text-gray-500">{{ $t('Nothing taken') }}</span>
-                    </div>
-                    <!-- The AI answered, but no verdict against a sale: all there is, is what it saw. -->
-                    <div v-else-if="row.algorithm_status !== null" class="flex flex-col space-y-1 text-xs min-w-[11rem]">
-                      <span class="inline-flex w-fit items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-700">
-                        <QuestionMarkCircleIcon class="h-4 w-4" aria-hidden="true" />
-                        {{ $t('No verdict') }}
-                      </span>
-                      <span v-for="item in row.items" :key="item.code" class="text-gray-700">{{ item.number }} × {{ item.name || item.code }}</span>
-                      <span v-if="!row.items.length" class="text-gray-500">{{ $t('Nothing taken') }}</span>
-                    </div>
+                    <span v-if="verdictNote(row)" class="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700" tabindex="0" v-tooltip="row.status_reason || row.algorithm_status || ''">
+                      <QuestionMarkCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t(verdictNote(row)) }}
+                    </span>
+                    <table v-if="row.ai_check.length" class="text-xs">
+                      <thead class="text-[11px] font-medium text-gray-500">
+                        <tr>
+                          <th class="pb-1 pr-3 text-left font-medium">{{ $t('Item') }}</th>
+                          <th class="pb-1 pr-3 text-right font-medium">{{ $t('Price') }}</th>
+                          <th class="pb-1 pr-3 text-center font-medium">{{ $t('Paid') }}</th>
+                          <th class="pb-1 pr-3 text-center font-medium">{{ $t('AI saw') }}</th>
+                          <th class="pb-1 text-center font-medium">{{ $t('Verdict') }}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="line in row.ai_check" :key="line.product_id || line.name" class="border-t border-gray-100">
+                          <td class="py-1 pr-3" tabindex="0" v-tooltip="line.code ? line.code + ' · ' + line.name : line.name">
+                            <img v-if="line.photo" :src="line.photo" :alt="line.name" loading="lazy" class="h-10 w-10 rounded object-contain bg-white" />
+                            <span v-else class="flex h-10 w-10 items-center justify-center rounded bg-gray-100 text-center text-[10px] leading-tight text-gray-600 overflow-hidden">{{ line.code || line.name }}</span>
+                          </td>
+                          <td class="py-1 pr-3 text-right text-gray-600">{{ line.unit_cents !== null ? formatCents(line.unit_cents) : '—' }}</td>
+                          <td class="py-1 pr-3 text-center text-sm">{{ line.paid }}</td>
+                          <td class="py-1 pr-3 text-center text-sm">{{ line.taken !== null ? line.taken : '—' }}</td>
+                          <td class="py-1 text-center" tabindex="0" v-tooltip="$t(CHECK_KINDS[line.state].meaning)">
+                            <CheckCircleIcon v-if="line.state === 'ok'" class="mx-auto h-5 w-5 text-green-600" :aria-label="$t(CHECK_KINDS.ok.meaning)" />
+                            <QuestionMarkCircleIcon v-else-if="line.state === 'unknown'" class="mx-auto h-5 w-5 text-gray-400" :aria-label="$t(CHECK_KINDS.unknown.meaning)" />
+                            <span v-else-if="line.state === 'extra'" class="inline-flex min-w-[2rem] justify-center rounded-full bg-red-100 px-1.5 py-0.5 text-sm font-bold text-red-700">+{{ line.delta }}</span>
+                            <span v-else-if="line.state === 'missing'" class="inline-flex min-w-[2rem] justify-center rounded-full bg-amber-100 px-1.5 py-0.5 text-sm font-bold text-amber-800">−{{ -line.delta }}</span>
+                            <span v-else class="text-gray-400">…</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <span v-else-if="row.algorithm_status !== null" class="text-xs text-gray-500">{{ $t('Nothing taken') }}</span>
                     <span v-else class="text-gray-400">—</span>
                     <!-- A person's count sits beside the AI's verdict, which is never overwritten. -->
-                    <div v-if="row.correction" class="mt-1 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-1 text-xs text-indigo-900" :title="row.correction.at">
+                    <div v-if="row.correction" class="mt-1 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-1 text-xs text-indigo-900" tabindex="0" v-tooltip="row.correction.at">
                       <span class="flex items-center gap-1 font-semibold"><PencilSquareIcon class="h-4 w-4 flex-none" aria-hidden="true" />{{ $t('Corrected by :name', { name: row.correction.by }) }}</span>
                       <span v-for="line in row.correction.lines" :key="line.product_id" class="block">{{ line.qty }} × {{ line.name }}</span>
                       <span v-if="!row.correction.lines.length" class="block">{{ $t('Nothing taken') }}</span>
@@ -442,7 +438,7 @@
                   </TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
-                  <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td colspan="9" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                     {{ $t('No Results Found') }}
                   </td>
                 </tr>
@@ -546,7 +542,7 @@ import MachineIdLink from '@/Components/MachineIdLink.vue';
 import T05RefundPanel from '@/Components/T05RefundPanel.vue';
 import AiCorrectionPanel from '@/Components/AiCorrectionPanel.vue';
 import SearchInput from '@/Components/SearchInput.vue';
-import { ArrowsRightLeftIcon, CheckCircleIcon, CheckIcon, MagnifyingGlassIcon, MinusCircleIcon, MinusIcon, PencilSquareIcon, PlusCircleIcon, PlusIcon, QuestionMarkCircleIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, InformationCircleIcon, MagnifyingGlassIcon, PencilSquareIcon, QuestionMarkCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -583,40 +579,22 @@ const verdictLabels = {
   incomplete: tk('Cannot judge'),
 }
 
-// One line of the AI Check column: what a product's units mean against the sale.
+// What a verdict symbol means, on the line's hover and in the legend.
 const CHECK_KINDS = {
-  ok: { icon: CheckIcon, color: 'text-green-600', meaning: tk('Paid and taken') },
-  extra: { icon: PlusIcon, color: 'text-red-600', meaning: tk('Taken, not paid') },
-  missing: { icon: MinusIcon, color: 'text-amber-600', meaning: tk('Paid, not taken') },
-  unknown: { icon: QuestionMarkCircleIcon, color: 'text-gray-500', meaning: tk('AI could not check') },
+  ok: { meaning: tk('Paid and taken') },
+  extra: { meaning: tk('Taken, not paid') },
+  missing: { meaning: tk('Paid, not taken') },
+  unknown: { meaning: tk('AI could not check') },
+  pending: { meaning: tk('Waiting for the AI') },
 }
 
-// Split each product into its matched units and the difference, problems first. A paid product the
-// AI was never asked about (incomplete, no barcode on its line) is unknown: its "0 taken" is not evidence.
-function aiCheckLines(row) {
-  const lines = []
-  row.verdict_lines.forEach((line, index) => {
-    const name = line.name || line.code || t('product :id', { id: line.product_id })
-    const paid = Number(line.paid) || 0
-    const taken = Number(line.taken) || 0
-    const notAsked = row.verdict === 'incomplete' && line.product_id && !line.code
-    const add = (kind, qty) => { if (qty > 0) lines.push({ key: `${index}-${kind}`, kind, qty, name }) }
-    add('ok', Math.min(paid, taken))
-    add(line.product_id ? 'extra' : 'unknown', taken - paid)
-    add(notAsked ? 'unknown' : 'missing', paid - taken)
-  })
-  const order = ['extra', 'missing', 'unknown', 'ok']
+// The lines say what happened; only these two say something the lines cannot.
+function verdictNote(row) {
+  if (row.verdict === 'incomplete') return verdictLabels.incomplete
+  if (row.verdict === 'unrecognised') return verdictLabels.unrecognised
+  if (!row.verdict && row.algorithm_status !== null) return tk('No verdict')
 
-  return lines.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))
-}
-
-function verdictIcon(verdict) {
-  return {
-    match: CheckCircleIcon,
-    took_more: PlusCircleIcon,
-    took_less: MinusCircleIcon,
-    mixed: ArrowsRightLeftIcon,
-  }[verdict] || QuestionMarkCircleIcon
+  return null
 }
 
 // orderStatus 0 = the AI answered on its own; any other code = a person at Zijia settled it.

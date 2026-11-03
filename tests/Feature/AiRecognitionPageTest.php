@@ -162,6 +162,60 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.0.sale.order_id', 'O-NEW'));
     }
 
+    /** One line per product: paid against what the AI saw, the difference, and the price, problems first. */
+    public function test_the_ai_check_lines_show_paid_against_saw(): void
+    {
+        $paidAndTaken = Product::forceCreate(['code' => 'A', 'name' => 'Aye', 'operator_id' => 1, 'barcode' => '111']);
+        $tookMore = Product::forceCreate(['code' => 'B', 'name' => 'Bee', 'operator_id' => 1, 'barcode' => '222']);
+        $notTaken = Product::forceCreate(['code' => 'C', 'name' => 'Cee', 'operator_id' => 1, 'barcode' => '333']);
+        $notPaid = Product::forceCreate(['code' => 'D', 'name' => 'Dee', 'operator_id' => 1, 'barcode' => '444']);
+        $notAsked = Product::forceCreate(['code' => 'E', 'name' => 'Eee', 'operator_id' => 1]);
+        \App\Models\VendChannel::create(['vend_id' => $this->vend->id, 'code' => 11, 'product_id' => $notPaid->id, 'qty' => 5, 'capacity' => 5, 'amount' => 250, 'is_active' => 1]);
+        $sale = VendTransaction::forceCreate(['order_id' => 'O-1', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 900, 'transaction_datetime' => Carbon::now(), 'gst_vat_rate' => 9, 'operator_id' => 1,
+            'vend_transaction_json' => ['Type' => 'TRADE', 'transf_info' => [
+                ['goods_id' => $paidAndTaken->id, 'Price' => 100], ['goods_id' => $tookMore->id, 'Price' => 200],
+                ['goods_id' => $notTaken->id, 'Price' => 300], ['goods_id' => $notAsked->id, 'Price' => 400],
+            ]]]);
+        $this->recognition(['vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0, 'verdict' => 'incomplete', 'verdict_lines' => [
+            ['product_id' => $paidAndTaken->id, 'code' => '111', 'paid' => 1, 'taken' => 1, 'delta' => 0],
+            ['product_id' => $tookMore->id, 'code' => '222', 'paid' => 1, 'taken' => 3, 'delta' => 2],
+            ['product_id' => $notTaken->id, 'code' => '333', 'paid' => 1, 'taken' => 0, 'delta' => -1],
+            ['product_id' => $notPaid->id, 'code' => '444', 'paid' => 0, 'taken' => 1, 'delta' => 1],
+            ['product_id' => $notAsked->id, 'code' => null, 'paid' => 1, 'taken' => 0, 'delta' => -1],
+        ]]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(function (AssertableInertia $page) {
+            $lines = collect($page->toArray()['props']['recognitions']['data'][0]['ai_check']);
+            $this->assertSame(['extra', 'extra', 'missing', 'unknown', 'ok'], $lines->pluck('state')->all());
+            $byCode = $lines->keyBy('code');
+            $this->assertSame([1, 3, 2, 200], [$byCode['B']['paid'], $byCode['B']['taken'], $byCode['B']['delta'], $byCode['B']['unit_cents']]);
+            $this->assertSame([0, 1, 1, 250], [$byCode['D']['paid'], $byCode['D']['taken'], $byCode['D']['delta'], $byCode['D']['unit_cents']], 'not paid: the machine\'s price');
+            $this->assertSame([1, 0, -1], [$byCode['C']['paid'], $byCode['C']['taken'], $byCode['C']['delta']]);
+            $this->assertSame('Eee', $byCode['E']['name']);
+        });
+    }
+
+    public function test_the_ai_check_waits_for_an_answer_and_names_a_barcode_we_do_not_know(): void
+    {
+        $product = Product::forceCreate(['code' => 'A', 'name' => 'Aye', 'operator_id' => 1, 'barcode' => '111']);
+        $sale = VendTransaction::forceCreate(['order_id' => 'O-1', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 100, 'transaction_datetime' => Carbon::now(), 'gst_vat_rate' => 9, 'operator_id' => 1,
+            'vend_transaction_json' => ['Type' => 'TRADE', 'transf_info' => [['goods_id' => $product->id, 'Price' => 100]]]]);
+        $this->recognition(['vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_SUBMITTED]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('recognitions.data.0.ai_check.0.state', 'pending')
+            ->where('recognitions.data.0.ai_check.0.taken', null));
+
+        SmartFreezerRecognition::query()->update(['order_status' => 0, 'verdict' => 'unrecognised', 'verdict_lines' => [
+            ['product_id' => $product->id, 'code' => '111', 'paid' => 1, 'taken' => 1, 'delta' => 0],
+            ['product_id' => null, 'code' => '999', 'paid' => 0, 'taken' => 1, 'delta' => 1],
+        ]]);
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('recognitions.data.0.ai_check.0.state', 'unknown')
+            ->where('recognitions.data.0.ai_check.0.name', '999')
+            ->where('recognitions.data.0.ai_check.1.state', 'ok'));
+    }
+
     public function test_a_hold_the_ai_cannot_judge_offers_key_in_charge(): void
     {
         $terminal = RemoteCardTerminal::create([

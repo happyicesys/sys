@@ -16,6 +16,7 @@ use App\Services\SmartFreezer\RecognitionBadges;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use App\Services\SmartFreezer\Zijia\ZijiaSkuLinks;
+use App\Support\FreezerTestSale;
 use App\Support\VendCode;
 use Carbon\Carbon;
 use DomainException;
@@ -303,6 +304,8 @@ class FreezerRecognitionController extends Controller
                 'code' => $code,
                 'name' => $names['by_code'][$code] ?? null,
             ], $submitted),
+            // The AI Check grid: one line per product, photo, price, paid, AI saw and the difference.
+            'ai_check' => $this->aiCheck($r, $sale, $products, $payments),
             'verdict' => $r->verdict,
             'verdict_lines' => collect((array) $r->verdict_lines)->map(fn ($line) => $line + [
                 'name' => isset($line['product_id']) ? ($names['by_id'][(int) $line['product_id']] ?? null) : null,
@@ -341,6 +344,91 @@ class FreezerRecognitionController extends Controller
                 'by_person' => $card->ai_decision['by_person']['name'] ?? null,
             ] : null,
         ];
+    }
+
+    /**
+     * Each product of the session once: what was paid against what the AI saw, problems first.
+     * `state`: ok = both agree, extra = taken but not paid, missing = paid but not taken, unknown = the
+     * AI could not check it (never asked, or a barcode we do not know), pending = no answer yet.
+     *
+     * @param  array<int, Product>  $products  this page's products, by id, with their photos
+     * @return list<array<string, mixed>>
+     */
+    private function aiCheck(SmartFreezerRecognition $r, ?VendTransaction $sale, array $products, CardPaymentService $payments): array
+    {
+        $paid = [];
+        foreach ($sale ? $this->tradeUnits($sale) : [] as $unit) {
+            $id = (int) ($unit['goods_id'] ?? 0);
+            if ($id > 0) {
+                $paid[$id]['qty'] = ($paid[$id]['qty'] ?? 0) + 1;
+                $paid[$id]['unit_cents'] = isset($unit['Price']) && is_numeric($unit['Price']) ? (int) $unit['Price'] : ($paid[$id]['unit_cents'] ?? null);
+            }
+        }
+
+        $verdict = $r->verdict;
+        $answered = $verdict !== null || $r->order_status !== null;
+        $seen = [];
+        $strangers = [];
+        if ($verdict !== null) {
+            foreach ((array) $r->verdict_lines as $line) {
+                $id = (int) ($line['product_id'] ?? 0);
+                if ($id > 0) {
+                    $seen[$id] = ['taken' => (int) ($line['taken'] ?? 0), 'not_asked' => $verdict === RecognitionVerdict::INCOMPLETE && ($line['code'] ?? null) === null];
+                } else {
+                    $strangers[(string) ($line['code'] ?? '?')] = (int) ($line['taken'] ?? 0);
+                }
+            }
+        } else {
+            // An answer with no verdict: match what it saw to our products by barcode where it can.
+            $byBarcode = collect($products)->filter(fn (Product $p) => filled($p->barcode))->keyBy(fn (Product $p) => trim((string) $p->barcode));
+            foreach ((array) $r->items as $code => $number) {
+                $product = $byBarcode->get((string) $code);
+                if ($product) {
+                    $seen[$product->id] = ['taken' => (int) $number, 'not_asked' => true];
+                } else {
+                    $strangers[(string) $code] = (int) $number;
+                }
+            }
+        }
+
+        // A product taken but not paid has no price on the sale: the machine's at that moment.
+        $extras = array_values(array_diff(array_keys($seen), array_keys($paid)));
+        $shelf = $extras !== [] && $r->vend_id
+            ? ($sale && FreezerTestSale::is($sale)
+                ? array_fill_keys($extras, FreezerTestSale::UNIT_PRICE_CENTS)
+                : $payments->shelfPrices((int) $r->vend_id, $extras, $sale?->transaction_datetime ? Carbon::parse($sale->transaction_datetime) : null))
+            : [];
+
+        $lines = [];
+        foreach (array_keys($paid + $seen) as $id) {
+            $product = $products[$id] ?? null;
+            $qty = (int) ($paid[$id]['qty'] ?? 0);
+            $taken = $seen[$id]['taken'] ?? ($answered ? 0 : null);
+            $lines[] = [
+                'product_id' => $id,
+                'name' => $product?->name ?? __('product :id', ['id' => $id]),
+                'code' => $product?->code,
+                'photo' => $product?->thumbnail?->full_url,
+                'unit_cents' => $paid[$id]['unit_cents'] ?? $shelf[$id] ?? null,
+                'paid' => $qty,
+                'taken' => $taken,
+                'delta' => $taken === null ? null : $taken - $qty,
+                'state' => match (true) {
+                    ! $answered => 'pending',
+                    $verdict === null || ($seen[$id]['not_asked'] ?? false) => 'unknown',
+                    $taken > $qty => 'extra',
+                    $taken < $qty => 'missing',
+                    default => 'ok',
+                },
+            ];
+        }
+        foreach ($strangers as $code => $taken) {
+            $lines[] = ['product_id' => null, 'name' => (string) $code, 'code' => null, 'photo' => null, 'unit_cents' => null, 'paid' => 0, 'taken' => $taken, 'delta' => $taken, 'state' => 'unknown'];
+        }
+        $order = ['extra' => 0, 'missing' => 1, 'unknown' => 2, 'pending' => 3, 'ok' => 4];
+        usort($lines, fn (array $a, array $b) => $order[$a['state']] <=> $order[$b['state']]);
+
+        return $lines;
     }
 
     /** The person's correction beside the AI's verdict, and what it still says should go back. */
@@ -460,9 +548,16 @@ class FreezerRecognitionController extends Controller
     {
         $ids = $recognitions->map(fn (SmartFreezerRecognition $r) => $r->vendTransaction)->filter()
             ->flatMap(fn (VendTransaction $sale) => array_map(fn ($u) => (int) ($u['goods_id'] ?? 0), $this->tradeUnits($sale)))
+            ->merge($recognitions->flatMap(fn (SmartFreezerRecognition $r) => array_map('intval', array_column((array) $r->verdict_lines, 'product_id'))))
             ->filter()->unique()->values();
+        $barcodes = $recognitions->flatMap(fn (SmartFreezerRecognition $r) => array_map('strval', array_keys((array) $r->items)))->unique()->values();
 
-        return $ids->isEmpty() ? [] : Product::withoutGlobalScopes()->whereIn('id', $ids)
+        if ($ids->isEmpty() && $barcodes->isEmpty()) {
+            return [];
+        }
+
+        return Product::withoutGlobalScopes()->with('thumbnail')
+            ->where(fn ($q) => $q->whereIn('id', $ids)->orWhereIn('barcode', $barcodes))
             ->get(['id', 'code', 'name', 'barcode'])->keyBy('id')->all();
     }
 

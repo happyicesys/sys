@@ -1591,7 +1591,10 @@ permission `ai-recognition` read: superadmin/admin/supervisor) lists every recog
 the sale's Order ID and Transaction DateTime first (Brian, 2026-11-03: the reference and the time
 shared with Sales Transactions; they lead the sort, date filter and search, and the door session,
 when the videos reached us minutes later, stands in only until a sale is matched), machine, Zijia's
-order no + our SF ref, links to the original videos, the AI's answer and the verdict against the sale.
+order no + our SF ref, links to the original videos, and **AI Check** (2026-11-03, a user's sketch: Paid For, AI Saw
+Taken and Verdict vs Paid merged, `ai_check` on each row): one line per product, photo (name and item code on hover),
+price (paid, else the machine's at that moment), Paid, AI saw, and a verdict of ✓ / +n / −n / ? with its meaning on
+hover, problems first. Explanations go in hover popups (`v-tooltip`), not on the page. Barcodes are in Sent to AI.
 
 **AI Recognition is the control panel** (Brian, 2026-11-03: "not only info"). **Correct** (`FreezerSaleCorrection`, the
 one writer; permission `charge ai-recognition`, admin + superadmin; `ai-recognition/{recognition}/correction`) lets a
