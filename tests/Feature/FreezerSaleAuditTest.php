@@ -137,6 +137,15 @@ class FreezerSaleAuditTest extends TestCase
         $this->service->reconcile();
     }
 
+    /** A mismatch charges nothing on its own: an admin charges the AI's count. */
+    private function personChargesTheAiCount(): void
+    {
+        $this->service->reconcile();
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame(CardPaymentService::PERSON_AI_MISMATCH, $this->service->personNeededBecause($intent));
+        $this->service->chargeByPerson($intent, $this->service->personSuggestedCents($intent), \App\Models\User::factory()->create());
+    }
+
     /**
      * Total Sales for this machine, through the very aggregate the Sales Transactions headline
      * and the nightly rollup are built from (VendTransaction::salesRawTotalsSelect), joins and
@@ -225,7 +234,7 @@ class FreezerSaleAuditTest extends TestCase
         $sale = $this->trade();
         $this->verdict('took_less', 1, $sale);
 
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $sale->refresh();
         $this->assertSame(380, (int) $sale->amount, 'charged for the one unit the AI saw taken');
@@ -244,7 +253,7 @@ class FreezerSaleAuditTest extends TestCase
         $this->doorClosed();
         $sale = $this->trade();
         $this->verdict('took_less', 1, $sale);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $this->assertSame(380, $this->countedSales());
         $this->assertSame(1, $this->countedQty(), 'one unit charged, one unit counted');
@@ -272,7 +281,7 @@ class FreezerSaleAuditTest extends TestCase
             ]],
         ]);
 
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $this->assertSame(760, (int) $sale->fresh()->amount, 'charged for both units');
         $this->assertSame(760, $this->countedSales());
@@ -298,13 +307,29 @@ class FreezerSaleAuditTest extends TestCase
         $this->assertArrayNotHasKey('basket_charged', $sale->fresh()->meta_json['audit']);
     }
 
+    /** A mismatch stays out of the sales figures until a person acts, and another amount leaves the basket. */
+    public function test_a_person_charging_another_amount_than_the_ai_count_leaves_the_basket_alone(): void
+    {
+        $this->doorClosed();
+        $sale = $this->trade();
+        $this->verdict('took_less', 1, $sale);
+        $this->service->reconcile();
+        $this->assertSame(0, $this->countedSales(), 'still held');
+
+        $this->service->chargeByPerson(CardPaymentIntent::sole(), 500, \App\Models\User::factory()->create());
+
+        $this->assertSame(500, (int) $sale->fresh()->amount);
+        $this->assertSame(2, $this->countedQty(), 'the basket did not follow');
+        $this->assertArrayNotHasKey('basket_charged', $sale->fresh()->meta_json['audit']);
+    }
+
     public function test_nothing_taken_releases_the_hold_and_the_row_stops_being_a_sale(): void
     {
         $this->doorClosed();
         $sale = $this->trade();
         $this->verdict('took_less', 0, $sale);
 
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $sale->refresh();
         $this->assertSame(0, (int) $sale->amount);
@@ -339,7 +364,7 @@ class FreezerSaleAuditTest extends TestCase
         $this->assertSame(3, $this->stockOnShelf(), 'the TRADE takes off what was paid for');
 
         $this->verdict('took_less', 1, $sale);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
         $this->service->reconcile();
 
         $this->assertSame(4, $this->stockOnShelf());
@@ -352,7 +377,7 @@ class FreezerSaleAuditTest extends TestCase
         $sale = $this->trade();
         $this->verdict('took_less', 0, $sale);
 
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $this->assertSame(VendTransaction::SETTLEMENT_REFUNDED, (int) $sale->fresh()->settlement_status);
         $this->assertSame(5, $this->stockOnShelf());
@@ -369,7 +394,7 @@ class FreezerSaleAuditTest extends TestCase
             'verdict_lines' => [['product_id' => $this->cheesecake->id, 'code' => $this->cheesecake->barcode, 'paid' => 1, 'taken' => 2, 'delta' => 1]],
         ]);
 
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $this->assertSame(3, $this->stockOnShelf());
     }
@@ -390,7 +415,7 @@ class FreezerSaleAuditTest extends TestCase
             ],
         ]);
 
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $this->assertSame(5, $this->stockOnShelf(), 'the paid product never left');
         $this->assertSame(4, (int) VendChannel::where('vend_id', $this->vend->id)->where('product_id', $yakoo->id)->value('qty'));
@@ -405,6 +430,19 @@ class FreezerSaleAuditTest extends TestCase
         $this->chargedByPerson(380);
 
         $this->assertSame(3, $this->stockOnShelf());
+    }
+
+    public function test_a_mismatch_moves_no_stock_until_a_person_accepts_the_ai_count(): void
+    {
+        $this->doorClosed();
+        $sale = $this->trade();
+        $this->verdict('took_less', 1, $sale);
+
+        $this->service->reconcile();
+        $this->assertSame(3, $this->stockOnShelf());
+
+        $this->service->chargeByPerson(CardPaymentIntent::sole(), 500, \App\Models\User::factory()->create());
+        $this->assertSame(3, $this->stockOnShelf(), 'another amount is not the AI count');
     }
 
     public function test_a_person_releasing_a_hold_moves_no_stock(): void
@@ -425,7 +463,7 @@ class FreezerSaleAuditTest extends TestCase
         $this->assertSame(5, $this->stockOnShelf(), 'a test sale took nothing off');
 
         $this->verdict('took_less', 1, $sale);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $this->assertSame(5, $this->stockOnShelf());
     }
@@ -445,7 +483,7 @@ class FreezerSaleAuditTest extends TestCase
         $this->doorClosed();
         $sale = $this->trade();
         $this->verdict('took_less', 1, $sale);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $this->assertSame([$this->cheesecake->id => 1], app(FreezerStockLedger::class)->unitsOut($sale->fresh()));
     }
@@ -456,7 +494,7 @@ class FreezerSaleAuditTest extends TestCase
         $this->doorClosed();
         $sale = $this->trade();
         $this->verdict('took_less', 1, $sale);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $meta = $sale->fresh()->meta_json;
         unset($meta['audit']['stock_moved']);
@@ -487,7 +525,7 @@ class FreezerSaleAuditTest extends TestCase
         $this->assertSame([0, 0], $todayCount(), 'held for its audit: no amount and no qty');
 
         $this->verdict('took_less', 0, $sale);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
         $this->assertSame(VendTransaction::SETTLEMENT_REFUNDED, (int) $sale->fresh()->settlement_status);
         $this->assertGreaterThan(0, (int) $sale->fresh()->success_qty, 'precondition: a released hold keeps its qty');
         $this->assertSame([0, 0], $todayCount(), 'released hold: never a sale');
@@ -522,7 +560,7 @@ class FreezerSaleAuditTest extends TestCase
         $this->doorClosed();
         $sale = $this->trade();
         $this->verdict('took_less', 1, $sale);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
         $this->assertSame(380, (int) $sale->fresh()->amount);
 
         // The write that settles a sale can fail on its own, and a TRADE can land after its
@@ -560,7 +598,7 @@ class FreezerSaleAuditTest extends TestCase
         $slot->forceFill(['units_sold' => 0])->save();
 
         $this->verdict('took_less', 1, $sale);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $items = VendTransactionItem::where('vend_transaction_id', $sale->id)->get();
         $this->assertCount(1, $items, 'the basket follows the charge');

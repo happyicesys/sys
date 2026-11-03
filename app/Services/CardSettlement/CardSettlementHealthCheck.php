@@ -240,7 +240,7 @@ class CardSettlementHealthCheck
                     $i->last_error !== null => "{$machine} {$i->reference}: charge refused, retrying — {$i->last_error}",
                     ($because = $payments->personNeededBecause($i)) !== null => "{$machine} {$i->reference}: hold of ".($i->amount_cents / 100)
                         .' since '.($i->door_closed_at ?? $i->updated_at)->toDateTimeString().' — '
-                        .($because === CardPaymentService::PERSON_AI_NO_ANSWER ? 'the AI never answered' : 'the AI gave no verdict')
+                        .CardPaymentService::personReasonText($because)
                         .'; key in the charge on AI Recognition (it is never charged on its own)',
                     default => null,
                 };

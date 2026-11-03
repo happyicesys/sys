@@ -405,7 +405,7 @@
                       >
                         {{ $t('Refund') }}
                       </button>
-                      <!-- The AI answered without a verdict: the hold waits for a person, never charged on its own. -->
+                      <!-- Anything but a matching verdict: the hold waits for a person, never charged on its own. -->
                       <button v-if="row.card.awaits_person && canCharge" type="button"
                         class="mx-auto mt-1 inline-flex items-center rounded-md border border-indigo-600 bg-indigo-600 px-2 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 whitespace-nowrap"
                         @click="openCharge(row)"
@@ -451,7 +451,7 @@
 
         <template v-if="charge.step === 1">
           <p class="text-gray-600">
-            {{ charge.row.card.person_reason === 'ai_no_answer' ? $t('The AI never answered this session, so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what the customer should pay. 0 releases the hold.') : $t('The AI could not judge this session, so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what the customer should pay. 0 releases the hold.') }}
+            {{ charge.row.card.person_reason === 'ai_mismatch' ? $t('The AI count differs from what was paid, so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what the customer should pay. 0 releases the hold.') : charge.row.card.person_reason === 'ai_no_answer' ? $t('The AI never answered this session, so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what the customer should pay. 0 releases the hold.') : $t('The AI could not judge this session, so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what the customer should pay. 0 releases the hold.') }}
           </p>
           <div>
             <label class="block text-sm font-medium text-gray-700">{{ $t('Final chargeable amount') }}</label>
@@ -461,6 +461,9 @@
               />
               <button type="button" class="text-xs text-blue-600 hover:underline" @click="charge.amount = formatCents(charge.row.card.hold_cents)">
                 {{ $t('Use the hold (:amount)', { amount: formatCents(charge.row.card.hold_cents) }) }}
+              </button>
+              <button v-if="charge.row.card.ai_suggested_cents != null" type="button" class="text-xs text-blue-600 hover:underline" @click="charge.amount = formatCents(charge.row.card.ai_suggested_cents)">
+                {{ $t('Use the AI count (:amount)', { amount: formatCents(charge.row.card.ai_suggested_cents) }) }}
               </button>
             </div>
             <p v-if="charge.error" class="mt-1 text-sm text-red-700">{{ charge.error }}</p>
@@ -611,6 +614,8 @@ function formatCents(cents) {
 // The session's T05 hold, charged by the verdict (CardPaymentService::settleAwaitingAi).
 function cardLabel(card) {
   if (card.uncertain_cents) return t('T05 charge :amount unconfirmed — check Payrallel', { amount: formatCents(card.uncertain_cents) })
+  if (card.awaits_person && card.person_reason === 'ai_mismatch') return t('T05 hold :amount · AI count differs — key in the charge', { amount: formatCents(card.hold_cents) })
+  if (card.awaits_person && card.person_reason === 'ai_unsure') return t('T05 hold :amount · AI could not judge — key in the charge', { amount: formatCents(card.hold_cents) })
   if (card.awaits_person) return card.person_reason === 'ai_no_answer' ? t('T05 hold :amount · AI never answered — key in the charge', { amount: formatCents(card.hold_cents) }) : t('T05 hold :amount · AI gave no verdict — key in the charge', { amount: formatCents(card.hold_cents) })
   if (card.state === 'awaiting_ai' && card.by_person) return t('T05 :amount keyed in · retrying', { amount: formatCents(card.judged_cents) })
   if (card.state === 'awaiting_ai') return t('T05 hold :amount · awaiting AI', { amount: formatCents(card.hold_cents) })

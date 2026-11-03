@@ -107,8 +107,8 @@ class FreezerSaleAudit
             // Amount only, never the basket: on the fresh ingest path this runs inside the
             // ingest transaction, BEFORE VendTransactionService writes the cart's item rows, so
             // a basket written here would be buried under them. A charge decided before its sale
-            // existed can only ever be the cart total anyway (CardPaymentService::decideForAi
-            // doubts any verdict with no sale), and settle() owns the basket.
+            // existed can only be a person's (CardPaymentService::decideForAi doubts any verdict
+            // with no sale), and settle() owns the basket.
             $this->writeAudited($sale, (int) $intent->captured_cents, $this->reasonOf($intent, 'charge already decided'), $intent, null);
 
             return;
@@ -212,10 +212,9 @@ class FreezerSaleAudit
      * What the AI saw leave the cabinet, or null when this charge says nothing about the goods and
      * the sale's stock stays as the TRADE left it.
      *
-     * Only the AI's own view counts: the basket a decision charged for, or a hold it released
-     * because it saw nothing taken ([]). A charge that fell back to the cart, a person's key-in or
-     * release (no verdict to go on, and a person may waive a charge for goods that did leave) and a
-     * device void are not evidence of what left.
+     * Only the AI's own view counts, once a person has accepted it: the basket charged for, or a
+     * hold released at the AI's count of nothing ([]). Any other key-in or release (a person may
+     * waive a charge for goods that did leave) and a device void are not evidence of what left.
      *
      * @return array<int, int>|null product id => units
      */
@@ -228,7 +227,7 @@ class FreezerSaleAudit
         $decision = (array) $intent->ai_decision;
         $aiReleased = $chargedCents === 0
             && ($decision['action'] ?? null) === AiCaptureDecision::VOID
-            && ! isset($decision['by_person']);
+            && (! isset($decision['by_person']) || ($decision['basket'] ?? null) === []);
 
         return $aiReleased ? [] : null;
     }
@@ -301,9 +300,8 @@ class FreezerSaleAudit
      *
      * It comes from the decision that set the charge ({@see AiCaptureDecision}), never re-derived
      * from the verdict here: the money and the qty have to agree, and the decision alone knows
-     * which units it counted (an `incomplete` session charges a product the AI was never asked
-     * about as if taken). A charge that fell back to the cart total carries no basket, so a
-     * backstop or an unusable AI answer never moves the qty either.
+     * which units it counted. Only a person charging exactly the AI's count carries a basket, so
+     * any other keyed-in amount or an unusable AI answer never moves the qty.
      *
      * Null as well when the AI agreed with the cart — there is nothing to change.
      *

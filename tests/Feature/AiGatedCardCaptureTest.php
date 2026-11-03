@@ -106,6 +106,18 @@ class AiGatedCardCaptureTest extends TestCase
         ]);
     }
 
+    /** Nothing has been charged on its own; an admin then charges the AI's count. */
+    private function personChargesTheAiCount(): CardPaymentIntent
+    {
+        $this->service->reconcile();
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame([], $this->gateway->callsOf('capture'), 'a mismatch never charges on its own');
+        $this->assertSame([], $this->gateway->callsOf('void'), 'a mismatch never releases on its own');
+        $this->assertSame(CardPaymentService::PERSON_AI_MISMATCH, $this->service->personNeededBecause($intent));
+
+        return $this->service->chargeByPerson($intent, $this->service->personSuggestedCents($intent), User::factory()->create());
+    }
+
     public function test_door_close_with_a_session_ref_charges_nothing_and_waits_for_the_ai(): void
     {
         $intent = $this->doorClosed();
@@ -139,33 +151,33 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame([['capture', '50001-SF1', 760]], $this->gateway->callsOf('capture'));
     }
 
-    public function test_took_less_charges_less(): void
+    public function test_took_less_waits_then_a_person_charges_the_ai_count(): void
     {
         $this->doorClosed();
         $this->verdict('took_less', [1 => 1, 2 => 1]);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $this->assertSame(460, CardPaymentIntent::sole()->captured_cents);
         $this->assertSame([['capture', '50001-SF1', 460]], $this->gateway->callsOf('capture'));
     }
 
-    public function test_nothing_taken_releases_the_hold(): void
+    public function test_nothing_taken_waits_then_a_person_releases_the_hold(): void
     {
         $this->doorClosed();
         $this->verdict('took_less', []);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $this->assertSame(CardPaymentIntent::STATE_VOIDED, CardPaymentIntent::sole()->state);
         $this->assertSame([], $this->gateway->callsOf('capture'));
         $this->assertCount(1, $this->gateway->callsOf('void'));
     }
 
-    public function test_took_more_is_one_capture_above_the_hold(): void
+    public function test_took_more_waits_then_is_one_capture_above_the_hold(): void
     {
         DB::table('vend_channels')->insert(['vend_id' => $this->vend->id, 'code' => 31, 'product_id' => 3, 'amount' => 200]);
         $this->doorClosed();
         $recognition = $this->verdict('took_more', [1 => 2, 2 => 1, 3 => 1]);
-        $this->sweep();
+        $this->personChargesTheAiCount();
 
         $intent = CardPaymentIntent::sole();
         $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
@@ -173,6 +185,32 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame(960, $intent->captured_cents);
         $this->assertNull($intent->owed_cents);
         $this->assertSame($recognition->id, $intent->ai_decision['recognition_id']);
+        $this->assertStringContainsString('the AI count differs', $intent->ai_decision['reason']);
+    }
+
+    public function test_a_person_may_charge_another_amount_than_the_ai_count(): void
+    {
+        $this->doorClosed();
+        $this->verdict('took_less', [1 => 1, 2 => 1]);
+        $this->service->reconcile();
+
+        $intent = $this->service->chargeByPerson(CardPaymentIntent::sole(), 760, User::factory()->create());
+
+        $this->assertSame(760, $intent->captured_cents);
+        $this->assertNull($intent->ai_decision['basket'], 'the basket follows only the AI count');
+    }
+
+    public function test_a_later_match_is_charged_while_a_person_has_not_acted_yet(): void
+    {
+        $this->doorClosed();
+        $recognition = $this->verdict('took_less', [1 => 1, 2 => 1]);
+        $this->service->reconcile();
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+
+        $recognition->update(['verdict' => 'match']);
+        $this->service->reconcile();
+
+        $this->assertSame(760, CardPaymentIntent::sole()->captured_cents);
     }
 
     public function test_a_testing_mode_sale_charges_every_unit_at_ten_cents_an_extra_of_another_product_included(): void
@@ -190,7 +228,7 @@ class AiGatedCardCaptureTest extends TestCase
                 ['SId' => 12, 'goods_id' => 2, 'Price' => 10],
             ]],
         ]);
-        $this->sweep();
+        $this->personChargesTheAiCount();
 
         $this->assertSame([['capture', '50001-SF1', 40]], $this->gateway->callsOf('capture'), '4 units at 10c');
         $this->assertSame(40, CardPaymentIntent::sole()->captured_cents);
@@ -201,7 +239,7 @@ class AiGatedCardCaptureTest extends TestCase
         $this->doorClosed();
         $this->verdict('took_more', [1 => 5, 2 => 1]); // 1660c on a 760c hold
         $this->gateway->refuseAbove = 760;
-        $this->sweep();
+        $this->personChargesTheAiCount();
 
         $intent = CardPaymentIntent::sole();
         $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
@@ -217,7 +255,7 @@ class AiGatedCardCaptureTest extends TestCase
         $this->doorClosed();
         $this->verdict('took_more', [1 => 5, 2 => 1]); // 1660c on a 760c hold
         $this->gateway->failCapture = CardTerminalException::refused('Payrallel capture refused (HTTP 429): too many requests', 429);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $intent = CardPaymentIntent::sole();
         $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state);
@@ -240,28 +278,40 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame([1660, 1660, 1660], array_column($this->gateway->callsOf('capture'), 2));
     }
 
-    public function test_incomplete_charges_what_the_ai_saw_plus_unasked_products_as_paid(): void
+    /** Brian, 2026-11-03: 50001's 19:42 session was captured at 1130c on an 880c cart this way. */
+    public function test_cannot_judge_is_never_charged_on_its_own_and_a_person_keys_it_in(): void
     {
-        // Product 1 (300c) has a barcode; product 2 (160c) has none. Paid 2 + 1, the AI saw 1 of product 1.
         $this->doorClosed();
         $this->verdict('incomplete', [], [], ['verdict_lines' => [
             ['product_id' => 1, 'code' => '111', 'paid' => 2, 'taken' => 1, 'delta' => -1],
             ['product_id' => 2, 'code' => null, 'paid' => 1, 'taken' => 0, 'delta' => -1],
         ]]);
+
+        Carbon::setTestNow(Carbon::now()->addHours(200));
         $this->sweep();
 
         $intent = CardPaymentIntent::sole();
-        $this->assertSame(460, $intent->captured_cents, '300 seen + 160 charged as paid');
-        $this->assertStringContainsString('not asked about charged as paid', $intent->ai_decision['reason']);
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state);
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+        $this->assertArrayNotHasKey('action', (array) $intent->ai_decision, 'nothing decided, so a person still can');
+        $this->assertSame(CardPaymentService::PERSON_AI_UNSURE, $this->service->personNeededBecause($intent));
+
+        $intent = $this->service->chargeByPerson($intent, 460, User::factory()->create(['name' => 'brian']));
+
+        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state);
+        $this->assertSame([['capture', '50001-SF1', 460]], $this->gateway->callsOf('capture'));
+        $this->assertStringContainsString('the AI could not judge', $intent->ai_decision['reason']);
     }
 
-    public function test_cannot_identify_charges_the_cart_total(): void
+    public function test_an_unrecognised_verdict_waits_for_a_person(): void
     {
         $this->doorClosed();
-        $this->verdict('incomplete', []);
+        $this->verdict('unrecognised', [1 => 2, 2 => 1]);
         $this->service->reconcile();
 
-        $this->assertSame(760, CardPaymentIntent::sole()->captured_cents);
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+        $this->assertSame(CardPaymentService::PERSON_AI_UNSURE, $this->service->personNeededBecause($intent));
     }
 
     public function test_a_session_the_ai_never_answered_is_never_charged_on_its_own(): void
@@ -383,13 +433,13 @@ class AiGatedCardCaptureTest extends TestCase
         $this->doorClosed();
         $this->verdict('took_less', [1 => 1]);
         $this->gateway->failCapture = CardTerminalException::notSent('provider refused');
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $intent = CardPaymentIntent::sole();
         $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state);
         $this->assertSame(300, $intent->ai_decision['capture_cents']);
 
-        // The recognition changing now does not change the decision: the first verdict is final.
+        // The recognition changing now does not change the decision: the person's charge is final.
         SmartFreezerRecognition::query()->update(['verdict' => 'match']);
         $this->gateway->failCapture = null;
         $this->service->reconcile();
@@ -405,7 +455,7 @@ class AiGatedCardCaptureTest extends TestCase
         $this->doorClosed();
         $this->verdict('took_more', [1 => 5, 2 => 1]); // 1660c
         $this->gateway->failCapture = new CardTerminalException('timeout'); // may have reached Payrallel
-        $this->sweep();
+        $this->personChargesTheAiCount();
 
         $intent = CardPaymentIntent::sole();
         $this->assertSame(1660, $intent->ai_decision['uncertain']);
@@ -449,21 +499,21 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame([], $this->gateway->callsOf('capture'));
     }
 
-    /** @return array<string, array{0: array, 1: array, 2: int, 3: string}> */
+    /** @return array<string, array{0: array, 1: array, 2: int}> */
     public static function untrustedResults(): array
     {
         $qr = ['vend_transaction_json' => ['Type' => 'TRADE', 'SFREF' => self::SESSION, 'TXN_SRC' => 0, 'transf_info' => [['goods_id' => 1, 'Price' => 300]]]];
 
         return [
-            'unverified callback' => [[], ['callback_verified' => false], 1, 'not signature-verified'],
-            'a QR sale' => [$qr, [], 1, 'not paid by card'],
-            'another amount' => [['amount' => 900], [], 1, 'is not this hold'],
-            'two results' => [[], [], 2, 'several AI results'],
+            'unverified callback' => [[], ['callback_verified' => false], 1],
+            'a QR sale' => [$qr, [], 1],
+            'another amount' => [['amount' => 900], [], 1],
+            'two results' => [[], [], 2],
         ];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('untrustedResults')]
-    public function test_a_result_that_is_not_clearly_about_this_card_sale_charges_the_cart(array $sale, array $recognition, int $copies, string $reason): void
+    public function test_a_result_that_is_not_clearly_about_this_card_sale_waits_for_a_person(array $sale, array $recognition, int $copies): void
     {
         $this->doorClosed();
         for ($i = 0; $i < $copies; $i++) {
@@ -472,8 +522,10 @@ class AiGatedCardCaptureTest extends TestCase
         $this->service->reconcile();
 
         $intent = CardPaymentIntent::sole();
-        $this->assertSame(760, $intent->captured_cents);
-        $this->assertStringContainsString($reason, $intent->ai_decision['reason']);
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state);
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+        $this->assertSame([], $this->gateway->callsOf('void'));
+        $this->assertSame(CardPaymentService::PERSON_AI_UNSURE, $this->service->personNeededBecause($intent));
     }
 
     public function test_a_zero_priced_line_never_releases_a_hold_on_goods_taken(): void
@@ -484,8 +536,9 @@ class AiGatedCardCaptureTest extends TestCase
         $this->service->reconcile();
 
         $intent = CardPaymentIntent::sole();
-        $this->assertSame(CardPaymentIntent::STATE_CAPTURED, $intent->state, 'no shelf price either: the cart');
-        $this->assertSame(760, $intent->captured_cents);
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state, 'no shelf price either: a person decides');
+        $this->assertSame([], $this->gateway->callsOf('void'));
+        $this->assertSame(CardPaymentService::PERSON_AI_UNSURE, $this->service->personNeededBecause($intent));
     }
 
     public function test_a_hold_is_charged_on_the_token_it_was_made_with_after_a_t05_swap(): void
@@ -510,7 +563,7 @@ class AiGatedCardCaptureTest extends TestCase
         $other = $this->service->capture($this->service->refresh($other), 760, 'SF-50001-1791100000-9');
         SmartFreezerRecognition::query()->create([
             'vend_id' => $this->vend->id, 'trade_id' => 'SDK-other', 'session_ref' => 'SF-50001-1791100000-9',
-            'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'verdict' => 'incomplete', 'verdict_lines' => [],
+            'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'verdict' => 'match', 'verdict_lines' => [],
             'callback_verified' => true, 'vend_transaction_id' => $this->verdict('match', [])->vend_transaction_id,
         ]);
 

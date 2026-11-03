@@ -260,10 +260,11 @@ class FreezerRecognitionController extends Controller
                 'uncertain_cents' => $card->ai_decision['uncertain'] ?? null,
                 'reason' => $card->ai_decision['reason'] ?? null,
                 'error' => $card->last_error,
-                // No AI verdict: the hold stays until a person keys in the charge
+                // Anything but a matching AI verdict: the hold stays until a person keys in the charge
                 // (CardPaymentService::chargeByPerson, which re-checks this).
                 'person_reason' => $reason = ($card->state === CardPaymentIntent::STATE_AWAITING_AI ? $payments->personNeededBecause($card) : null),
                 'awaits_person' => $reason !== null,
+                'ai_suggested_cents' => $reason === CardPaymentService::PERSON_AI_MISMATCH ? $payments->personSuggestedCents($card) : null,
                 'by_person' => $card->ai_decision['by_person']['name'] ?? null,
             ] : null,
         ];

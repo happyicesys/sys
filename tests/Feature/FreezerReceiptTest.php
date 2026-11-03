@@ -119,6 +119,15 @@ class FreezerReceiptTest extends TestCase
         ]);
     }
 
+    /** The sweep leaves a mismatch under review; an admin then charges the AI's count. */
+    private function personChargesTheAiCount(): void
+    {
+        $this->service->reconcile();
+        $this->assertSame(FreezerReceipt::REVIEW, $this->receipt()['status']);
+        $intent = CardPaymentIntent::query()->where('session_ref', self::SESSION)->firstOrFail();
+        $this->service->chargeByPerson($intent, $this->service->personSuggestedCents($intent), \App\Models\User::factory()->create());
+    }
+
     private function receipt(): array
     {
         return app(FreezerReceipt::class)->state($this->vend->fresh(), self::SESSION);
@@ -173,7 +182,7 @@ class FreezerReceiptTest extends TestCase
         $this->doorClosed(380);
         $sale = $this->trade(units: 1);
         $this->verdict('took_more', 1, 2, $sale);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $r = $this->receipt();
         $this->assertSame(FreezerReceipt::FINAL, $r['status']);
@@ -191,7 +200,7 @@ class FreezerReceiptTest extends TestCase
         $this->doorClosed(760);
         $sale = $this->trade(units: 2);
         $this->verdict('took_less', 2, 1, $sale);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $r = $this->receipt();
         $this->assertSame(FreezerReceipt::FINAL, $r['status']);
@@ -206,7 +215,7 @@ class FreezerReceiptTest extends TestCase
         $this->doorClosed(380);
         $sale = $this->trade(units: 1);
         $this->verdict('took_less', 1, 0, $sale);
-        $this->service->reconcile();
+        $this->personChargesTheAiCount();
 
         $this->assertSame(FreezerReceipt::NOTHING, $this->receipt()['status']);
         $this->get($this->link())->assertOk()->assertSee("You didn't take anything", false)->assertSee('not charging you anything');

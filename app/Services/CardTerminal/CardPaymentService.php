@@ -360,8 +360,8 @@ class CardPaymentService
                 }));
             });
 
-        // Holds waiting on their AI verdict: charge as soon as it is in. With no verdict nothing is
-        // charged on its own — a person keys it in (chargeByPerson). A decided charge the provider
+        // Holds waiting on their AI verdict: a match is charged as soon as it is in. Anything else
+        // is never charged on its own — a person keys it in (chargeByPerson). A decided charge the provider
         // refused is retried every AUTO_CAPTURE_RETRY_MINUTES (inside settleAwaitingAiLocked).
         CardPaymentIntent::query()
             ->where('state', CardPaymentIntent::STATE_AWAITING_AI)
@@ -424,15 +424,14 @@ class CardPaymentService
     }
 
     /**
-     * Charges a hold whose door has closed, once the kiosk session's AI verdict is in
-     * smart_freezer_recognitions (Brian, 2026-10-03: the AI result is final). The amount is
-     * {@see AiCaptureDecision}, always ONE capture: above the hold too, since Payrallel increments
-     * the authorisation on their backend (Brian, 2026-10-04); if they refuse that increase, the hold
-     * itself is captured and the rest recorded in `owed_cents`. Nothing taken releases the hold.
-     * With no verdict it is never charged on its own (Brian, 2026-10-10: no 72 h backstop any
-     * more) — whether the AI answered without one or never answered, a person keys in the charge
-     * ({@see chargeByPerson}). The 08:30 health email lists every such hold: an uncaptured hold
-     * expires (~a month) and gives the goods away.
+     * Charges a hold whose door has closed once the kiosk session's AI verdict in
+     * smart_freezer_recognitions is a match ({@see AiCaptureDecision}). Anything else is never
+     * charged on its own (Brian, 2026-11-03; no verdict: 2026-10-10, no 72 h backstop any more) —
+     * a person keys in the charge ({@see chargeByPerson}). A charge is always ONE capture: above the
+     * hold too, since Payrallel increments the authorisation on their backend (Brian, 2026-10-04); if
+     * they refuse that increase, the hold itself is captured and the rest recorded in `owed_cents`.
+     * The 08:30 health email lists every waiting hold: an uncaptured hold expires (~a month) and
+     * gives the goods away.
      *
      * The decision is made ONCE and kept on the intent (`ai_decision`). The capture is written
      * ahead (`inflight`): an answer that never came (timeout, 5xx, a run that died) is never
@@ -466,8 +465,8 @@ class CardPaymentService
             }
         } else {
             $decided = $this->decideForAi($intent, $cart);
-            if ($decided === null) {
-                return $intent; // no verdict: it waits for the AI, then for a person
+            if ($decided === null || $decided[0]->action === AiCaptureDecision::PERSON) {
+                return $intent; // no verdict, or one that cannot decide: it waits for a person
             }
             [$made, $recognitionId] = $decided;
             $decision = ['cart_cents' => $cart] + $made->toArray() + [
@@ -490,7 +489,7 @@ class CardPaymentService
             }
 
             $voided = $this->finish($intent, CardPaymentIntent::STATE_VOIDED, ['voided_at' => Carbon::now(), 'last_error' => null]);
-            // The AI saw nothing taken: no money was collected, so the sale stops being one.
+            // A person released the hold: no money was collected, so the sale stops being one.
             $this->settleSale($voided, 0, (string) ($decision['reason'] ?? 'hold released'));
 
             return $voided;
@@ -642,10 +641,27 @@ class CardPaymentService
     /** The AI never answered, `ai_person_after_minutes` after the door closed. */
     public const PERSON_AI_NO_ANSWER = 'ai_no_answer';
 
+    /** A verdict is in, but the AI cannot judge the session ({@see AiCaptureDecision::PERSON}). */
+    public const PERSON_AI_UNSURE = 'ai_unsure';
+
+    /** The AI's count differs from what was paid; it is only a suggestion ({@see personSuggestedCents}). */
+    public const PERSON_AI_MISMATCH = 'ai_mismatch';
+
+    /** The words for a PERSON_AI_* reason, in the health email and on a keyed-in charge. */
+    public static function personReasonText(string $because): string
+    {
+        return match ($because) {
+            self::PERSON_AI_NO_ANSWER => 'the AI never answered',
+            self::PERSON_AI_UNSURE => 'the AI could not judge',
+            self::PERSON_AI_MISMATCH => 'the AI count differs from what was paid',
+            default => 'the AI gave no verdict',
+        };
+    }
+
     /**
-     * Why this hold is waiting for a person ({@see PERSON_AI_NO_VERDICT} / {@see PERSON_AI_NO_ANSWER}),
-     * or null when it is not: decided or sent already, a verdict is in (the sweep charges it), or
-     * the AI still has time to answer.
+     * Why this hold is waiting for a person (a PERSON_AI_* reason), or null when it is not: decided
+     * or sent already, a verdict that decides is in (the sweep charges it), or the AI still has
+     * time to answer.
      */
     public function personNeededBecause(CardPaymentIntent $intent): ?string
     {
@@ -660,7 +676,12 @@ class CardPaymentService
             ->where(fn ($q) => $q->whereNotNull('order_status')->orWhereNotNull('verdict'))
             ->get(['id', 'verdict']);
         if ($answers->contains(fn (SmartFreezerRecognition $r) => $r->verdict !== null)) {
-            return null;
+            $decided = $this->decideForAi($intent, (int) ($decision['cart_cents'] ?? $intent->amount_cents));
+            if ($decided === null || $decided[0]->action !== AiCaptureDecision::PERSON) {
+                return null;
+            }
+
+            return $decided[0]->judgedCents !== null ? self::PERSON_AI_MISMATCH : self::PERSON_AI_UNSURE;
         }
         if ($answers->isNotEmpty()) {
             return self::PERSON_AI_NO_VERDICT;
@@ -671,11 +692,22 @@ class CardPaymentService
         return $closed && $closed->lte(Carbon::now()->subMinutes($grace)) ? self::PERSON_AI_NO_ANSWER : null;
     }
 
+    /** What the AI's count comes to on a hold waiting for a person over a mismatch, else null. */
+    public function personSuggestedCents(CardPaymentIntent $intent): ?int
+    {
+        if ($this->personNeededBecause($intent) !== self::PERSON_AI_MISMATCH) {
+            return null;
+        }
+
+        return $this->decideForAi($intent, (int) (((array) $intent->ai_decision)['cart_cents'] ?? $intent->amount_cents))[0]->judgedCents;
+    }
+
     /**
      * A person keyed in the final charge for a hold the AI could not decide (AI Recognition page,
      * Brian, 2026-10-09). 0 releases the hold; above the hold is ONE capture Payrallel raises the
-     * authorisation for, with the hold as the fallback — the same execution as an AI decision, so
-     * the written-ahead capture, the never-resend rule and the 4xx retry all apply.
+     * authorisation for, with the hold as the fallback — the same execution as a matched charge, so
+     * the written-ahead capture, the never-resend rule and the 4xx retry all apply. Charging exactly
+     * the AI's count makes the sale's basket follow it; any other amount leaves the basket alone.
      *
      * @throws DomainException when the hold is not (or no longer) waiting for a person
      */
@@ -690,9 +722,10 @@ class CardPaymentService
             if ($because === null) {
                 throw new DomainException('this hold is no longer waiting for a person — reload the page');
             }
-            $why = $because === self::PERSON_AI_NO_ANSWER ? 'the AI never answered' : 'the AI gave no verdict';
+            $why = self::personReasonText($because);
             $hold = (int) $intent->amount_cents;
             $cart = (int) (((array) $intent->ai_decision)['cart_cents'] ?? $hold);
+            [$made, $recognitionId] = $this->decideForAi($intent, $cart) ?? [null, null];
             $decision = [
                 'cart_cents' => $cart,
                 'action' => $cents === 0 ? AiCaptureDecision::VOID : AiCaptureDecision::CAPTURE,
@@ -702,6 +735,8 @@ class CardPaymentService
                 'reason' => $cents === 0
                     ? "Released by {$by->name} on AI Recognition ({$why})"
                     : "Keyed in by {$by->name} on AI Recognition ({$why})".($cents > $hold ? ' — above the hold: one capture with auth increment' : ''),
+                'basket' => $made?->judgedCents === $cents ? $made->basket : null,
+                'recognition_id' => $recognitionId,
                 'by_person' => ['user_id' => $by->id, 'name' => $by->name],
                 'decided_at' => Carbon::now()->toIso8601String(),
             ];
@@ -726,7 +761,8 @@ class CardPaymentService
     }
 
     /**
-     * The session's verdict as a decision, or null to keep waiting (for the AI, then a person).
+     * The session's verdict as a decision ({@see AiCaptureDecision::PERSON} unless it charges),
+     * or null to keep waiting (for the AI, then a person).
      *
      * @return array{0: AiCaptureDecision, 1: int|null}|null
      */
@@ -745,8 +781,8 @@ class CardPaymentService
                 ? VendTransaction::withoutGlobalScopes()->find($recognition->vend_transaction_id)
                 : null;
 
-            // Only an answer that is unambiguously about THIS card sale may lower or raise the
-            // charge; anything else charges the cart the customer agreed to.
+            // Only an answer that is unambiguously about THIS card sale may charge or suggest;
+            // anything else waits for a person with no suggestion (Brian, 2026-11-03).
             $doubt = match (true) {
                 $recognitions->count() > 1 => 'several AI results for one session',
                 $recognition->callback_verified !== true => 'the AI result is not signature-verified',
@@ -756,7 +792,7 @@ class CardPaymentService
                 default => null,
             };
             if ($doubt !== null) {
-                return [AiCaptureDecision::undecidable($intent->amount_cents, $cart, $doubt), $recognition->id];
+                return [AiCaptureDecision::person($doubt), $recognition->id];
             }
 
             $lines = (array) $recognition->verdict_lines;

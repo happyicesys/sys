@@ -122,9 +122,58 @@ class AiRecognitionPageTest extends TestCase
                     'id' => $intent->id, 'state' => 'captured', 'hold_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200, 'refunded_cents' => 0,
                     'judged_cents' => 960, 'increment_refused' => true, 'uncertain_cents' => null,
                     'reason' => 'AI judged took_more above the hold: one capture with auth increment', 'error' => 'further charge refused: no',
-                    'person_reason' => null, 'awaits_person' => false, 'by_person' => null,
+                    'person_reason' => null, 'awaits_person' => false, 'ai_suggested_cents' => null, 'by_person' => null,
                 ])
                 ->where('recognitions.data.0.card', null));
+    }
+
+    public function test_a_hold_the_ai_cannot_judge_offers_key_in_charge(): void
+    {
+        $terminal = RemoteCardTerminal::create([
+            'vend_id' => $this->vend->id, 'provider' => RemoteCardTerminal::PROVIDER_PAYRALLEL, 'access_token' => 't', 'is_active' => true,
+        ]);
+        CardPaymentIntent::forceCreate([
+            'vend_id' => $this->vend->id, 'remote_card_terminal_id' => $terminal->id, 'provider' => 'payrallel',
+            'reference' => 'SF1', 'custom_order_id' => '50001-SF1', 'session_ref' => 'SF-50001-1790732333-1',
+            'mode' => 'preauth', 'amount_cents' => 880, 'state' => CardPaymentIntent::STATE_AWAITING_AI,
+        ]);
+        $this->recognition(['session_ref' => 'SF-50001-1790732333-1', 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'verdict' => 'incomplete']);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.card.person_reason', CardPaymentService::PERSON_AI_UNSURE)
+                ->where('recognitions.data.0.card.awaits_person', true)
+                ->where('recognitions.data.0.card.ai_suggested_cents', null));
+    }
+
+    public function test_a_mismatch_offers_key_in_charge_with_the_ai_count(): void
+    {
+        $terminal = RemoteCardTerminal::create([
+            'vend_id' => $this->vend->id, 'provider' => RemoteCardTerminal::PROVIDER_PAYRALLEL, 'access_token' => 't', 'is_active' => true,
+        ]);
+        CardPaymentIntent::forceCreate([
+            'vend_id' => $this->vend->id, 'remote_card_terminal_id' => $terminal->id, 'provider' => 'payrallel',
+            'reference' => 'SF1', 'custom_order_id' => '50001-SF1', 'session_ref' => 'SF-50001-1790732333-1',
+            'mode' => 'preauth', 'amount_cents' => 300, 'state' => CardPaymentIntent::STATE_AWAITING_AI,
+        ]);
+        $sale = VendTransaction::forceCreate([
+            'order_id' => 'O-1', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 300,
+            'transaction_datetime' => Carbon::now(), 'gst_vat_rate' => 9, 'operator_id' => 1,
+            'vend_transaction_json' => ['Type' => 'TRADE', 'TXN_SRC' => 1, 'transf_info' => [['goods_id' => 1, 'goods_name' => 'x', 'Price' => 300]]],
+        ]);
+        $this->recognition([
+            'session_ref' => 'SF-50001-1790732333-1', 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'callback_verified' => true,
+            'vend_transaction_id' => $sale->id, 'verdict' => 'took_more',
+            'verdict_lines' => [['product_id' => 1, 'code' => '111', 'paid' => 1, 'taken' => 2, 'delta' => 1]],
+        ]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.card.person_reason', CardPaymentService::PERSON_AI_MISMATCH)
+                ->where('recognitions.data.0.card.awaits_person', true)
+                ->where('recognitions.data.0.card.ai_suggested_cents', 600));
     }
 
     public function test_a_row_lists_what_the_trade_paid_for_and_flags_products_the_ai_was_not_asked_about(): void

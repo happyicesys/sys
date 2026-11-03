@@ -5477,6 +5477,7 @@
     "That product is not in CityBox's catalogue, so a chiller cannot sell it.": "Produk itu tidak ada di katalog CityBox, jadi chiller tidak dapat menjualnya.",
     "That usually means it belongs to a different machine model. If you save it, sales will still take money but will be recorded with no product and no cost, so gross profit will read as 100%.": "Itu biasanya berarti pemetaan ini milik model mesin lain. Jika disimpan, penjualan tetap menerima uang tetapi dicatat tanpa produk dan tanpa biaya, sehingga GP akan terbaca 100%.",
     "The :count most urgent of :total machines · open a category above for the rest": ":count paling mendesak dari :total mesin · buka kategori di atas untuk sisanya",
+    "The AI count differs from what was paid, so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what the customer should pay. 0 releases the hold.": "Hitungan AI berbeda dari yang dibayar, jadi pra-otorisasi menunggu Anda — tidak pernah ditagih otomatis. Periksa video (jika ada), lalu input jumlah yang harus dibayar pelanggan. 0 melepas pra-otorisasi.",
     "The AI could not judge this session, so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what the customer should pay. 0 releases the hold.": "AI tidak bisa menilai bukaan pintu ini, jadi pra-otorisasi menunggu Anda — tidak pernah ditagih otomatis. Periksa videonya (jika ada), lalu input jumlah yang harus dibayar pelanggan. 0 melepas pra-otorisasi.",
     "The AI never answered this session, so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what the customer should pay. 0 releases the hold.": "AI tidak pernah menjawab untuk bukaan pintu ini, jadi pra-otorisasi menunggu Anda — tidak pernah ditagih otomatis. Periksa videonya (jika ada), lalu input jumlah yang harus dibayar pelanggan. 0 melepas pra-otorisasi.",
     "The AI service's request id": "ID permintaan layanan AI",
@@ -5972,6 +5973,7 @@
     "Use Default Logo": "Gunakan Logo Default",
     "Use on the freezers": "Gunakan di freezer",
     "Use the available filters and click": "Gunakan filter yang tersedia lalu klik",
+    "Use the AI count (:amount)": "Pakai hitungan AI (:amount)",
     "Use the hold (:amount)": "Pakai pra-otorisasi (:amount)",
     "Use these for the next drawing": "Gunakan ini untuk gambar berikutnya",
     "Use this only after its board or fan was changed or removed. It shows no fan (and no fan alarm) until the board reports a running fan for 60 minutes in a row again.": "Gunakan ini hanya setelah board atau kipasnya diganti atau dilepas. Mesin tampil tanpa kipas (dan tanpa alarm kipas) sampai board kembali melaporkan kipas berjalan selama 60 menit berturut-turut.",
@@ -6387,5 +6389,7 @@
     "Zijia's library did not answer. Nothing was changed; try again.": "Pustaka Zijia tidak merespons. Tidak ada yang diubah; coba lagi.",
     "Zijia's library no longer lists :barcode. Nothing was changed.": "Pustaka Zijia tidak lagi mencantumkan :barcode. Tidak ada yang diubah.",
     "Link this": "Tautkan",
-    "AI list": "Daftar AI"
+    "AI list": "Daftar AI",
+    "T05 hold :amount · AI count differs — key in the charge": "Pra-otorisasi T05 :amount · hitungan AI berbeda — input tagihannya",
+    "T05 hold :amount · AI could not judge — key in the charge": "Pra-otorisasi T05 :amount · AI tidak dapat menilai — input tagihannya"
 }

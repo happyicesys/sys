@@ -5477,6 +5477,7 @@
     "That product is not in CityBox's catalogue, so a chiller cannot sell it.": "该商品不在 CityBox 的商品目录中，冷柜无法销售。",
     "That usually means it belongs to a different machine model. If you save it, sales will still take money but will be recorded with no product and no cost, so gross profit will read as 100%.": "这通常表示它属于其他机器型号。如果保存，销售仍会收款，但不会记录商品和成本，因此毛利会显示为 100%。",
     "The :count most urgent of :total machines · open a category above for the rest": ":total 台机器中最紧急的 :count 台 · 其余请打开上方的类别",
+    "The AI count differs from what was paid, so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what the customer should pay. 0 releases the hold.": "AI 识别的数量与已付款不符，因此预授权正在等待您处理 — 系统不会自行扣款。请查看视频（如有），然后录入客户应付的金额。输入 0 将释放预授权。",
     "The AI could not judge this session, so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what the customer should pay. 0 releases the hold.": "AI 无法判定此记录，因此预授权正在等待您处理 — 系统不会自行扣款。请查看视频（如有），然后录入顾客应付金额。输入 0 即释放预授权。",
     "The AI never answered this session, so the hold is waiting for you — it is never charged on its own. Check the videos (if any), then key in what the customer should pay. 0 releases the hold.": "AI 从未回应此记录，因此预授权正在等待您处理 — 系统不会自行扣款。请查看视频（如有），然后录入顾客应付金额。输入 0 即释放预授权。",
     "The AI service's request id": "AI 服务的请求 ID",
@@ -5972,6 +5973,7 @@
     "Use Default Logo": "使用默认标志",
     "Use on the freezers": "在冰柜上使用",
     "Use the available filters and click": "请使用筛选条件并点击",
+    "Use the AI count (:amount)": "使用 AI 识别的金额（:amount）",
     "Use the hold (:amount)": "使用预授权金额（:amount）",
     "Use these for the next drawing": "下一张图使用这些说明",
     "Use this only after its board or fan was changed or removed. It shows no fan (and no fan alarm) until the board reports a running fan for 60 minutes in a row again.": "仅在更换或拆除主板或风扇后使用。在主板再次连续 60 分钟上报风扇运转之前，将显示无风扇（也不会有风扇警报）。",
@@ -6387,5 +6389,7 @@
     "Zijia's library did not answer. Nothing was changed; try again.": "Zijia 商品库没有响应，未作任何更改，请重试。",
     "Zijia's library no longer lists :barcode. Nothing was changed.": "Zijia 商品库已不再列出 :barcode，未作任何更改。",
     "Link this": "关联",
-    "AI list": "AI 清单"
+    "AI list": "AI 清单",
+    "T05 hold :amount · AI count differs — key in the charge": "T05 预授权 :amount · AI 数量与付款不符 — 请录入扣款",
+    "T05 hold :amount · AI could not judge — key in the charge": "T05 预授权 :amount · AI 无法判定 — 请录入扣款"
 }
