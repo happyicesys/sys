@@ -330,9 +330,13 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
         // Case 1: success_qty is not null and > 0 -> use success_qty
         // Case 2: is_multiple = 1 OR error_code in (0, 6) OR vend_channel_error_id is null -> use qty
         // Case 3: otherwise -> 0
+        // Settled rows only, like the amount beside it: a released T05 hold keeps its success_qty
+        // but is REFUNDED, and a sale waiting for its AI audit is PENDING (Sales(qty) read 5 for
+        // 3 units sold on 50001, 2026-11-03).
 
         $result = $transactionQuery
             ->clone()
+            ->countsAsSale()
             ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
             ->selectRaw('
                 SUM(

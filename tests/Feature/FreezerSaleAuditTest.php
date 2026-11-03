@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Models\CardPaymentIntent;
 use App\Models\Customer;
 use App\Models\PaymentMethod;
@@ -19,6 +20,7 @@ use App\Services\CardTerminal\CardPaymentService;
 use App\Services\CardTerminal\Payrallel\PayrallelGateway;
 use App\Services\CardTerminal\TerminalTransaction as T;
 use App\Services\Freezer\FreezerSaleAudit;
+use App\Services\OpsDashboard\MachineHappyHourTrend;
 use App\Services\VendTransactionService;
 use App\Support\SaleFacts;
 use App\Support\SaleStatus;
@@ -310,6 +312,30 @@ class FreezerSaleAuditTest extends TestCase
         $this->assertNull($sale->audit_pending_at);
         $this->assertSame(0, $this->countedSales());
         $this->assertSame(CardPaymentIntent::STATE_VOIDED, CardPaymentIntent::sole()->state);
+    }
+
+    /** The Ops Dashboard's Sales(qty) Today, 50001 2026-11-03: S$5.30 (5) for 3 units sold. */
+    public function test_the_dashboard_today_qty_leaves_out_held_and_released_sales(): void
+    {
+        $todayCount = function (): array {
+            (new SyncVendTransactionTotalsJson($this->vend->fresh()))->handle(app(MachineHappyHourTrend::class));
+            $totals = $this->vend->fresh()->vend_transaction_totals_json;
+
+            return [$totals['today_amount'], $totals['today_count']];
+        };
+
+        $this->doorClosed();
+        $sale = $this->trade();
+        $this->assertSame([0, 0], $todayCount(), 'held for its audit: no amount and no qty');
+
+        $this->verdict('took_less', 0, $sale);
+        $this->service->reconcile();
+        $this->assertSame(VendTransaction::SETTLEMENT_REFUNDED, (int) $sale->fresh()->settlement_status);
+        $this->assertGreaterThan(0, (int) $sale->fresh()->success_qty, 'precondition: a released hold keeps its qty');
+        $this->assertSame([0, 0], $todayCount(), 'released hold: never a sale');
+
+        $this->trade(1, null, 0);
+        $this->assertSame([380, 1], $todayCount(), 'a settled sale still counts');
     }
 
     public function test_a_trade_arriving_after_its_charge_was_decided_is_never_left_pending(): void

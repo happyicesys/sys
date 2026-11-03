@@ -849,10 +849,17 @@
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.product_code }}
+                            <!-- A multiple's products are its item rows. A single the AI audit rebuilt into a
+                                 basket keeps the paid product on its header, which read as a second unit
+                                 at the same price (50001, 2026-11-03); the AI badge's tooltip names it. -->
+                            <span v-if="!vendTransaction.is_multiple">
+                                {{ vendTransaction.product_code }}
+                            </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
-                            {{ vendTransaction.product_name }}
+                            <span v-if="!vendTransaction.is_multiple">
+                                {{ vendTransaction.product_name }}
+                            </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">
                             <!-- A smart-freezer sale paid on a T05 is only a proposal until the
