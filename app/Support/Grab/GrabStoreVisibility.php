@@ -32,7 +32,8 @@ class GrabStoreVisibility
     {
         $ceiling = self::operatorIds();
         $requestedIds = collect(is_array($requested) ? $requested : [$requested])
-            ->reject(fn ($id) => $id === null || $id === '' || $id === 'all')
+            // Ids only: 'all' and blanks mean no filter, and (int) of an array is 1, which is HIPL.
+            ->filter(fn ($id) => is_numeric($id))
             ->map(fn ($id) => (int) $id)
             ->filter();
 

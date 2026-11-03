@@ -507,4 +507,28 @@ class GrabStoresTest extends TestCase
         $this->actingAs($clientUser)->getJson("/grab-stores/{$hiplStore->id}/history")->assertForbidden();
         $this->actingAs($clientUser)->getJson("/grab-stores/{$clientStore->id}/history")->assertOk();
     }
+
+    public function test_the_operator_filter_lists_only_the_picked_operators_stores(): void
+    {
+        $this->bindGrabStore(2867, self::MERCHANT, [11 => ['qty' => 5, 'capacity' => 10]]);
+        $client = Operator::forceCreate([
+            'name' => 'Ariska', 'code' => 'ARK', 'country_id' => $this->grabMapping->operator->country_id, 'created_by' => 1, 'gst_vat_rate' => 9,
+        ]);
+        DeliveryPlatformRefNumber::forceCreate([
+            'delivery_platform_id' => 1, 'operator_id' => $client->id, 'ref_number' => '4-ARISKA',
+        ]);
+
+        $this->actingAs($this->user)->get('/grab-stores?'.http_build_query(['operators' => [$client->id]]))
+            ->assertInertia(fn ($page) => $page->where('totals.all', 1)
+                ->where('stores.data.0.ref_number', '4-ARISKA')
+                ->where('filters.operators', [(string) $client->id]));
+
+        // "All" is no filter.
+        $this->actingAs($this->user)->get('/grab-stores?'.http_build_query(['operators' => ['all']]))
+            ->assertInertia(fn ($page) => $page->where('totals.all', 2));
+
+        // Whole option objects are not ids: (int) of an array is 1, which read as HIPL.
+        $this->actingAs($this->user)->get('/grab-stores?'.http_build_query(['operators' => [['id' => $client->id, 'full_name' => 'ARK - Ariska']]]))
+            ->assertInertia(fn ($page) => $page->where('totals.all', 2));
+    }
 }

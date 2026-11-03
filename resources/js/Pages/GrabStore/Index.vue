@@ -599,8 +599,13 @@ const menuReasons = {
   next_sync: t('Back on Grab at the next stock sync'),
 }
 
+// The URL carries operator ids; the filter's tags need the option objects.
+const operatorChoices = [{ id: 'all', full_name: t('All') }, ...(page.props.operatorFilterOptions ?? [])]
+
 const filters = ref({
-  operators: props.filters.operators ?? [],
+  operators: [].concat(props.filters.operators ?? [])
+    .map(id => operatorChoices.find(option => option.id == id))
+    .filter(Boolean),
   search: props.filters.search ?? '',
   status: props.filters.status ?? 'all',
   numberPerPage: props.filters.numberPerPage ?? 100,
@@ -628,7 +633,7 @@ function daysOnMachine(store) {
 
 function search() {
   router.get('/grab-stores', {
-    operators: filters.value.operators,
+    operators: filters.value.operators.map(operator => operator.id),
     search: filters.value.search,
     status: filters.value.status,
     numberPerPage: filters.value.numberPerPage,
