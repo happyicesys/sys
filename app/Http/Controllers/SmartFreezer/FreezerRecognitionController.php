@@ -194,6 +194,7 @@ class FreezerRecognitionController extends Controller
     {
         $sale = $r->vendTransaction;
         $card = $r->session_ref ? ($cards[$r->vend_id.'|'.$r->session_ref] ?? null) : null;
+        $submitted = self::submittedCodes($r);
 
         return [
             'id' => $r->id,
@@ -221,7 +222,13 @@ class FreezerRecognitionController extends Controller
             // What the customer paid for, from the sale's TRADE (`transf_info`, one entry per unit).
             // `has_barcode` false = mark1 never asked the AI to look for it, so "not taken" cannot
             // be judged for that product.
-            'purchased' => $sale ? $this->purchased($sale, $products) : [],
+            'purchased' => $sale ? $this->purchased($sale, $products, $submitted) : [],
+            // The candidate list sent with the videos (`goodsList`, FreezerRecognitionService::candidateCodes
+            // at submit time): the AI only ever names a product from it. Null = not sent yet.
+            'submitted' => $submitted === null ? null : array_map(fn (string $code) => [
+                'code' => $code,
+                'name' => $names['by_code'][$code] ?? null,
+            ], $submitted),
             'verdict' => $r->verdict,
             'verdict_lines' => collect((array) $r->verdict_lines)->map(fn ($line) => $line + [
                 'name' => isset($line['product_id']) ? ($names['by_id'][(int) $line['product_id']] ?? null) : null,
@@ -291,9 +298,10 @@ class FreezerRecognitionController extends Controller
 
     /**
      * @param  array<int, Product>  $products
-     * @return list<array{product_id: int|null, name: string, code: string|null, qty: int, unit_cents: int|null, has_barcode: bool}>
+     * @param  list<string>|null  $submitted  the barcodes sent to the AI, null when nothing was sent
+     * @return list<array{product_id: int|null, name: string, code: string|null, qty: int, unit_cents: int|null, has_barcode: bool, barcode: string|null, in_submitted: bool|null}>
      */
-    private function purchased(VendTransaction $sale, array $products): array
+    private function purchased(VendTransaction $sale, array $products, ?array $submitted): array
     {
         $lines = [];
         foreach ($this->tradeUnits($sale) as $unit) {
@@ -307,11 +315,32 @@ class FreezerRecognitionController extends Controller
                 'qty' => 0,
                 'unit_cents' => isset($unit['Price']) && is_numeric($unit['Price']) ? (int) $unit['Price'] : null,
                 'has_barcode' => filled($product?->barcode),
+                'barcode' => filled($product?->barcode) ? trim((string) $product->barcode) : null,
+                // False = it has a barcode now but was not on the list sent (added to the freezer, or
+                // its barcode set, after the session was sent), so the AI could not have named it.
+                'in_submitted' => $submitted === null || ! filled($product?->barcode) ? null
+                    : in_array(trim((string) $product->barcode), $submitted, true),
             ];
             $lines[$key]['qty']++;
         }
 
         return array_values($lines);
+    }
+
+    /**
+     * The barcodes sent to the AI with this session (`request_payload.goodsList[].sn`), in the
+     * order sent, or null when the session was never sent.
+     *
+     * @return list<string>|null
+     */
+    private static function submittedCodes(SmartFreezerRecognition $r): ?array
+    {
+        $goods = $r->request_payload['goodsList'] ?? null;
+        if (! is_array($goods)) {
+            return null;
+        }
+
+        return array_values(array_unique(array_filter(array_map(fn ($g) => is_array($g) ? trim((string) ($g['sn'] ?? '')) : '', $goods))));
     }
 
     /** @return list<array<string, mixed>> the TRADE's per-unit entries */
@@ -377,14 +406,17 @@ class FreezerRecognitionController extends Controller
     }
 
     /**
-     * Product names for one page, in two queries: by the barcodes the algorithm answered with,
-     * and by the product ids on verdict lines.
+     * Product names for one page, in two queries: by the barcodes the algorithm answered with or
+     * was sent, and by the product ids on verdict lines.
      *
      * @return array{by_id: array<int, string>, by_code: array<string, string>}
      */
     private function productNames($recognitions): array
     {
-        $codes = $recognitions->flatMap(fn ($r) => array_map('strval', array_keys((array) $r->items)))->unique()->values();
+        $codes = $recognitions->flatMap(fn ($r) => array_merge(
+            array_map('strval', array_keys((array) $r->items)),
+            self::submittedCodes($r) ?? [],
+        ))->unique()->values();
         $ids = $recognitions->flatMap(fn ($r) => array_column((array) $r->verdict_lines, 'product_id'))->filter()->unique()->values();
 
         return [

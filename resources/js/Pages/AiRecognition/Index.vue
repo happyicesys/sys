@@ -230,6 +230,9 @@
                     {{ $t('Status') }}
                   </TableHeadSort>
                   <TableHead>
+                    {{ $t('Sent to AI') }}
+                  </TableHead>
+                  <TableHead>
                     {{ $t('Paid For') }}
                   </TableHead>
                   <TableHead>
@@ -309,6 +312,29 @@
                     </div>
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
+                    <!-- The product list sent with the videos (goodsList): the AI can only name a product
+                         on it. Paid-for products are marked, and so is what the AI saw taken. -->
+                    <div v-if="row.submitted" class="flex flex-col space-y-1 text-xs">
+                      <button type="button" class="inline-flex w-fit items-center whitespace-nowrap rounded border border-gray-300 bg-white px-1.5 py-0.5 font-semibold text-gray-700 hover:bg-gray-50"
+                        :title="$t('The products sent to the AI with this door session: it can only name a product on this list')"
+                        @click="toggleSubmitted(row.id)"
+                      >
+                        {{ $tc(':count product|:count products', row.submitted.length) }} {{ openSubmitted.has(row.id) ? '▴' : '▾' }}
+                      </button>
+                      <template v-if="openSubmitted.has(row.id)">
+                        <span v-for="good in row.submitted" :key="good.code" class="whitespace-nowrap"
+                          :class="paidBarcodes(row).has(good.code) ? 'font-semibold text-gray-900' : 'text-gray-600'"
+                        >
+                          {{ good.name || $t('Not a mark1 product') }}
+                          <span class="text-gray-400 font-mono">{{ good.code }}</span>
+                          <span v-if="paidBarcodes(row).has(good.code)" class="ml-1 inline-flex rounded px-1 text-[10px] font-semibold bg-sky-50 text-sky-800 border border-sky-300">{{ $t('paid') }}</span>
+                          <span v-if="seenBarcodes(row).has(good.code)" class="ml-1 inline-flex rounded px-1 text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-300">{{ $t('AI saw') }}</span>
+                        </span>
+                      </template>
+                    </div>
+                    <span v-else class="text-gray-400" :title="$t('Not sent to the AI yet')">—</span>
+                  </TableData>
+                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
                     <!-- The sale's TRADE: what the customer paid for. A product with no barcode in mark1 is
                          never sent to the AI, so its "not taken" cannot be judged. -->
                     <div v-if="row.purchased.length" class="flex flex-col space-y-1 text-xs">
@@ -317,6 +343,8 @@
                         <span v-if="line.unit_cents !== null" class="text-gray-500">{{ formatCents(line.unit_cents) }}</span>
                         <span v-if="!line.has_barcode" class="ml-1 inline-flex rounded px-1 py-0.5 text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-300"
                               :title="$t('No barcode in mark1, so the AI was not asked to look for this product')">{{ $t('no barcode — AI not asked') }}</span>
+                        <span v-else-if="line.in_submitted === false" class="ml-1 inline-flex rounded px-1 py-0.5 text-[10px] font-semibold bg-red-50 text-red-800 border border-red-300"
+                              :title="$t('This product has a barcode now, but it was not on the list sent to the AI with this session')">{{ $t('not in list sent to AI') }}</span>
                       </span>
                     </div>
                     <span v-else class="text-gray-400" :title="row.sale ? '' : $t('Shown once the sale is matched to this session')">—</span>
@@ -623,6 +651,23 @@ onMounted(() => {
 })
 
 // The legend is open until someone hides it; remembered per browser (storage may be blocked).
+// Rows whose "Sent to AI" list is open.
+const openSubmitted = ref(new Set())
+
+function toggleSubmitted(id) {
+  const open = new Set(openSubmitted.value)
+  open.has(id) ? open.delete(id) : open.add(id)
+  openSubmitted.value = open
+}
+
+function paidBarcodes(row) {
+  return new Set(row.purchased.map((line) => line.barcode).filter(Boolean))
+}
+
+function seenBarcodes(row) {
+  return new Set(row.items.map((item) => item.code))
+}
+
 const showLegend = ref(true)
 try {
   showLegend.value = localStorage.getItem('aiRecognition.legend') !== 'hidden'

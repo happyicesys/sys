@@ -146,9 +146,42 @@ class AiRecognitionPageTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.purchased', [
-                    ['product_id' => $original->id, 'name' => 'Basque Original', 'code' => 'CC-01', 'qty' => 1, 'unit_cents' => 11, 'has_barcode' => true],
-                    ['product_id' => $chocolate->id, 'name' => 'Basque Chocolate', 'code' => 'CC-02', 'qty' => 2, 'unit_cents' => 22, 'has_barcode' => false],
-                ]));
+                    ['product_id' => $original->id, 'name' => 'Basque Original', 'code' => 'CC-01', 'qty' => 1, 'unit_cents' => 11, 'has_barcode' => true, 'barcode' => '9726436016148', 'in_submitted' => null],
+                    ['product_id' => $chocolate->id, 'name' => 'Basque Chocolate', 'code' => 'CC-02', 'qty' => 2, 'unit_cents' => 22, 'has_barcode' => false, 'barcode' => null, 'in_submitted' => null],
+                ])
+                ->where('recognitions.data.0.submitted', null));
+    }
+
+    public function test_a_row_shows_the_product_list_sent_to_the_ai_and_flags_a_paid_product_missing_from_it(): void
+    {
+        $original = Product::forceCreate(['code' => 'CC-01', 'name' => 'Basque Original', 'operator_id' => 1, 'barcode' => '9726436016148']);
+        // Barcode set after the session was sent: on the sale, not on the list the AI had.
+        $matcha = Product::forceCreate(['code' => 'CC-03', 'name' => 'Basque Matcha', 'operator_id' => 1, 'barcode' => '0726436016209']);
+        $sale = VendTransaction::forceCreate([
+            'order_id' => 'O-10', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 33,
+            'transaction_datetime' => Carbon::parse('2026-11-03 10:37:45'), 'gst_vat_rate' => 9, 'operator_id' => 1,
+            'vend_transaction_json' => ['Type' => 'TRADE', 'transf_info' => [
+                ['goods_id' => $original->id, 'goods_name' => 'x', 'Price' => 11],
+                ['goods_id' => $matcha->id, 'goods_name' => 'z', 'Price' => 22],
+            ]],
+        ]);
+        $this->recognition([
+            'vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_SUBMITTED,
+            'request_payload' => ['goodsList' => [
+                ['positions' => [], 'sn' => '9726436016148'],
+                ['positions' => [], 'sn' => '8801104170116'],
+            ]],
+        ]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.submitted', [
+                    ['code' => '9726436016148', 'name' => 'Basque Original'],
+                    ['code' => '8801104170116', 'name' => null],
+                ])
+                ->where('recognitions.data.0.purchased.0.in_submitted', true)
+                ->where('recognitions.data.0.purchased.1.in_submitted', false));
     }
 
     public function test_the_finer_ai_reason_is_shown(): void
