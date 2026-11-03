@@ -34,11 +34,11 @@
         </tbody>
       </table>
 
-      <p v-if="panel.correction_refund_cents" class="mt-3 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-900">{{ $t('A person corrected this sale: :amount more was charged than the goods are worth.', { amount: money(panel.correction_refund_cents) }) }}</p>
+      <p v-if="panel.correction_refund_cents" class="mt-3 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-900">{{ $t('Qty was adjusted on this sale: :amount more was charged than the goods are worth.', { amount: money(panel.correction_refund_cents) }) }}</p>
 
       <div v-if="canAct && !panel.blocked_reason" class="mt-3 flex justify-end gap-2">
         <button v-if="panel.correction_refund_cents" type="button" class="rounded-md border border-rose-600 bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700" @click="askCorrection">
-          {{ $t('Refund the correction (:amount)', { amount: money(panel.correction_refund_cents) }) }}
+          {{ $t('Refund the difference (:amount)', { amount: money(panel.correction_refund_cents) }) }}
         </button>
         <button type="button" class="rounded-md border border-rose-600 px-3 py-1.5 text-xs font-semibold" :class="panel.correction_refund_cents ? 'bg-white text-rose-700 hover:bg-rose-50' : 'bg-rose-600 text-white hover:bg-rose-700'" @click="askFull">
           {{ panel.refunded_cents ? $t('Refund the rest (:amount)', { amount: money(panel.refundable_cents) }) : $t('Full refund (:amount)', { amount: money(panel.refundable_cents) }) }}
@@ -59,7 +59,7 @@
         <h4 class="text-xs uppercase tracking-wide text-gray-500">{{ $t('Refund history') }}</h4>
         <div v-for="r in panel.refunds" :key="r.id" class="mt-1 text-xs">
           <span class="inline-flex rounded px-1.5 py-0.5 font-semibold" :class="stateClass(r.state)">{{ stateLabel(r.state) }}</span>
-          <span class="ml-1">{{ money(r.amount_cents) }} · {{ r.product_name ? r.qty + ' × ' + r.product_name : (r.kind === 'correct' ? $t('Correction of the sale') : $t('Full refund')) }}</span>
+          <span class="ml-1">{{ money(r.amount_cents) }} · {{ r.product_name ? r.qty + ' × ' + r.product_name : (r.kind === 'correct' ? $t('Qty adjustment') : $t('Full refund')) }}</span>
           <span class="ml-1 text-gray-500">{{ r.by }} · {{ r.at }}</span>
           <span v-if="r.error" class="block text-red-700">{{ r.error }}</span>
           <span v-if="canAct && r.state === 'uncertain'" class="mt-1 flex flex-wrap items-center gap-2">
@@ -133,7 +133,7 @@ function askItem(line) {
 function askCorrection() {
   confirm.value = {
     url: `${base()}/intents/${panel.value.intent_id}/correction`,
-    label: t(tk('The difference after a person corrected this sale')),
+    label: t(tk('The difference after the qty was adjusted')),
     amount_cents: panel.value.correction_refund_cents,
     body: {},
   };

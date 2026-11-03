@@ -231,7 +231,7 @@ class FreezerSaleCorrection
                     ? __('This charge has been decided and is being sent. Try again in a moment.')
                     : ($this->payments->personNeededBecause($intent) === null ? __('The AI still has time to answer this session.') : null),
                 CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_VOIDED => null,
-                default => __('This card payment is not finished, so there is nothing to correct yet.'),
+                default => __('This card payment is not finished, so there is nothing to adjust yet.'),
             };
             if ($reason !== null) {
                 return $reason;
@@ -242,7 +242,7 @@ class FreezerSaleCorrection
             }
             // Item and whole refunds mark the sale's rows, which a correction rebuilds.
             if ($refunds->contains(fn (CardRefund $r) => $r->state === CardRefund::STATE_REFUNDED && $r->kind !== CardRefund::KIND_CORRECTION)) {
-                return __('This charge already has an item or full refund, so it can no longer be corrected.');
+                return __('This charge already has an item or full refund, so its qty can no longer be adjusted.');
             }
         }
 

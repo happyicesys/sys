@@ -395,7 +395,7 @@
                     <span v-else class="text-gray-400">—</span>
                     <!-- A person's count sits beside the AI's verdict, which is never overwritten. -->
                     <div v-if="row.correction" class="mt-1 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-1 text-xs text-indigo-900" tabindex="0" v-tooltip="row.correction.at">
-                      <span class="flex items-center gap-1 font-semibold"><PencilSquareIcon class="h-4 w-4 flex-none" aria-hidden="true" />{{ $t('Corrected by :name', { name: row.correction.by }) }}</span>
+                      <span class="flex items-center gap-1 font-semibold"><PencilSquareIcon class="h-4 w-4 flex-none" aria-hidden="true" />{{ $t('Adjusted by :name', { name: row.correction.by }) }}</span>
                       <span v-for="line in row.correction.lines" :key="line.product_id" class="block">{{ line.qty }} × {{ line.name }}</span>
                       <span v-if="!row.correction.lines.length" class="block">{{ $t('Nothing taken') }}</span>
                     </div>
@@ -434,7 +434,7 @@
                       :class="row.card && row.card.awaits_person ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-indigo-700 hover:bg-indigo-50'"
                       @click="correctRow = row"
                     >
-                      {{ $t('Correct') }}
+                      {{ $t('Adjust Qty') }}
                     </button>
                   </TableData>
                 </tr>
@@ -451,7 +451,7 @@
       </div>
     </div>
     <Modal :open="correctRow !== null" @modalClose="correctRow = null">
-      <template #header>{{ $t('Correct what was taken') }}</template>
+      <template #header>{{ $t('Adjust qty taken') }}</template>
       <AiCorrectionPanel v-if="correctRow !== null" :key="correctRow.id" :recognition-id="correctRow.id" @saved="correctionSaved" @key-in="keyInstead" />
     </Modal>
     <Modal :open="refundIntentId !== null" @modalClose="closeRefund">

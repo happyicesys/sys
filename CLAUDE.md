@@ -1596,8 +1596,8 @@ Taken and Verdict vs Paid merged, `ai_check` on each row): one line per product,
 price (paid, else the machine's at that moment), Paid, AI saw, and a verdict of ✓ / +n / −n / ? with its meaning on
 hover, problems first. Explanations go in hover popups (`v-tooltip`), not on the page. Barcodes are in Sent to AI.
 
-**AI Recognition is the control panel** (Brian, 2026-11-03: "not only info"). **Correct** (`FreezerSaleCorrection`, the
-one writer; permission `charge ai-recognition`, admin + superadmin; `ai-recognition/{recognition}/correction`) lets a
+**AI Recognition is the control panel** (Brian, 2026-11-03: "not only info"). **Adjust Qty** (`FreezerSaleCorrection`, the
+one writer; permission `charge ai-recognition`, admin + superadmin only (Brian); `ai-recognition/{recognition}/correction`) lets a
 person set how many of each product left the cabinet. Valued like the AI's own count: the price paid in that sale,
 else the machine's price at the door session, Happy Hour included; Testing Mode 10c. The sale's item rows and the stock
 always follow the count (`FreezerSaleAudit::applyCorrection`, `FreezerStockLedger::followCorrection`: only the
@@ -1611,7 +1611,7 @@ lists it); **QR / NETS** → items and stock only, a refund goes through Refund 
 overwritten: the count sits beside it in `meta_json.correction`, each one kept in `meta_json.corrections`. Refused
 while a claim other than a rejected one is on the sale (its rows point at the rows a correction rebuilds), after an item
 or full refund, while a refund or charge has no answer, and while the AI may still answer. A stale page is refused by
-the confirmed amount. Key in charge stays for a hold with no sale, and as "Key in an amount instead" (moves no stock).
+the confirmed amount. Key in charge stays for a hold with no sale, and as "Key in an amount instead" (moves no stock). The screens say "adjust" ("Correct" is Sales Transactions' badge for an AI match); the code still says correction.
 Regression coverage: `tests/Feature/FreezerSaleCorrectionTest.php`. It reads `smart_freezer_recognitions` only — the sale
 link is its `vend_transaction_id`; nothing is added to `vend_transactions`. The table has
 no global scope: an operator-restricted viewer gets only its own freezers' rows, and a

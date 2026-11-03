@@ -237,7 +237,7 @@ class CardSettlementHealthCheck
                     isset($decision['uncertain']) => "{$machine} {$i->reference}: charge of ".($decision['uncertain'] / 100)." may have gone through — check Payrallel, then `php artisan card-payments:resolve-charge {$i->reference} --charged|--not-charged`",
                     $i->state === CardPaymentIntent::STATE_CAPTURING => "{$machine} {$i->reference}: capture of ".((int) ($decision['inflight'] ?? $i->amount_cents) / 100).' has no recorded answer — the next sweep flags it',
                     $i->state === CardPaymentIntent::STATE_CAPTURED && isset($decision['increment_refused']) => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' was not collected (Payrallel refused to raise the hold; the hold was charged)',
-                    in_array($i->state, [CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_VOIDED], true) => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' owed after a correction on AI Recognition (a T05 charge cannot be topped up)',
+                    in_array($i->state, [CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_VOIDED], true) => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' owed after a qty adjustment on AI Recognition (a T05 charge cannot be topped up)',
                     $i->last_error !== null => "{$machine} {$i->reference}: charge refused, retrying — {$i->last_error}",
                     ($because = $payments->personNeededBecause($i)) !== null => "{$machine} {$i->reference}: hold of ".($i->amount_cents / 100)
                         .' since '.($i->door_closed_at ?? $i->updated_at)->toDateTimeString().' — '

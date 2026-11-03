@@ -148,7 +148,7 @@ class CardRefundService
             $this->assertNotBlocked($fresh, $sale, $refunds);
             $amount = $this->correctionRefund($fresh, $sale, $refunds);
             if ($amount <= 0) {
-                throw new DomainException(__('This correction has nothing left to refund.'));
+                throw new DomainException(__('This adjustment has nothing left to refund.'));
             }
 
             return $this->send($fresh, $sale, $amount, $confirmedCents, $by, ['kind' => CardRefund::KIND_CORRECTION]);
@@ -268,7 +268,7 @@ class CardRefundService
         // other refund of the whole charge. A partial one blocks Approve instead (RefundController).
         $what = match ($refund->kind) {
             CardRefund::KIND_ITEM => "{$refund->qty} × {$refund->product_name}",
-            CardRefund::KIND_CORRECTION => 'a correction of the sale',
+            CardRefund::KIND_CORRECTION => 'a qty adjustment of the sale',
             default => 'the rest of the charge',
         };
         foreach ($this->claims($sale)->get() as $ticket) {

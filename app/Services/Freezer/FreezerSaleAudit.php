@@ -231,7 +231,7 @@ class FreezerSaleAudit
                 'basket_paid' => $this->paidUnits($sale),
                 'basket_charged' => $basket,
                 'stock_moved' => $moved,
-                'reason' => 'Corrected by '.($entry['by']['name'] ?? 'a person').' on AI Recognition',
+                'reason' => 'Qty adjusted by '.($entry['by']['name'] ?? 'a person').' on AI Recognition',
             ]);
             $meta['correction'] = $entry;
             $meta['corrections'] = array_merge((array) ($meta['corrections'] ?? []), [$entry]);
