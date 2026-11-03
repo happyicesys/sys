@@ -105,6 +105,44 @@ class GrabTokenAndNotifyTest extends TestCase
         $this->assertSame(310, NotifyDeliveryPlatformUpdateMenu::retryAfterSeconds(['data' => ['message' => 'sync menu too frequently, retry after 310 seconds']]));
     }
 
+    public function test_a_notify_soon_after_the_last_one_waits_instead_of_being_refused(): void
+    {
+        $store = $this->bindGrabStore(4754, self::STORE, [11 => ['qty' => 5, 'capacity' => 10]]);
+        Http::fake(['*/partner/v1/merchant/menu/notification' => Http::response([], 200)]);
+        $notify = fn () => (new NotifyDeliveryPlatformUpdateMenu($store, true))->handle(app(DeliveryPlatformService::class));
+
+        $notify();
+        Http::assertSentCount(1);
+        Queue::assertNotPushed(NotifyDeliveryPlatformUpdateMenu::class);
+
+        // 200 s later: inside Grab's lock, so nothing is sent and the job comes back when it ends.
+        $this->travel(200)->seconds();
+        $notify();
+        Http::assertSentCount(1);
+        Queue::assertPushed(NotifyDeliveryPlatformUpdateMenu::class, function ($job) {
+            $retries = (fn () => $this->retries)->call($job);
+            $force = (fn () => $this->force)->call($job);
+
+            return $retries === 0 && $force && abs($job->delay->diffInSeconds(now(), true) - 125) <= 2;
+        });
+
+        $this->travel(126)->seconds();
+        $notify();
+        Http::assertSentCount(2);
+    }
+
+    public function test_a_notify_grab_refused_does_not_start_the_wait(): void
+    {
+        $store = $this->bindGrabStore(4754, self::STORE, [11 => ['qty' => 5, 'capacity' => 10]]);
+        Http::fake(['*/partner/v1/merchant/menu/notification' => Http::response(['reason' => 'conflict', 'message' => 'sync menu too frequently, retry after 310 seconds'], 409)]);
+        $notify = fn () => (new NotifyDeliveryPlatformUpdateMenu($store, true))->handle(app(DeliveryPlatformService::class));
+
+        $notify();
+        $notify();
+
+        Http::assertSentCount(2);
+    }
+
     public function test_a_store_grab_says_is_not_integrated_is_not_notified_for_a_day(): void
     {
         $store = $this->bindGrabStore(4754, self::STORE, [11 => ['qty' => 5, 'capacity' => 10]]);

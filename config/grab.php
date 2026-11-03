@@ -23,7 +23,8 @@ return [
     /*
      * A menu change tells Grab to re-pull at most once per store per this many
      * seconds (the notify job waits this long, and later changes inside the wait
-     * ride along). Grab locks identical notifications for 120 s anyway.
+     * ride along). Grab refuses a second sync of a store inside 310 s, so the job
+     * also waits out that lock (NotifyDeliveryPlatformUpdateMenu).
      */
     'menu_notify_delay_seconds' => (int) env('GRAB_MENU_NOTIFY_DELAY_SECONDS', 180),
 
