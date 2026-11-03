@@ -14,7 +14,8 @@ use Tests\TestCase;
  * XO and MSW joined HIPL's default Operator filter on 2026-09-11: their
  * machines take payment on our Omise account and our NETS terminals, so HIPL
  * ops staff run them with our own. CB (Citybox) joined on 2026-10-01: HIPL ops
- * run the Smart Chillers. The list is OperatorScope::DEFAULT_FILTER_CODES
+ * run the Smart Chillers. HI-SCF (smart freezers) joined on 2026-11-03 for the
+ * freezer launch. The list is OperatorScope::DEFAULT_FILTER_CODES
  * and every page and controller reads it from there.
  */
 class OperatorDefaultFilterTest extends TestCase
@@ -33,9 +34,9 @@ class OperatorDefaultFilterTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_hipl_default_filter_includes_xo_msw_and_cb_but_not_a_deactivated_sibling(): void
+    public function test_hipl_default_filter_includes_xo_msw_cb_and_scf_but_not_a_deactivated_sibling(): void
     {
-        $expected = collect(['HIPL', 'HIMD', 'HIESG', 'UL-ST', 'XO', 'MSW', 'CB'])
+        $expected = collect(['HIPL', 'HIMD', 'HIESG', 'UL-ST', 'XO', 'MSW', 'CB', 'HI-SCF'])
             ->mapWithKeys(fn ($code) => [$code => (int) $this->operator($code)->id]);
         $lea = $this->operator('LEA', false);
 
@@ -57,6 +58,7 @@ class OperatorDefaultFilterTest extends TestCase
 
         $this->assertContains((int) $xo->id, $hiplCeiling);
         $this->assertContains((int) $msw->id, $hiplCeiling);
+        $this->assertContains((int) $this->operator('HI-SCF')->id, OperatorScope::forUser(User::factory()->create(['operator_id' => $hipl->id])));
 
         // XO is an outside leasing customer with its own logins: joining HIPL's
         // group must not widen what XO's staff can see.

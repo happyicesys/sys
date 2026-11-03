@@ -47,8 +47,12 @@ class OperatorScope
      * XO and MSW joined 2026-09-11: their machines take payment on our Omise
      * account and our NETS terminals, so HIPL ops staff run them alongside our
      * own. Their own staff still see only their own operator (forUser()).
+     *
+     * HI-SCF (Self Check-out freezer) joined 2026-11-03 (Brian, launching the smart
+     * freezers): HIPL ops staff run 50001/50002, and the freezers sell HIPL's
+     * catalogue (ProductOwners).
      */
-    public const PARENT_GROUP_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST', 'CB', 'XO', 'MSW'];
+    public const PARENT_GROUP_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST', 'CB', 'XO', 'MSW', 'HI-SCF'];
 
     /**
      * Operators pre-selected on every Operator filter for HIPL staff: the chips
@@ -60,8 +64,9 @@ class OperatorScope
      *
      * CB (Citybox) joined 2026-10-01 (Brian): HIPL ops staff run the Smart
      * Chillers, so every Operator filter now opens with them selected too.
+     * HI-SCF (smart freezers) joined 2026-11-03 (Brian) for the SCF launch.
      */
-    public const DEFAULT_FILTER_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST', 'XO', 'MSW', 'CB'];
+    public const DEFAULT_FILTER_CODES = ['HIPL', 'HIMD', 'LEA', 'HIESG', 'UL-ST', 'XO', 'MSW', 'CB', 'HI-SCF'];
 
     /**
      * Per-request memo, keyed by user id — the ceiling is asked for several
