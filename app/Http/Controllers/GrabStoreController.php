@@ -17,6 +17,7 @@ use App\Services\Grab\Menu\GrabMachineMenu;
 use App\Services\Grab\Menu\MachineMenuLine;
 use App\Services\GrabStoreService;
 use App\Support\Grab\GrabStoreVisibility;
+use App\Support\VendCode;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -42,17 +43,18 @@ class GrabStoreController extends Controller
         $operatorIds = GrabStoreVisibility::narrow($request->operators);
         $status = in_array($request->status, self::STATUSES, true) ? $request->status : 'all';
         $search = trim((string) $request->search);
+        $codes = trim((string) $request->codes);
         $sort = in_array($request->sort, self::SORTS, true) ? $request->sort : null;
 
         $base = DeliveryPlatformRefNumber::query()->whereIn('operator_id', $operatorIds);
-        // What the search box and the status chips narrow the list to.
-        $listed = function ($query) use ($search, $status) {
-            $query->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('ref_number', 'LIKE', "%{$search}%")
-                        ->orWhereExists($this->openBinding(fn ($binding) => $binding->where('b.vend_code', 'LIKE', "{$search}%")));
-                });
-            });
+        // What the search box, the Machine ID box and the status chips narrow the list to.
+        $listed = function ($query) use ($search, $codes, $status) {
+            $query->when($search !== '', fn ($query) => $query->where('ref_number', 'LIKE', "%{$search}%"));
+            // The machine the store is on now, by the Operation Dashboard's rule: "," = an exact list.
+            $query->when($codes !== '', fn ($query) => $query->whereExists($this->openBinding(function ($binding) use ($codes) {
+                $binding->join('vends as v', 'v.id', '=', 'b.vend_id');
+                VendCode::whereSearch($binding, $codes, contains: true, table: 'v');
+            })));
             $this->filterStatus($query, $status);
         };
 
@@ -125,6 +127,7 @@ class GrabStoreController extends Controller
             'filters' => [
                 'operators' => $request->operators,
                 'search' => $search,
+                'codes' => $codes,
                 'status' => $status,
                 'sort' => $sort,
                 'numberPerPage' => $request->numberPerPage ?: 100,

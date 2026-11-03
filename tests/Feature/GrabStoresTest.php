@@ -508,6 +508,33 @@ class GrabStoresTest extends TestCase
         $this->actingAs($clientUser)->getJson("/grab-stores/{$clientStore->id}/history")->assertOk();
     }
 
+    public function test_the_machine_id_filter_takes_one_id_or_a_comma_list_and_search_stays_on_the_store(): void
+    {
+        $this->bindGrabStore(2867, self::MERCHANT, [11 => ['qty' => 5, 'capacity' => 10]]);
+        $this->bindGrabStore(2868, '4-SECOND', [11 => ['qty' => 5, 'capacity' => 10]]);
+        $this->bindGrabStore(4754, '4-THIRD', [11 => ['qty' => 5, 'capacity' => 10]]);
+        DeliveryPlatformRefNumber::forceCreate([
+            'delivery_platform_id' => 1, 'operator_id' => $this->grabMapping->operator_id, 'ref_number' => '4-SPARE',
+        ]);
+        $listed = fn (string $query) => collect(
+            $this->actingAs($this->user)->get('/grab-stores?'.$query)->viewData('page')['props']['stores']['data']
+        )->pluck('ref_number')->sort()->values()->all();
+
+        // A comma list is exact, spaces and all.
+        $this->assertSame(['4-SECOND', '4-THIRD'], $listed('codes='.urlencode('2868, 4754, 9999')));
+        $this->assertSame(['4-SECOND'], $listed('codes='.urlencode('2868,')));
+        // One ID alone matches part of it, as on the Operation Dashboard.
+        $this->assertSame([self::MERCHANT, '4-SECOND'], $listed('codes=286'));
+        $this->assertSame([], $listed('codes=9999'));
+
+        // Independent of the store search: both must hold, and a machine ID is not a store.
+        $this->assertSame([], $listed('search=2868'));
+        $this->assertSame(['4-SECOND'], $listed('search=4-SEC&codes='.urlencode('2868,4754')));
+
+        $this->actingAs($this->user)->get('/grab-stores?codes=2868')
+            ->assertInertia(fn ($page) => $page->where('filters.codes', '2868')->where('totals.all', 4));
+    }
+
     public function test_the_operator_filter_lists_only_the_picked_operators_stores(): void
     {
         $this->bindGrabStore(2867, self::MERCHANT, [11 => ['qty' => 5, 'capacity' => 10]]);

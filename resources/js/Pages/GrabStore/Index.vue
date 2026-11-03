@@ -40,7 +40,13 @@
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
           <OperatorFilter v-model="filters.operators" />
-          <SearchInput :placeholderStr="$t('Grab store or machine ID')" v-model="filters.search" @keyup.enter="search()">
+          <SearchInput :placeholderStr="$t('4 to 5 Digits Number')" v-model="filters.codes" @keyup.enter="search()">
+            {{ $t('Machine ID') }}
+            <span class="text-[9px]">
+              {{ $t('("," for multiple)') }}
+            </span>
+          </SearchInput>
+          <SearchInput :placeholderStr="$t('Grab store')" v-model="filters.search" @keyup.enter="search()">
             {{ $t('Search') }}
           </SearchInput>
         </div>
@@ -607,6 +613,7 @@ const filters = ref({
     .map(id => operatorChoices.find(option => option.id == id))
     .filter(Boolean),
   search: props.filters.search ?? '',
+  codes: props.filters.codes ?? '',
   status: props.filters.status ?? 'all',
   numberPerPage: props.filters.numberPerPage ?? 100,
   sort: props.filters.sort ?? null,
@@ -635,6 +642,7 @@ function search() {
   router.get('/grab-stores', {
     operators: filters.value.operators.map(operator => operator.id),
     search: filters.value.search,
+    codes: filters.value.codes,
     status: filters.value.status,
     numberPerPage: filters.value.numberPerPage,
     sort: filters.value.sort,
