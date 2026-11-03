@@ -1589,7 +1589,9 @@
             <DropzoneFileInput :endpoint="'/ops-jobs/items/' + props.opsJobItem.data.id + '/upload-attachments'"></DropzoneFileInput>
           </div>
 
-          <div class="flex flex-col md:flex-row space-y-3 md:space-y-0 sm:col-span-6 md:justify-between">
+          <!-- Three fixed columns (was justify-between, which only evens out the gaps): the
+               action group stays on the true centre, however long the mapping remarks are. -->
+          <div class="flex flex-col space-y-3 md:space-y-0 sm:col-span-6 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-3">
             <span>
               <Link :href="'/ops-jobs/' + opsJobItem.ops_job_id + '/edit'">
                 <Button
@@ -1781,7 +1783,7 @@
                 </span>
               </Button>
             </span>
-            <span v-if="vend.productMapping">
+            <span v-if="vend.productMapping" class="min-w-0 break-words md:justify-self-end">
               <a :href="'/product-mappings/' + vend.productMapping.id + '/edit'" target="_blank" class="hover:cursor-pointer flex flex-col text-blue-800 text-sm p-3">
                 <span class="" v-if="vend.productMapping">
                 {{ vend.productMapping.name }}
