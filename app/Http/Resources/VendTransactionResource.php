@@ -212,8 +212,9 @@ class VendTransactionResource extends JsonResource
             return null;
         }
 
-        $cart = (int) ($audit['cart_cents'] ?? 0);
-        $charged = (int) ($audit['charged_cents'] ?? 0);
+        // A person's correction of a QR or NETS sale has no charge of its own: the amount stands.
+        $cart = (int) ($audit['cart_cents'] ?? $this->amount);
+        $charged = (int) ($audit['charged_cents'] ?? $this->amount);
         $paid = (array) ($audit['basket_paid'] ?? []);
         $billed = (array) ($audit['basket_charged'] ?? []);
         if ($cart === $charged && $paid === $billed) {

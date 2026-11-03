@@ -51,6 +51,14 @@ class CardRefundController extends Controller
         return $this->answer($intent, fn () => $this->refunds->refundFull($intent, (int) $data['amount_cents'], $request->user()));
     }
 
+    public function refundCorrection(Request $request, CardPaymentIntent $intent): JsonResponse
+    {
+        $data = $request->validate(['amount_cents' => ['required', 'integer', 'min:1']]);
+        $this->assertVisible($intent);
+
+        return $this->answer($intent, fn () => $this->refunds->refundCorrection($intent, (int) $data['amount_cents'], $request->user()));
+    }
+
     /** A person checked Payrallel's portal: the refund whose answer never came did, or did not, happen. */
     public function resolve(Request $request, CardRefund $refund): JsonResponse
     {

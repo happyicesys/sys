@@ -219,6 +219,7 @@
       <div class="mt-6 flex flex-col">
         <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
+            <p v-if="correctionNotice" class="mb-2 rounded-md border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800">{{ correctionNotice }}</p>
             <table class="min-w-full border-separate" style="border-spacing: 0">
               <thead class="bg-gray-100">
                 <tr class="divide-x divide-gray-200">
@@ -391,6 +392,13 @@
                       </span>
                     </div>
                     <span v-else class="text-gray-400">—</span>
+                    <!-- A person's count sits beside the AI's verdict, which is never overwritten. -->
+                    <div v-if="row.correction" class="mt-1 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-1 text-xs text-indigo-900">
+                      <span class="font-semibold">{{ $t('Corrected by :name', { name: row.correction.by }) }}</span>
+                      <span class="block text-indigo-700">{{ row.correction.at }}</span>
+                      <span v-for="line in row.correction.lines" :key="line.product_id" class="block">{{ line.qty }} × {{ line.name }}</span>
+                      <span v-if="!row.correction.lines.length" class="block">{{ $t('Nothing taken') }}</span>
+                    </div>
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
                     <div v-if="row.sale" class="flex flex-col space-y-1 text-xs">
@@ -413,13 +421,21 @@
                         {{ $t('Refund') }}
                       </button>
                       <!-- Anything but a matching verdict: the hold waits for a person, never charged on its own. -->
-                      <button v-if="row.card.awaits_person && canCharge" type="button"
+                      <button v-if="row.card.awaits_person && canCharge && !row.can_correct" type="button"
                         class="mx-auto mt-1 inline-flex items-center rounded-md border border-indigo-600 bg-indigo-600 px-2 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 whitespace-nowrap"
                         @click="openCharge(row)"
                       >
                         {{ $t('Key in charge') }}
                       </button>
                     </div>
+                    <span v-if="row.correction && row.correction.to_refund_cents" class="mt-1 block text-xs font-semibold text-rose-700 whitespace-nowrap">{{ $t('To refund :amount', { amount: formatCents(row.correction.to_refund_cents) }) }}</span>
+                    <button v-if="row.can_correct && canCharge" type="button"
+                      class="mx-auto mt-1 inline-flex items-center rounded-md border border-indigo-600 px-2 py-1 text-xs font-semibold whitespace-nowrap"
+                      :class="row.card && row.card.awaits_person ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-indigo-700 hover:bg-indigo-50'"
+                      @click="correctRow = row"
+                    >
+                      {{ $t('Correct') }}
+                    </button>
                   </TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
@@ -434,6 +450,10 @@
         </div>
       </div>
     </div>
+    <Modal :open="correctRow !== null" @modalClose="correctRow = null">
+      <template #header>{{ $t('Correct what was taken') }}</template>
+      <AiCorrectionPanel v-if="correctRow !== null" :key="correctRow.id" :recognition-id="correctRow.id" @saved="correctionSaved" @key-in="keyInstead" />
+    </Modal>
     <Modal :open="refundIntentId !== null" @modalClose="closeRefund">
       <template #header>{{ $t('T05 card refund') }}</template>
       <T05RefundPanel v-if="refundIntentId !== null" :key="refundIntentId" :intent-id="refundIntentId" :can-act="canRefund" @changed="refundChanged = true" />
@@ -521,6 +541,7 @@ import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import MachineIdLink from '@/Components/MachineIdLink.vue';
 import T05RefundPanel from '@/Components/T05RefundPanel.vue';
+import AiCorrectionPanel from '@/Components/AiCorrectionPanel.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import { MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
@@ -744,6 +765,24 @@ function closeCharge() {
 
 const refundIntentId = ref(null)
 const refundChanged = ref(false)
+const correctRow = ref(null)
+const correctionNotice = ref('')
+
+function correctionSaved(result) {
+  correctRow.value = null
+  correctionNotice.value = result.message
+  router.reload({ only: ['recognitions'] })
+  // What the count says should go back: nothing is sent until the person presses Refund there.
+  if (result.to_refund_cents > 0 && result.intent_id && props.canRefund) {
+    refundIntentId.value = result.intent_id
+  }
+}
+
+function keyInstead() {
+  const row = correctRow.value
+  correctRow.value = null
+  openCharge(row)
+}
 
 function closeRefund() {
   refundIntentId.value = null

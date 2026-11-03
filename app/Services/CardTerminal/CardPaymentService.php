@@ -707,17 +707,21 @@ class CardPaymentService
      * Brian, 2026-10-09). 0 releases the hold; above the hold is ONE capture Payrallel raises the
      * authorisation for, with the hold as the fallback — the same execution as a matched charge, so
      * the written-ahead capture, the never-resend rule and the 4xx retry all apply. Charging exactly
-     * the AI's count makes the sale's basket follow it; any other amount leaves the basket alone.
+     * the AI's count makes the sale's basket follow it; any other amount leaves the basket alone,
+     * unless the person gave their own count (FreezerSaleCorrection), which the basket then follows.
+     *
+     * @param  array<int, int>|null  $basket  what the person says left the cabinet
+     * @param  array<int, int>  $unitPrices  the prices that count was valued at
      *
      * @throws DomainException when the hold is not (or no longer) waiting for a person
      */
-    public function chargeByPerson(CardPaymentIntent $intent, int $cents, User $by): CardPaymentIntent
+    public function chargeByPerson(CardPaymentIntent $intent, int $cents, User $by, ?array $basket = null, array $unitPrices = []): CardPaymentIntent
     {
         if ($cents < 0) {
             throw new DomainException('the charge cannot be negative');
         }
 
-        return $this->locked($intent, function (CardPaymentIntent $intent) use ($cents, $by) {
+        return $this->locked($intent, function (CardPaymentIntent $intent) use ($cents, $by, $basket, $unitPrices) {
             $because = $this->personNeededBecause($intent);
             if ($because === null) {
                 throw new DomainException('this hold is no longer waiting for a person — reload the page');
@@ -735,7 +739,8 @@ class CardPaymentService
                 'reason' => $cents === 0
                     ? "Released by {$by->name} on AI Recognition ({$why})"
                     : "Keyed in by {$by->name} on AI Recognition ({$why})".($cents > $hold ? ' — above the hold: one capture with auth increment' : ''),
-                'basket' => $made?->judgedCents === $cents ? $made->basket : null,
+                'basket' => $basket ?? ($made?->judgedCents === $cents ? $made->basket : null),
+                'unit_prices' => $unitPrices ?: null,
                 'recognition_id' => $recognitionId,
                 'by_person' => ['user_id' => $by->id, 'name' => $by->name],
                 'decided_at' => Carbon::now()->toIso8601String(),
@@ -746,6 +751,19 @@ class CardPaymentService
 
             return $this->settleAwaitingAiLocked($intent);
         });
+    }
+
+    /**
+     * A person corrected a settled sale (FreezerSaleCorrection): what the count is worth above what
+     * was collected is owed, since a T05 charge cannot be topped up. Caller holds the lock.
+     */
+    public function noteCorrection(CardPaymentIntent $intent, int $valueCents, User $by): void
+    {
+        $collected = (int) $intent->captured_cents - (int) $intent->refunded_cents;
+        $owed = max(0, $valueCents - $collected);
+        $intent->update(['owed_cents' => $owed > 0 ? $owed : null]);
+        $this->events->record('ai.person_correction', ['value_cents' => $valueCents, 'collected_cents' => $collected, 'owed_cents' => $owed, 'user_id' => $by->id, 'user' => $by->name],
+            $intent->terminal, $intent->custom_order_id, null, 'warning');
     }
 
     /** A provider refusal while settling: keep the decision, retry in AUTO_CAPTURE_RETRY_MINUTES. */
@@ -836,7 +854,7 @@ class CardPaymentService
      * @param  list<int>  $productIds
      * @return array<int, int>
      */
-    private function shelfPrices(int $vendId, array $productIds, ?\DateTimeInterface $at = null): array
+    public function shelfPrices(int $vendId, array $productIds, ?\DateTimeInterface $at = null): array
     {
         if ($productIds === []) {
             return [];

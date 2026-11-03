@@ -155,6 +155,34 @@ class FreezerStockLedger
     }
 
     /**
+     * A person's count of what left replaces whatever the sale's stock said before: only the
+     * difference moves now, and the figure returned is its whole movement against the TRADE. Runs
+     * inside the transaction that records it on the sale.
+     *
+     * @param  array<int, int>  $taken  product id => units a person says left
+     * @return array<int, int> product id => units put back (+) or taken off (−), against the TRADE
+     */
+    public function followCorrection(Vend $vend, VendTransaction $sale, array $taken): array
+    {
+        if (! $vend->isSmartFreezer()) {
+            return [];
+        }
+
+        $before = array_map('intval', (array) (((array) $sale->meta_json)['audit']['stock_moved'] ?? []));
+        $moved = $this->chargeDifference($sale, $taken);
+        foreach (array_keys($moved + $before) as $productId) {
+            $delta = ($moved[$productId] ?? 0) - ($before[$productId] ?? 0);
+            if ($delta !== 0) {
+                VendChannel::where('vend_id', $vend->id)->where('product_id', $productId)
+                    ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) + '.$delta.', 0)')]);
+            }
+        }
+        $this->refreshJson($vend);
+
+        return $moved;
+    }
+
+    /**
      * What followCharge() would move. A Testing Mode sale moved nothing, so nothing corrects it.
      *
      * @param  array<int, int>  $taken  product id => units the AI saw leave
@@ -180,7 +208,7 @@ class FreezerStockLedger
     }
 
     /**
-     * What this sale finally took out of the cabinet: the TRADE's units, corrected by the AI.
+     * What this sale finally took out of the cabinet: the TRADE's units, corrected by the AI or a person.
      *
      * @return array<int, int> product id => units
      */

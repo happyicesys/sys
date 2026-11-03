@@ -82,6 +82,7 @@ class CardRefundService
             'captured_cents' => (int) $intent->captured_cents,
             'refunded_cents' => (int) $intent->refunded_cents,
             'refundable_cents' => $this->refundable($intent, $refunds),
+            'correction_refund_cents' => $this->correctionRefund($intent, $sale, $refunds),
             'blocked_reason' => $blocked,
             'lines' => $this->lines($intent, $sale, $refunds),
             'refunds' => $refunds->map(fn (CardRefund $r) => [
@@ -135,6 +136,22 @@ class CardRefundService
             $this->assertNotBlocked($fresh, $sale, $refunds);
 
             return $this->send($fresh, $sale, $this->refundable($fresh, $refunds), $confirmedCents, $by, ['kind' => CardRefund::KIND_FULL]);
+        });
+    }
+
+    /** What a person's correction of the sale says should go back. */
+    public function refundCorrection(CardPaymentIntent $intent, int $confirmedCents, User $by): CardRefund
+    {
+        return $this->payments->locked($intent, function (CardPaymentIntent $fresh) use ($confirmedCents, $by) {
+            $sale = $this->saleOf($fresh);
+            $refunds = CardRefund::where('card_payment_intent_id', $fresh->id)->get();
+            $this->assertNotBlocked($fresh, $sale, $refunds);
+            $amount = $this->correctionRefund($fresh, $sale, $refunds);
+            if ($amount <= 0) {
+                throw new DomainException(__('This correction has nothing left to refund.'));
+            }
+
+            return $this->send($fresh, $sale, $amount, $confirmedCents, $by, ['kind' => CardRefund::KIND_CORRECTION]);
         });
     }
 
@@ -228,11 +245,14 @@ class CardRefundService
 
     private function writeToSale(CardPaymentIntent $intent, VendTransaction $sale, CardRefund $refund): void
     {
-        $items = $sale->vendTransactionItems()->where('is_refunded', false);
-        if ($refund->kind === CardRefund::KIND_ITEM) {
-            $items->where('product_id', $refund->product_id)->where('unit_price_amount', $refund->unit_cents)->limit((int) $refund->qty);
+        // A correction's refund gives back money for goods that never left: its rows are already gone.
+        if ($refund->kind !== CardRefund::KIND_CORRECTION) {
+            $items = $sale->vendTransactionItems()->where('is_refunded', false);
+            if ($refund->kind === CardRefund::KIND_ITEM) {
+                $items->where('product_id', $refund->product_id)->where('unit_price_amount', $refund->unit_cents)->limit((int) $refund->qty);
+            }
+            $items->get()->each(fn ($item) => $item->forceFill(['is_refunded' => true])->save());
         }
-        $items->get()->each(fn ($item) => $item->forceFill(['is_refunded' => true])->save());
 
         $net = (int) $intent->captured_cents - (int) $intent->refunded_cents;
         $this->audit->applyRefund($sale, $net, [
@@ -246,7 +266,11 @@ class CardRefundService
 
         // The claim's log says it either way; only nothing left crosses its verdict, the same as any
         // other refund of the whole charge. A partial one blocks Approve instead (RefundController).
-        $what = $refund->kind === CardRefund::KIND_ITEM ? "{$refund->qty} × {$refund->product_name}" : 'the rest of the charge';
+        $what = match ($refund->kind) {
+            CardRefund::KIND_ITEM => "{$refund->qty} × {$refund->product_name}",
+            CardRefund::KIND_CORRECTION => 'a correction of the sale',
+            default => 'the rest of the charge',
+        };
         foreach ($this->claims($sale)->get() as $ticket) {
             $this->tickets->log($ticket, 't05_refund', $ticket->status, $ticket->status,
                 sprintf('T05 refund of $%s through Payrallel: %s.', number_format($refund->amount_cents / 100, 2), $what),
@@ -312,6 +336,17 @@ class CardRefundService
         $open = (int) $refunds->filter(fn (CardRefund $r) => in_array($r->state, CardRefund::OPEN_STATES, true))->sum('amount_cents');
 
         return max(0, (int) $intent->captured_cents - (int) $intent->refunded_cents - $open);
+    }
+
+    /** What was collected above what a person's correction says the goods are worth. */
+    private function correctionRefund(CardPaymentIntent $intent, ?VendTransaction $sale, Collection $refunds): int
+    {
+        $value = ((array) $sale?->meta_json)['correction']['value_cents'] ?? null;
+        if ($value === null) {
+            return 0;
+        }
+
+        return max(0, min((int) $intent->captured_cents - (int) $intent->refunded_cents - (int) $value, $this->refundable($intent, $refunds)));
     }
 
     private function chargeIdOrNull(CardPaymentIntent $intent): ?string

@@ -154,7 +154,8 @@ class FreezerSaleAudit
 
         $basket = $chargedCents > 0 ? $this->basketFollowingTheCharge($sale, $intent) : null;
 
-        $this->writeAudited($sale, $chargedCents, $reason, $intent, $basket, $this->stockBasket($intent, $chargedCents, $basket));
+        $this->writeAudited($sale, $chargedCents, $reason, $intent, $basket, $this->stockBasket($intent, $chargedCents, $basket),
+            array_map('intval', (array) (((array) $intent->ai_decision)['unit_prices'] ?? [])));
 
         // The sale's money moved after it was first written. If its day has already closed,
         // tonight's rollup must rebuild that day, and the Ops Dashboard totals need a resync.
@@ -209,12 +210,50 @@ class FreezerSaleAudit
     }
 
     /**
+     * A person corrected what left the cabinet after the sale was settled (FreezerSaleCorrection):
+     * the item rows and the stock follow the count, in one transaction. The amount stays what was
+     * collected: it moves only when the money does.
+     *
+     * @param  array<int, int>  $basket  product id => units ([] = nothing left)
+     * @param  array<int, int>  $prices  product id => the unit cents the count was valued at
+     * @param  array<string, mixed>  $entry  who, when and what, kept on `meta_json.correction`
+     */
+    public function applyCorrection(VendTransaction $sale, array $basket, array $prices, array $entry): void
+    {
+        DB::transaction(function () use ($sale, $basket, $prices, $entry) {
+            $sale->refresh();
+            VendTransaction::withoutGlobalScopes()->whereKey($sale->id)->lockForUpdate()->first(['id']);
+            $vend = $sale->vend ?? Vend::withoutGlobalScopes()->find($sale->vend_id);
+            $moved = $vend ? $this->ledger->followCorrection($vend, $sale, $basket) : [];
+
+            $meta = (array) $sale->meta_json;
+            $meta['audit'] = array_merge(['source' => 'person_correction'], (array) ($meta['audit'] ?? []), [
+                'basket_paid' => $this->paidUnits($sale),
+                'basket_charged' => $basket,
+                'stock_moved' => $moved,
+                'reason' => 'Corrected by '.($entry['by']['name'] ?? 'a person').' on AI Recognition',
+            ]);
+            $meta['correction'] = $entry;
+            $meta['corrections'] = array_merge((array) ($meta['corrections'] ?? []), [$entry]);
+            $sale->forceFill(['meta_json' => $meta])->save();
+
+            $this->rewriteBasket($sale, $basket, $prices);
+        });
+
+        $this->lateTrades->noteLanded($sale);
+        if ($vend = $sale->vend) {
+            $this->happyHour->tag($vend, $sale->fresh());
+            SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
+        }
+    }
+
+    /**
      * What the AI saw leave the cabinet, or null when this charge says nothing about the goods and
      * the sale's stock stays as the TRADE left it.
      *
-     * Only the AI's own view counts, once a person has accepted it: the basket charged for, or a
-     * hold released at the AI's count of nothing ([]). Any other key-in or release (a person may
-     * waive a charge for goods that did leave) and a device void are not evidence of what left.
+     * Only a count of the goods is evidence, once a person has given or accepted it: the basket
+     * charged for, or a hold released at a count of nothing ([]). A bare keyed-in amount or release
+     * (a person may waive a charge for goods that did leave) and a device void say nothing of what left.
      *
      * @return array<int, int>|null product id => units
      */
@@ -233,7 +272,7 @@ class FreezerSaleAudit
     }
 
     /** What was charged becomes the sale, and the sale counts again (or never does, at zero). */
-    private function writeAudited(VendTransaction $sale, int $chargedCents, string $reason, ?CardPaymentIntent $intent, ?array $basket, ?array $stockBasket = null): void
+    private function writeAudited(VendTransaction $sale, int $chargedCents, string $reason, ?CardPaymentIntent $intent, ?array $basket, ?array $stockBasket = null, array $unitPrices = []): void
     {
         $cart = (int) $sale->amount;
         $revenue = $chargedCents / (1.00 + ((float) $sale->gst_vat_rate / 100));
@@ -241,7 +280,7 @@ class FreezerSaleAudit
 
         // One transaction: a failure between the amount and the basket would leave a sale with
         // money charged and no item rows at all — counted for nothing.
-        DB::transaction(function () use ($sale, $chargedCents, $reason, $intent, $basket, $stockBasket, $cart, $revenue, $grossProfit) {
+        DB::transaction(function () use ($sale, $chargedCents, $reason, $intent, $basket, $stockBasket, $unitPrices, $cart, $revenue, $grossProfit) {
             $stockMoved = null;
             if ($stockBasket !== null) {
                 // Stock moves relative to the TRADE, so a second settle must find the row gone from
@@ -284,7 +323,7 @@ class FreezerSaleAudit
             ])->save();
 
             if ($basket !== null) {
-                $this->rewriteBasket($sale, $basket);
+                $this->rewriteBasket($sale, $basket, $unitPrices);
             }
         });
 
@@ -300,8 +339,8 @@ class FreezerSaleAudit
      *
      * It comes from the decision that set the charge ({@see AiCaptureDecision}), never re-derived
      * from the verdict here: the money and the qty have to agree, and the decision alone knows
-     * which units it counted. Only a person charging exactly the AI's count carries a basket, so
-     * any other keyed-in amount or an unusable AI answer never moves the qty.
+     * which units it counted. Only a person's own count, or charging exactly the AI's, carries a
+     * basket, so a bare keyed-in amount or an unusable AI answer never moves the qty.
      *
      * Null as well when the AI agreed with the cart — there is nothing to change.
      *
@@ -336,13 +375,13 @@ class FreezerSaleAudit
      * what the customer was charged for and product attribution follows it too.
      *
      * The paid cart is NOT lost — it stays on the header in `items_json` and in the TRADE's own
-     * `transf_info`, and both sides are written to `meta_json.audit`. Safe because a sale is
-     * audited once ({@see auditable}) within minutes of the TRADE, long before a refund ticket
-     * could point at one of these rows.
+     * `transf_info`, and both sides are written to `meta_json.audit`. A refund ticket points at
+     * these rows, so a correction refuses a sale with a claim (FreezerSaleCorrection).
      *
      * @param  array<int, int>  $basket  product id => units charged for
+     * @param  array<int, int>  $prices  product id => unit cents a person's count was valued at
      */
-    private function rewriteBasket(VendTransaction $sale, array $basket): void
+    private function rewriteBasket(VendTransaction $sale, array $basket, array $prices = []): void
     {
         $productIds = array_keys($basket);
         $templates = $sale->vendTransactionItems()->get()->groupBy('product_id');
@@ -372,7 +411,8 @@ class FreezerSaleAudit
             // Priced the way the charge was priced (AiCaptureDecision): what the customer paid
             // for this product in this sale, else the machine's price for it today. Taking the
             // shelf price first would make the per-product figures disagree with the money.
-            $unitPrice = (int) ($paidPrices[$productId]
+            $unitPrice = (int) ($prices[$productId]
+                ?? $paidPrices[$productId]
                 // Testing Mode prices every unit at the test price (AiCaptureDecision got the same).
                 ?? (FreezerTestSale::is($sale) ? FreezerTestSale::UNIT_PRICE_CENTS : null)
                 ?? $template?->unit_price_amount
@@ -439,7 +479,7 @@ class FreezerSaleAudit
      *
      * @return array<int, int>
      */
-    private function paidUnits(VendTransaction $sale): array
+    public function paidUnits(VendTransaction $sale): array
     {
         $paid = [];
         foreach ($this->transfInfo($sale) as $unit) {

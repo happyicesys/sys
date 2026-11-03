@@ -1148,8 +1148,8 @@ unrecognised). Rules:
   match, else a person keys in the charge (`CardPaymentService::settleAwaitingAi`, see the Remote
   card terminals section). Its stock follows the AI only once a person accepts its count
   (Brian, 2026-11-03): the TRADE takes off the paid cart, then charging exactly the AI count
-  moves the difference to that basket, or puts it all back when the AI saw nothing taken and the
-  person released the hold at its 0 (`FreezerSaleAudit::stockBasket`,
+  or a person's own count on Correct moves the difference to that basket, or puts it all back when
+  the count is nothing taken and the hold is released (`FreezerSaleAudit::stockBasket`,
   `FreezerStockLedger::followCharge`, once, recorded as `meta_json.audit.stock_moved`). Any other
   keyed-in amount or release, a device void and a Testing Mode sale move nothing. Sales audited
   before this: `freezer:apply-ai-stock {vend} --since= [--apply]`.
@@ -1591,7 +1591,25 @@ permission `ai-recognition` read: superadmin/admin/supervisor) lists every recog
 the sale's Order ID and Transaction DateTime first (Brian, 2026-11-03: the reference and the time
 shared with Sales Transactions; they lead the sort, date filter and search, and the door session,
 when the videos reached us minutes later, stands in only until a sale is matched), machine, Zijia's
-order no + our SF ref, links to the original videos, the AI's answer and the verdict against the sale. It reads `smart_freezer_recognitions` only — the sale
+order no + our SF ref, links to the original videos, the AI's answer and the verdict against the sale.
+
+**AI Recognition is the control panel** (Brian, 2026-11-03: "not only info"). **Correct** (`FreezerSaleCorrection`, the
+one writer; permission `charge ai-recognition`, admin + superadmin; `ai-recognition/{recognition}/correction`) lets a
+person set how many of each product left the cabinet. Valued like the AI's own count: the price paid in that sale,
+else the machine's price at the door session, Happy Hour included; Testing Mode 10c. The sale's item rows and the stock
+always follow the count (`FreezerSaleAudit::applyCorrection`, `FreezerStockLedger::followCorrection`: only the
+difference moves, `audit.stock_moved` stays the whole movement against the TRADE, so correcting again and
+`freezer:rebuild-stock` agree). The money depends on where the sale stands: **hold open** → charged now through
+`chargeByPerson` with the count as its basket, 0 releases and puts the stock back; **charged or released** → the amount
+stays what was collected, revenue follows the money: too much taken shows "To refund" and the refund panel offers the
+difference (`KIND_CORRECTION`, `card-refunds/intents/{intent}/correction`, marks no rows, same-day rule applies), sent
+only when a person presses it; too little goes to `owed_cents` (a T05 charge cannot be topped up, and the 08:30 email
+lists it); **QR / NETS** → items and stock only, a refund goes through Refund Request. The AI's verdict is never
+overwritten: the count sits beside it in `meta_json.correction`, each one kept in `meta_json.corrections`. Refused
+while a claim other than a rejected one is on the sale (its rows point at the rows a correction rebuilds), after an item
+or full refund, while a refund or charge has no answer, and while the AI may still answer. A stale page is refused by
+the confirmed amount. Key in charge stays for a hold with no sale, and as "Key in an amount instead" (moves no stock).
+Regression coverage: `tests/Feature/FreezerSaleCorrectionTest.php`. It reads `smart_freezer_recognitions` only — the sale
 link is its `vend_transaction_id`; nothing is added to `vend_transactions`. The table has
 no global scope: an operator-restricted viewer gets only its own freezers' rows, and a
 session matched to no freezer (a supplier test cabinet) only the unrestricted operator.

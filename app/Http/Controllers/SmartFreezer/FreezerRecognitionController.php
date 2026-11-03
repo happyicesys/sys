@@ -10,13 +10,17 @@ use App\Models\SmartFreezerRecognition;
 use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\CardTerminal\CardPaymentService;
+use App\Services\Freezer\FreezerSaleCorrection;
 use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\RecognitionBadges;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use App\Services\SmartFreezer\Zijia\ZijiaSkuLinks;
 use App\Support\VendCode;
+use Carbon\Carbon;
 use DomainException;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Inertia\Inertia;
@@ -44,7 +48,7 @@ class FreezerRecognitionController extends Controller
     public function __construct()
     {
         $this->middleware(['permission:read ai-recognition']);
-        $this->middleware(['permission:charge ai-recognition'])->only('charge');
+        $this->middleware(['permission:charge ai-recognition'])->only('charge', 'correctionEditor', 'correct');
     }
 
     public function index(Request $request)
@@ -64,8 +68,8 @@ class FreezerRecognitionController extends Controller
 
         $query = SmartFreezerRecognition::query()
             ->with([
-                'vend:id,code,code_prefix,operator_id',
-                'vendTransaction:id,order_id,amount,transaction_datetime,vend_transaction_json',
+                'vend:id,code,code_prefix,operator_id,machine_type',
+                'vendTransaction:id,order_id,amount,transaction_datetime,vend_transaction_json,meta_json',
                 'videos:id,smart_freezer_recognition_id,video_urls,created_at',
             ])
             ->when($request->input('status'), fn ($q, $s) => $s !== 'all' ? $q->where('status', $s) : $q)
@@ -199,6 +203,62 @@ class FreezerRecognitionController extends Controller
         };
     }
 
+    /** What the Correct screen shows. */
+    public function correctionEditor(SmartFreezerRecognition $recognition, FreezerSaleCorrection $corrections): JsonResponse
+    {
+        $this->assertVisible($recognition);
+
+        return response()->json(['editor' => $corrections->editor($recognition)]);
+    }
+
+    /** A person says what left the cabinet (FreezerSaleCorrection). Every figure is worked out here. */
+    public function correct(Request $request, SmartFreezerRecognition $recognition, FreezerSaleCorrection $corrections): JsonResponse
+    {
+        $data = $request->validate([
+            'taken' => ['present', 'array'],
+            'taken.*' => ['integer', 'min:0', 'max:50'],
+            'amount_cents' => ['required', 'integer', 'min:0', 'max:1000000'],
+        ]);
+        $this->assertVisible($recognition);
+
+        try {
+            $done = $corrections->correct($recognition, $data['taken'], (int) $data['amount_cents'], $request->user());
+        } catch (DomainException $e) {
+            return response()->json(['message' => $e->getMessage(), 'editor' => $corrections->editor($recognition)], 422);
+        } catch (LockTimeoutException) {
+            return response()->json(['message' => __('This charge is busy. Try again in a moment.'), 'editor' => $corrections->editor($recognition)], 409);
+        }
+
+        $intent = $done['intent'];
+        $amount = '$'.number_format($done['value_cents'] / 100, 2);
+        $held = $done['mode'] === FreezerSaleCorrection::MODE_HOLD;
+        $failed = $held && ! in_array($intent->state, [CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_VOIDED], true);
+
+        return response()->json([
+            'ok' => ! $failed,
+            'mode' => $done['mode'],
+            'intent_id' => $intent?->id,
+            'to_refund_cents' => $done['to_refund_cents'],
+            'owed_cents' => $done['owed_cents'],
+            'message' => match (true) {
+                $failed && isset($intent->ai_decision['uncertain']) => __('The charge of :amount may have gone through — it is not resent. Check Payrallel\'s portal.', ['amount' => $amount]),
+                $failed => __('Payrallel refused the charge of :amount (:reason). mark1 keeps the amount and retries every 10 minutes.', ['amount' => $amount, 'reason' => $intent->last_error ?? __('no reason given')]),
+                $held && $intent->state === CardPaymentIntent::STATE_VOIDED => __('Hold released — nothing charged.'),
+                $held => __('Charged :amount on the T05.', ['amount' => number_format($intent->captured_cents / 100, 2)]),
+                default => __('Saved. Sale items and stock now follow this count.'),
+            },
+        ], $failed ? 422 : 200);
+    }
+
+    /** Viewer ceiling, as on the list: an operator-restricted viewer acts on its own freezers only. */
+    private function assertVisible(SmartFreezerRecognition $recognition): void
+    {
+        if (($operatorId = OperatorVendFilterScope::viewerOperatorId()) !== null
+            && (int) Vend::withoutGlobalScopes()->whereKey($recognition->vend_id)->value('operator_id') !== $operatorId) {
+            abort(404);
+        }
+    }
+
     /**
      * @param  array{by_id: array<int, string>, by_code: array<string, string>}  $names
      * @param  array<string, CardPaymentIntent>  $cards  "vend_id|session_ref" => the session's T05 hold
@@ -254,6 +314,9 @@ class FreezerRecognitionController extends Controller
                 'date' => $sale->transaction_datetime ? substr((string) $sale->transaction_datetime, 0, 10) : null,
                 'time' => $sale->transaction_datetime ? substr((string) $sale->transaction_datetime, 11, 8) : null,
             ] : null,
+            // The Correct button (FreezerSaleCorrection, which says why when it refuses).
+            'can_correct' => $sale !== null && $r->vend?->isSmartFreezer(),
+            'correction' => $this->correctionOf($sale, $card),
             // A T05 hold this session's verdict charges (CardPaymentService::settleAwaitingAi).
             'card' => $card ? [
                 'id' => $card->id,
@@ -277,6 +340,24 @@ class FreezerRecognitionController extends Controller
                 'ai_suggested_cents' => $reason === CardPaymentService::PERSON_AI_MISMATCH ? $payments->personSuggestedCents($card) : null,
                 'by_person' => $card->ai_decision['by_person']['name'] ?? null,
             ] : null,
+        ];
+    }
+
+    /** The person's correction beside the AI's verdict, and what it still says should go back. */
+    private function correctionOf(?VendTransaction $sale, ?CardPaymentIntent $card): ?array
+    {
+        $correction = ((array) $sale?->meta_json)['correction'] ?? null;
+        if (! is_array($correction)) {
+            return null;
+        }
+        $collected = $card ? (int) $card->captured_cents - (int) $card->refunded_cents : null;
+
+        return [
+            'by' => $correction['by']['name'] ?? null,
+            'at' => isset($correction['at']) ? Carbon::parse($correction['at'])->format('Y-m-d H:i') : null,
+            'lines' => array_values((array) ($correction['lines'] ?? [])),
+            'value_cents' => (int) ($correction['value_cents'] ?? 0),
+            'to_refund_cents' => $card?->state === CardPaymentIntent::STATE_CAPTURED ? max(0, $collected - (int) ($correction['value_cents'] ?? 0)) : 0,
         ];
     }
 

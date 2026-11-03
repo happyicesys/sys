@@ -223,7 +223,11 @@ class FreezerReceipt
         // Units refunded on a T05 charge leave the invoice, unless that was every unit.
         $kept = $items->reject(fn ($item) => (bool) $item->is_refunded);
         $items = $kept->isNotEmpty() ? $kept : $items;
-        if ($items->isEmpty()) {
+        // A person corrected the sale to nothing taken: its paid units are listed below, at zero.
+        $nothingLeft = $items->isEmpty() && (((array) $sale->meta_json)['correction']['basket'] ?? null) === [];
+        if ($nothingLeft) {
+            $groups = [];
+        } elseif ($items->isEmpty()) {
             $qty = max(1, (int) $sale->qty);
             $groups[] = ['product_id' => (int) $sale->product_id, 'qty' => $qty, 'unit_cents' => intdiv((int) $sale->amount, $qty)];
         } else {
@@ -238,7 +242,7 @@ class FreezerReceipt
         $audit = (array) (((array) $sale->meta_json)['audit'] ?? []);
         $paid = array_map('intval', (array) ($audit['basket_paid'] ?? []));
         $charged = array_map('intval', (array) ($audit['basket_charged'] ?? []));
-        $audited = $paid !== [] && $charged !== [];
+        $audited = $paid !== [] && ($charged !== [] || $nothingLeft);
 
         $ids = array_unique(array_merge(array_column($groups, 'product_id'), array_keys($paid)));
         $names = Product::withoutGlobalScopes()->whereIn('id', $ids)->pluck('name', 'id');

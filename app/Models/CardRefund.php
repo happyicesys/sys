@@ -21,6 +21,9 @@ class CardRefund extends Model
 
     public const KIND_FULL = 'full';
 
+    /** The difference after a person corrected the sale (FreezerSaleCorrection). Marks no rows. */
+    public const KIND_CORRECTION = 'correct';
+
     public const STATE_SENDING = 'sending';
 
     public const STATE_REFUNDED = 'refunded';

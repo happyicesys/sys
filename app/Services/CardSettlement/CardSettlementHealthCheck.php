@@ -10,8 +10,8 @@ use App\Models\VendTransaction;
 use App\Models\ZijiaSkuNotification;
 use App\Services\CardTerminal\CardPaymentService;
 use App\Services\SmartFreezer\Zijia\ZijiaBarcodeSync;
-use App\Services\SmartFreezer\Zijia\ZijiaSkuLinks;
 use App\Services\SmartFreezer\Zijia\ZijiaSkuApprovalService;
+use App\Services\SmartFreezer\Zijia\ZijiaSkuLinks;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -226,7 +226,7 @@ class CardSettlementHealthCheck
         CardPaymentIntent::query()
             ->with('vend:id,code,code_prefix')
             ->where(fn ($q) => $q->whereIn('state', [CardPaymentIntent::STATE_AWAITING_AI, CardPaymentIntent::STATE_CAPTURING])
-                ->orWhere(fn ($q) => $q->where('state', CardPaymentIntent::STATE_CAPTURED)->where('owed_cents', '>', 0)
+                ->orWhere(fn ($q) => $q->whereIn('state', [CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_VOIDED])->where('owed_cents', '>', 0)
                     ->where('updated_at', '>=', now()->subDays(14))))
             ->orderBy('id')
             ->get()
@@ -236,7 +236,8 @@ class CardSettlementHealthCheck
                 $text = match (true) {
                     isset($decision['uncertain']) => "{$machine} {$i->reference}: charge of ".($decision['uncertain'] / 100)." may have gone through — check Payrallel, then `php artisan card-payments:resolve-charge {$i->reference} --charged|--not-charged`",
                     $i->state === CardPaymentIntent::STATE_CAPTURING => "{$machine} {$i->reference}: capture of ".((int) ($decision['inflight'] ?? $i->amount_cents) / 100).' has no recorded answer — the next sweep flags it',
-                    $i->state === CardPaymentIntent::STATE_CAPTURED => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' judged by the AI was not collected (Payrallel refused to raise the hold; the hold was charged)',
+                    $i->state === CardPaymentIntent::STATE_CAPTURED && isset($decision['increment_refused']) => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' was not collected (Payrallel refused to raise the hold; the hold was charged)',
+                    in_array($i->state, [CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_VOIDED], true) => "{$machine} {$i->reference}: ".($i->owed_cents / 100).' owed after a correction on AI Recognition (a T05 charge cannot be topped up)',
                     $i->last_error !== null => "{$machine} {$i->reference}: charge refused, retrying — {$i->last_error}",
                     ($because = $payments->personNeededBecause($i)) !== null => "{$machine} {$i->reference}: hold of ".($i->amount_cents / 100)
                         .' since '.($i->door_closed_at ?? $i->updated_at)->toDateTimeString().' — '

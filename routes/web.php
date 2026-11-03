@@ -1451,12 +1451,18 @@ Route::middleware(['auth', 'cors', 'can:verify refunds'])->prefix('card-refunds'
     Route::get('/intents/{intent}', [\App\Http\Controllers\CardRefundController::class, 'panel'])->name('card-refunds.panel');
     Route::post('/intents/{intent}/item', [\App\Http\Controllers\CardRefundController::class, 'refundItem'])->name('card-refunds.item');
     Route::post('/intents/{intent}/full', [\App\Http\Controllers\CardRefundController::class, 'refundFull'])->name('card-refunds.full');
+    Route::post('/intents/{intent}/correction', [\App\Http\Controllers\CardRefundController::class, 'refundCorrection'])->name('card-refunds.correction');
     Route::post('/{refund}/resolve', [\App\Http\Controllers\CardRefundController::class, 'resolve'])->name('card-refunds.resolve');
 });
 
 // A person keys in the final charge for a T05 hold with no AI verdict (permission:charge ai-recognition).
 Route::middleware(['auth', 'cors'])->post('/ai-recognition/card-holds/{intent}/charge', [\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class, 'charge'])
     ->name('ai-recognition.charge');
+// A person corrects what left the cabinet: sale items and stock follow, the money by where the sale stands.
+Route::middleware(['auth', 'cors'])->controller(\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class)->prefix('ai-recognition/{recognition}/correction')->name('ai-recognition.correction')->group(function () {
+    Route::get('/', 'correctionEditor');
+    Route::post('/', 'correct')->name('.save');
+});
 // Which freezer products the AI is asked about, and a person's link to a SKU registered in Zijia's portal.
 Route::middleware(['auth', 'cors'])->controller(\App\Http\Controllers\SmartFreezer\ZijiaSkuLinkController::class)->prefix('ai-recognition/sku-links')->name('ai-recognition.sku-links')->group(function () {
     Route::get('/', 'index');
