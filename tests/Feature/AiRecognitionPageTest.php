@@ -582,6 +582,31 @@ class AiRecognitionPageTest extends TestCase
         return '/ai-recognition/card-holds/'.CardPaymentIntent::sole()->id.'/charge';
     }
 
+    public function test_a_hold_the_device_never_confirmed_is_listed_for_a_person_to_key_in(): void
+    {
+        config(['payrallel.min_query_interval_ms' => 0, 'payrallel.mode' => 'preauth', 'payrallel.ai_capture' => true, 'payrallel.ai_person_after_minutes' => 30]);
+        $gateway = new FakeRemoteCardTerminalGateway;
+        $this->app->instance(PayrallelGateway::class, $gateway);
+        RemoteCardTerminal::create([
+            'vend_id' => $this->vend->id, 'provider' => RemoteCardTerminal::PROVIDER_PAYRALLEL, 'access_token' => 't', 'is_active' => true,
+        ]);
+        $payments = $this->app->make(CardPaymentService::class);
+        $intent = $payments->authorize($this->vend, 'SF9', 500);
+        $gateway->answer('50001-SF9', TerminalTransaction::APPROVED);
+        $payments->refresh($intent);
+
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+        $payments->reconcile();
+        $this->assertSame([], $gateway->callsOf('capture'));
+
+        Carbon::setTestNow(Carbon::now()->addHour());
+        $this->actingAs($this->charger())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('sessionlessHolds', 1)
+                ->where('sessionlessHolds.0.id', $intent->id)
+                ->where('sessionlessHolds.0.session_ref', $intent->reference));
+    }
+
     public function test_a_hold_the_ai_never_received_is_listed_for_a_person_to_key_in(): void
     {
         config(['payrallel.min_query_interval_ms' => 0, 'payrallel.mode' => 'preauth', 'payrallel.ai_capture' => true, 'payrallel.ai_person_after_minutes' => 30]);

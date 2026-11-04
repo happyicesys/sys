@@ -215,7 +215,7 @@ class FreezerReceiptTest extends TestCase
         $this->doorClosed(380);
         $sale = $this->trade(units: 1);
         $this->verdict('took_less', 1, 0, $sale);
-        $this->personChargesTheAiCount();
+        $this->service->reconcile();
 
         $this->assertSame(FreezerReceipt::NOTHING, $this->receipt()['status']);
         $this->get($this->link())->assertOk()->assertSee("You didn't take anything", false)->assertSee('not charging you anything');

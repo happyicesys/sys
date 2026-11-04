@@ -17,7 +17,7 @@
         {{ $page.props.flash.success }}
       </div>
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
-        <span class="inline-flex items-center gap-1 text-xs text-gray-500" tabindex="0" v-tooltip="$t('Each row is one Smart Freezer door session: the camera videos Zijia pushed, what their AI saw taken, and how that compares with what the customer paid for. A sale paid on a T05 card terminal is charged on its own only when the AI matches what was paid; anything else waits for a person to key in the charge. NETS and QR sales were charged at the machine.')">
+        <span class="inline-flex items-center gap-1 text-xs text-gray-500" tabindex="0" v-tooltip="$t('Each row is one Smart Freezer door session: the camera videos Zijia pushed, what their AI saw taken, and how that compares with what the customer paid for. A sale paid on a T05 card terminal settles on its own only when the AI matches what was paid (charged) or saw nothing taken (the hold is released); anything else waits for a person to key in the charge. NETS and QR sales were charged at the machine.')">
           <InformationCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t('About this page') }}
         </span>
 

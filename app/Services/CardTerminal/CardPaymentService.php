@@ -178,6 +178,16 @@ class CardPaymentService
     public function capture(CardPaymentIntent $intent, int $cents, ?string $sessionRef = null): CardPaymentIntent
     {
         return $this->locked($intent, function (CardPaymentIntent $intent) use ($cents, $sessionRef) {
+            // The device was silent past the void window (closeUnconfirmed), and now names its session.
+            if ($intent->state === CardPaymentIntent::STATE_AWAITING_AI && $intent->session_ref === null && $sessionRef !== null) {
+                $intent->update([
+                    'session_ref' => $sessionRef,
+                    'door_closed_at' => Carbon::now(),
+                    'ai_decision' => ['cart_cents' => min($cents, (int) $intent->amount_cents)] + (array) $intent->ai_decision,
+                ]);
+
+                return $this->settleAwaitingAiLocked($intent);
+            }
             // CAPTURING: a capture was sent and its answer is unknown — never send another.
             if (in_array($intent->state, [CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_AWAITING_AI, CardPaymentIntent::STATE_CAPTURING], true)) {
                 return $intent;
@@ -360,8 +370,8 @@ class CardPaymentService
                 }));
             });
 
-        // Holds waiting on their AI verdict: a match is charged as soon as it is in. Anything else
-        // is never charged on its own — a person keys it in (chargeByPerson). A decided charge the provider
+        // Holds waiting on their AI verdict: a match is charged and nothing taken released as soon as
+        // it is in. Anything else is never settled on its own — a person keys it in (chargeByPerson). A decided charge the provider
         // refused is retried every AUTO_CAPTURE_RETRY_MINUTES (inside settleAwaitingAiLocked).
         CardPaymentIntent::query()
             ->where('state', CardPaymentIntent::STATE_AWAITING_AI)
@@ -424,10 +434,10 @@ class CardPaymentService
     }
 
     /**
-     * Charges a hold whose door has closed once the kiosk session's AI verdict in
-     * smart_freezer_recognitions is a match ({@see AiCaptureDecision}). Anything else is never
-     * charged on its own (Brian, 2026-11-03; no verdict: 2026-10-10, no 72 h backstop any more) —
-     * a person keys in the charge ({@see chargeByPerson}). A charge is always ONE capture: above the
+     * Settles a hold whose door has closed once the kiosk session's AI verdict in
+     * smart_freezer_recognitions is a match (charged) or nothing taken (released)
+     * ({@see AiCaptureDecision}). Anything else is never settled on its own (Brian, 2026-11-04; no
+     * verdict: 2026-10-10, no 72 h backstop any more) — a person keys in the charge ({@see chargeByPerson}). A charge is always ONE capture: above the
      * hold too, since Payrallel increments the authorisation on their backend (Brian, 2026-10-04); if
      * they refuse that increase, the hold itself is captured and the rest recorded in `owed_cents`.
      * The 08:30 health email lists every waiting hold: an uncaptured hold expires (~a month) and
@@ -666,11 +676,11 @@ class CardPaymentService
     public function personNeededBecause(CardPaymentIntent $intent): ?string
     {
         $decision = (array) $intent->ai_decision;
-        if ($intent->state !== CardPaymentIntent::STATE_AWAITING_AI || $intent->session_ref === null
+        if ($intent->state !== CardPaymentIntent::STATE_AWAITING_AI
             || isset($decision['action']) || isset($decision['uncertain']) || isset($decision['inflight'])) {
             return null;
         }
-        $answers = SmartFreezerRecognition::query()
+        $answers = $intent->session_ref === null ? collect() : SmartFreezerRecognition::query()
             ->where('vend_id', $intent->vend_id)
             ->where('session_ref', $intent->session_ref)
             ->where(fn ($q) => $q->whereNotNull('order_status')->orWhereNotNull('verdict'))
@@ -891,6 +901,16 @@ class CardPaymentService
     {
         if ($intent->state !== CardPaymentIntent::STATE_APPROVED) {
             return $intent; // the device confirmed or voided it meanwhile
+        }
+        // The door may never have opened, and no AI has seen it, so it is not one of the outcomes that
+        // settle on their own (Brian, 2026-11-04): the hold waits for a person, or for the device's
+        // late door close to name its session.
+        if ($intent->mode === CardPaymentIntent::MODE_PREAUTH && config('payrallel.ai_capture')) {
+            $intent->update(['state' => CardPaymentIntent::STATE_AWAITING_AI, 'ai_decision' => ['cart_cents' => (int) $intent->amount_cents]]);
+            $this->events->record('ai.unconfirmed_hold', ['hold_cents' => $intent->amount_cents], $intent->terminal, $intent->custom_order_id, null, 'warning');
+            Log::warning('Card hold unconfirmed by the device — waiting for a person', $this->logContext($intent));
+
+            return $intent;
         }
         if ($intent->mode === CardPaymentIntent::MODE_PREAUTH) {
             $intent = $this->sendCapture($intent, $intent->amount_cents, 'reconciler');

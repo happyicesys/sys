@@ -1168,11 +1168,12 @@ unrecognised). Rules:
   (every 10 min, last 7 days) judges it once the sale arrives.
 - **The verdict moves money and stock only on a T05 hold.** A sale paid on a
   Payrallel (T05) terminal by a freezer on app 26+ is charged when its session's verdict is a
-  match, else a person keys in the charge (`CardPaymentService::settleAwaitingAi`, see the Remote
-  card terminals section). Its stock follows the AI only once a person accepts its count
-  (Brian, 2026-11-03): the TRADE takes off the paid cart, then charging exactly the AI count
-  or a person's own count on Correct moves the difference to that basket, or puts it all back when
-  the count is nothing taken and the hold is released (`FreezerSaleAudit::stockBasket`,
+  match, released when the AI saw nothing taken, else a person keys in the charge
+  (`CardPaymentService::settleAwaitingAi`, see the Remote card terminals section). Its stock follows
+  the AI only once a person accepts its count (Brian, 2026-11-03) or the AI releases the hold: the
+  TRADE takes off the paid cart, then charging exactly the AI count or a person's own count on Correct
+  moves the difference to that basket, or puts it all back when the count is nothing taken and the
+  hold is released (`FreezerSaleAudit::stockBasket`,
   `FreezerStockLedger::followCharge`, once, recorded as `meta_json.audit.stock_moved`). Any other
   keyed-in amount or release, a device void and a Testing Mode sale move nothing. Sales audited
   before this: `freezer:apply-ai-stock {vend} --since= [--apply]`.
@@ -1714,15 +1715,27 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   The per-intent lock lives `CardPaymentService::lockSeconds()` = 3 × (timeout +
   connect timeout) + 10 s, the longest call chain under it; a device request that
   cannot get it answers 409 "busy — retry", never 500 (audit CARD-04).
+- **TEMPORARY rule while people audit the AI on this new rollout (Brian, 2026-11-04): a T05 hold
+  settles on its own in three outcomes only.** All ticks = charged. Door never opened, or opened and
+  nothing taken = the whole hold released: mark1 cannot tell these two apart and does not need to,
+  because the app settles a lid-never-lifted visit through the same door close and the AI answers both
+  with an empty list as `took_less` (`AiCaptureDecision`; 3 real never-opened sessions, 2026-11-02/03).
+  The safety rules below still apply, so an unverified answer or a paid product the AI was not asked
+  about (`incomplete`) waits. **A release cannot be undone**: if the AI missed goods that did leave,
+  Adjust Qty only records them as owed. **A hold the device never confirmed** used to be captured in
+  full after the void window; it now goes `awaiting_ai` with no session ref, is listed above the table
+  and in the health email, and a late door close names its session (it had never fired on prod;
+  `PAYRALLEL_AI_CAPTURE=false` keeps the old capture). If such a TRADE arrives with no session on the
+  hold, its sale counts at the cart total and does not follow a person's amount.
 - **Only a matching AI verdict charges a T05 hold on its own** (Brian, 2026-11-03: "once have any
   dispute or not sure from AI, we should not let AI to finalize the charge", reversing 2026-10-03's
   "the AI verdict decides"; plan `apk/smart-freezer/AI_GATED_CARD_CAPTURE_PLAN_2026-10-03.md`). A
   door-closed capture carrying `session_ref` (the kiosk txnRef = the TRADE's SFREF, freezer app 26+)
   charges nothing: the intent goes `awaiting_ai`, and `card-payments:reconcile` charges the cart once
   `smart_freezer_recognitions` (same vend + session_ref) has a `match` (`AiCaptureDecision`). **A
-  mismatch waits for a person** (took_less / took_more / mixed, `PERSON_AI_MISMATCH`; 50001 had been
-  captured at 11.30 on an 8.80 hold and 11.40 on a 10.00 hold on 2026-11-03): what the AI saw, valued at
-  the price paid in that sale else the machine's `vend_channels.amount`, nothing taken = 0, is only a
+  mismatch waits for a person** (took_less with something taken / took_more / mixed, `PERSON_AI_MISMATCH`;
+  50001 had been captured at 11.30 on an 8.80 hold and 11.40 on a 10.00 hold on 2026-11-03): what the AI saw,
+  valued at the price paid in that sale else the machine's `vend_channels.amount`, is only a
   suggestion (`personSuggestedCents`, "Use the AI count" on the key-in dialog). Charging exactly that
   makes the sale's basket follow the AI's; any other amount leaves the basket alone and the invoice
   shows an Adjustment line. **What the AI cannot judge waits too, with no suggestion**
@@ -1740,8 +1753,8 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   `awaiting_ai` until a person presses **Key in charge** on AI Recognition, keys in the final
   amount and confirms it twice (`CardPaymentService::chargeByPerson`, route
   `ai-recognition/card-holds/{intent}/charge`, permission `charge ai-recognition`: superadmin,
-  admin). `personNeededBecause()` is the one rule: any verdict but a match, or an answer without
-  one, can be keyed in at once; a session the AI never answered only `payrallel.ai_person_after_minutes` (30) after the
+  admin). `personNeededBecause()` is the one rule: any verdict but a match or nothing taken, or an
+  answer without one, can be keyed in at once; a session the AI never answered only `payrallel.ai_person_after_minutes` (30) after the
   door closed, so a late answer is not pre-empted. A hold whose session Zijia never pushed has no
   row on the page, so it is listed above the table ("T05 card holds with no AI session"). 0 releases
   the hold; above the hold is the same one capture with the hold as fallback; the person is kept

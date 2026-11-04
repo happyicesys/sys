@@ -329,7 +329,7 @@ class FreezerSaleAuditTest extends TestCase
         $sale = $this->trade();
         $this->verdict('took_less', 0, $sale);
 
-        $this->personChargesTheAiCount();
+        $this->service->reconcile();
 
         $sale->refresh();
         $this->assertSame(0, (int) $sale->amount);
@@ -377,7 +377,7 @@ class FreezerSaleAuditTest extends TestCase
         $sale = $this->trade();
         $this->verdict('took_less', 0, $sale);
 
-        $this->personChargesTheAiCount();
+        $this->service->reconcile();
 
         $this->assertSame(VendTransaction::SETTLEMENT_REFUNDED, (int) $sale->fresh()->settlement_status);
         $this->assertSame(5, $this->stockOnShelf());
@@ -525,7 +525,7 @@ class FreezerSaleAuditTest extends TestCase
         $this->assertSame([0, 0], $todayCount(), 'held for its audit: no amount and no qty');
 
         $this->verdict('took_less', 0, $sale);
-        $this->personChargesTheAiCount();
+        $this->service->reconcile();
         $this->assertSame(VendTransaction::SETTLEMENT_REFUNDED, (int) $sale->fresh()->settlement_status);
         $this->assertGreaterThan(0, (int) $sale->fresh()->success_qty, 'precondition: a released hold keeps its qty');
         $this->assertSame([0, 0], $todayCount(), 'released hold: never a sale');

@@ -314,9 +314,9 @@ class CardPaymentServiceTest extends TestCase
         $this->assertSame('preauth', $config['mode']);
     }
 
-    public function test_an_unconfirmed_preauth_hold_is_captured_after_the_void_window(): void
+    public function test_with_ai_capture_off_an_unconfirmed_preauth_hold_is_captured_after_the_void_window(): void
     {
-        config(['payrallel.mode' => 'preauth']);
+        config(['payrallel.mode' => 'preauth', 'payrallel.ai_capture' => false]);
         $intent = $this->start();
         $this->gateway->answer($this->order(), T::APPROVED);
         $this->service->refresh($intent);
@@ -338,7 +338,7 @@ class CardPaymentServiceTest extends TestCase
 
     public function test_a_refused_auto_capture_stays_approved_and_is_retried(): void
     {
-        config(['payrallel.mode' => 'preauth']);
+        config(['payrallel.mode' => 'preauth', 'payrallel.ai_capture' => false]);
         $intent = $this->start();
         $this->gateway->answer($this->order(), T::APPROVED);
         $this->service->refresh($intent);
@@ -376,7 +376,7 @@ class CardPaymentServiceTest extends TestCase
     /** CARD-02: a timed-out auto-capture may have charged the card — never send it again. */
     public function test_an_auto_capture_timeout_is_flagged_and_never_resent(): void
     {
-        config(['payrallel.mode' => 'preauth']);
+        config(['payrallel.mode' => 'preauth', 'payrallel.ai_capture' => false]);
         $intent = $this->start();
         $this->gateway->answer($this->order(), T::APPROVED);
         $this->service->refresh($intent);

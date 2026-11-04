@@ -432,7 +432,7 @@ class CardSettlementHandsOffTest extends TestCase
         $intent(['state' => 'awaiting_ai', 'ai_decision' => ['action' => 'capture', 'capture_cents' => 760, 'uncertain' => 760]]);
         $intent(['state' => 'captured', 'owed_cents' => 200, 'last_error' => null, 'ai_decision' => ['increment_refused' => 'HTTP 422']]);
         $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subDays(3), 'session_ref' => 'SF-1-0-1']); // the AI never answered
-        $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subHour()]); // waiting normally: not listed
+        $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subMinutes(5), 'session_ref' => 'SF-1-2-1']); // waiting normally: not listed
         // The AI answered without a verdict: listed at once, it is never charged on its own.
         $intent(['state' => 'awaiting_ai', 'door_closed_at' => now()->subHour(), 'session_ref' => 'SF-1-1-1']);
         \App\Models\SmartFreezerRecognition::query()->create([

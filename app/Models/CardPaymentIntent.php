@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *             └──timeout / 5xx / run died──▶ stays capturing, flagged, until a person resolves it
  *
  *   approved ──door closed + session ref (preauth, ai_capture)──▶ awaiting_ai
+ *   approved ──device silent past the void window (preauth, ai_capture)──▶ awaiting_ai, no session ref
  *   awaiting_ai ──AI verdict / a person's keyed-in charge (no verdict)──▶ captured (the judged
  *                                          total in one capture, above the hold too) | voided
  *

@@ -161,15 +161,79 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame([['capture', '50001-SF1', 460]], $this->gateway->callsOf('capture'));
     }
 
-    public function test_nothing_taken_waits_then_a_person_releases_the_hold(): void
+    /** Door never opened, or opened and nothing left: the same door close and the same empty answer. */
+    public function test_nothing_taken_releases_the_whole_hold_on_its_own(): void
     {
         $this->doorClosed();
         $this->verdict('took_less', []);
-        $this->personChargesTheAiCount();
+        $this->service->reconcile();
 
-        $this->assertSame(CardPaymentIntent::STATE_VOIDED, CardPaymentIntent::sole()->state);
+        $intent = CardPaymentIntent::sole();
+        $this->assertSame(CardPaymentIntent::STATE_VOIDED, $intent->state);
         $this->assertSame([], $this->gateway->callsOf('capture'));
         $this->assertCount(1, $this->gateway->callsOf('void'));
+        $this->assertArrayNotHasKey('by_person', $intent->ai_decision);
+        $this->assertSame('AI saw nothing taken: hold released', $intent->ai_decision['reason']);
+        $this->assertNull($this->service->personNeededBecause($intent));
+    }
+
+    public function test_some_taken_never_releases_on_its_own(): void
+    {
+        $this->doorClosed();
+        $this->verdict('took_less', [2 => 1]);
+        $this->service->reconcile();
+
+        $this->assertSame([], $this->gateway->callsOf('void'));
+        $this->assertSame(CardPaymentService::PERSON_AI_MISMATCH, $this->service->personNeededBecause(CardPaymentIntent::sole()));
+    }
+
+    public function test_nothing_taken_on_an_unverified_answer_waits_for_a_person(): void
+    {
+        $this->doorClosed();
+        $this->verdict('took_less', [], [], ['callback_verified' => false]);
+        $this->service->reconcile();
+
+        $this->assertSame([], $this->gateway->callsOf('void'));
+        $this->assertSame(CardPaymentService::PERSON_AI_UNSURE, $this->service->personNeededBecause(CardPaymentIntent::sole()));
+    }
+
+    /** The device never confirmed the door: not one of the outcomes that settle on their own. */
+    public function test_an_unconfirmed_hold_waits_for_a_person_instead_of_charging(): void
+    {
+        $intent = $this->service->authorize($this->vend, 'SF1', 760);
+        $this->gateway->answer('50001-SF1', T::APPROVED);
+        $this->service->refresh($intent);
+
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+        $this->service->reconcile();
+        $intent = $intent->fresh();
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state);
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+        $this->assertNull($this->service->personNeededBecause($intent), 'the device may still report in');
+
+        Carbon::setTestNow(Carbon::now()->addMinutes(31));
+        $this->assertSame(CardPaymentService::PERSON_AI_NO_ANSWER, $this->service->personNeededBecause($intent->fresh()));
+
+        $released = $this->service->chargeByPerson($intent->fresh(), 0, User::factory()->create());
+        $this->assertSame(CardPaymentIntent::STATE_VOIDED, $released->state);
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+    }
+
+    public function test_a_late_door_close_names_the_session_of_an_unconfirmed_hold(): void
+    {
+        $intent = $this->service->authorize($this->vend, 'SF1', 760);
+        $this->gateway->answer('50001-SF1', T::APPROVED);
+        $this->service->refresh($intent);
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+        $this->service->reconcile();
+
+        $late = $this->service->capture($intent->fresh(), 760, self::SESSION);
+        $this->assertSame(self::SESSION, $late->session_ref);
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $late->state);
+
+        $this->verdict('match', [1 => 2, 2 => 1]);
+        $this->service->reconcile();
+        $this->assertSame([['capture', '50001-SF1', 760]], $this->gateway->callsOf('capture'));
     }
 
     public function test_took_more_waits_then_is_one_capture_above_the_hold(): void

@@ -6,8 +6,8 @@ use App\Services\CardTerminal\AiCaptureDecision as D;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Brian's charge rule for a T05 hold (2026-11-03): only a match charges. A mismatch waits for a
- * person, with what the AI saw valued as a suggestion.
+ * Brian's charge rule for a T05 hold (2026-11-04): a match charges and nothing taken releases. Any
+ * other mismatch waits for a person, with what the AI saw valued as a suggestion.
  */
 class AiCaptureDecisionTest extends TestCase
 {
@@ -43,9 +43,22 @@ class AiCaptureDecisionTest extends TestCase
         $this->assertSuggests(D::decide(self::HOLD, self::HOLD, 'took_less', $this->lines(1, 1), self::PAID, []), 460, [1 => 1, 2 => 1]);
     }
 
-    public function test_nothing_taken_only_suggests_zero(): void
+    public function test_nothing_taken_releases_the_whole_hold(): void
     {
-        $this->assertSuggests(D::decide(self::HOLD, self::HOLD, 'took_less', $this->lines(0, 0), self::PAID, []), 0, []);
+        $d = D::decide(self::HOLD, self::HOLD, 'took_less', $this->lines(0, 0), self::PAID, []);
+
+        $this->assertSame([D::VOID, 0, null, 0, []], [$d->action, $d->captureCents, $d->fallbackCents, $d->judgedCents, $d->basket]);
+    }
+
+    public function test_a_took_less_with_no_lines_is_not_taken_for_nothing_taken(): void
+    {
+        $this->assertSame(D::PERSON, D::decide(self::HOLD, self::HOLD, 'took_less', [], self::PAID, [])->action);
+    }
+
+    /** A paid product the AI was never asked about: its "0 taken" is not evidence (50001, rec 9). */
+    public function test_an_incomplete_session_with_nothing_seen_is_not_released(): void
+    {
+        $this->assertSame(D::PERSON, D::decide(self::HOLD, self::HOLD, 'incomplete', $this->lines(0, 0), self::PAID, [])->action);
     }
 
     public function test_mixed_suggests_the_judged_value_at_the_shelf_price_for_the_extra(): void

@@ -510,7 +510,8 @@ class FreezerRecognitionController extends Controller
 
     /**
      * T05 holds waiting for a person whose door session has no row on this page at all — Zijia
-     * never pushed its videos, so there is nowhere else to key in the charge.
+     * never pushed its videos, or the device never confirmed the door and named no session — so
+     * there is nowhere else to key in the charge.
      *
      * @return list<array<string, mixed>>
      */
@@ -519,7 +520,6 @@ class FreezerRecognitionController extends Controller
         return CardPaymentIntent::query()
             ->with('vend:id,code,code_prefix')
             ->where('state', CardPaymentIntent::STATE_AWAITING_AI)
-            ->whereNotNull('session_ref')
             ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('smart_freezer_recognitions as r')
                 ->whereColumn('r.vend_id', 'card_payment_intents.vend_id')
                 ->whereColumn('r.session_ref', 'card_payment_intents.session_ref'))
@@ -530,7 +530,7 @@ class FreezerRecognitionController extends Controller
             ->map(fn (CardPaymentIntent $i) => [
                 'id' => $i->id,
                 'vend_label' => $i->vend?->codeLabel(),
-                'session_ref' => $i->session_ref,
+                'session_ref' => $i->session_ref ?? $i->reference,
                 'reference' => $i->reference,
                 'hold_cents' => $i->amount_cents,
                 'door_closed_at' => ($i->door_closed_at ?? $i->updated_at)?->format('Y-m-d H:i:s'),

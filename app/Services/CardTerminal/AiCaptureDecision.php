@@ -7,13 +7,18 @@ use App\Services\SmartFreezer\RecognitionVerdict;
 /**
  * What a T05 hold is charged once the kiosk session's AI verdict is in (Brian, 2026-10-03).
  *
- * Only a match charges on its own (Brian, 2026-11-03: "once have any dispute or not sure from AI,
- * we should not let AI to finalize the charge"). Everything else is {@see PERSON}: nothing is
- * charged or stored, and the hold waits for a person (CardPaymentService::chargeByPerson):
+ * TEMPORARY, while people audit the AI on this new rollout (Brian, 2026-11-04): only three outcomes
+ * settle on their own, a match, and nothing taken for either reason (the door never opened, or it
+ * opened and nothing left). Mark1 cannot tell those two apart: the lid-never-lifted session reaches
+ * it as the same door close, and the AI answers it with the same empty list. Everything else is
+ * {@see PERSON}: nothing is charged or stored, and the hold waits for a person
+ * (CardPaymentService::chargeByPerson; Brian, 2026-11-03: "once have any dispute or not sure from AI,
+ * we should not let AI to finalize the charge"):
  *
  *   match                         → the cart total, charged
+ *   took_less, nothing taken      → the whole hold released
  *   took_less / mixed / took_more → a person decides; what the AI saw is only a suggestion, in
- *                                   judgedCents + basket (nothing taken = 0)
+ *                                   judgedCents + basket
  *   anything the AI cannot judge  → a person decides, no suggestion: cannot judge, unrecognised,
  *                                   a taken product with no price
  *   no verdict                    → the same, without coming here (Brian 2026-10-10)
@@ -39,7 +44,7 @@ final class AiCaptureDecision
      *                                 the AI cannot judge
      * @param  array<int, int>|null  $basket  on PERSON, product id => units behind $judgedCents, so
      *                                        the sale's basket follows if a person charges exactly
-     *                                        that (FreezerSaleAudit); null otherwise
+     *                                        that (FreezerSaleAudit); [] on a release; null otherwise
      */
     private function __construct(
         public readonly string $action,
@@ -63,6 +68,9 @@ final class AiCaptureDecision
 
         if ($verdict === RecognitionVerdict::MATCH) {
             return new self(self::CAPTURE, $cart, null, $cart, 'AI matched the paid cart');
+        }
+        if ($verdict === RecognitionVerdict::TOOK_LESS && self::nothingTaken($lines)) {
+            return new self(self::VOID, 0, null, 0, 'AI saw nothing taken: hold released', []);
         }
         if (! in_array($verdict, [RecognitionVerdict::TOOK_LESS, RecognitionVerdict::TOOK_MORE, RecognitionVerdict::MIXED], true)) {
             return self::person("AI could not judge the session ({$verdict})");
@@ -98,6 +106,12 @@ final class AiCaptureDecision
     public static function person(string $why, ?int $suggestedCents = null, ?array $basket = null): self
     {
         return new self(self::PERSON, 0, null, $suggestedCents, $why, $basket);
+    }
+
+    /** @param  list<array{taken: int}>  $lines */
+    private static function nothingTaken(array $lines): bool
+    {
+        return $lines !== [] && array_filter($lines, fn ($line) => (int) ($line['taken'] ?? 0) > 0) === [];
     }
 
     private static function positive(mixed $cents): ?int
