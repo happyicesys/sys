@@ -726,7 +726,7 @@
 
        <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
-          <div class="cv-scroll overflow-scroll max-h-[900px] md:max-h-[1500px] shadow-sm ring-1 ring-black ring-opacity-5">
+          <div class="cv-scroll overflow-scroll max-h-[max(40rem,calc(100vh-6rem))] shadow-sm ring-1 ring-black ring-opacity-5">
               <table class="table-auto min-w-full border-separate" style="border-spacing: 0">
                   <thead class="">
                       <tr class="divide-x bg-gray-400">
