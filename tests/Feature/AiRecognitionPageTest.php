@@ -200,6 +200,19 @@ class AiRecognitionPageTest extends TestCase
         });
     }
 
+    public function test_a_row_says_how_long_the_result_took_from_the_door_session(): void
+    {
+        $answered = $this->recognition(['trade_id' => 'ANSWERED', 'completed_at' => '2026-11-03 22:27:42']);
+        $answered->forceFill(['created_at' => '2026-11-03 22:25:30'])->save();
+        $this->recognition(['trade_id' => 'WAITING']);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(function (AssertableInertia $page) {
+            $rows = collect($page->toArray()['props']['recognitions']['data'])->keyBy('trade_id');
+            $this->assertSame(132, $rows['ANSWERED']['result_seconds']);
+            $this->assertNull($rows['WAITING']['result_seconds']);
+        });
+    }
+
     public function test_a_row_names_the_site_the_sale_was_booked_to_with_its_rp(): void
     {
         $booked = Customer::withoutGlobalScopes()->forceCreate(['name' => 'Hillview', 'selling_price_type' => 2, 'operator_id' => 1]);

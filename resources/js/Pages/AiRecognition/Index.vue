@@ -309,6 +309,7 @@
                       <span v-if="row.completed_at" class="text-xs text-gray-500" :title="$t('When the AI result came back')">
                         {{ $t('result :time', { time: row.completed_at.substring(11) }) }}
                       </span>
+                      <span v-if="row.result_seconds !== null" class="text-xs text-gray-500 whitespace-nowrap" tabindex="0" v-tooltip="$t('How long the AI result took, from the door session')">Δ {{ durationText(row.result_seconds) }}</span>
                     </div>
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
@@ -599,6 +600,9 @@ const verdictLabels = {
 }
 
 // What a verdict symbol means, on the line's hover and in the legend.
+// "0d 0h 4m", whole minutes rounded down.
+const durationText = (seconds) => `${Math.floor(seconds / 86400)}d ${Math.floor(seconds % 86400 / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`
+
 const CHECK_KINDS = {
   ok: { meaning: tk('Paid and taken') },
   extra: { meaning: tk('Taken, not paid') },

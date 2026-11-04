@@ -285,6 +285,8 @@ class FreezerRecognitionController extends Controller
             'id' => $r->id,
             'created_at' => $r->created_at?->format('Y-m-d H:i:s'),
             'completed_at' => $r->completed_at?->format('Y-m-d H:i:s'),
+            // How long the result took, from the door session (when its videos reached us).
+            'result_seconds' => $r->created_at && $r->completed_at ? max(0, $r->completed_at->timestamp - $r->created_at->timestamp) : null,
             'vend_id' => $r->vend_id,
             'vend_label' => $r->vend?->codeLabel(),
             'device_id' => $r->device_id,

@@ -1592,8 +1592,8 @@ permission `ai-recognition` read: superadmin/admin/supervisor) lists every recog
 the sale's Order ID and Transaction DateTime first (Brian, 2026-11-03: the reference and the time
 shared with Sales Transactions; they lead the sort, date filter and search, and the door session,
 when the videos reached us minutes later, stands in only until a sale is matched), machine, Zijia's
-order no + our SF ref, the sale's Site and that Site's current RP (the machine's Site until a sale is matched), links
-to the original videos, and **Verification** (2026-11-03, a user's sketch: Paid For, AI Saw Taken and Verdict vs Paid
+order no + our SF ref, the sale's Site and that Site's current RP (the machine's Site until a sale is matched), how
+long the result took from the door session ("Δ 0d 0h 2m"), links to the original videos, and **Verification** (2026-11-03, a user's sketch: Paid For, AI Saw Taken and Verdict vs Paid
 merged, `ai_check` on each row): one line per product, photo (name and item code on hover), price (paid, else the
 machine's at that moment, "(HH 30%)" under it when Happy Hour priced it), Paid, AI saw, a verdict of ✓ / +n / −n / ?
 with its meaning on hover, problems first, and once a person adjusted the sale an Adjusted count per line with who and
