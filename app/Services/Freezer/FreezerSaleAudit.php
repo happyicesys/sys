@@ -2,6 +2,7 @@
 
 namespace App\Services\Freezer;
 
+use App\Jobs\Vend\RefreshMachineSalesDay;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Models\CardPaymentIntent;
 use App\Models\Product;
@@ -158,14 +159,14 @@ class FreezerSaleAudit
             array_map('intval', (array) (((array) $intent->ai_decision)['unit_prices'] ?? [])));
 
         // The sale's money moved after it was first written. If its day has already closed,
-        // tonight's rollup must rebuild that day, and the Ops Dashboard totals need a resync.
+        // tonight's rollup must rebuild that day, and the Ops Dashboard needs the new figures.
         $this->lateTrades->noteLanded($sale);
         if ($vend = ($sale->vend ?? $intent->vend)) {
             // Happy Hour tags again: a rebuilt basket has new item rows, and a slot totalled while
             // this sale was held left it out (results() counts settled sales only). Tagging a slot
             // that has closed re-opens its totals, so the minute run recounts it. Never throws.
             $this->happyHour->tag($vend, $sale->fresh());
-            SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
+            $this->refreshFigures($vend, $sale);
         }
 
         return $sale;
@@ -205,7 +206,7 @@ class FreezerSaleAudit
 
         $this->lateTrades->noteLanded($sale);
         if ($vend = $sale->vend) {
-            SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
+            $this->refreshFigures($vend, $sale);
         }
     }
 
@@ -243,8 +244,27 @@ class FreezerSaleAudit
         $this->lateTrades->noteLanded($sale);
         if ($vend = $sale->vend) {
             $this->happyHour->tag($vend, $sale->fresh());
-            SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
+            $this->refreshFigures($vend, $sale);
         }
+    }
+
+    /**
+     * The Ops Dashboard reads a closed day from vend_records, written once at 00:06, while Sales
+     * Transactions reads the sales themselves. A refund or correction the next morning split the two
+     * until the 02:00 dirty pass (50001, 2026-11-03: S$38.80 against S$34.90), so that machine's day is
+     * rebuilt now. The day stays dirty: the 02:00 pass still does the product and GP rollups.
+     */
+    private function refreshFigures(Vend $vend, VendTransaction $sale): void
+    {
+        $day = Carbon::parse($sale->transaction_datetime)->toDateString();
+
+        if ($day < Carbon::now()->toDateString()) {
+            RefreshMachineSalesDay::dispatch((int) $vend->id, $day)->onQueue('default')->afterCommit();
+
+            return;
+        }
+
+        SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
     }
 
     /**

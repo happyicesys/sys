@@ -1746,6 +1746,9 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   whose intent was resolved in the last 48 h by any path (person, `resolve-charge`, device void). A
   TRADE landing after its charge was decided is booked at once. A cabinet with no barcoded product is
   never held. Regression coverage: `tests/Feature/FreezerSaleAuditTest.php`.
+  A settle, T05 refund or AI Recognition correction on a closed day runs `RefreshMachineSalesDay`: that
+  machine's `vend_records` row, then its totals JSON, so the Ops Dashboard matches Sales Transactions at
+  once. The product and GP rollups still wait for the 02:00 dirty pass.
 - Only an exact provider `approved` approves (`PayrallelGateway::query`); an
   unknown word stays processing.
 - Device requests are HMAC-signed with the vend's `private_key`

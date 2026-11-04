@@ -23,11 +23,17 @@ class StoreVendsRecord implements ShouldQueue
 
     protected $seedActive;
 
-    public function __construct($from, $to, $seedActive = false)
+    protected $vendId;
+
+    /**
+     * @param  int|null  $vendId  rebuild this one machine only (RefreshMachineSalesDay); null = the fleet
+     */
+    public function __construct($from, $to, $seedActive = false, $vendId = null)
     {
         $this->from = $from;
         $this->to = $to;
         $this->seedActive = $seedActive;
+        $this->vendId = $vendId;
     }
 
     public function handle(): void
@@ -63,6 +69,7 @@ class StoreVendsRecord implements ShouldQueue
             // Unified transactions: only SETTLED rows feed the daily vend_records
             // rollup (no-op for legacy/non-gateway rows, which default to SETTLED).
             ->where('vt.settlement_status', \App\Models\VendTransaction::SETTLEMENT_SETTLED)
+            ->when($this->vendId, fn ($query) => $query->where('vt.vend_id', $this->vendId))
             ->select(
                 'v.id AS vend_id',
                 'v.code as vend_code',
@@ -153,6 +160,10 @@ class StoreVendsRecord implements ShouldQueue
             );
         }
 
+        if ($this->vendId) {
+            $this->zeroEmptiedRows($results);
+        }
+
         // also init the vends without transactions
         if ($vendWithTransactions and $this->seedActive) {
             foreach ($vendWithTransactions as $date => $vendIDs) {
@@ -205,5 +216,34 @@ class StoreVendsRecord implements ShouldQueue
                 }
             }
         }
+    }
+
+    /**
+     * A machine-only rebuild has no seeding pass to reset a row whose last sale just stopped counting
+     * (the only sale of the day fully refunded): the query returns nothing for it, so it would keep its
+     * old figures.
+     */
+    private function zeroEmptiedRows($results): void
+    {
+        $kept = $results->map(fn ($row) => $row->date.'|'.$row->customer_id)->all();
+
+        VendRecord::where('vend_id', $this->vendId)
+            ->whereBetween('date', [Carbon::parse($this->from)->startOfDay(), Carbon::parse($this->to)->endOfDay()])
+            ->get()
+            ->reject(fn ($record) => in_array(Carbon::parse($record->date)->toDateString().'|'.$record->customer_id, $kept, true))
+            ->each(fn ($record) => $record->update([
+                'total_amount' => 0,
+                'total_count' => 0,
+                'all_total_count' => 0,
+                'error_count' => 0,
+                'revenue' => 0,
+                'gross_profit' => 0,
+                'failure_amount' => 0,
+                'failure_count' => 0,
+                'online_success_amount' => 0,
+                'online_success_count' => 0,
+                'online_failure_amount' => 0,
+                'online_failure_count' => 0,
+            ]));
     }
 }
