@@ -223,6 +223,31 @@
         </div>
       </div>
 
+      <!-- Totals over everything the filters list, in the box style of Sales Transactions. -->
+      <dl class="-mx-3 sm:-mx-6 lg:-mx-8 mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+        <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+          <dt class="text-base font-bold text-gray-800">
+            <span tabindex="0" v-tooltip="$t('Transactions not adjusted ÷ all transactions listed. Each transaction adjusted with Adjust Qty lowers the score. Follows the filters above.')">{{ $t('AI Score') }}</span>
+          </dt>
+          <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+            {{ score.score_pct === null ? '—' : score.score_pct.toFixed(2) + '%' }}
+          </dd>
+        </div>
+        <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+          <dt class="text-base font-bold text-gray-800">{{ $t('Total Transactions') }}</dt>
+          <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+            {{ score.total.toLocaleString() }}
+          </dd>
+        </div>
+        <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+          <dt class="text-base font-bold text-gray-800">{{ $t('Qty Adjusted') }}</dt>
+          <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+            {{ score.adjusted.toLocaleString() }}
+            <span v-if="score.adjusted_pct !== null" class="text-xs text-gray-500">({{ score.adjusted_pct.toFixed(2) }}%)</span>
+          </dd>
+        </div>
+      </dl>
+
       <div class="mt-6 flex flex-col">
         <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
@@ -580,6 +605,7 @@ import { t, tk } from '@/i18n';
 
 const props = defineProps({
   recognitions: Object,
+  score: Object,
   statuses: Array,
   verdicts: Array,
   canCharge: Boolean,
@@ -847,7 +873,7 @@ const correctionNotice = ref('')
 function correctionSaved(result) {
   correctRow.value = null
   correctionNotice.value = result.message
-  router.reload({ only: ['recognitions'] })
+  router.reload({ only: ['recognitions', 'score'] })
   // What the count says should go back: nothing is sent until the person presses Refund there.
   if (result.to_refund_cents > 0 && result.intent_id && props.canRefund) {
     refundIntentId.value = result.intent_id

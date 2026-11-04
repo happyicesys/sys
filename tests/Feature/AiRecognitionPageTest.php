@@ -70,6 +70,73 @@ class AiRecognitionPageTest extends TestCase
         $this->actingAs(User::factory()->create(['operator_id' => 1]))->get('/ai-recognition')->assertForbidden();
     }
 
+    /** A session whose sale carries a person's Adjust Qty count, or none. */
+    private function saleSession(string $orderId, bool $adjusted, array $attributes = [], ?Vend $vend = null): SmartFreezerRecognition
+    {
+        $vend ??= $this->vend;
+        $sale = VendTransaction::forceCreate([
+            'order_id' => $orderId, 'vend_id' => $vend->id, 'vend_channel_id' => 0, 'amount' => 350,
+            'transaction_datetime' => Carbon::parse('2026-09-30 10:00:00'), 'gst_vat_rate' => 9, 'operator_id' => $vend->operator_id,
+            'meta_json' => $adjusted ? ['correction' => ['basket' => [], 'lines' => [], 'value_cents' => 0]] : ['audit' => ['stock_moved' => []]],
+        ]);
+
+        return $this->recognition($attributes + ['vend_id' => $vend->id, 'vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED]);
+    }
+
+    public function test_the_score_deduct_each_adjusted_transaction_from_every_transaction_listed(): void
+    {
+        $this->saleSession('O-1', true);
+        $this->saleSession('O-2', false);
+        $this->saleSession('O-3', false);
+        $this->recognition(['status' => SmartFreezerRecognition::STATUS_FAILED]); // no sale: still a listed transaction
+
+        // The totals cover everything listed, not just the page on screen.
+        $this->actingAs($this->viewer())->get('/ai-recognition?numberPerPage=1')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('recognitions.data', 1)
+                ->where('score.total', 4)
+                ->where('score.adjusted', 1)
+                ->where('score.score_pct', 75)
+                ->where('score.adjusted_pct', 25)
+            );
+    }
+
+    public function test_the_score_follow_the_filters(): void
+    {
+        $this->saleSession('O-1', true, ['verdict' => 'mixed']);
+        $this->saleSession('O-2', false, ['verdict' => 'match']);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?verdict=match')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('score.total', 1)
+                ->where('score.adjusted', 0)
+                ->where('score.score_pct', 100)
+            );
+    }
+
+    public function test_the_score_stay_inside_the_viewers_operator(): void
+    {
+        $other = Vend::create(['code' => 50002, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER, 'is_active' => 1, 'operator_id' => 7]);
+        $this->saleSession('O-1', true);
+        $this->saleSession('O-2', false, [], $other);
+
+        $this->actingAs($this->viewer(7))->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('score.total', 1)
+                ->where('score.adjusted', 0)
+            );
+    }
+
+    public function test_the_score_have_no_score_when_nothing_is_listed(): void
+    {
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('score.total', 0)
+                ->where('score.adjusted', 0)
+                ->where('score.score_pct', null)
+            );
+    }
+
     public function test_a_row_carries_order_numbers_videos_the_ai_result_and_the_sale(): void
     {
         $magnum = Product::forceCreate(['code' => 'CC-01', 'name' => 'Magnum', 'operator_id' => 1, 'barcode' => '9726436016148']);

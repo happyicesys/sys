@@ -1660,6 +1660,8 @@ Each row is badged **AI** (`orderStatus` 0) or **Human** (any other
 code: Zijia's AI could not answer on its own) — one rule, `RecognitionResult::processedBy()`, which
 the badge and the Processed By filter (`processed_by`: all / ai / human / none) both read (Brian, 2026-10-09).
 
+**AI Score** (Brian, 2026-11-04; `FreezerRecognitionController::score`): boxes above the table, in Sales Transactions' style. Score = (transactions listed − those with `meta_json.correction`) ÷ transactions listed, over everything the filters list and the viewer may see, not just the page. Every recognition row counts, including one with no sale or no verdict, so a mismatch nobody has adjusted still reads as correct. Regression coverage: `tests/Feature/AiRecognitionPageTest.php`.
+
 **Sales Transactions → "AI Recognition" column** (`App\Services\SmartFreezer\RecognitionBadges`,
 attached per page in `VendController::transactionIndex` as `ai_recognition`): the verdict (or
 where the check stands), which links to that session on AI Recognition (what the AI saw is there, not in this narrow

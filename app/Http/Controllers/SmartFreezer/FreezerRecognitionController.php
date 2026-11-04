@@ -120,6 +120,7 @@ class FreezerRecognitionController extends Controller
             $query->whereIn('vend_id', Vend::withoutGlobalScopes()->select('id')->where('operator_id', $operatorId));
         }
 
+        $score = $this->score(clone $query);
         $page = $query->paginate($numberPerPage === 'All' ? 10000 : (int) $numberPerPage)->withQueryString();
         $names = $this->productNames($page->getCollection());
         $cards = $this->cardCharges($page->getCollection());
@@ -143,6 +144,7 @@ class FreezerRecognitionController extends Controller
         return Inertia::render('AiRecognition/Index', [
             // Resource-collection shape (data / links / meta) — what Components/Paginator.vue reads.
             'recognitions' => JsonResource::collection($page),
+            'score' => $score,
             // Per freezer, how many of its products the AI is asked about today (SKU Links).
             'aiCoverage' => array_values(app(ZijiaSkuLinks::class)->coverage(ZijiaSkuLinks::viewerVendIds())),
             'statuses' => [
@@ -177,6 +179,26 @@ class FreezerRecognitionController extends Controller
                 'sortBy' => $request->sortBy ?? false,
             ],
         ]);
+    }
+
+    /**
+     * The AI Score over everything the filters list, not just this page (Brian, 2026-11-04): every
+     * transaction starts correct, and each one a person changed with Adjust Qty is deducted. A raw
+     * EXISTS, so VendTransaction's global scopes cannot hide an adjusted sale from the count.
+     */
+    private function score($query): array
+    {
+        $total = (clone $query)->reorder()->count();
+        $adjusted = (clone $query)->reorder()->whereExists(fn ($sale) => $sale->from('vend_transactions')
+            ->whereColumn('vend_transactions.id', 'smart_freezer_recognitions.vend_transaction_id')
+            ->whereRaw("JSON_EXTRACT(vend_transactions.meta_json, '$.correction') IS NOT NULL"))->count();
+
+        return [
+            'total' => $total,
+            'adjusted' => $adjusted,
+            'score_pct' => $total > 0 ? round(($total - $adjusted) / $total * 100, 2) : null,
+            'adjusted_pct' => $total > 0 ? round($adjusted / $total * 100, 2) : null,
+        ];
     }
 
     /**
