@@ -2,7 +2,7 @@
 
 namespace App\Services\SmartFreezer;
 
-use App\Models\Product;
+use App\Models\CardPaymentIntent;
 use App\Models\SmartFreezerRecognition;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use Carbon\Carbon;
@@ -35,7 +35,7 @@ class RecognitionBadges
         }
 
         $columns = ['id', 'vend_transaction_id', 'session_ref', 'trade_id', 'status', 'status_reason', 'order_status',
-            'items', 'callback_payload', 'verdict', 'verdict_lines', 'created_at', 'submitted_at', 'completed_at'];
+            'callback_payload', 'verdict', 'verdict_lines', 'created_at', 'submitted_at', 'completed_at'];
         $byId = SmartFreezerRecognition::query()->whereIn('vend_transaction_id', $ids)->orderBy('id')->get($columns)
             ->keyBy('vend_transaction_id');
         $byRef = $refs->isEmpty() ? collect() : SmartFreezerRecognition::query()->whereIn('session_ref', $refs->values()->unique())
@@ -48,34 +48,32 @@ class RecognitionBadges
                 $matched[$sale->id] = $recognition;
             }
         }
-        // The AI answers in barcodes; one query names them for the whole page.
-        $codes = collect($matched)->flatMap(fn ($r) => array_map('strval', array_keys((array) $r->items)))->unique()->values();
-        $names = $codes->isEmpty() ? [] : Product::withoutGlobalScopes()->whereIn('barcode', $codes)->orderBy('id')
-            ->get(['barcode', 'name'])->unique('barcode')->pluck('name', 'barcode')->all();
+        // A hold a person keyed in without adjusting the count is handled too. One query for the page.
+        $keyedIn = collect($matched)->isEmpty() ? collect() : CardPaymentIntent::query()
+            ->whereIn('session_ref', collect($matched)->pluck('session_ref')->filter()->unique()->values())
+            ->orderBy('id')->get(['session_ref', 'ai_decision'])->keyBy('session_ref');
 
+        $saleById = $sales->keyBy('id');
         $out = [];
         foreach ($matched as $saleId => $recognition) {
-            $out[$saleId] = $this->badge($recognition, $names);
+            $out[$saleId] = $this->badge($recognition) + [
+                'handled' => $this->handled($saleById->get($saleId), $keyedIn->get($recognition->session_ref)),
+            ];
         }
 
         return $out;
     }
 
     /**
-     * @param  array<string, string>  $names  barcode => product name
      * @return array<string, mixed>
      */
-    public function badge(SmartFreezerRecognition $r, array $names = []): array
+    public function badge(SmartFreezerRecognition $r): array
     {
         return [
             'id' => $r->id,
             'status' => $r->status,
             'verdict' => $r->verdict,
             'reason' => $this->reason($r),
-            // What the AI saw taken.
-            'items' => collect((array) $r->items)->map(fn ($n, $code) => [
-                'code' => (string) $code, 'name' => $names[(string) $code] ?? null, 'number' => (int) $n,
-            ])->values()->all(),
             'mismatch' => collect((array) $r->verdict_lines)->filter(fn ($l) => ($l['delta'] ?? 0) !== 0)->values()->all(),
             // Processing time, in seconds: the AI's own turnaround (sent → result), and door
             // close → result (push received → result), which adds our wait and any hold-up.
@@ -117,6 +115,27 @@ class RecognitionBadges
         }
 
         return $r->status_reason !== null ? 'Note: '.$r->status_reason : null;
+    }
+
+    /**
+     * A person has dealt with this sale: their count (`meta_json.correction`, FreezerSaleCorrection) or
+     * their keyed-in charge (`ai_decision.by_person`). The AI's verdict is kept; this only says it is settled.
+     *
+     * @return array{kind: string, by: ?string}|null
+     */
+    private function handled(?object $sale, ?CardPaymentIntent $intent): ?array
+    {
+        $meta = $sale->meta_json ?? null;
+        if (is_string($meta)) {
+            $meta = json_decode($meta, true);
+        }
+        $correction = is_array($meta) ? ($meta['correction'] ?? null) : null;
+        if (is_array($correction)) {
+            return ['kind' => 'adjusted', 'by' => $correction['by']['name'] ?? null];
+        }
+        $person = $intent?->ai_decision['by_person'] ?? null;
+
+        return is_array($person) ? ['kind' => 'keyed_in', 'by' => $person['name'] ?? null] : null;
     }
 
     private function sessionRef(object $sale): ?string

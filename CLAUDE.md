@@ -1661,11 +1661,16 @@ the badge and the Processed By filter (`processed_by`: all / ai / human / none) 
 
 **Sales Transactions → "AI Recognition" column** (`App\Services\SmartFreezer\RecognitionBadges`,
 attached per page in `VendController::transactionIndex` as `ai_recognition`): the verdict (or
-where the check stands), what the AI saw, and the processing time — `ai_seconds` (sent → result,
+where the check stands), which links to that session on AI Recognition (what the AI saw is there, not in this narrow
+cell, Brian 2026-11-04), and the processing time — `ai_seconds` (sent → result,
 their turnaround) and `total_seconds` (videos received → result). A sale is matched by the
 recognition's `vend_transaction_id`, or before the verdict by its TRADE's `SFREF` =
 `session_ref`: two indexed lookups per page, no column on `vend_transactions`. Built for any
-AI-checked machine (a CityBox chiller once their order data exists). Regression coverage:
+AI-checked machine (a CityBox chiller once their order data exists). **Red means nobody has dealt with it** (Brian,
+2026-11-04): once a person adjusted the count (`meta_json.correction`) or keyed in the charge (`ai_decision.by_person`) the
+badge reads a solid blue Adjusted / Keyed in with who, the AI's verdict moving to the hover text (`handled`). AI Recognition
+follows the same three looks: red = a difference nobody has dealt with, blue = handled (the verdict pills go grey), grey
+buttons = nothing to do, and a Refund still owed stays red. Regression coverage:
 `tests/Feature/TransactionIndexAiRecognitionColumnTest.php`.
 
 Integration record, live proofs and open questions for Zijia:

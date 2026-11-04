@@ -385,7 +385,7 @@
                           <th class="pb-1 text-center font-medium">{{ $t('Paid') }}</th>
                           <th class="pb-1 text-center font-medium">{{ $t('AI saw') }}</th>
                           <th class="pb-1 text-center font-medium">{{ $t('Verdict') }}</th>
-                          <th class="pb-1 text-center font-medium text-indigo-700">{{ $t('Adjusted') }}</th>
+                          <th class="pb-1 text-center font-medium text-blue-700">{{ $t('Adjusted') }}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -403,13 +403,13 @@
                           <td class="py-1 text-center" tabindex="0" v-tooltip="$t(CHECK_KINDS[line.state].meaning)">
                             <CheckCircleIcon v-if="line.state === 'ok'" class="mx-auto h-5 w-5 text-green-600" :aria-label="$t(CHECK_KINDS.ok.meaning)" />
                             <QuestionMarkCircleIcon v-else-if="line.state === 'unknown'" class="mx-auto h-5 w-5 text-gray-400" :aria-label="$t(CHECK_KINDS.unknown.meaning)" />
-                            <span v-else-if="line.state === 'extra'" class="inline-flex min-w-[2rem] justify-center rounded-full bg-red-100 px-1.5 py-0.5 text-sm font-bold text-red-700">+{{ line.delta }}</span>
-                            <span v-else-if="line.state === 'missing'" class="inline-flex min-w-[2rem] justify-center rounded-full bg-amber-100 px-1.5 py-0.5 text-sm font-bold text-amber-800">−{{ -line.delta }}</span>
+                            <span v-else-if="line.state === 'extra'" :class="['inline-flex min-w-[2rem] justify-center rounded-full px-1.5 py-0.5 text-sm font-bold', isHandled(row) ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700']">+{{ line.delta }}</span>
+                            <span v-else-if="line.state === 'missing'" :class="['inline-flex min-w-[2rem] justify-center rounded-full px-1.5 py-0.5 text-sm font-bold', isHandled(row) ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-800']">−{{ -line.delta }}</span>
                             <span v-else-if="line.state === 'none'" class="text-gray-400">—</span>
                             <span v-else class="text-gray-400">…</span>
                           </td>
                           <td class="py-1 text-center text-sm">
-                            <span v-if="line.adjusted !== null" class="font-bold text-indigo-700">{{ line.adjusted }}</span>
+                            <span v-if="line.adjusted !== null" class="inline-flex min-w-[2rem] justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-sm font-bold text-white">{{ line.adjusted }}</span>
                             <span v-else class="text-gray-400" tabindex="0" v-tooltip="$t('Not adjusted')">—</span>
                           </td>
                         </tr>
@@ -418,7 +418,7 @@
                     <span v-else-if="row.algorithm_status !== null" class="text-xs text-gray-500">{{ $t('Nothing taken') }}</span>
                     <span v-else class="text-gray-400">—</span>
                     <!-- A person's count sits beside the AI's verdict, which is never overwritten. -->
-                    <div v-if="row.correction" class="mt-1 flex flex-wrap items-center gap-x-2 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-1 text-xs text-indigo-900">
+                    <div v-if="row.correction" class="mt-1 flex flex-wrap items-center gap-x-2 rounded border border-blue-700 bg-blue-600 px-1.5 py-1 text-xs text-white">
                       <span class="flex items-center gap-1 font-semibold"><PencilSquareIcon class="h-4 w-4 flex-none" aria-hidden="true" />{{ $t('Adjusted by :name', { name: row.correction.by }) }}</span>
                       <span class="whitespace-nowrap">{{ row.correction.at }}</span>
                     </div>
@@ -435,13 +435,14 @@
                       <span v-if="row.card.increment_refused" class="text-gray-600 whitespace-nowrap">{{ $t('Payrallel refused the increase; hold charged') }}</span>
                       <span v-if="row.card.owed_cents" class="text-red-700 whitespace-nowrap">{{ $t('Not charged yet :amount', { amount: formatCents(row.card.owed_cents) }) }}</span>
                       <span v-if="row.card.error" class="text-red-700">{{ row.card.error }}</span>
-                      <span v-if="row.card.by_person" class="text-gray-600 whitespace-nowrap">{{ $t('Keyed in by :name', { name: row.card.by_person }) }}</span>
+                      <span v-if="row.card.by_person" class="mx-auto inline-flex w-fit items-center whitespace-nowrap rounded border border-blue-700 bg-blue-600 px-1.5 py-0.5 font-bold text-white">{{ $t('Keyed in by :name', { name: row.card.by_person }) }}</span>
                       <span v-for="refund in row.card.refunds" :key="refund.id" class="text-rose-700 whitespace-nowrap">
                         {{ $t('Refunded :amount', { amount: formatCents(refund.amount_cents) }) }}
                         <span class="block text-gray-600">{{ refund.at }} · {{ refund.by }}</span>
                       </span>
                       <button v-if="row.card.state === 'captured' && canRefund" type="button"
-                        class="mx-auto mt-1 inline-flex items-center rounded-md border border-rose-600 bg-white px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 whitespace-nowrap"
+                        class="mx-auto mt-1 inline-flex items-center rounded-md border px-2 py-1 text-xs font-semibold whitespace-nowrap"
+                        :class="refundButtonClass(row)"
                         @click="refundIntentId = row.card.id"
                       >
                         {{ $t('Refund') }}
@@ -456,8 +457,8 @@
                     </div>
                     <span v-if="row.correction && row.correction.to_refund_cents" class="mt-1 block text-xs font-semibold text-rose-700 whitespace-nowrap">{{ $t('To refund :amount', { amount: formatCents(row.correction.to_refund_cents) }) }}</span>
                     <button v-if="row.can_correct && canCharge" type="button"
-                      class="mx-auto mt-1 inline-flex items-center rounded-md border border-indigo-600 px-2 py-1 text-xs font-semibold whitespace-nowrap"
-                      :class="row.card && row.card.awaits_person ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-indigo-700 hover:bg-indigo-50'"
+                      class="mx-auto mt-1 inline-flex items-center rounded-md border px-2 py-1 text-xs font-semibold whitespace-nowrap"
+                      :class="adjustButtonClass(row)"
                       @click="correctRow = row"
                     >
                       {{ $t('Adjust Qty') }}
@@ -698,6 +699,33 @@ function cardLabel(card) {
   if (card.state === 'captured') return t('T05 charged :amount (hold :hold)', { amount: formatCents(card.captured_cents), hold: formatCents(card.hold_cents) })
   if (card.state === 'voided') return t('T05 hold :amount released', { amount: formatCents(card.hold_cents) })
   return t('T05 :state', { state: card.state })
+}
+
+// Three looks, so a row says at a glance where it stands (Brian, 2026-11-04): red = the AI found a
+// difference and nobody has dealt with it, blue = a person has, grey = nothing to do.
+function isHandled(row) {
+  return !!(row.correction || row.card?.by_person)
+}
+
+function needsPerson(row) {
+  if (isHandled(row)) return false
+  return !!row.card?.awaits_person || (!!row.verdict && row.verdict !== 'match')
+}
+
+const BUTTON_RED = 'border-red-600 bg-red-600 text-white shadow-sm hover:bg-red-700'
+const BUTTON_BLUE = 'border-blue-700 bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+const BUTTON_QUIET = 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+
+function adjustButtonClass(row) {
+  if (isHandled(row)) return BUTTON_BLUE
+  return needsPerson(row) ? BUTTON_RED : BUTTON_QUIET
+}
+
+// Money still to go back outranks everything else on the row.
+function refundButtonClass(row) {
+  if (row.correction?.to_refund_cents) return BUTTON_RED
+  if (isHandled(row)) return BUTTON_BLUE
+  return needsPerson(row) ? 'border-red-600 bg-white text-red-700 hover:bg-red-50' : BUTTON_QUIET
 }
 
 function cardBadgeClass(card) {

@@ -17,7 +17,7 @@ use Tests\TestCase;
 /**
  * Sales Transactions "AI Recognition" column: each Smart Freezer sale carries the AI check of
  * its door session — found by the recognition's vend_transaction_id, or before the verdict by
- * the TRADE's SFREF = session_ref — with the verdict, what the AI saw and the processing time.
+ * the TRADE's SFREF = session_ref — with the verdict and the processing time.
  */
 class TransactionIndexAiRecognitionColumnTest extends TestCase
 {
@@ -77,7 +77,7 @@ class TransactionIndexAiRecognitionColumnTest extends TestCase
         return $rows;
     }
 
-    public function test_the_column_carries_the_verdict_what_the_ai_saw_and_the_processing_time(): void
+    public function test_the_column_carries_the_verdict_and_the_processing_time(): void
     {
         $judged = $this->sale('JUDGED', 'SF-50001-1790746050-1');
         $recognition = SmartFreezerRecognition::create([
@@ -110,7 +110,6 @@ class TransactionIndexAiRecognitionColumnTest extends TestCase
 
         $ai = $rows['JUDGED']['ai_recognition'];
         $this->assertSame('match', $ai['verdict']);
-        $this->assertSame([['code' => '9726436016148', 'name' => 'Basque Cheesecake', 'number' => 1]], $ai['items']);
         $this->assertSame(140, $ai['ai_seconds']);
         $this->assertSame(200, $ai['total_seconds']);
         $this->assertSame('SF-50001-1790746050-1-r3', $ai['trade_id']);
@@ -121,5 +120,45 @@ class TransactionIndexAiRecognitionColumnTest extends TestCase
         $this->assertSame('Reason: a product is not set up for camera checking yet', $rows['REFUSED']['ai_recognition']['reason']);
 
         $this->assertNull($rows['PLAIN']['ai_recognition']);
+    }
+
+    public function test_a_sale_a_person_adjusted_says_so_and_keeps_the_ai_verdict(): void
+    {
+        $sale = $this->sale('ORD-ADJ', 'SF-50001-1-4');
+        $sale->forceFill(['meta_json' => ['correction' => ['by' => ['name' => 'Daniel'], 'basket' => []]]])->save();
+        SmartFreezerRecognition::create([
+            'trade_id' => 'SF-50001-1-4', 'session_ref' => 'SF-50001-1-4', 'vend_id' => $this->vendId,
+            'vend_transaction_id' => $sale->id, 'status' => 'completed', 'verdict' => 'mixed',
+        ]);
+
+        $ai = $this->gridRows()['ORD-ADJ']['ai_recognition'];
+
+        $this->assertSame(['kind' => 'adjusted', 'by' => 'Daniel'], $ai['handled']);
+        $this->assertSame('mixed', $ai['verdict']);
+    }
+
+    public function test_a_hold_keyed_in_without_a_count_is_handled_and_an_untouched_one_is_not(): void
+    {
+        $keyed = $this->sale('ORD-KEY', 'SF-50001-2-4');
+        $open = $this->sale('ORD-OPEN', 'SF-50001-3-4');
+        foreach ([[$keyed, 'SF-50001-2-4'], [$open, 'SF-50001-3-4']] as [$sale, $ref]) {
+            SmartFreezerRecognition::create([
+                'trade_id' => $ref, 'session_ref' => $ref, 'vend_id' => $this->vendId,
+                'vend_transaction_id' => $sale->id, 'status' => 'completed', 'verdict' => 'mixed',
+            ]);
+        }
+        $terminal = \App\Models\RemoteCardTerminal::create([
+            'vend_id' => $this->vendId, 'provider' => \App\Models\RemoteCardTerminal::PROVIDER_PAYRALLEL,
+            'access_token' => 'tok', 'is_active' => true,
+        ]);
+        \App\Models\CardPaymentIntent::forceCreate([
+            'vend_id' => $this->vendId, 'remote_card_terminal_id' => $terminal->id, 'reference' => 'R-KEY', 'custom_order_id' => 'C-KEY', 'session_ref' => 'SF-50001-2-4',
+            'amount_cents' => 430, 'state' => 'captured', 'ai_decision' => ['by_person' => ['name' => 'Daniel']],
+        ]);
+
+        $rows = $this->gridRows();
+
+        $this->assertSame(['kind' => 'keyed_in', 'by' => 'Daniel'], $rows['ORD-KEY']['ai_recognition']['handled']);
+        $this->assertNull($rows['ORD-OPEN']['ai_recognition']['handled']);
     }
 }

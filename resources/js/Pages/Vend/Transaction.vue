@@ -1004,9 +1004,10 @@
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <!-- AI Recognition = the AI check of this sale's door session (Smart
                                  Freezer today; a CityBox chiller once it has one). Blank on every
-                                 other sale. Badges: the verdict (or where it stands), what the AI
-                                 saw, how long the check took (videos received → result) and, under it,
-                                 our wait vs the AI's own turnaround; the full timeline is in the tooltip. -->
+                                 other sale. Badges: the verdict (or where it stands), which opens this
+                                 session on AI Recognition, how long the check took (videos received →
+                                 result) and, under it, our wait vs the AI's own turnaround; the full
+                                 timeline is in the tooltip. -->
                             <div v-if="vendTransaction.ai_recognition"
                                 class="flex flex-col items-center space-y-0.5 leading-tight max-w-[6.5rem] mx-auto"
                                 :title="aiRecognitionTooltip(vendTransaction.ai_recognition)">
@@ -1016,9 +1017,9 @@
                                     :class="aiRecognitionBadge(vendTransaction.ai_recognition).cls">
                                     {{ aiRecognitionBadge(vendTransaction.ai_recognition).label }}
                                 </a>
-                                <span v-for="item in vendTransaction.ai_recognition.items" :key="item.code"
-                                    class="text-[10px] text-gray-700 break-words">
-                                    {{ item.number }} × {{ item.name || item.code }}
+                                <span v-if="vendTransaction.ai_recognition.handled?.by"
+                                    class="text-[10px] font-semibold text-blue-700 break-words">
+                                    {{ vendTransaction.ai_recognition.handled.kind === 'adjusted' ? $t('Adjusted by :name', { name: vendTransaction.ai_recognition.handled.by }) : $t('Keyed in by :name', { name: vendTransaction.ai_recognition.handled.by }) }}
                                 </span>
                                 <span v-if="vendTransaction.ai_recognition.total_seconds !== null"
                                     class="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold border bg-sky-50 text-sky-800 border-sky-200 whitespace-nowrap">
@@ -1388,7 +1389,13 @@ const aiStatusBadges = {
     completed: { label: t('Checked'), cls: 'bg-blue-100 text-blue-800 border-blue-300' },
     failed: { label: t('Check failed'), cls: 'bg-red-100 text-red-800 border-red-300' },
 }
-const aiRecognitionBadge = (ai) => (ai.verdict && aiVerdictBadges[ai.verdict])
+// Blue = a person has dealt with it (Brian, 2026-11-04): red only ever means nobody has yet.
+const aiHandledBadges = {
+    adjusted: { label: t('Adjusted'), cls: 'bg-blue-600 text-white border-blue-700' },
+    keyed_in: { label: t('Keyed in'), cls: 'bg-blue-600 text-white border-blue-700' },
+}
+const aiRecognitionBadge = (ai) => (ai.handled && aiHandledBadges[ai.handled.kind])
+    || (ai.verdict && aiVerdictBadges[ai.verdict])
     || aiStatusBadges[ai.status]
     || { label: ai.status, cls: 'bg-gray-100 text-gray-700 border-gray-300' }
 const formatDuration = (seconds) => {
@@ -1398,6 +1405,7 @@ const formatDuration = (seconds) => {
     return h ? h + 'h ' + m + 'm' : m + 'm ' + String(s).padStart(2, '0') + 's'
 }
 const aiRecognitionTooltip = (ai) => [
+    ai.handled && ai.verdict && aiVerdictBadges[ai.verdict] ? t('AI verdict: :verdict', { verdict: aiVerdictBadges[ai.verdict].label }) : null,
     t('Camera check of door opening :trade', { trade: ai.trade_id }),
     ai.received_at ? t('Video received :time', { time: ai.received_at }) : null,
     ai.submitted_at ? t('Sent for checking :time', { time: ai.submitted_at }) : null,
