@@ -2810,7 +2810,7 @@ onMounted(() => {
     vend_vend_config_version: props.vend.vend_vend_config_version ? {id: props.vend.vend_vend_config_version, value: props.vend.vend_vend_config_version} : null,
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
-      code: props.vend.customer && props.vend.customer.person_id ? props.vend.customer.virtual_customer_code + ' (' + props.vend.customer.virtual_customer_prefix + ')' : (props.vend.customer ? props.vend.customer.code : null),
+      code: props.vend.customer && props.vend.customer.person_id && props.vend.customer.virtual_customer_code ? props.vend.customer.virtual_customer_code + ' (' + props.vend.customer.virtual_customer_prefix + ')' : (props.vend.customer ? props.vend.customer.code : null),
       contact: props.vend.customer ? {
         ...JSON.parse(JSON.stringify(props.vend.customer.contact))
       } : {

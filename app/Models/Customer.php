@@ -313,6 +313,13 @@ class Customer extends Model
         return $this->id + self::RUNNING_NUMBER_INIT;
     }
 
+    // The edit forms used to build this from two empty CMS fields and save the
+    // text "null (null)". A page still open on the old bundle can send it again.
+    public function setCodeAttribute($value)
+    {
+        $this->attributes['code'] = $value === 'null (null)' ? null : $value;
+    }
+
     // relationships
     public function addresses()
     {

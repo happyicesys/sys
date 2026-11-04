@@ -517,9 +517,9 @@
                         :href="'/customers/' + customer.id + '/edit'"
                       >
                         <span
-                          v-if="customer.person_id && (customer.virtual_customer_code || customer.virtual_customer_prefix)"
+                          v-if="customer.person_id"
                         >
-                          <span v-if="customer.virtual_customer_code">
+                          <span>
                             {{ customer.id + 20000 }}
                           </span>
                           <br />

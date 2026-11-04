@@ -815,7 +815,7 @@ onMounted(() => {
     trigger_log_date: moment().format('YYYY-MM-DD'),
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
-      code: props.vend.customer && props.vend.customer.person_id ? props.vend.customer.virtual_customer_code + ' (' + props.vend.customer.virtual_customer_prefix + ')' : (props.vend.customer ? props.vend.customer.code : null),
+      code: props.vend.customer && props.vend.customer.person_id && props.vend.customer.virtual_customer_code ? props.vend.customer.virtual_customer_code + ' (' + props.vend.customer.virtual_customer_prefix + ')' : (props.vend.customer ? props.vend.customer.code : null),
       operator_id: props.vend.customer ? props.vend.customer.operator_id ? operatorOptions.value.find(operator => operator.id === props.vend.customer.operator_id) : null : null,
       contact: props.vend.customer ? {
         ...JSON.parse(JSON.stringify(props.vend.customer.contact))

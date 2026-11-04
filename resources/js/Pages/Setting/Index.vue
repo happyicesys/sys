@@ -562,8 +562,8 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                         <div class="flex flex-col space-y-2">
                           <a :class="[vend && vend.customer && vend.customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="'/customers/' + vend.customer.id + '/edit'" v-if="vend.customer">
-                            <span v-if="vend.customer.person_id && (vend.customer.virtual_customer_code || vend.customer.virtual_customer_prefix)">
-                              <span v-if="vend.customer.virtual_customer_code">
+                            <span v-if="vend.customer.person_id">
+                              <span>
                                 {{ vend.customer.id + 20000 }}
                               </span>
                               <!-- <span v-if="vend.customer.virtual_customer_prefix">

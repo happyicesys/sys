@@ -2460,7 +2460,7 @@ onMounted(() => {
   };
   form.value = props.customer ? useForm({
     ...JSON.parse(JSON.stringify(props.customer)),
-    code: props.customer && props.customer.person_id ? props.customer.virtual_customer_code + ' (' + props.customer.virtual_customer_prefix + ')' : (props.customer ? props.customer.code : null),
+    code: props.customer && props.customer.person_id && props.customer.virtual_customer_code ? props.customer.virtual_customer_code + ' (' + props.customer.virtual_customer_prefix + ')' : (props.customer ? props.customer.code : null),
     frequency_per_week_status: props.customer && props.customer.frequency_per_week_status ? frequencyPerWeekOptions.value.find(frequencyPerWeek => frequencyPerWeek.id == props.customer.frequency_per_week_status) : null,
     location_type_id: props.customer ? props.customer.location_type_id ? locationTypeOptions.value.find(locationType => locationType.id === props.customer.location_type_id) : null : null,
     operator_id: props.customer ? props.customer.operator_id ? operatorOptions.value.find(operator => operator.id === props.customer.operator_id) : null : null,
