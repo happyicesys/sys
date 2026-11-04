@@ -866,10 +866,10 @@
                                  customer agreed to stays in the tooltip. QR and NETS freezer sales
                                  are charged in full at door close and are unaffected. -->
                             <!-- Smart Freezer Testing Mode (freezer app v45): a technician's test purchase at
-                                 $0.10 a unit. Booked like any sale; mark1 moved no stock for it. -->
+                                 $0.20 a unit. Booked like any sale; mark1 moved no stock for it. -->
                             <span v-if="vendTransaction.is_test_sale"
                                 class="mr-1 inline-flex items-center rounded border border-fuchsia-300 bg-fuchsia-100 px-1 text-[10px] font-bold text-fuchsia-800 hover:cursor-help"
-                                :title="$t('Testing Mode sale: every item $0.10, no stock deducted')">{{ $t('TEST') }}</span>
+                                :title="$t('Testing Mode sale: every item $0.20, no stock deducted')">{{ $t('TEST') }}</span>
                             <span v-if="vendTransaction.audit_pending"
                                 class="inline-flex items-center justify-center gap-1 rounded border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-center text-xs font-semibold text-amber-800 hover:cursor-help"
                                 :title="auditPendingTooltip(vendTransaction)">

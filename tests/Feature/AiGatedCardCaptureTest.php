@@ -277,25 +277,25 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame(760, CardPaymentIntent::sole()->captured_cents);
     }
 
-    public function test_a_testing_mode_sale_charges_every_unit_at_ten_cents_an_extra_of_another_product_included(): void
+    public function test_a_testing_mode_sale_charges_every_unit_at_twenty_cents_an_extra_of_another_product_included(): void
     {
         // Product 3 sells at 200c on the shelf; a Testing Mode basket must not be charged that.
         DB::table('vend_channels')->insert(['vend_id' => $this->vend->id, 'code' => 31, 'product_id' => 3, 'amount' => 200]);
-        $intent = $this->service->authorize($this->vend, 'SF1', 30);
+        $intent = $this->service->authorize($this->vend, 'SF1', 60);
         $this->gateway->answer('50001-SF1', T::APPROVED);
-        $this->service->capture($this->service->refresh($intent), 30, self::SESSION);
+        $this->service->capture($this->service->refresh($intent), 60, self::SESSION);
         $this->verdict('took_more', [1 => 2, 2 => 1, 3 => 1], [
-            'amount' => 30,
+            'amount' => 60,
             'vend_transaction_json' => ['Type' => 'TRADE', 'SFREF' => self::SESSION, 'TXN_SRC' => 1, 'TEST' => 1, 'transf_info' => [
-                ['SId' => 11, 'goods_id' => 1, 'Price' => 10],
-                ['SId' => 11, 'goods_id' => 1, 'Price' => 10],
-                ['SId' => 12, 'goods_id' => 2, 'Price' => 10],
+                ['SId' => 11, 'goods_id' => 1, 'Price' => 20],
+                ['SId' => 11, 'goods_id' => 1, 'Price' => 20],
+                ['SId' => 12, 'goods_id' => 2, 'Price' => 20],
             ]],
         ]);
         $this->personChargesTheAiCount();
 
-        $this->assertSame([['capture', '50001-SF1', 40]], $this->gateway->callsOf('capture'), '4 units at 10c');
-        $this->assertSame(40, CardPaymentIntent::sole()->captured_cents);
+        $this->assertSame([['capture', '50001-SF1', 80]], $this->gateway->callsOf('capture'), '4 units at 20c');
+        $this->assertSame(80, CardPaymentIntent::sole()->captured_cents);
     }
 
     public function test_a_refused_increment_captures_the_hold_and_records_the_rest_owed(): void

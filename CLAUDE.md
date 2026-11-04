@@ -1651,7 +1651,7 @@ only the amount is known. T05 only; a PayNow or NETS door failure is not shown.
 **AI Recognition is the control panel** (Brian, 2026-11-03: "not only info"). **Adjust Qty** (`FreezerSaleCorrection`, the
 one writer; permission `charge ai-recognition`, admin + superadmin only (Brian); `ai-recognition/{recognition}/correction`) lets a
 person set how many of each product left the cabinet. Valued like the AI's own count: the price paid in that sale,
-else the machine's price at the door session, Happy Hour included; Testing Mode 10c. The sale's item rows and the stock
+else the machine's price at the door session, Happy Hour included; Testing Mode 20c. The sale's item rows and the stock
 always follow the count (`FreezerSaleAudit::applyCorrection`, `FreezerStockLedger::followCorrection`: only the
 difference moves, `audit.stock_moved` stays the whole movement against the TRADE, so correcting again and
 `freezer:rebuild-stock` agree). The money depends on where the sale stands: **hold open** → charged now through

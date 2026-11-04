@@ -24,7 +24,7 @@ use App\Models\VendTransaction;
 final class FreezerTestSale
 {
     /** What the freezer charges per item in Testing Mode (TestingMode.UNIT_PRICE in the app). */
-    public const UNIT_PRICE_CENTS = 10;
+    public const UNIT_PRICE_CENTS = 20;
 
     public static function is(?VendTransaction $sale): bool
     {

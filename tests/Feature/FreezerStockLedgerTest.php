@@ -70,12 +70,12 @@ class FreezerStockLedgerTest extends TestCase
         ]);
     }
 
-    /** A Testing Mode TRADE (freezer app v45): $0.10 a unit and `TEST`. */
+    /** A Testing Mode TRADE (freezer app): $0.20 a unit and `TEST`. */
     private function trialTrade(string $orderId, array $units): void
     {
         $this->trade($orderId, $units, [
-            'TEST' => 1, 'Price' => '0.'.str_pad((string) (10 * count($units)), 2, '0', STR_PAD_LEFT),
-            'transf_info' => array_map(fn ($err) => ['SId' => 41, 'SErr' => $err, 'Price' => 10, 'goods_id' => $this->cheesecake->id], $units),
+            'TEST' => 1, 'Price' => '0.'.str_pad((string) (20 * count($units)), 2, '0', STR_PAD_LEFT),
+            'transf_info' => array_map(fn ($err) => ['SId' => 41, 'SErr' => $err, 'Price' => 20, 'goods_id' => $this->cheesecake->id], $units),
         ]);
     }
 

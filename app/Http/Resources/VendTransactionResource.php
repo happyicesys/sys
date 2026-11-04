@@ -38,7 +38,7 @@ class VendTransactionResource extends JsonResource
             // (App\Services\Freezer\FreezerSaleAudit). The grid shows the cell as pending and
             // keeps the cart amount in its tooltip.
             'audit_pending' => ! empty($this->audit_pending_at),
-            // A Smart Freezer Testing Mode sale (TRADE TEST, App\Support\FreezerTestSale): $0.10 a unit, no stock moved.
+            // A Smart Freezer Testing Mode sale (TRADE TEST, App\Support\FreezerTestSale): $0.20 a unit, no stock moved.
             'is_test_sale' => FreezerTestSale::frameIsTest($this->vend_transaction_json ?? null),
             'audit_pending_at' => $this->formatUserDateTime($this->audit_pending_at ?? null),
             // Set once the camera AI has decided this sale, and only when its verdict CHANGED it

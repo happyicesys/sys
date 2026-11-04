@@ -341,16 +341,16 @@ class FreezerSaleCorrectionTest extends TestCase
         $this->assertArrayNotHasKey('correction', (array) $sale->fresh()->meta_json);
     }
 
-    public function test_a_testing_mode_sale_values_at_ten_cents_and_moves_no_stock(): void
+    public function test_a_testing_mode_sale_values_at_twenty_cents_and_moves_no_stock(): void
     {
-        $this->intent(['captured_cents' => 30, 'amount_cents' => 30]);
-        $sale = $this->sale(['amount' => 30, 'vend_transaction_json' => ['SFREF' => $this->sessionRef(), 'TXN_SRC' => 1, 'TEST' => 1, 'transf_info' => [
-            ['SId' => 11, 'SErr' => 0, 'goods_id' => $this->cone->id, 'Price' => 10],
-            ['SId' => 11, 'SErr' => 0, 'goods_id' => $this->cone->id, 'Price' => 10],
-            ['SId' => 12, 'SErr' => 0, 'goods_id' => $this->bar->id, 'Price' => 10],
+        $this->intent(['captured_cents' => 60, 'amount_cents' => 60]);
+        $sale = $this->sale(['amount' => 60, 'vend_transaction_json' => ['SFREF' => $this->sessionRef(), 'TXN_SRC' => 1, 'TEST' => 1, 'transf_info' => [
+            ['SId' => 11, 'SErr' => 0, 'goods_id' => $this->cone->id, 'Price' => 20],
+            ['SId' => 11, 'SErr' => 0, 'goods_id' => $this->cone->id, 'Price' => 20],
+            ['SId' => 12, 'SErr' => 0, 'goods_id' => $this->bar->id, 'Price' => 20],
         ]]]);
 
-        $this->correct($this->recognition($sale), [$this->cone->id => 1, $this->lolly->id => 1], 20)->assertOk()->assertJsonPath('to_refund_cents', 10);
+        $this->correct($this->recognition($sale), [$this->cone->id => 1, $this->lolly->id => 1], 40)->assertOk()->assertJsonPath('to_refund_cents', 20);
 
         $this->assertSame([10, 10, 10], [$this->qty($this->cone), $this->qty($this->bar), $this->qty($this->lolly)]);
     }
