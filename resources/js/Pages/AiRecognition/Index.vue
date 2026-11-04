@@ -242,6 +242,9 @@
                   <TableHead>
                     {{ $t('Machine') }}
                   </TableHead>
+                  <TableHead>
+                    {{ $t('Site / RP') }}
+                  </TableHead>
                   <TableHeadSort modelName="created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('created_at')">
                     <span :title="$t('When the door videos reached us, usually minutes after the sale')">{{ $t('Door Session') }}</span>
                   </TableHeadSort>
@@ -255,7 +258,7 @@
                     {{ $t('Sent to AI') }}
                   </TableHead>
                   <TableHeadSort modelName="verdict" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('verdict')">
-                    {{ $t('AI Check') }}
+                    {{ $t('Verification') }}
                   </TableHeadSort>
                   <TableHead>
                     {{ $t('Sale / Card charge') }}
@@ -293,6 +296,13 @@
                       <span v-if="row.device_id" class="text-xs text-gray-500" :title="$t('Device no / IMEI in the push')">{{ row.device_id }}</span>
                     </div>
                   </TableData>
+                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
+                    <div v-if="row.site" class="flex w-32 flex-col space-y-1 whitespace-normal">
+                      <span class="text-xs">{{ row.site.name }}</span>
+                      <span v-if="row.site.rp" class="inline-flex w-fit items-center rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs font-semibold text-gray-700">{{ row.site.rp }}</span>
+                    </div>
+                    <span v-else class="text-gray-400">—</span>
+                  </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
                     <div class="flex flex-col space-y-1">
                       <span>{{ row.created_at }}</span>
@@ -318,7 +328,7 @@
                       <span v-if="row.pushes > 1" class="text-gray-400" :title="$t('Zijia pushed this session more than once')">{{ $t(':count pushes', { count: row.pushes }) }}</span>
                     </div>
                   </TableData>
-                  <!-- Kept narrow: the long AI reason lives in a hover popup, AI Check gets the room. -->
+                  <!-- Kept narrow: the long AI reason lives in a hover popup, Verification gets the room. -->
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
                     <div class="flex w-[4.5rem] flex-col space-y-1">
                       <span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-bold border" :class="statusBadgeClass(row.status)">
@@ -357,7 +367,7 @@
                     </div>
                     <span v-else class="text-gray-400" :title="$t('Not sent to the AI yet')">—</span>
                   </TableData>
-                  <!-- AI Check: one line per product (Brian's user, 2026-11-03): photo, price, paid, AI saw, verdict. -->
+                  <!-- Verification: one line per product (Brian's user, 2026-11-03): photo, price, paid, AI saw, verdict, and a person's count once adjusted. -->
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
                     <span v-if="verdictNote(row)" class="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700" tabindex="0" v-tooltip="row.status_reason || row.algorithm_status || ''">
                       <QuestionMarkCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t(verdictNote(row)) }}
@@ -370,6 +380,7 @@
                           <th class="pb-1 pr-3 text-center font-medium">{{ $t('Paid') }}</th>
                           <th class="pb-1 pr-3 text-center font-medium">{{ $t('AI saw') }}</th>
                           <th class="pb-1 text-center font-medium">{{ $t('Verdict') }}</th>
+                          <th v-if="row.correction" class="pb-1 pl-3 text-center font-medium text-indigo-700">{{ $t('Adjusted') }}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -378,7 +389,10 @@
                             <img v-if="line.photo" :src="line.photo" :alt="line.name" loading="lazy" class="h-12 w-12 rounded object-contain bg-white" />
                             <span v-else class="flex h-12 w-12 items-center justify-center rounded bg-gray-100 text-center text-[10px] leading-tight text-gray-600 overflow-hidden">{{ line.code || line.name }}</span>
                           </td>
-                          <td class="py-1 pr-3 text-right text-gray-600">{{ line.unit_cents !== null ? formatCents(line.unit_cents) : '—' }}</td>
+                          <td class="py-1 pr-3 text-right text-gray-600">
+                            {{ line.unit_cents !== null ? formatCents(line.unit_cents) : '—' }}
+                            <span v-if="line.happy_hour" class="block whitespace-nowrap font-semibold text-amber-700" tabindex="0" v-tooltip="$t('Happy Hour')">({{ line.happy_hour }})</span>
+                          </td>
                           <td class="py-1 pr-3 text-center text-sm">{{ line.paid }}</td>
                           <td class="py-1 pr-3 text-center text-sm">{{ line.taken !== null ? line.taken : '—' }}</td>
                           <td class="py-1 text-center" tabindex="0" v-tooltip="$t(CHECK_KINDS[line.state].meaning)">
@@ -386,18 +400,19 @@
                             <QuestionMarkCircleIcon v-else-if="line.state === 'unknown'" class="mx-auto h-5 w-5 text-gray-400" :aria-label="$t(CHECK_KINDS.unknown.meaning)" />
                             <span v-else-if="line.state === 'extra'" class="inline-flex min-w-[2rem] justify-center rounded-full bg-red-100 px-1.5 py-0.5 text-sm font-bold text-red-700">+{{ line.delta }}</span>
                             <span v-else-if="line.state === 'missing'" class="inline-flex min-w-[2rem] justify-center rounded-full bg-amber-100 px-1.5 py-0.5 text-sm font-bold text-amber-800">−{{ -line.delta }}</span>
+                            <span v-else-if="line.state === 'none'" class="text-gray-400">—</span>
                             <span v-else class="text-gray-400">…</span>
                           </td>
+                          <td v-if="row.correction" class="py-1 pl-3 text-center text-sm font-bold text-indigo-700">{{ line.adjusted }}</td>
                         </tr>
                       </tbody>
                     </table>
                     <span v-else-if="row.algorithm_status !== null" class="text-xs text-gray-500">{{ $t('Nothing taken') }}</span>
                     <span v-else class="text-gray-400">—</span>
                     <!-- A person's count sits beside the AI's verdict, which is never overwritten. -->
-                    <div v-if="row.correction" class="mt-1 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-1 text-xs text-indigo-900" tabindex="0" v-tooltip="row.correction.at">
+                    <div v-if="row.correction" class="mt-1 flex flex-wrap items-center gap-x-2 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-1 text-xs text-indigo-900">
                       <span class="flex items-center gap-1 font-semibold"><PencilSquareIcon class="h-4 w-4 flex-none" aria-hidden="true" />{{ $t('Adjusted by :name', { name: row.correction.by }) }}</span>
-                      <span v-for="line in row.correction.lines" :key="line.product_id" class="block">{{ line.qty }} × {{ line.name }}</span>
-                      <span v-if="!row.correction.lines.length" class="block">{{ $t('Nothing taken') }}</span>
+                      <span class="whitespace-nowrap">{{ row.correction.at }}</span>
                     </div>
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
@@ -413,7 +428,10 @@
                       <span v-if="row.card.owed_cents" class="text-red-700 whitespace-nowrap">{{ $t('Not charged yet :amount', { amount: formatCents(row.card.owed_cents) }) }}</span>
                       <span v-if="row.card.error" class="text-red-700">{{ row.card.error }}</span>
                       <span v-if="row.card.by_person" class="text-gray-600 whitespace-nowrap">{{ $t('Keyed in by :name', { name: row.card.by_person }) }}</span>
-                      <span v-if="row.card.refunded_cents" class="text-rose-700 whitespace-nowrap">{{ $t('Refunded :amount', { amount: formatCents(row.card.refunded_cents) }) }}</span>
+                      <span v-for="refund in row.card.refunds" :key="refund.id" class="text-rose-700 whitespace-nowrap">
+                        {{ $t('Refunded :amount', { amount: formatCents(refund.amount_cents) }) }}
+                        <span class="block text-gray-600">{{ refund.at }} · {{ refund.by }}</span>
+                      </span>
                       <button v-if="row.card.state === 'captured' && canRefund" type="button"
                         class="mx-auto mt-1 inline-flex items-center rounded-md border border-rose-600 bg-white px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 whitespace-nowrap"
                         @click="refundIntentId = row.card.id"
@@ -439,7 +457,7 @@
                   </TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
-                  <td colspan="9" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td colspan="11" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                     {{ $t('No Results Found') }}
                   </td>
                 </tr>
@@ -587,6 +605,7 @@ const CHECK_KINDS = {
   missing: { meaning: tk('Paid, not taken') },
   unknown: { meaning: tk('AI could not check') },
   pending: { meaning: tk('Waiting for the AI') },
+  none: { meaning: tk('Not paid, and the AI did not see it') },
 }
 
 // The lines say what happened; only these two say something the lines cannot.

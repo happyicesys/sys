@@ -3,6 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\CardPaymentIntent;
+use App\Models\CardRefund;
+use App\Models\Customer;
+use App\Models\HappyHourCampaign;
+use App\Models\HappyHourSlot;
 use App\Models\Product;
 use App\Models\RemoteCardTerminal;
 use App\Models\SmartFreezerRecognition;
@@ -10,6 +14,7 @@ use App\Models\SmartFreezerVideo;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendTransaction;
+use App\Models\VendTransactionItem;
 use App\Services\CardTerminal\CardPaymentService;
 use App\Services\CardTerminal\Payrallel\PayrallelGateway;
 use App\Services\CardTerminal\TerminalTransaction;
@@ -119,7 +124,7 @@ class AiRecognitionPageTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.1.card', [
-                    'id' => $intent->id, 'state' => 'captured', 'hold_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200, 'refunded_cents' => 0,
+                    'id' => $intent->id, 'state' => 'captured', 'hold_cents' => 760, 'captured_cents' => 760, 'owed_cents' => 200, 'refunded_cents' => 0, 'refunds' => [],
                     'judged_cents' => 960, 'increment_refused' => true, 'uncertain_cents' => null,
                     'reason' => 'AI judged took_more above the hold: one capture with auth increment', 'error' => 'further charge refused: no',
                     'person_reason' => null, 'awaits_person' => false, 'ai_suggested_cents' => null, 'by_person' => null,
@@ -193,6 +198,126 @@ class AiRecognitionPageTest extends TestCase
             $this->assertSame([1, 0, -1], [$byCode['C']['paid'], $byCode['C']['taken'], $byCode['C']['delta']]);
             $this->assertSame('Eee', $byCode['E']['name']);
         });
+    }
+
+    public function test_a_row_names_the_site_the_sale_was_booked_to_with_its_rp(): void
+    {
+        $booked = Customer::withoutGlobalScopes()->forceCreate(['name' => 'Hillview', 'selling_price_type' => 2, 'operator_id' => 1]);
+        $now = Customer::withoutGlobalScopes()->forceCreate(['name' => 'Moved to', 'selling_price_type' => 3, 'operator_id' => 1]);
+        $this->vend->forceFill(['customer_id' => $now->id])->save();
+        $sale = VendTransaction::forceCreate(['order_id' => 'O-1', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'customer_id' => $booked->id, 'amount' => 100, 'transaction_datetime' => Carbon::now(), 'gst_vat_rate' => 9, 'operator_id' => 1]);
+        $this->recognition(['vend_transaction_id' => $sale->id, 'trade_id' => 'WITH-SALE']);
+        $this->recognition(['trade_id' => 'NO-SALE']);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(function (AssertableInertia $page) {
+            $rows = collect($page->toArray()['props']['recognitions']['data'])->keyBy('trade_id');
+            $this->assertSame(['Hillview', 'RP2'], [$rows['WITH-SALE']['site']['name'], $rows['WITH-SALE']['site']['rp']]);
+            $this->assertSame(['Moved to', 'RP3'], [$rows['NO-SALE']['site']['name'], $rows['NO-SALE']['site']['rp']], 'no sale yet: the machine\'s Site');
+        });
+    }
+
+    public function test_a_line_priced_by_happy_hour_says_so(): void
+    {
+        $single = Product::forceCreate(['code' => 'A', 'name' => 'Aye', 'operator_id' => 1, 'barcode' => '111']);
+        $promoLine = Product::forceCreate(['code' => 'B', 'name' => 'Bee', 'operator_id' => 1, 'barcode' => '222']);
+        $listLine = Product::forceCreate(['code' => 'C', 'name' => 'Cee', 'operator_id' => 1, 'barcode' => '333']);
+        $extra = Product::forceCreate(['code' => 'D', 'name' => 'Dee', 'operator_id' => 1, 'barcode' => '444']);
+        $campaign = HappyHourCampaign::forceCreate(['name' => 'Afternoon', 'window_start' => '00:00:00', 'window_end' => '23:59:00', 'discount_pct' => 30, 'price_step_cents' => 10, 'operator_id' => 1]);
+        $slot = fn (Product $product, int $pct) => HappyHourSlot::create([
+            'happy_hour_campaign_id' => $campaign->id, 'vend_id' => $this->vend->id, 'product_id' => $product->id,
+            'slot_date' => Carbon::now()->toDateString(), 'position' => 0, 'starts_at' => Carbon::now()->subMinutes(30), 'ends_at' => Carbon::now()->addMinutes(30),
+            'original_price' => 300, 'promo_price' => 210, 'discount_pct' => $pct, 'rank' => 1,
+        ]);
+
+        $singleSale = VendTransaction::forceCreate(['order_id' => 'O-1', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 210, 'transaction_datetime' => Carbon::now(), 'gst_vat_rate' => 9, 'operator_id' => 1,
+            'happy_hour_slot_id' => $slot($single, 30)->id,
+            'vend_transaction_json' => ['transf_info' => [['goods_id' => $single->id, 'Price' => 210]]]]);
+        $this->recognition(['vend_transaction_id' => $singleSale->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0, 'verdict' => 'match', 'created_at' => Carbon::now(), 'verdict_lines' => [
+            ['product_id' => $single->id, 'code' => '111', 'paid' => 1, 'taken' => 1, 'delta' => 0],
+        ]]);
+
+        $promoSlot = $slot($promoLine, 20);
+        $slot($extra, 40);
+        $basket = VendTransaction::forceCreate(['order_id' => 'O-2', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 510, 'is_multiple' => true, 'transaction_datetime' => Carbon::now()->subMinute(), 'gst_vat_rate' => 9, 'operator_id' => 1,
+            'happy_hour_slot_id' => $promoSlot->id,
+            'vend_transaction_json' => ['transf_info' => [['goods_id' => $promoLine->id, 'Price' => 210], ['goods_id' => $listLine->id, 'Price' => 300]]]]);
+        VendTransactionItem::forceCreate(['vend_transaction_id' => $basket->id, 'product_id' => $promoLine->id, 'unit_price_amount' => 210, 'vend_channel_id' => 0, 'happy_hour_slot_id' => $promoSlot->id]);
+        VendTransactionItem::forceCreate(['vend_transaction_id' => $basket->id, 'product_id' => $listLine->id, 'unit_price_amount' => 300, 'vend_channel_id' => 0]);
+        $this->recognition(['vend_transaction_id' => $basket->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0, 'verdict' => 'took_more', 'created_at' => Carbon::now()->subMinute(), 'verdict_lines' => [
+            ['product_id' => $promoLine->id, 'code' => '222', 'paid' => 1, 'taken' => 1, 'delta' => 0],
+            ['product_id' => $listLine->id, 'code' => '333', 'paid' => 1, 'taken' => 1, 'delta' => 0],
+            ['product_id' => $extra->id, 'code' => '444', 'paid' => 0, 'taken' => 1, 'delta' => 1],
+        ]]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(function (AssertableInertia $page) {
+            $rows = $page->toArray()['props']['recognitions']['data'];
+            $this->assertSame('HH 30%', $rows[0]['ai_check'][0]['happy_hour']);
+            $lines = collect($rows[1]['ai_check'])->keyBy('code');
+            $this->assertSame('HH 20%', $lines['B']['happy_hour']);
+            $this->assertNull($lines['C']['happy_hour'], 'a list-price line of the same basket');
+            $this->assertSame('HH 40%', $lines['D']['happy_hour'], 'an extra unit: the slot at that moment');
+        });
+    }
+
+    public function test_a_persons_count_sits_on_the_lines_with_who_and_when(): void
+    {
+        $paid = Product::forceCreate(['code' => 'A', 'name' => 'Aye', 'operator_id' => 1, 'barcode' => '111']);
+        $removed = Product::forceCreate(['code' => 'B', 'name' => 'Bee', 'operator_id' => 1, 'barcode' => '222']);
+        $added = Product::forceCreate(['code' => 'C', 'name' => 'Cee', 'operator_id' => 1, 'barcode' => '333']);
+        $sale = VendTransaction::forceCreate(['order_id' => 'O-1', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 500, 'transaction_datetime' => Carbon::now(), 'gst_vat_rate' => 9, 'operator_id' => 1,
+            'vend_transaction_json' => ['transf_info' => [['goods_id' => $paid->id, 'Price' => 100], ['goods_id' => $removed->id, 'Price' => 200]]],
+            'meta_json' => ['correction' => [
+                'at' => '2026-11-04T08:40:50+08:00', 'by' => ['name' => 'Daniel', 'user_id' => 2], 'value_cents' => 500,
+                'basket' => [$paid->id => 2, $added->id => 1],
+                'lines' => [['product_id' => $paid->id, 'name' => 'Aye', 'qty' => 2, 'unit_cents' => 100], ['product_id' => $added->id, 'name' => 'Cee', 'qty' => 1, 'unit_cents' => 300]],
+            ]]]);
+        $this->recognition(['vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0, 'verdict' => 'took_more', 'verdict_lines' => [
+            ['product_id' => $paid->id, 'code' => '111', 'paid' => 1, 'taken' => 3, 'delta' => 2],
+            ['product_id' => $removed->id, 'code' => '222', 'paid' => 1, 'taken' => 1, 'delta' => 0],
+        ]]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(function (AssertableInertia $page) {
+            $row = $page->toArray()['props']['recognitions']['data'][0];
+            $this->assertSame(['Daniel', '2026-11-04 08:40'], [$row['correction']['by'], $row['correction']['at']]);
+            $lines = collect($row['ai_check'])->keyBy('code');
+            $this->assertSame(2, $lines['A']['adjusted']);
+            $this->assertSame(0, $lines['B']['adjusted'], 'left out of the count = none taken');
+            $this->assertSame([1, 0, 0, 300, 'none'], [$lines['C']['adjusted'], $lines['C']['paid'], $lines['C']['taken'], $lines['C']['unit_cents'], $lines['C']['state']], 'only the person counted it');
+        });
+    }
+
+    public function test_the_ai_check_lines_have_no_adjusted_count_until_a_person_gives_one(): void
+    {
+        $product = Product::forceCreate(['code' => 'A', 'name' => 'Aye', 'operator_id' => 1, 'barcode' => '111']);
+        $sale = VendTransaction::forceCreate(['order_id' => 'O-1', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 100, 'transaction_datetime' => Carbon::now(), 'gst_vat_rate' => 9, 'operator_id' => 1,
+            'vend_transaction_json' => ['transf_info' => [['goods_id' => $product->id, 'Price' => 100]]]]);
+        $this->recognition(['vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0, 'verdict' => 'match', 'verdict_lines' => [
+            ['product_id' => $product->id, 'code' => '111', 'paid' => 1, 'taken' => 1, 'delta' => 0],
+        ]]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('recognitions.data.0.correction', null)
+            ->where('recognitions.data.0.ai_check.0.adjusted', null));
+    }
+
+    public function test_each_refund_that_went_back_says_when_and_who(): void
+    {
+        $terminal = RemoteCardTerminal::create(['vend_id' => $this->vend->id, 'provider' => 'payrallel', 'access_token' => 'tok', 'is_active' => true]);
+        $intent = CardPaymentIntent::create([
+            'vend_id' => $this->vend->id, 'remote_card_terminal_id' => $terminal->id, 'provider' => 'payrallel', 'reference' => 'SF1', 'custom_order_id' => '50001-SF1',
+            'session_ref' => 'SF-50001-1-1', 'mode' => CardPaymentIntent::MODE_PREAUTH, 'amount_cents' => 1000, 'captured_cents' => 1140, 'refunded_cents' => 140, 'state' => CardPaymentIntent::STATE_CAPTURED,
+        ]);
+        foreach ([[CardRefund::STATE_REFUNDED, 140], [CardRefund::STATE_REFUSED, 50]] as [$state, $cents]) {
+            $refund = CardRefund::create(['card_payment_intent_id' => $intent->id, 'kind' => CardRefund::KIND_CORRECTION, 'amount_cents' => $cents, 'state' => $state, 'requested_by_name' => 'Daniel']);
+            $refund->forceFill(['created_at' => '2026-11-04 08:42:21'])->save();
+        }
+        $this->recognition(['session_ref' => 'SF-50001-1-1']);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('recognitions.data.0.card.refunds', 1) // a refused refund is not money back
+            ->where('recognitions.data.0.card.refunds.0.amount_cents', 140)
+            ->where('recognitions.data.0.card.refunds.0.at', '2026-11-04 08:42')
+            ->where('recognitions.data.0.card.refunds.0.by', 'Daniel'));
     }
 
     public function test_the_ai_check_waits_for_an_answer_and_names_a_barcode_we_do_not_know(): void

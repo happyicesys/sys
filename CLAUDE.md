@@ -435,7 +435,8 @@ been returned, and always together with `auto_refund_source`
   report's verdict ("NETS report": Reversed / Captured, not reversed / Not
   captured / No report yet / No NETS terminal) so ops decide on evidence.
   See `CARD_SETTLEMENT_2026-09-01.md`.
-- **Payrallel (T05) — refunded by staff through their API (2026-11-03)**, per SKU or whole, from the
+- **Payrallel (T05) — refunded by staff through their API (2026-11-03; first real ones 2026-11-04, part of a charge
+  answers status `partially_refunded`, success)**, per SKU or whole, from the
   T05 panel (`T05RefundPanel.vue`) on AI Recognition and on a Refund Request; permission `verify refunds`.
   `CardRefundService` + `card_refunds`, `POST transactions/actions/refund` (`transactionId` + `amountInCents`,
   given to us by Payrallel, not in their public guide). **Name `card_payment_intents.capture_txn_id`, never
@@ -1591,10 +1592,13 @@ permission `ai-recognition` read: superadmin/admin/supervisor) lists every recog
 the sale's Order ID and Transaction DateTime first (Brian, 2026-11-03: the reference and the time
 shared with Sales Transactions; they lead the sort, date filter and search, and the door session,
 when the videos reached us minutes later, stands in only until a sale is matched), machine, Zijia's
-order no + our SF ref, links to the original videos, and **AI Check** (2026-11-03, a user's sketch: Paid For, AI Saw
-Taken and Verdict vs Paid merged, `ai_check` on each row): one line per product, photo (name and item code on hover),
-price (paid, else the machine's at that moment), Paid, AI saw, and a verdict of ✓ / +n / −n / ? with its meaning on
-hover, problems first. Explanations go in hover popups (`v-tooltip`), not on the page. Barcodes are in Sent to AI.
+order no + our SF ref, the sale's Site and that Site's current RP (the machine's Site until a sale is matched), links
+to the original videos, and **Verification** (2026-11-03, a user's sketch: Paid For, AI Saw Taken and Verdict vs Paid
+merged, `ai_check` on each row): one line per product, photo (name and item code on hover), price (paid, else the
+machine's at that moment, "(HH 30%)" under it when Happy Hour priced it), Paid, AI saw, a verdict of ✓ / +n / −n / ?
+with its meaning on hover, problems first, and once a person adjusted the sale an Adjusted count per line with who and
+when. Each refund that went back shows its amount, when it was sent and who sent it. Explanations go in hover popups
+(`v-tooltip`), not on the page. Barcodes are in Sent to AI.
 
 **AI Recognition is the control panel** (Brian, 2026-11-03: "not only info"). **Adjust Qty** (`FreezerSaleCorrection`, the
 one writer; permission `charge ai-recognition`, admin + superadmin only (Brian); `ai-recognition/{recognition}/correction`) lets a

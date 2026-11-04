@@ -4,6 +4,8 @@ namespace App\Http\Controllers\SmartFreezer;
 
 use App\Http\Controllers\Controller;
 use App\Models\CardPaymentIntent;
+use App\Models\CardRefund;
+use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SmartFreezerRecognition;
@@ -11,12 +13,14 @@ use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\CardTerminal\CardPaymentService;
 use App\Services\Freezer\FreezerSaleCorrection;
+use App\Services\HappyHour\HappyHourPricing;
 use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\RecognitionBadges;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use App\Services\SmartFreezer\Zijia\ZijiaSkuLinks;
 use App\Support\FreezerTestSale;
+use App\Support\Sales\CampaignLabelFilter;
 use App\Support\VendCode;
 use Carbon\Carbon;
 use DomainException;
@@ -69,8 +73,9 @@ class FreezerRecognitionController extends Controller
 
         $query = SmartFreezerRecognition::query()
             ->with([
-                'vend:id,code,code_prefix,operator_id,machine_type',
-                'vendTransaction:id,order_id,amount,transaction_datetime,vend_transaction_json,meta_json',
+                'vend:id,code,code_prefix,operator_id,machine_type,customer_id',
+                'vendTransaction:id,order_id,amount,transaction_datetime,vend_transaction_json,meta_json,customer_id,is_multiple,happy_hour_slot_id',
+                'vendTransaction.vendTransactionItems:id,vend_transaction_id,product_id,happy_hour_slot_id',
                 'videos:id,smart_freezer_recognition_id,video_urls,created_at',
             ])
             ->when($request->input('status'), fn ($q, $s) => $s !== 'all' ? $q->where('status', $s) : $q)
@@ -119,6 +124,9 @@ class FreezerRecognitionController extends Controller
         $names = $this->productNames($page->getCollection());
         $cards = $this->cardCharges($page->getCollection());
         $purchasedProducts = $this->purchasedProducts($page->getCollection());
+        $sites = $this->sites($page->getCollection());
+        $happyHour = CampaignLabelFilter::happyHourLabels($page->getCollection()->map(fn (SmartFreezerRecognition $r) => $r->vendTransaction)->filter()
+            ->flatMap(fn (VendTransaction $sale) => $sale->vendTransactionItems->pluck('happy_hour_slot_id')->push($sale->happy_hour_slot_id)));
 
         // Our own camera-5 recordings of the same door sessions (smart_freezer_clips), by session ref.
         $clips = app(FreezerClipLinks::class)->linksFor($page->getCollection()
@@ -127,8 +135,9 @@ class FreezerRecognitionController extends Controller
             ->all());
 
         $payments = app(CardPaymentService::class);
-        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards, $purchasedProducts, $payments) + [
+        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards, $purchasedProducts, $happyHour, $payments) + [
             'clips' => $clips[$r->id] ?? [],
+            'site' => $sites[$r->vendTransaction?->customer_id ?? $r->vend?->customer_id] ?? null,
         ]);
 
         return Inertia::render('AiRecognition/Index', [
@@ -264,8 +273,9 @@ class FreezerRecognitionController extends Controller
      * @param  array{by_id: array<int, string>, by_code: array<string, string>}  $names
      * @param  array<string, CardPaymentIntent>  $cards  "vend_id|session_ref" => the session's T05 hold
      * @param  array<int, Product>  $products  the TRADE products of this page, by id
+     * @param  array<int, string>  $happyHour  slot id => "HH 30%", for this page's sales
      */
-    private function row(SmartFreezerRecognition $r, array $names, array $cards, array $products, CardPaymentService $payments): array
+    private function row(SmartFreezerRecognition $r, array $names, array $cards, array $products, array $happyHour, CardPaymentService $payments): array
     {
         $sale = $r->vendTransaction;
         $card = $r->session_ref ? ($cards[$r->vend_id.'|'.$r->session_ref] ?? null) : null;
@@ -304,8 +314,8 @@ class FreezerRecognitionController extends Controller
                 'code' => $code,
                 'name' => $names['by_code'][$code] ?? null,
             ], $submitted),
-            // The AI Check grid: one line per product, photo, price, paid, AI saw and the difference.
-            'ai_check' => $this->aiCheck($r, $sale, $products, $payments),
+            // The Verification grid: one line per product, photo, price, paid, AI saw, the difference and a person's count.
+            'ai_check' => $this->aiCheck($r, $sale, $products, $happyHour, $payments),
             'verdict' => $r->verdict,
             'verdict_lines' => collect((array) $r->verdict_lines)->map(fn ($line) => $line + [
                 'name' => isset($line['product_id']) ? ($names['by_id'][(int) $line['product_id']] ?? null) : null,
@@ -328,6 +338,13 @@ class FreezerRecognitionController extends Controller
                 'captured_cents' => $card->captured_cents,
                 'owed_cents' => $card->owed_cents,
                 'refunded_cents' => (int) $card->refunded_cents,
+                // Each refund that went back: how much, when it was sent and who sent it.
+                'refunds' => $card->confirmedRefunds->map(fn (CardRefund $refund) => [
+                    'id' => $refund->id,
+                    'amount_cents' => $refund->amount_cents,
+                    'at' => $refund->created_at?->format('Y-m-d H:i'),
+                    'by' => $refund->requested_by_name,
+                ])->values()->all(),
                 'judged_cents' => $card->ai_decision['judged_cents'] ?? null,
                 // Payrallel refused to raise the authorisation: the hold was charged, the rest is owed.
                 'increment_refused' => isset($card->ai_decision['increment_refused']),
@@ -349,12 +366,14 @@ class FreezerRecognitionController extends Controller
     /**
      * Each product of the session once: what was paid against what the AI saw, problems first.
      * `state`: ok = both agree, extra = taken but not paid, missing = paid but not taken, unknown = the
-     * AI could not check it (never asked, or a barcode we do not know), pending = no answer yet.
+     * AI could not check it (never asked, or a barcode we do not know), pending = no answer yet,
+     * none = neither paid nor seen, on the list only because a person counted it (`adjusted`).
      *
      * @param  array<int, Product>  $products  this page's products, by id, with their photos
+     * @param  array<int, string>  $happyHour  slot id => "HH 30%", for this page's sales
      * @return list<array<string, mixed>>
      */
-    private function aiCheck(SmartFreezerRecognition $r, ?VendTransaction $sale, array $products, CardPaymentService $payments): array
+    private function aiCheck(SmartFreezerRecognition $r, ?VendTransaction $sale, array $products, array $happyHour, CardPaymentService $payments): array
     {
         $paid = [];
         foreach ($sale ? $this->tradeUnits($sale) : [] as $unit) {
@@ -391,16 +410,39 @@ class FreezerRecognitionController extends Controller
             }
         }
 
+        // A person's count (FreezerSaleCorrection): a product it leaves out was counted as none taken.
+        $correction = ((array) $sale?->meta_json)['correction'] ?? null;
+        $adjusted = is_array($correction) ? array_map('intval', (array) ($correction['basket'] ?? [])) : null;
+        $adjustedPrices = is_array($correction) ? array_column((array) ($correction['lines'] ?? []), 'unit_cents', 'product_id') : [];
+
         // A product taken but not paid has no price on the sale: the machine's at that moment.
-        $extras = array_values(array_diff(array_keys($seen), array_keys($paid)));
+        $at = $sale?->transaction_datetime ? Carbon::parse($sale->transaction_datetime) : null;
+        $isTest = $sale && FreezerTestSale::is($sale);
+        $extras = array_values(array_diff(array_keys($seen + ($adjusted ?? [])), array_keys($paid)));
         $shelf = $extras !== [] && $r->vend_id
-            ? ($sale && FreezerTestSale::is($sale)
+            ? ($isTest
                 ? array_fill_keys($extras, FreezerTestSale::UNIT_PRICE_CENTS)
-                : $payments->shelfPrices((int) $r->vend_id, $extras, $sale?->transaction_datetime ? Carbon::parse($sale->transaction_datetime) : null))
+                : $payments->shelfPrices((int) $r->vend_id, $extras, $at))
             : [];
 
+        // Happy Hour: what the sale was tagged with (a single sale's header, a basket's item rows),
+        // and for an extra unit the slot that priced it at that moment.
+        $hh = [];
+        if ($sale?->is_multiple) {
+            foreach ($sale->vendTransactionItems as $item) {
+                $hh[(int) $item->product_id] ??= $happyHour[(int) $item->happy_hour_slot_id] ?? null;
+            }
+        } elseif ($sale?->happy_hour_slot_id) {
+            $hh = array_fill_keys(array_keys($paid), $happyHour[(int) $sale->happy_hour_slot_id] ?? null);
+        }
+        if ($extras !== [] && $r->vend_id && $at && ! $isTest) {
+            foreach (HappyHourPricing::discountsAt((int) $r->vend_id, $extras, $at) as $id => $pct) {
+                $hh[$id] = CampaignLabelFilter::happyHourLabel($pct);
+            }
+        }
+
         $lines = [];
-        foreach (array_keys($paid + $seen) as $id) {
+        foreach (array_keys($paid + $seen + ($adjusted ?? [])) as $id) {
             $product = $products[$id] ?? null;
             $qty = (int) ($paid[$id]['qty'] ?? 0);
             $taken = $seen[$id]['taken'] ?? ($answered ? 0 : null);
@@ -409,12 +451,15 @@ class FreezerRecognitionController extends Controller
                 'name' => $product?->name ?? __('product :id', ['id' => $id]),
                 'code' => $product?->code,
                 'photo' => $product?->thumbnail?->full_url,
-                'unit_cents' => $paid[$id]['unit_cents'] ?? $shelf[$id] ?? null,
+                'unit_cents' => $paid[$id]['unit_cents'] ?? $adjustedPrices[$id] ?? $shelf[$id] ?? null,
+                'happy_hour' => $hh[$id] ?? null,
                 'paid' => $qty,
                 'taken' => $taken,
+                'adjusted' => $adjusted === null ? null : ($adjusted[$id] ?? 0),
                 'delta' => $taken === null ? null : $taken - $qty,
                 'state' => match (true) {
                     ! $answered => 'pending',
+                    $qty === 0 && ! isset($seen[$id]) => 'none',
                     $verdict === null || ($seen[$id]['not_asked'] ?? false) => 'unknown',
                     $taken > $qty => 'extra',
                     $taken < $qty => 'missing',
@@ -423,9 +468,9 @@ class FreezerRecognitionController extends Controller
             ];
         }
         foreach ($strangers as $code => $taken) {
-            $lines[] = ['product_id' => null, 'name' => (string) $code, 'code' => null, 'photo' => null, 'unit_cents' => null, 'paid' => 0, 'taken' => $taken, 'delta' => $taken, 'state' => 'unknown'];
+            $lines[] = ['product_id' => null, 'name' => (string) $code, 'code' => null, 'photo' => null, 'unit_cents' => null, 'happy_hour' => null, 'paid' => 0, 'taken' => $taken, 'adjusted' => $adjusted === null ? null : 0, 'delta' => $taken, 'state' => 'unknown'];
         }
-        $order = ['extra' => 0, 'missing' => 1, 'unknown' => 2, 'pending' => 3, 'ok' => 4];
+        $order = ['extra' => 0, 'missing' => 1, 'unknown' => 2, 'pending' => 3, 'ok' => 4, 'none' => 5];
         usort($lines, fn (array $a, array $b) => $order[$a['state']] <=> $order[$b['state']]);
 
         return $lines;
@@ -549,6 +594,7 @@ class FreezerRecognitionController extends Controller
         $ids = $recognitions->map(fn (SmartFreezerRecognition $r) => $r->vendTransaction)->filter()
             ->flatMap(fn (VendTransaction $sale) => array_map(fn ($u) => (int) ($u['goods_id'] ?? 0), $this->tradeUnits($sale)))
             ->merge($recognitions->flatMap(fn (SmartFreezerRecognition $r) => array_map('intval', array_column((array) $r->verdict_lines, 'product_id'))))
+            ->merge($recognitions->flatMap(fn (SmartFreezerRecognition $r) => array_map('intval', array_keys((array) (((array) $r->vendTransaction?->meta_json)['correction']['basket'] ?? [])))))
             ->filter()->unique()->values();
         $barcodes = $recognitions->flatMap(fn (SmartFreezerRecognition $r) => array_map('strval', array_keys((array) $r->items)))->unique()->values();
 
@@ -562,7 +608,28 @@ class FreezerRecognitionController extends Controller
     }
 
     /**
-     * The T05 holds of this page's sessions, one query.
+     * Each session's Site: the one the sale was booked to, else the machine's now. Its RP tier is the
+     * Site's current one. Unscoped: the row itself is already behind the viewer ceiling.
+     *
+     * @return array<int, array{id: int, name: string, rp: string|null}>
+     */
+    private function sites($recognitions): array
+    {
+        $ids = $recognitions->map(fn (SmartFreezerRecognition $r) => $r->vendTransaction?->customer_id ?? $r->vend?->customer_id)->filter()->unique()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        return Customer::withoutGlobalScopes()->whereIn('id', $ids)->get(['id', 'name', 'selling_price_type'])
+            ->mapWithKeys(fn (Customer $site) => [$site->id => [
+                'id' => $site->id,
+                'name' => $site->name,
+                'rp' => $site->selling_price_type ? 'RP'.$site->selling_price_type : null,
+            ]])->all();
+    }
+
+    /**
+     * The T05 holds of this page's sessions with their refunds, two queries.
      *
      * @return array<string, CardPaymentIntent>
      */
@@ -573,13 +640,21 @@ class FreezerRecognitionController extends Controller
             return [];
         }
 
-        return CardPaymentIntent::query()
+        $intents = CardPaymentIntent::query()
             ->whereIn('session_ref', $refs)
             ->whereIn('vend_id', $recognitions->pluck('vend_id')->filter()->unique())
             ->orderBy('id')
             ->get(['id', 'vend_id', 'session_ref', 'state', 'amount_cents', 'captured_cents', 'refunded_cents', 'owed_cents', 'ai_decision', 'last_error'])
-            ->keyBy(fn (CardPaymentIntent $i) => $i->vend_id.'|'.$i->session_ref)
-            ->all();
+            ->keyBy(fn (CardPaymentIntent $i) => $i->vend_id.'|'.$i->session_ref);
+
+        $refunds = CardRefund::query()
+            ->whereIn('card_payment_intent_id', $intents->pluck('id'))
+            ->where('state', CardRefund::STATE_REFUNDED)
+            ->orderBy('id')
+            ->get(['id', 'card_payment_intent_id', 'amount_cents', 'requested_by_name', 'created_at'])
+            ->groupBy('card_payment_intent_id');
+
+        return $intents->each(fn (CardPaymentIntent $i) => $i->setRelation('confirmedRefunds', $refunds->get($i->id, collect())))->all();
     }
 
     /** "501 recognition error — 503 goods not listed in the model (商品未上架)", or null before a result. */

@@ -64,6 +64,28 @@ final class HappyHourPricing
     }
 
     /**
+     * The discount % behind promoPricesAt: the same slots, for saying why a price is what it is.
+     *
+     * @param  list<int>  $productIds
+     * @return array<int, int> product id => discount %
+     */
+    public static function discountsAt(int $vendId, array $productIds, CarbonInterface $at): array
+    {
+        if ($productIds === []) {
+            return [];
+        }
+
+        return HappyHourSlot::query()
+            ->where('vend_id', $vendId)
+            ->whereIn('product_id', $productIds)
+            ->where('starts_at', '<=', $at)
+            ->where('ends_at', '>', $at)
+            ->pluck('discount_pct', 'product_id')
+            ->map(fn ($pct) => (int) $pct)
+            ->all();
+    }
+
+    /**
      * The `happy_hour` field of each menu row: this machine's open slots that end within the menu
      * horizon, keyed by product. The freezer switches between them on its own clock.
      *

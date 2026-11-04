@@ -80,8 +80,8 @@ class PayrallelGateway implements RemoteCardTerminalGateway
     /**
      * POST transactions/actions/refund (from Payrallel, 2026-11-03; not in their public guide): one
      * id + `amountInCents`. An unknown id answers 404 {"success":false,"error":"Refund failed: …"}.
-     * A real refund's answer has not been seen yet, so a status we do not recognise stays
-     * PROCESSING rather than being read as money returned.
+     * Part of a charge answers `partially_refunded` (first real refunds, 2026-11-04). A status we do
+     * not recognise stays PROCESSING rather than being read as money returned.
      */
     public function refund(RemoteCardTerminal $terminal, string $transactionId, int $cents, ?string $orderId = null): TerminalTransaction
     {
@@ -102,7 +102,7 @@ class PayrallelGateway implements RemoteCardTerminalGateway
 
         return new TerminalTransaction(
             status: match ($providerStatus) {
-                null, 'approved', 'refunded', 'success', 'succeeded', 'completed' => TerminalTransaction::APPROVED,
+                null, 'approved', 'refunded', 'partially_refunded', 'success', 'succeeded', 'completed' => TerminalTransaction::APPROVED,
                 'declined', 'failed', 'rejected' => TerminalTransaction::DECLINED,
                 default => TerminalTransaction::PROCESSING,
             },

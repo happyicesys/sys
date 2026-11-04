@@ -330,6 +330,24 @@ class CardRefundTest extends TestCase
         }
     }
 
+    /** Payrallel's real answer to part of a charge (card_refunds 1 and 2, 2026-11-04): the money went back. */
+    public function test_a_partial_refund_answer_is_money_returned_not_uncertain(): void
+    {
+        $this->app->forgetInstance(PayrallelGateway::class);
+        unset($this->app[PayrallelGateway::class]);
+        config(['payrallel.base_url' => 'https://pay.example', 'payrallel.authorization_format' => '{token}']);
+        $terminal = new RemoteCardTerminal(['provider' => 'payrallel', 'access_token' => 'tok-1']);
+        $terminal->id = 7;
+        Http::fake(['pay.example/*' => Http::response(['success' => true, 'transaction' => [
+            'type' => 'refund', 'status' => 'partially_refunded', 'amountInCents' => 140, 'transactionId' => 'R2611040042221CC',
+        ]])]);
+
+        $answer = $this->app->make(PayrallelGateway::class)->refund($terminal, 'C-1', 140, '50001-SF1');
+
+        $this->assertSame(TerminalTransaction::APPROVED, $answer->status);
+        $this->assertSame('R2611040042221CC', $answer->providerTxnId);
+    }
+
     public function test_capture_keeps_the_charge_id_payrallel_answered_with(): void
     {
         $this->app->forgetInstance(PayrallelGateway::class);
