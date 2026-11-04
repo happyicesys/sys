@@ -1636,6 +1636,18 @@ when below the lines. The columns are fixed widths, so they line up down the pag
 by the nightly odd-amount sweep, so with no sale the lines take Paid from the verdict. Each refund that went back shows its amount, when it was sent and who sent it. Explanations go in hover popups
 (`v-tooltip`), not on the page. Barcodes are in Sent to AI.
 
+**A paid session with no sale still shows the payment** (Brian, 2026-11-04: 50001's lock refused three doors, the rows read
+as if nobody paid). The app names a hold's session only in the door-closed capture and sends no TRADE when the door fails,
+so the row has no sale and the hold no `session_ref`. `FreezerRecognitionController::holdsWithoutSession` gives each approved
+hold with no session to the latest door session started before it (10 min at most, only a row with no sale, never a `-0`
+camera check), by time, shown as "Card approved 4.30 · Mastercard" (not a declined card; the release is in Sale / Card charge) and
+the door error from the app's `error:BoxVmc` line naming the session, in red ("Door error 17:27:13: LOCK — 1号门锁开锁超时…"),
+or "Door did not complete · no error logged" when no line names it (the app's `EventLogReporter` files one line per tag per 2 min,
+so 50001's session 7, 29 s after session 6, was never filed). **Any door error shows on its session**, whatever the fault and
+with or without a hold (`doorErrors`, `DoorFault`): hover gives the meaning and the legend above the table lists every code.
+Zijia has not defined them all; lock, business, storage and power come from their documents and logs, the rest from the name. App 48+ reports each such session with its cart on `POST /api/v1/vends/{code}/sessions/{sessionRef}/failed` (`freezer_failed_sessions`, a record only: no sale, no stock, no money; rows already parked in the freezer's `sale_outbox` too, kept 90 days there). The row then lists the items, Paid = the cart's qty, AI saw / Verdict / Adjusted N/A (the AI's count stays when it did see goods), the error last, and the report's `payment_ref` picks the hold instead of the time. Below 48, or with no report yet,
+only the amount is known. T05 only; a PayNow or NETS door failure is not shown.
+
 **AI Recognition is the control panel** (Brian, 2026-11-03: "not only info"). **Adjust Qty** (`FreezerSaleCorrection`, the
 one writer; permission `charge ai-recognition`, admin + superadmin only (Brian); `ai-recognition/{recognition}/correction`) lets a
 person set how many of each product left the cabinet. Valued like the AI's own count: the price paid in that sale,

@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\CardPaymentIntent;
 use App\Models\CardRefund;
 use App\Models\Customer;
+use App\Models\FreezerControlCommand;
+use App\Models\FreezerFailedSession;
 use App\Models\HappyHourCampaign;
 use App\Models\HappyHourSlot;
 use App\Models\Product;
@@ -18,6 +20,7 @@ use App\Models\VendTransactionItem;
 use App\Services\CardTerminal\CardPaymentService;
 use App\Services\CardTerminal\Payrallel\PayrallelGateway;
 use App\Services\CardTerminal\TerminalTransaction;
+use App\Services\SmartFreezer\DoorFault;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
@@ -281,6 +284,235 @@ class AiRecognitionPageTest extends TestCase
             ->where('recognitions.data.0.ai_check.0.taken', 0)
             ->where('recognitions.data.0.ai_check.0.state', 'missing')
             ->where('recognitions.data.0.ai_check.0.unit_cents', 170));
+    }
+
+    /** A voided hold of an app that names no session: the state 50001's refused doors left on 2026-11-04. */
+    private function holdWithoutSession(string $createdAt, array $attributes = []): CardPaymentIntent
+    {
+        $terminal = RemoteCardTerminal::firstOrCreate(['vend_id' => $attributes['vend_id'] ?? $this->vend->id], ['provider' => 'payrallel', 'access_token' => 't', 'is_active' => true]);
+        $hold = CardPaymentIntent::create($attributes + [
+            'vend_id' => $this->vend->id, 'remote_card_terminal_id' => $terminal->id, 'provider' => 'payrallel',
+            'reference' => 'SF'.uniqid(), 'custom_order_id' => '50001-SF'.uniqid(), 'mode' => 'preauth', 'amount_cents' => 430,
+            'state' => CardPaymentIntent::STATE_VOIDED, 'payment_method' => 'master', 'approved_at' => $createdAt, 'voided_at' => $createdAt,
+        ]);
+        $hold->forceFill(['created_at' => $createdAt])->save();
+
+        return $hold;
+    }
+
+    private function sessionWithNoSale(string $sessionRef): SmartFreezerRecognition
+    {
+        return $this->recognition([
+            'trade_id' => $sessionRef, 'session_ref' => $sessionRef, 'status' => SmartFreezerRecognition::STATUS_COMPLETED,
+            'order_status' => 0, 'items' => [], 'status_reason' => "sale not found yet for {$sessionRef}",
+        ]);
+    }
+
+    /** Local time of a session ref's start second, plus some seconds. */
+    private function afterStart(string $sessionRef, int $seconds): string
+    {
+        return Carbon::createFromTimestamp((int) explode('-', $sessionRef)[2] + $seconds, config('app.timezone'))->format('Y-m-d H:i:s');
+    }
+
+    public function test_a_paid_session_that_never_became_a_sale_shows_the_payment(): void
+    {
+        $ref = 'SF-50001-1793784418-6';
+        $this->sessionWithNoSale($ref);
+        $this->holdWithoutSession($this->afterStart($ref, 3));
+        FreezerControlCommand::forceCreate([
+            'vend_id' => $this->vend->id, 'cmd_id' => '01KA0000000000000000000000', 'op' => 'error:BoxVmc', 'status' => 'ok', 'source' => 'event',
+            'response_msg' => "Door refused for {$ref}: LOCK (1号门锁开锁超时(损坏,锁舌卡住))", 'created_at' => $this->afterStart($ref, 15),
+        ]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.card.state', 'voided')
+                ->where('recognitions.data.0.card.hold_cents', 430)
+                ->where('recognitions.data.0.paid_without_sale.method', 'Mastercard')
+                ->where('recognitions.data.0.door_error.code', 'LOCK')
+                ->where('recognitions.data.0.door_error.text', '1号门锁开锁超时(损坏,锁舌卡住)')
+                ->where('recognitions.data.0.door_error.plain', DoorFault::plain('LOCK'))
+                ->where('recognitions.data.0.door_error.at', Carbon::parse($this->afterStart($ref, 15))->format('H:i:s'))
+                ->where('doorFaultLegend.0.code', 'LOCK')
+                ->where('recognitions.data.0.status_reason', 'No sale was recorded for this door session.')
+                ->where('recognitions.data.0.card.awaits_person', false)
+                ->where('recognitions.data.0.can_correct', false)
+            );
+    }
+
+    /** Not only the lock, and not only a T05 hold: PayNow leaves no hold, the door error still shows. */
+    public function test_any_door_error_shows_on_its_session_without_a_hold(): void
+    {
+        $camera = 'SF-50001-1793784418-6';
+        $unreached = 'SF-50001-1793784450-7';
+        $other = 'SF-50001-1793784551-8';
+        $this->sessionWithNoSale($camera);
+        $this->sessionWithNoSale($unreached);
+        $this->sessionWithNoSale($other);
+        foreach ([
+            ['01KA0000000000000000000001', "Door refused for {$camera}: CAMERA (摄像头异常)", $camera],
+            ['01KA0000000000000000000002', "Door call never reached host for {$unreached}: THREW", $unreached],
+        ] as [$cmdId, $line, $ref]) {
+            FreezerControlCommand::forceCreate([
+                'vend_id' => $this->vend->id, 'cmd_id' => $cmdId, 'op' => 'error:BoxVmc', 'status' => 'ok', 'source' => 'event',
+                'response_msg' => $line, 'created_at' => $this->afterStart($ref, 10),
+            ]);
+        }
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.session_ref', $other)
+                ->where('recognitions.data.0.door_error', null)
+                ->where('recognitions.data.1.door_error.code', DoorFault::NOT_DELIVERED)
+                ->where('recognitions.data.1.door_error.text', 'THREW')
+                ->where('recognitions.data.2.door_error.code', 'CAMERA')
+                ->where('recognitions.data.2.door_error.text', '摄像头异常')
+                ->where('recognitions.data.2.paid_without_sale', null)
+            );
+    }
+
+    /** App 48+: the cart reaches mark1, so Paid is the quantity and the rest cannot apply. */
+    public function test_a_reported_session_lists_what_the_customer_tried_to_buy(): void
+    {
+        $product = Product::forceCreate(['code' => 'A', 'name' => 'Aye', 'operator_id' => 1, 'barcode' => '111']);
+        $ref = 'SF-50001-1793784450-7';
+        $this->sessionWithNoSale($ref);
+        // The time would give this hold to the session; the other one is what the machine named.
+        $this->holdWithoutSession($this->afterStart($ref, 1), ['amount_cents' => 111, 'provider_txn_id' => 'OTHER']);
+        $this->holdWithoutSession($this->afterStart($ref, 2), ['amount_cents' => 430, 'provider_txn_id' => 'PAY123']);
+        $this->holdWithoutSession($this->afterStart($ref, 3), ['amount_cents' => 222, 'provider_txn_id' => 'LATER']);
+        FreezerFailedSession::create([
+            'vend_id' => $this->vend->id, 'session_ref' => $ref, 'payment_method' => 'card', 'payment_ref' => 'PAY123', 'amount_cents' => 430,
+            'reason' => 'door_open_failed', 'detail' => 'door refused: LOCK 1号门锁开锁超时', 'ended_at' => $this->afterStart($ref, 10),
+            'items' => [
+                ['sku' => 'A', 'name' => 'Aye', 'unit_cents' => 215, 'qty' => 2, 'channel' => '11', 'product_id' => $product->id],
+                ['sku' => 'Z', 'name' => 'Zed', 'unit_cents' => 100, 'qty' => 1, 'channel' => '12', 'product_id' => null],
+            ],
+        ]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.ai_check.0.product_id', $product->id)
+                ->where('recognitions.data.0.ai_check.0.name', 'Aye')
+                ->where('recognitions.data.0.ai_check.0.unit_cents', 215)
+                ->where('recognitions.data.0.ai_check.0.paid', 2)
+                ->where('recognitions.data.0.ai_check.0.taken', null)
+                ->where('recognitions.data.0.ai_check.0.state', 'na')
+                ->where('recognitions.data.0.ai_check.1.name', 'Zed')
+                ->where('recognitions.data.0.ai_check.1.paid', 1)
+                ->where('recognitions.data.0.ai_check.1.state', 'na')
+                ->where('recognitions.data.0.door_error.code', 'LOCK')
+                ->where('recognitions.data.0.door_error.text', '1号门锁开锁超时')
+                ->where('recognitions.data.0.card.hold_cents', 430)
+                ->where('recognitions.data.0.failed_session.amount_cents', 430)
+                ->where('recognitions.data.0.can_correct', false)
+            );
+    }
+
+    /** Session 7, 2026-11-04: the app dropped the log line, its saved record says only door_open_failed. */
+    public function test_a_report_without_the_machines_words_shows_the_apps_fault_code(): void
+    {
+        $ref = 'SF-50001-1793784450-7';
+        $this->sessionWithNoSale($ref);
+        FreezerFailedSession::create([
+            'vend_id' => $this->vend->id, 'session_ref' => $ref, 'payment_method' => 'paynow_qr', 'amount_cents' => 430,
+            'reason' => 'door_open_failed', 'ended_at' => $this->afterStart($ref, 10), 'items' => [],
+        ]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.door_error.code', 'DOOR_OPEN_FAILED')
+                ->where('recognitions.data.0.door_error.plain', DoorFault::plain('DOOR_OPEN_FAILED'))
+                ->where('recognitions.data.0.failed_session.method', 'PayNow')
+                ->where('recognitions.data.0.paid_without_sale', null)
+            );
+    }
+
+    /** What would catch goods leaving through a door that reported a failure. */
+    public function test_goods_the_ai_saw_on_a_failed_session_stay_visible(): void
+    {
+        $product = Product::forceCreate(['code' => 'A', 'name' => 'Aye', 'operator_id' => 1, 'barcode' => '111']);
+        $ref = 'SF-50001-1793784450-7';
+        $this->recognition(['trade_id' => $ref, 'session_ref' => $ref, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0, 'items' => ['111' => 1]]);
+        FreezerFailedSession::create([
+            'vend_id' => $this->vend->id, 'session_ref' => $ref, 'payment_method' => 'card', 'amount_cents' => 215, 'reason' => 'door_open_failed',
+            'items' => [['sku' => 'A', 'name' => 'Aye', 'unit_cents' => 215, 'qty' => 1, 'product_id' => $product->id]],
+        ]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.ai_check.0.paid', 1)
+                ->where('recognitions.data.0.ai_check.0.taken', 1)
+                ->where('recognitions.data.0.ai_check.0.state', 'unknown')
+            );
+    }
+
+    public function test_each_hold_goes_to_the_latest_session_before_it(): void
+    {
+        $first = 'SF-50001-1793784418-6';
+        $second = 'SF-50001-1793784450-7';
+        $this->sessionWithNoSale($first);
+        $this->sessionWithNoSale($second);
+        $this->holdWithoutSession($this->afterStart($first, 3), ['amount_cents' => 430]);
+        $this->holdWithoutSession($this->afterStart($second, 2), ['amount_cents' => 400, 'payment_method' => 'visa']);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.session_ref', $second)
+                ->where('recognitions.data.0.card.hold_cents', 400)
+                ->where('recognitions.data.0.paid_without_sale.method', 'Visa')
+                ->where('recognitions.data.0.door_error', null)
+                ->where('recognitions.data.1.session_ref', $first)
+                ->where('recognitions.data.1.card.hold_cents', 430)
+            );
+    }
+
+    public function test_a_session_with_no_approved_hold_claims_no_payment(): void
+    {
+        $ref = 'SF-50001-1793784418-6';
+        $this->sessionWithNoSale($ref);
+        // Never reached a card, far too late for this session, and on another machine.
+        $this->holdWithoutSession($this->afterStart($ref, 5), ['state' => CardPaymentIntent::STATE_CANCELLED, 'approved_at' => null, 'voided_at' => null]);
+        $this->holdWithoutSession($this->afterStart($ref, 601));
+        $other = Vend::create(['code' => 50002, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER, 'is_active' => 1, 'operator_id' => 1]);
+        $this->holdWithoutSession($this->afterStart($ref, 5), ['vend_id' => $other->id]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.card', null)
+                ->where('recognitions.data.0.paid_without_sale', null)
+                ->where('recognitions.data.0.status_reason', "sale not found yet for {$ref}")
+            );
+    }
+
+    public function test_a_remote_camera_check_claims_no_payment(): void
+    {
+        $ref = 'SF-50001-1793784418-0';
+        $this->sessionWithNoSale($ref);
+        $this->holdWithoutSession($this->afterStart($ref, 5));
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.card', null)
+                ->where('recognitions.data.0.paid_without_sale', null)
+            );
+    }
+
+    public function test_a_session_with_a_sale_never_takes_a_hold_without_a_session(): void
+    {
+        $ref = 'SF-50001-1793784418-6';
+        $sale = VendTransaction::forceCreate([
+            'order_id' => 'O-200', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 300,
+            'transaction_datetime' => Carbon::parse($this->afterStart($ref, 40)), 'gst_vat_rate' => 9, 'operator_id' => 1,
+        ]);
+        $this->recognition(['trade_id' => $ref, 'session_ref' => $ref, 'vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0]);
+        $this->holdWithoutSession($this->afterStart($ref, 3));
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.card', null)
+                ->where('recognitions.data.0.paid_without_sale', null)
+            );
     }
 
     public function test_a_row_says_how_long_the_result_took_from_the_door_session(): void

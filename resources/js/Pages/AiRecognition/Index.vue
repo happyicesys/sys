@@ -182,7 +182,7 @@
       <!-- Legend: Zijia's orderStatus codes (§6.2), what they mean, and who settled the session. -->
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 mt-3 bg-white rounded-md border px-3 py-2">
         <button type="button" class="flex w-full items-center justify-between text-sm font-medium text-gray-700" @click="toggleLegend">
-          <span>{{ $t('AI status codes') }} <span class="font-normal text-gray-500">{{ $t('— what "AI: …" in the Status column means') }}</span></span>
+          <span>{{ $t('AI status and door error codes') }} <span class="font-normal text-gray-500">{{ $t('— what "AI: …" in the Status column and "Door error" in Verification mean') }}</span></span>
           <span class="text-xs text-blue-600">{{ showLegend ? $t('Hide') : $t('Show') }}</span>
         </button>
         <div v-if="showLegend" class="mt-2 overflow-x-auto">
@@ -207,6 +207,20 @@
                     {{ $t(processedByLabels[item.processed_by]) }}
                   </span>
                 </td>
+              </tr>
+            </tbody>
+          </table>
+          <table class="mt-3 min-w-full text-xs">
+            <thead>
+              <tr class="text-left text-gray-500">
+                <th class="py-1 pr-3 font-medium">{{ $t('Door error') }}</th>
+                <th class="py-1 font-medium">{{ $t('In plain words') }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="item in doorFaultLegend" :key="item.code">
+                <td class="py-1 pr-3 font-mono font-semibold">{{ item.code }}</td>
+                <td class="py-1 text-gray-600">{{ item.plain }}</td>
               </tr>
             </tbody>
           </table>
@@ -424,17 +438,22 @@
                             <span v-if="line.happy_hour" class="mx-auto mt-0.5 flex w-fit items-center whitespace-nowrap rounded border border-amber-300 bg-amber-100 px-1 py-0.5 text-[10px] font-semibold leading-none text-amber-800" tabindex="0" v-tooltip="$t('Happy Hour')">★ {{ line.happy_hour }}</span>
                           </td>
                           <td class="py-1 text-center text-sm">{{ line.paid }}</td>
-                          <td class="py-1 text-center text-sm">{{ line.taken !== null ? line.taken : '—' }}</td>
+                          <td class="py-1 text-center text-sm">
+                            <span v-if="line.state === 'na'" class="text-gray-400">{{ $t('N/A') }}</span>
+                            <template v-else>{{ line.taken !== null ? line.taken : '—' }}</template>
+                          </td>
                           <td class="py-1 text-center" tabindex="0" v-tooltip="$t(CHECK_KINDS[line.state].meaning)">
                             <CheckCircleIcon v-if="line.state === 'ok'" class="mx-auto h-5 w-5 text-green-600" :aria-label="$t(CHECK_KINDS.ok.meaning)" />
                             <QuestionMarkCircleIcon v-else-if="line.state === 'unknown'" class="mx-auto h-5 w-5 text-gray-400" :aria-label="$t(CHECK_KINDS.unknown.meaning)" />
                             <span v-else-if="line.state === 'extra'" :class="['inline-flex min-w-[2rem] justify-center rounded-full px-1.5 py-0.5 text-sm font-bold', needsPerson(row) ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500']">+{{ line.delta }}</span>
                             <span v-else-if="line.state === 'missing'" :class="['inline-flex min-w-[2rem] justify-center rounded-full px-1.5 py-0.5 text-sm font-bold', needsPerson(row) ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-500']">−{{ -line.delta }}</span>
                             <span v-else-if="line.state === 'none'" class="text-gray-400">—</span>
+                            <span v-else-if="line.state === 'na'" class="text-gray-400">{{ $t('N/A') }}</span>
                             <span v-else class="text-gray-400">…</span>
                           </td>
                           <td class="py-1 text-center text-sm">
                             <span v-if="line.adjusted !== null" class="inline-flex min-w-[2rem] justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-sm font-bold text-white">{{ line.adjusted }}</span>
+                            <span v-else-if="line.state === 'na'" class="text-gray-400">{{ $t('N/A') }}</span>
                             <span v-else class="text-gray-400" tabindex="0" v-tooltip="$t('Not adjusted')">—</span>
                           </td>
                         </tr>
@@ -442,6 +461,15 @@
                     </table>
                     <span v-else-if="row.algorithm_status !== null" class="text-xs text-gray-500">{{ $t('Nothing taken') }}</span>
                     <span v-else class="text-gray-400">—</span>
+                    <!-- Paid, but the session never became a sale. The cart is the table above once the machine has reported it (app 48+); until then only the hold's amount is known. -->
+                    <div v-if="row.paid_without_sale || row.failed_session || row.door_error" class="mt-1 flex flex-col space-y-0.5 text-xs">
+                      <span v-if="row.paid_without_sale" class="font-semibold text-gray-900">{{ row.paid_without_sale.method ? $t('Card approved :amount · :method', { amount: formatCents(row.card.hold_cents), method: row.paid_without_sale.method }) : $t('Card approved :amount', { amount: formatCents(row.card.hold_cents) }) }}</span>
+                      <span v-else-if="row.failed_session" class="font-semibold text-gray-900">{{ $t('Payment approved :amount · :method', { amount: formatCents(row.failed_session.amount_cents), method: row.failed_session.method }) }}</span>
+                      <span v-if="row.paid_without_sale && !row.failed_session" class="text-gray-500">{{ $t('Items stay on the machine, not sent to ConnectVend') }}</span>
+                      <!-- The code is in the legend above the table; the rest is the machine's own words. -->
+                      <span v-if="row.door_error" class="cursor-help rounded border border-red-200 bg-red-50 px-1.5 py-1 font-semibold text-red-800" tabindex="0" v-tooltip="row.door_error.plain">{{ $t('Door error :time', { time: row.door_error.at }) }}: <span class="font-mono">{{ row.door_error.code }}</span><template v-if="row.door_error.text"> — {{ row.door_error.text }}</template></span>
+                      <span v-else class="cursor-help text-amber-700" tabindex="0" v-tooltip="$t('The app files one door error every 2 minutes, so a failure soon after another is not logged.')">{{ $t('Door did not complete · no error logged') }}</span>
+                    </div>
                     <!-- A person's count sits beside the AI's verdict, which is never overwritten. -->
                     <div v-if="row.correction" class="mt-1 flex flex-wrap items-center gap-x-2 rounded border border-blue-700 bg-blue-600 px-1.5 py-1 text-xs text-white">
                       <span class="flex items-center gap-1 font-semibold"><PencilSquareIcon class="h-4 w-4 flex-none" aria-hidden="true" />{{ $t('Adjusted by :name', { name: row.correction.by }) }}</span>
@@ -613,6 +641,7 @@ const props = defineProps({
   sessionlessHolds: { type: Array, default: () => [] },
   aiCoverage: { type: Array, default: () => [] },
   orderStatusLegend: Array,
+  doorFaultLegend: { type: Array, default: () => [] },
   filters: Object,
 })
 
@@ -644,10 +673,12 @@ const CHECK_KINDS = {
   unknown: { meaning: tk('AI could not check') },
   pending: { meaning: tk('Waiting for the AI') },
   none: { meaning: tk('Not paid, and the AI did not see it') },
+  na: { meaning: tk('The sale failed, so there is nothing to check') },
 }
 
 // The lines say what happened; only these two say something the lines cannot.
 function verdictNote(row) {
+  if (row.failed_session) return null
   if (row.verdict === 'incomplete') return verdictLabels.incomplete
   if (row.verdict === 'unrecognised') return verdictLabels.unrecognised
   if (!row.verdict && row.algorithm_status !== null) return tk('No verdict')

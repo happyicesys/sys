@@ -64,6 +64,12 @@ Route::prefix('v1')->group(function () {
         ->where(['orderId' => '[A-Za-z0-9_-]{1,64}'])
         ->middleware(['throttle:device-card', 'device.signed']);
 
+    // Device -> mark1: a paid freezer session that ended in an error, with its cart. A record only: no sale, no
+    // stock, no money. Signed by the machine.
+    Route::post('/vends/{code}/sessions/{sessionRef}/failed', [\App\Http\Controllers\Api\V1\FreezerOrderController::class, 'failedSession'])
+        ->where(['sessionRef' => 'SF-[0-9]+-[0-9]+-[0-9]+'])
+        ->middleware(['throttle:device-card', 'device.signed']);
+
     // Device -> mark1 card rail for a machine on a remote (cloud) terminal — the smart
     // freezer's Payrallel rail. Moves money, so every call is signed by the machine.
     Route::prefix('/vends/{code}/card')

@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\CardPaymentIntent;
 use App\Models\CardRefund;
 use App\Models\Customer;
+use App\Models\FreezerControlCommand;
+use App\Models\FreezerFailedSession;
 use App\Models\Product;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SmartFreezerRecognition;
@@ -14,6 +16,7 @@ use App\Models\VendTransaction;
 use App\Services\CardTerminal\CardPaymentService;
 use App\Services\Freezer\FreezerSaleCorrection;
 use App\Services\HappyHour\HappyHourPricing;
+use App\Services\SmartFreezer\DoorFault;
 use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\RecognitionBadges;
 use App\Services\SmartFreezer\RecognitionVerdict;
@@ -42,6 +45,9 @@ use InvalidArgumentException;
 class FreezerRecognitionController extends Controller
 {
     private const SORTS = ['transaction_time', 'created_at', 'status', 'verdict', 'completed_at'];
+
+    /** How long after a door session starts a hold with no session can still be its payment (session 9 took 2m41s over three tries). */
+    private const SESSIONLESS_HOLD_WINDOW_SECONDS = 600;
 
     /**
      * The row's main time (Brian, 2026-11-03): its sale's Transaction DateTime, the time Sales
@@ -123,8 +129,10 @@ class FreezerRecognitionController extends Controller
         $score = $this->score(clone $query);
         $page = $query->paginate($numberPerPage === 'All' ? 10000 : (int) $numberPerPage)->withQueryString();
         $names = $this->productNames($page->getCollection());
-        $cards = $this->cardCharges($page->getCollection());
-        $purchasedProducts = $this->purchasedProducts($page->getCollection());
+        $failedSessions = $this->failedSessions($page->getCollection());
+        $cards = $this->cardCharges($page->getCollection(), $failedSessions);
+        $doorErrors = $this->doorErrors($page->getCollection());
+        $purchasedProducts = $this->purchasedProducts($page->getCollection(), $failedSessions);
         $sites = $this->sites($page->getCollection());
         $happyHour = CampaignLabelFilter::happyHourLabels($page->getCollection()->map(fn (SmartFreezerRecognition $r) => $r->vendTransaction)->filter()
             ->flatMap(fn (VendTransaction $sale) => $sale->vendTransactionItems->pluck('happy_hour_slot_id')->push($sale->happy_hour_slot_id)));
@@ -136,7 +144,8 @@ class FreezerRecognitionController extends Controller
             ->all());
 
         $payments = app(CardPaymentService::class);
-        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards, $purchasedProducts, $happyHour, $payments) + [
+        $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards, $purchasedProducts, $happyHour, $payments, $failedSessions) + [
+            'door_error' => $this->doorError($r, $doorErrors, $failedSessions),
             'clips' => $clips[$r->id] ?? [],
             'site' => $sites[$r->vendTransaction?->customer_id ?? $r->vend?->customer_id] ?? null,
         ]);
@@ -165,6 +174,7 @@ class FreezerRecognitionController extends Controller
             'orderStatusLegend' => array_map(fn (array $l) => $l + [
                 'plain' => RecognitionBadges::PLAIN_REASONS[$l['code']] ?? 'the AI answered on its own',
             ], RecognitionResult::legend()),
+            'doorFaultLegend' => DoorFault::legend(),
             'filters' => [
                 'status' => $request->input('status', 'all'),
                 'verdict' => $request->input('verdict', 'all'),
@@ -296,12 +306,16 @@ class FreezerRecognitionController extends Controller
      * @param  array<string, CardPaymentIntent>  $cards  "vend_id|session_ref" => the session's T05 hold
      * @param  array<int, Product>  $products  the TRADE products of this page, by id
      * @param  array<int, string>  $happyHour  slot id => "HH 30%", for this page's sales
+     * @param  array<string, FreezerFailedSession>  $failedSessions  "vend_id|session_ref" => what the machine reported
      */
-    private function row(SmartFreezerRecognition $r, array $names, array $cards, array $products, array $happyHour, CardPaymentService $payments): array
+    private function row(SmartFreezerRecognition $r, array $names, array $cards, array $products, array $happyHour, CardPaymentService $payments, array $failedSessions): array
     {
         $sale = $r->vendTransaction;
+        $failed = $sale === null && $r->session_ref ? ($failedSessions[$r->vend_id.'|'.$r->session_ref] ?? null) : null;
         $card = $r->session_ref ? ($cards[$r->vend_id.'|'.$r->session_ref] ?? null) : null;
         $submitted = self::submittedCodes($r);
+        // Paid, but no sale was ever written: the app names a hold's session only at door close.
+        $paidWithoutSale = $sale === null && $card !== null && $card->session_ref === null;
 
         return [
             'id' => $r->id,
@@ -315,7 +329,8 @@ class FreezerRecognitionController extends Controller
             'trade_id' => $r->trade_id,
             'session_ref' => $r->session_ref,
             'status' => $r->status,
-            'status_reason' => $r->status_reason,
+            // "sale not found yet" would promise a sale that is not coming.
+            'status_reason' => $paidWithoutSale ? __('No sale was recorded for this door session.') : $r->status_reason,
             'algorithm_status' => $this->algorithmStatus($r),
             'processed_by' => RecognitionResult::processedBy($r->order_status === null ? null : (int) $r->order_status),
             'callback_verified' => $r->callback_verified,
@@ -339,7 +354,7 @@ class FreezerRecognitionController extends Controller
                 'name' => $names['by_code'][$code] ?? null,
             ], $submitted),
             // The Verification grid: one line per product, photo, price, paid, AI saw, the difference and a person's count.
-            'ai_check' => $this->aiCheck($r, $sale, $products, $happyHour, $payments),
+            'ai_check' => $this->aiCheck($r, $sale, $products, $happyHour, $payments, $failed),
             'verdict' => $r->verdict,
             'verdict_lines' => collect((array) $r->verdict_lines)->map(fn ($line) => $line + [
                 'name' => isset($line['product_id']) ? ($names['by_id'][(int) $line['product_id']] ?? null) : null,
@@ -350,6 +365,13 @@ class FreezerRecognitionController extends Controller
                 'amount' => (int) $sale->amount,
                 'date' => $sale->transaction_datetime ? substr((string) $sale->transaction_datetime, 0, 10) : null,
                 'time' => $sale->transaction_datetime ? substr((string) $sale->transaction_datetime, 11, 8) : null,
+            ] : null,
+            'paid_without_sale' => $paidWithoutSale ? [
+                'method' => self::cardBrand($card->payment_method),
+            ] : null,
+            'failed_session' => $failed ? [
+                'method' => $failed->payment_method === FreezerFailedSession::METHOD_CARD ? __('Card') : __('PayNow'),
+                'amount_cents' => $failed->amount_cents,
             ] : null,
             // The Correct button (FreezerSaleCorrection, which says why when it refuses).
             'can_correct' => $sale !== null && $r->vend?->isSmartFreezer(),
@@ -391,13 +413,14 @@ class FreezerRecognitionController extends Controller
      * Each product of the session once: what was paid against what the AI saw, problems first.
      * `state`: ok = both agree, extra = taken but not paid, missing = paid but not taken, unknown = the
      * AI could not check it (never asked, or a barcode we do not know), pending = no answer yet,
-     * none = neither paid nor seen, on the list only because a person counted it (`adjusted`).
+     * none = neither paid nor seen, on the list only because a person counted it (`adjusted`),
+     * na = a failed session's cart: paid, nothing to check it against, unless the AI did see something.
      *
      * @param  array<int, Product>  $products  this page's products, by id, with their photos
      * @param  array<int, string>  $happyHour  slot id => "HH 30%", for this page's sales
      * @return list<array<string, mixed>>
      */
-    private function aiCheck(SmartFreezerRecognition $r, ?VendTransaction $sale, array $products, array $happyHour, CardPaymentService $payments): array
+    private function aiCheck(SmartFreezerRecognition $r, ?VendTransaction $sale, array $products, array $happyHour, CardPaymentService $payments, ?FreezerFailedSession $failed = null): array
     {
         $paid = [];
         foreach ($sale ? $this->tradeUnits($sale) : [] as $unit) {
@@ -417,6 +440,19 @@ class FreezerRecognitionController extends Controller
                 }
             }
         }
+
+        // A failed session has no sale; its cart says what the customer tried to buy. A line the machine
+        // could not tie to a product still shows, by the name on the cart.
+        $unlinked = [];
+        foreach ($failed ? (array) $failed->items : [] as $item) {
+            if (($id = (int) ($item['product_id'] ?? 0)) > 0) {
+                $paid[$id] = ['qty' => ($paid[$id]['qty'] ?? 0) + (int) $item['qty'], 'unit_cents' => (int) $item['unit_cents']];
+            } else {
+                $unlinked[] = $item;
+            }
+        }
+        // If the AI did see goods on a failed session, its count stays: that is what would catch them leaving.
+        $notApplicable = $failed !== null && (array) $r->items === [];
 
         $verdict = $r->verdict;
         $answered = $verdict !== null || $r->order_status !== null;
@@ -481,7 +517,7 @@ class FreezerRecognitionController extends Controller
         foreach (array_keys($paid + $seen + ($adjusted ?? [])) as $id) {
             $product = $products[$id] ?? null;
             $qty = (int) ($paid[$id]['qty'] ?? 0);
-            $taken = $seen[$id]['taken'] ?? ($answered ? 0 : null);
+            $taken = $notApplicable ? null : ($seen[$id]['taken'] ?? ($answered ? 0 : null));
             $lines[] = [
                 'product_id' => $id,
                 'name' => $product?->name ?? __('product :id', ['id' => $id]),
@@ -494,6 +530,7 @@ class FreezerRecognitionController extends Controller
                 'adjusted' => $adjusted === null ? null : ($adjusted[$id] ?? 0),
                 'delta' => $taken === null ? null : $taken - $qty,
                 'state' => match (true) {
+                    $notApplicable => 'na',
                     ! $answered => 'pending',
                     $qty === 0 && $taken === 0 => 'none',
                     $verdict === null || ($seen[$id]['not_asked'] ?? false) => 'unknown',
@@ -506,7 +543,10 @@ class FreezerRecognitionController extends Controller
         foreach ($strangers as $code => $taken) {
             $lines[] = ['product_id' => null, 'name' => (string) $code, 'code' => null, 'photo' => null, 'unit_cents' => null, 'happy_hour' => null, 'paid' => 0, 'taken' => $taken, 'adjusted' => $adjusted === null ? null : 0, 'delta' => $taken, 'state' => 'unknown'];
         }
-        $order = ['extra' => 0, 'missing' => 1, 'unknown' => 2, 'pending' => 3, 'ok' => 4, 'none' => 5];
+        foreach ($unlinked as $item) {
+            $lines[] = ['product_id' => null, 'name' => (string) ($item['name'] ?? $item['sku'] ?? '?'), 'code' => $item['sku'] ?? null, 'photo' => null, 'unit_cents' => (int) $item['unit_cents'], 'happy_hour' => null, 'paid' => (int) $item['qty'], 'taken' => null, 'adjusted' => null, 'delta' => null, 'state' => 'na'];
+        }
+        $order = ['extra' => 0, 'missing' => 1, 'unknown' => 2, 'pending' => 3, 'na' => 3, 'ok' => 4, 'none' => 5];
         usort($lines, fn (array $a, array $b) => $order[$a['state']] <=> $order[$b['state']]);
 
         return $lines;
@@ -625,12 +665,14 @@ class FreezerRecognitionController extends Controller
      *
      * @return array<int, Product>
      */
-    private function purchasedProducts($recognitions): array
+    private function purchasedProducts($recognitions, array $failedSessions = []): array
     {
+        $carts = collect($failedSessions)->flatMap(fn (FreezerFailedSession $f) => array_map('intval', array_column((array) $f->items, 'product_id')));
         $ids = $recognitions->map(fn (SmartFreezerRecognition $r) => $r->vendTransaction)->filter()
             ->flatMap(fn (VendTransaction $sale) => array_map(fn ($u) => (int) ($u['goods_id'] ?? 0), $this->tradeUnits($sale)))
             ->merge($recognitions->flatMap(fn (SmartFreezerRecognition $r) => array_map('intval', array_column((array) $r->verdict_lines, 'product_id'))))
             ->merge($recognitions->flatMap(fn (SmartFreezerRecognition $r) => array_map('intval', array_keys((array) (((array) $r->vendTransaction?->meta_json)['correction']['basket'] ?? [])))))
+            ->merge($carts)
             ->filter()->unique()->values();
         $barcodes = $recognitions->flatMap(fn (SmartFreezerRecognition $r) => array_map('strval', array_keys((array) $r->items)))->unique()->values();
 
@@ -669,7 +711,7 @@ class FreezerRecognitionController extends Controller
      *
      * @return array<string, CardPaymentIntent>
      */
-    private function cardCharges($recognitions): array
+    private function cardCharges($recognitions, array $failedSessions = []): array
     {
         $refs = $recognitions->pluck('session_ref')->filter()->unique()->values();
         if ($refs->isEmpty()) {
@@ -682,6 +724,9 @@ class FreezerRecognitionController extends Controller
             ->orderBy('id')
             ->get(['id', 'vend_id', 'session_ref', 'state', 'amount_cents', 'captured_cents', 'refunded_cents', 'owed_cents', 'ai_decision', 'last_error'])
             ->keyBy(fn (CardPaymentIntent $i) => $i->vend_id.'|'.$i->session_ref);
+        foreach ($this->holdsWithoutSession($recognitions, $failedSessions) as $key => $hold) {
+            $intents[$key] ??= $hold;
+        }
 
         $refunds = CardRefund::query()
             ->whereIn('card_payment_intent_id', $intents->pluck('id'))
@@ -691,6 +736,166 @@ class FreezerRecognitionController extends Controller
             ->groupBy('card_payment_intent_id');
 
         return $intents->each(fn (CardPaymentIntent $i) => $i->setRelation('confirmedRefunds', $refunds->get($i->id, collect())))->all();
+    }
+
+    /**
+     * Holds approved for a door session that never became a sale. The app names a hold's session only
+     * in the door-closed capture, so when the lock refuses (2026-11-04, 50001) the hold is voided with
+     * no session_ref and the row has no sale. Each such hold goes to the latest session started before
+     * it (the ref carries the second it started), and only to a row with no sale. A session the machine
+     * reported (app 48+) names its payment, which beats the time.
+     *
+     * @return array<string, CardPaymentIntent> "vend_id|session_ref" => the hold
+     */
+    private function holdsWithoutSession($recognitions, array $failedSessions = []): array
+    {
+        $unsold = $recognitions
+            // A "-0" ref is a remote camera check (op `clip`), which no customer pays for.
+            ->filter(fn (SmartFreezerRecognition $r) => $r->vend_id && ! $r->vend_transaction_id && self::sessionStart($r->session_ref) !== null && ! str_ends_with((string) $r->session_ref, '-0'))
+            ->keyBy(fn (SmartFreezerRecognition $r) => $r->vend_id.'|'.$r->session_ref);
+        if ($unsold->isEmpty()) {
+            return [];
+        }
+
+        $vendIds = $unsold->pluck('vend_id')->unique()->values();
+        $firstStart = $unsold->map(fn (SmartFreezerRecognition $r) => self::sessionStart($r->session_ref))->min();
+        $lastStart = $unsold->map(fn (SmartFreezerRecognition $r) => self::sessionStart($r->session_ref))->max();
+        $from = Carbon::createFromTimestamp($firstStart, config('app.timezone'));
+        $to = Carbon::createFromTimestamp($lastStart + self::SESSIONLESS_HOLD_WINDOW_SECONDS, config('app.timezone'));
+
+        $holds = CardPaymentIntent::query()
+            ->whereIn('vend_id', $vendIds)
+            ->whereNull('session_ref')
+            ->whereNotNull('approved_at')
+            ->whereIn('state', [CardPaymentIntent::STATE_APPROVED, CardPaymentIntent::STATE_VOIDED, CardPaymentIntent::STATE_VOID_FAILED])
+            ->whereBetween('created_at', [$from, $to])
+            ->orderBy('id')
+            ->get(['id', 'vend_id', 'session_ref', 'state', 'amount_cents', 'captured_cents', 'refunded_cents', 'owed_cents', 'payment_method', 'ai_decision', 'last_error', 'created_at', 'reference', 'provider_txn_id']);
+        if ($holds->isEmpty()) {
+            return [];
+        }
+
+        // Every session on these machines, not just this page's: a later one with a sale still ends the one before it.
+        $starts = SmartFreezerRecognition::query()
+            ->whereIn('vend_id', $vendIds)
+            ->where('created_at', '>=', $from)
+            ->whereNotNull('session_ref')
+            ->get(['vend_id', 'session_ref'])
+            ->groupBy('vend_id')
+            ->map(fn ($rows) => $rows->mapWithKeys(fn (SmartFreezerRecognition $r) => [(string) $r->session_ref => self::sessionStart($r->session_ref)])->filter()->sort());
+
+        $reported = collect($failedSessions)
+            ->filter(fn (FreezerFailedSession $f, string $key) => $f->payment_ref && $unsold->has($key))
+            ->mapWithKeys(fn (FreezerFailedSession $f, string $key) => [$f->vend_id.'|'.$f->payment_ref => $key]);
+
+        $found = [];
+        $named = [];
+        foreach ($holds as $hold) {
+            $session = $reported->get($hold->vend_id.'|'.$hold->provider_txn_id) ?? $reported->get($hold->vend_id.'|'.$hold->reference);
+            if ($session !== null) {
+                $named[$session] = $hold;
+
+                continue;
+            }
+            $at = $hold->created_at->timestamp;
+            $sessions = ($starts->get($hold->vend_id) ?? collect())->filter(fn (int $start) => $start <= $at);
+            $ref = $sessions->keys()->last();
+            $key = $hold->vend_id.'|'.$ref;
+            if ($ref !== null && $unsold->has($key) && $at - $sessions->last() <= self::SESSIONLESS_HOLD_WINDOW_SECONDS) {
+                $found[$key] = $hold;
+            }
+        }
+
+        return $named + $found;
+    }
+
+    /**
+     * What the machines reported about this page's sessions that ended in an error.
+     *
+     * @return array<string, FreezerFailedSession> "vend_id|session_ref" => the report
+     */
+    private function failedSessions($recognitions): array
+    {
+        $refs = $recognitions->pluck('session_ref')->filter()->unique()->values();
+        if ($refs->isEmpty()) {
+            return [];
+        }
+
+        return FreezerFailedSession::query()
+            ->whereIn('session_ref', $refs)
+            ->whereIn('vend_id', $recognitions->pluck('vend_id')->filter()->unique()->values())
+            ->get()
+            ->keyBy(fn (FreezerFailedSession $f) => $f->vend_id.'|'.$f->session_ref)
+            ->all();
+    }
+
+    /** The app's error line for this session, else what the machine reported at the end of it. */
+    private function doorError(SmartFreezerRecognition $r, array $doorErrors, array $failedSessions): ?array
+    {
+        $key = $r->vend_id.'|'.$r->session_ref;
+        $failed = $r->vendTransaction === null ? ($failedSessions[$key] ?? null) : null;
+        if (isset($doorErrors[$key]) || $failed === null) {
+            return $doorErrors[$key] ?? null;
+        }
+        $fault = DoorFault::fromReport($failed->reason, $failed->detail);
+
+        return $fault + ['plain' => DoorFault::plain($fault['code']), 'at' => $failed->ended_at?->format('H:i:s')];
+    }
+
+    /**
+     * Why a session's door failed, whatever it was paid with. The app files a failed door as one line naming
+     * the session, and the machine's own words are the result. It files one line per 2 minutes, so a failure
+     * right after another goes unlogged (50001's session 7, 2026-11-04).
+     *
+     * @return array<string, array{code: string, text: string, plain: string, at: ?string}> "vend_id|session_ref" => the error
+     */
+    private function doorErrors($recognitions): array
+    {
+        $starts = $recognitions
+            ->filter(fn (SmartFreezerRecognition $r) => $r->vend_id)
+            ->map(fn (SmartFreezerRecognition $r) => self::sessionStart($r->session_ref))
+            ->filter();
+        if ($starts->isEmpty()) {
+            return [];
+        }
+
+        return FreezerControlCommand::query()
+            ->whereIn('vend_id', $recognitions->pluck('vend_id')->filter()->unique()->values())
+            ->where('op', 'error:BoxVmc')
+            ->where(fn ($q) => $q->where('response_msg', 'like', 'Door refused for %')->orWhere('response_msg', 'like', 'Door call never reached host for %'))
+            ->whereBetween('created_at', [
+                Carbon::createFromTimestamp($starts->min(), config('app.timezone')),
+                Carbon::createFromTimestamp($starts->max() + self::SESSIONLESS_HOLD_WINDOW_SECONDS, config('app.timezone')),
+            ])
+            ->orderBy('id')
+            ->get(['vend_id', 'response_msg', 'created_at'])
+            ->mapWithKeys(function (FreezerControlCommand $c) {
+                $fault = DoorFault::fromLog((string) $c->response_msg);
+
+                return $fault === null ? [] : [$c->vend_id.'|'.$fault['session_ref'] => [
+                    'code' => $fault['code'],
+                    'text' => $fault['text'],
+                    'plain' => DoorFault::plain($fault['code']),
+                    'at' => $c->created_at?->format('H:i:s'),
+                ]];
+            })
+            ->all();
+    }
+
+    /** The second a kiosk session started: "SF-50001-1793784418-6" => 1793784418. */
+    private static function sessionStart(?string $sessionRef): ?int
+    {
+        return preg_match('/^SF-.+-(\d{9,})-\d+$/', (string) $sessionRef, $m) ? (int) $m[1] : null;
+    }
+
+    /** Payrallel's card type as a person reads it. */
+    private static function cardBrand(?string $method): ?string
+    {
+        return match ($method) {
+            null, '' => null,
+            'master' => 'Mastercard',
+            default => ucfirst($method),
+        };
     }
 
     /** "501 recognition error — 503 goods not listed in the model (商品未上架)", or null before a result. */
