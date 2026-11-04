@@ -26,6 +26,7 @@ use App\Models\Uom;
 use App\Models\VendChannel;
 use App\Services\CmsService;
 use App\Services\Grab\Menu\GrabMenuService;
+use App\Services\Product\ProductAiPhotos;
 use App\Services\TagBindingService;
 use App\Services\VendChannelService;
 use App\Services\VendTransactionSalesAggregator;
@@ -105,6 +106,29 @@ class ProductController extends Controller
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $className = get_class(new Product);
 
+        $products = Product::with([
+            'attachments',
+            'category',
+            'categoryGroup',
+            'latestUnitCost',
+            'operator',
+            'productUoms.uom',
+            'sellingPrices',
+            'tagBindings.tag',
+            'thumbnail',
+            'unitCosts' => function ($query) {
+                $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
+            },
+            // Artwork column: the live (chosen) welcome-scene sketch.
+            'welcomeSketch',
+        ])
+            ->filterIndex($request)
+            ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+            ->withQueryString();
+        // Smart Freezer / Smart Chiller AI Photo columns.
+        $aiPhotos = app(ProductAiPhotos::class)->forProducts($products->getCollection());
+        $products->getCollection()->each(fn (Product $product) => $product->setAttribute('ai_photos', $aiPhotos[$product->id] ?? null));
+
         return Inertia::render('Product/Index', [
             'categories' => CategoryResource::collection(
                 Category::where('classname', $className)
@@ -122,27 +146,7 @@ class ProductController extends Controller
                 Operator::all()
             ),
             'priceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
-            'products' => ProductResource::collection(
-                Product::with([
-                    'attachments',
-                    'category',
-                    'categoryGroup',
-                    'latestUnitCost',
-                    'operator',
-                    'productUoms.uom',
-                    'sellingPrices',
-                    'tagBindings.tag',
-                    'thumbnail',
-                    'unitCosts' => function ($query) {
-                        $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
-                    },
-                    // Artwork column: the live (chosen) welcome-scene sketch.
-                    'welcomeSketch',
-                ])
-                    ->filterIndex($request)
-                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-                    ->withQueryString()
-            ),
+            'products' => ProductResource::collection($products),
             'productTagOptions' => TagResource::collection(
                 Tag::where('classname', $className)
                     ->orderBy('name')

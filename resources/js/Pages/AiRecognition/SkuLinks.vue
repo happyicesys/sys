@@ -69,7 +69,7 @@
       <section v-if="seesLibrary" class="bg-white rounded-md border p-3">
         <h3 class="text-base font-semibold text-gray-800">{{ $t('Registered with Zijia, not linked to a product') }}</h3>
         <p class="mt-1 text-xs text-gray-500">
-          {{ $t('A SKU whose name matches exactly one product links by itself within 3 minutes. These need a person, because a wrong link makes the AI name the wrong product and can charge the wrong amount.') }}
+          {{ $t('A SKU whose name matches exactly one product links by itself within 30 minutes. These need a person, because a wrong link makes the AI name the wrong product and can charge the wrong amount.') }}
         </p>
         <p v-if="!library.length" class="mt-3 text-sm text-gray-500">{{ $t('Every registered SKU is linked.') }}</p>
         <ul v-else class="mt-2 divide-y">

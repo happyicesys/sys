@@ -173,7 +173,13 @@
                       {{ $t('Smart Freezer') }}
                     </TableHead>
                     <TableHead>
+                      {{ $t('Smart Freezer AI Photo') }}
+                    </TableHead>
+                    <TableHead>
                       {{ $t('Smart Chiller') }}
+                    </TableHead>
+                    <TableHead>
+                      {{ $t('Smart Chiller AI Photo') }}
                     </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
                       {{ $t('Unit Cost') }} <br>
@@ -280,10 +286,16 @@
                         <span v-if="product.freezer_slot_qty" class="text-sm whitespace-nowrap">{{ $t(':count pcs', { count: product.freezer_slot_qty }) }}</span>
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
+                        <AiPhotoCell :cell="product.ai_photos?.freezer" kind="freezer" />
+                      </TableData>
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex flex-col space-y-0.5 text-sm whitespace-nowrap" v-if="product.chiller_slot_qty || product.shelf_life_days">
                           <span v-if="product.chiller_slot_qty">{{ $t(':count pcs', { count: product.chiller_slot_qty }) }}</span>
                           <span v-if="product.shelf_life_days">{{ $tc(':count day|:count days', product.shelf_life_days) }}</span>
                         </div>
+                      </TableData>
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
+                        <AiPhotoCell :cell="product.ai_photos?.chiller" kind="chiller" />
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-right" v-if="permissions.includes('admin-access products')">
                         {{ product.latestUnitCost ? (product.latestUnitCost.cost).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
@@ -412,6 +424,7 @@
 </template>
 
 <script setup>
+import AiPhotoCell from '@/Components/Product/AiPhotoCell.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import HistoryButton from '@/Components/HistoryButton.vue';

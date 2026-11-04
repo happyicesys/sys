@@ -32,7 +32,7 @@
         {{ $t('The barcode') }} <span class="font-mono">{{ app.product_code }}</span> {{ $t('is set on the product when they approve.') }}
       </div>
       <div v-else-if="app.status === 'approved' && app.source === 'vms4'">
-        {{ $t('Approved in Zijia\'s vms4 portal. Details and photos below are mirrored from their library (last changed there :time) and kept in step every 3 minutes.', { time: app.library_updated_at || $t('unknown') }) }}
+        {{ $t('Approved in Zijia\'s vms4 portal. Details and photos below are mirrored from their library (last changed there :time) and kept in step every 30 minutes.', { time: app.library_updated_at || $t('unknown') }) }}
         {{ $t('Barcode') }} <span class="font-mono">{{ app.product_code }}</span> {{ $t('is on the AI\'s list.') }}
         <span v-if="productBarcode !== app.product_code" class="block text-red-700">
           {{ $t('The product\'s barcode is :barcode — see the log below.', { barcode: productBarcode || $t('empty') }) }}

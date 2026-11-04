@@ -478,7 +478,6 @@
     "A reversal line is paired with its purchase line, not resolved to a sale.": "冲正行与其购买行配对，不会对应到销售。",
     "A sale is never interrupted. Try again in a minute.": "不会中断任何销售。请一分钟后再试。",
     "A SKU whose Available? tick is off in the warehouse (Product Movement) is skipped when a slot picks its SKUs.": "在仓库（商品出入库）中未勾选“可用？”的 SKU，在时段选择 SKU 时会被跳过。",
-    "A SKU whose name matches exactly one product links by itself within 3 minutes. These need a person, because a wrong link makes the AI name the wrong product and can charge the wrong amount.": "名称与唯一一个商品完全相同的 SKU 会在 3 分钟内自动关联。以下项目需要人工确认，因为关联错误会让 AI 认错商品，并可能扣错金额。",
     "A Smart Chiller is priced by CityBox, not by this switch.": "智能冷柜由 CityBox 定价，不受此开关控制。",
     "A Smart Freezer always uses Server Price — it has no machine price.": "智能冰柜始终使用服务器价格——它没有机器价格。",
     "A Smart Freezer always uses Server Price.": "智能冰柜始终使用服务器价格。",
@@ -732,7 +731,6 @@
     "Approved by gateway :time": "网关已批准 :time",
     "Approved by gateway :time — later refunded": "网关已批准 :time — 之后已退款",
     "Approved by Zijia :time.": "Zijia 已于 :time 批准。",
-    "Approved in Zijia's vms4 portal. Details and photos below are mirrored from their library (last changed there :time) and kept in step every 3 minutes.": "已在 Zijia 的 vms4 门户中批准。以下详情和照片同步自其商品库（对方最后修改于 :time），每 3 分钟同步一次。",
     "Approved in Zijia's vms4 portal; details and photos mirrored from their library": "已在 Zijia 的 vms4 门户中批准；详情和照片同步自其商品库",
     "Approved set": "已批准的图集",
     "Approx. time": "大约时间",
@@ -6446,5 +6444,15 @@
     "🔁 Re-match Order ID": "🔁 重新匹配订单 ID",
     "🔗 Auto-matched": "🔗 自动匹配",
     "🔗 Match Order ID": "🔗 匹配订单 ID",
-    "🗑 Delete ticket (permanent)": "🗑 删除申请（永久）"
+    "🗑 Delete ticket (permanent)": "🗑 删除申请（永久）",
+    ":count photo|:count photos": ":count 张照片|:count 张照片",
+    "Delisted by CityBox": "已被 CityBox 下架",
+    "Disabled in CityBox": "已在 CityBox 停用",
+    "No photo copy": "没有照片副本",
+    "Not in CityBox": "不在 CityBox",
+    "Smart Chiller AI Photo": "智能冷柜 AI 照片",
+    "Smart Freezer AI Photo": "智能冰柜 AI 照片",
+    "Waiting for approval": "等待批准",
+    "A SKU whose name matches exactly one product links by itself within 30 minutes. These need a person, because a wrong link makes the AI name the wrong product and can charge the wrong amount.": "名称与唯一一个商品完全相同的 SKU 会在 30 分钟内自动关联。以下项目需要人工确认，因为关联错误会让 AI 认错商品，并可能扣错金额。",
+    "Approved in Zijia's vms4 portal. Details and photos below are mirrored from their library (last changed there :time) and kept in step every 30 minutes.": "已在 Zijia 的 vms4 门户中批准。以下详情和照片同步自其商品库（对方最后修改于 :time），每 30 分钟同步一次。"
 }

@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * Every 3 minutes: fills in missing freezer product barcodes from Zijia's SKU library, only on a
+ * Every 30 minutes: fills in missing freezer product barcodes from Zijia's SKU library, only on a
  * unique exact name match, then mirrors each barcoded freezer product's vms4 approval into mark1
  * (details + photos, refreshed when changed there) — ZijiaBarcodeSync / ZijiaLibraryImport.
  */

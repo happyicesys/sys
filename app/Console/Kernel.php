@@ -131,7 +131,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('smart-freezer:zijia-evaluate-pending')->everyTenMinutes()->withoutOverlapping();
         // Freezer product barcodes from Zijia's SKU library (unique exact name match only) until
         // Zijia offers an approval callback — a product with no barcode is never sent to their AI.
-        $schedule->command('smart-freezer:zijia-barcode-sync')->cron('*/3 * * * *')->withoutOverlapping(5);
+        $schedule->command('smart-freezer:zijia-barcode-sync')->cron('*/30 * * * *')->withoutOverlapping(5);
         // Welcome sketches: draw one for any smart-freezer product that has a photo and none yet
         // (e.g. just added to a mapping), then — at most happy_hour.vending_sketch_sweep_limit a run —
         // for products on vending machines that show the welcome scene (big board app 315+, or a UI

@@ -66,16 +66,20 @@ class ZijiaBarcodeSync
     }
 
     /**
-     * Mirrors every smart-freezer product WITH a barcode from Zijia's library into mark1 — what it
-     * was approved with in vms4, photos included — and picks up changes made there since
-     * (ZijiaLibraryImport). Cheap when nothing changed: one library query per product.
+     * Mirrors every smart-freezer product WITH a barcode, and any other whose barcode is in our copy
+     * of their library, into mark1 — what it was approved with in vms4, photos included — and picks
+     * up changes made there since (ZijiaLibraryImport). The second group has its photos on the
+     * Products index before it goes on a freezer. Cheap when nothing changed: one library query per
+     * product.
      *
      * @return array<int, array{product_id: int, name: string, outcome: string}>
      */
     public function importApproved(): array
     {
         $results = [];
-        $products = Product::withoutGlobalScopes()->whereIn('id', $this->freezerProductIds())
+        $products = Product::withoutGlobalScopes()
+            ->where(fn ($q) => $q->whereIn('id', $this->freezerProductIds())
+                ->orWhereIn('barcode', ZijiaLibrarySku::query()->select('product_code')))
             ->whereNotNull('barcode')->where('barcode', '!=', '')
             ->orderBy('id')->get(['id', 'code', 'name', 'barcode']);
         foreach ($products as $product) {

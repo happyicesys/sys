@@ -94,6 +94,8 @@ class ProductResource extends JsonResource
             'thumbnail' => AttachmentResource::make($this->whenLoaded('thumbnail')),
             // The live welcome-scene sketch (the album's chosen drawing), as the freezer menu serves it.
             'welcome_sketch_url' => $this->when($this->relationLoaded('welcomeSketch'), fn () => ProductWelcomeSketchService::menuUrl($this->welcomeSketch)),
+            // Only the Products index sets it (ProductAiPhotos).
+            'ai_photos' => $this->when(isset($this->ai_photos), fn () => $this->ai_photos),
             'latestUnitCost' => UnitCostResource::make($this->whenLoaded('latestUnitCost')),
             'limit_is_created_by_system' => isset($this->limit_is_created_by_system) ? $this->limit_is_created_by_system : null,
             'needed_qty' => isset($this->needed_qty) ? $this->needed_qty : null,

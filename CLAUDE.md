@@ -1168,7 +1168,7 @@ unrecognised). Rules:
   Barcode. ANY `sn` their library lacks rejects the whole request (free: no requestId),
   and a tradeId they refused once is burnt ("订单保存失败" on every resend). Their central
   library (`smart-freezer:zijia-skus`) holds China packs; check it before modelling
-  a product that may already exist. **`smart-freezer:zijia-barcode-sync` runs every 3 minutes**
+  a product that may already exist. **`smart-freezer:zijia-barcode-sync` runs every 30 minutes** (every 3 until Brian's call of 2026-11-04)
   (Brian, 2026-10-05, until Zijia offers an approval callback): for each product on a smart
   freezer's planogram with no barcode it writes the barcode ONLY on a unique exact name match
   (case/punctuation aside) — their library is shared by all their customers and carries no link to
@@ -1198,7 +1198,7 @@ unrecognised). Rules:
   (`callbackUrl()` carries the token, so an application sent without one could never be decided).
   Even tokened, a change needs our own application (its `applicationNo`) or their public library
   (§8): an approval is applied only when the library files that barcode under THIS product's name
-  (the 3-minute crawl's rule; else `library_name_differs`), a rejection only when the library no
+  (the 30-minute crawl's rule; else `library_name_differs`), a rejection only when the library no
   longer lists it (else `still_in_library`); both wait for a person. Product: `attach` /
   `applicationNo` = `products.code`, else a unique exact name among freezer-planogram products.
   (2) The signed envelope we proposed (2026-10-05), signed like the result callback (enforce:
@@ -1225,8 +1225,9 @@ unrecognised). Rules:
   put a file there by any other route. vms4 mirrors stay as Zijia approved them. Prod PHP's
   `max_file_uploads` is 20 and drops extra files silently, so the page caps one save at that
   (`max_files_per_save`). Regression coverage: `tests/Feature/ZijiaTrainingPhotoSquareTest.php`.
-  **vms4 mirror** (2026-10-06; `ZijiaLibraryImport`, run by the 3-minute
-  `smart-freezer:zijia-barcode-sync` for every smart-freezer planogram product WITH a barcode):
+  **vms4 mirror** (2026-10-06; `ZijiaLibraryImport`, run by the 30-minute
+  `smart-freezer:zijia-barcode-sync` for every smart-freezer planogram product WITH a barcode, and any
+  other product whose barcode is in `zijia_library_skus`, so it has photos before it goes on a freezer):
   what a product was approved with in Zijia's vms4 portal is read from their public library by
   barcode and kept as a `source = vms4`, approved application — name, brand, spec, category,
   package type, package + model photos COPIED to DO Spaces `sys/zijia-sku/{product}/vms4/`
@@ -1237,7 +1238,7 @@ unrecognised). Rules:
   (a different existing one is left and reported); rejected / withdrawn → clears a barcode
   equal to theirs (an unsigned §7 one only once their library no longer lists it) (an unknown sn would make Zijia reject the whole session). Every push is
   kept in `zijia_sku_notifications` with its outcome; the ones needing a person are in the
-  08:30 health email. The 3-minute crawl stays as the backstop. `modelIdList` is optional ("可以先不用传"):
+  08:30 health email. The 30-minute crawl stays as the backstop. `modelIdList` is optional ("可以先不用传"):
   empty config sends `[]`, never omits the key.
 
 **Freezer welcome sketches** (Brian, 2026-10-08). The freezer's welcome scene drops a hand-drawn
@@ -1257,7 +1258,7 @@ be deleted, and a file is removed only when no other entry shares its content-ha
 2026-10-12 left their files on Spaces: `products:welcome-sketches --recover [--dry-run]` turns them into
 `recovered` album entries (seed art recognised by hash). Served on `/api/vends/{code}/menu` as
 `welcome_sketch` — smart mappings only, `?v=` versioned, null = the freezer drops the photo; vending
-menus are byte-for-byte unchanged. The Products index shows the live drawing as its Artwork column (`ProductResource.welcome_sketch_url`, the same versioned URL; eager-loaded only there). Sources: **seed** (the approved set in
+menus are byte-for-byte unchanged. The Products index shows the live drawing as its Artwork column (`ProductResource.welcome_sketch_url`, the same versioned URL; eager-loaded only there). Beside it, **Smart Freezer AI Photo / Smart Chiller AI Photo** (Brian, 2026-11-04; `ProductAiPhotos`, `Components/Product/AiPhotoCell.vue`) show what each AI holds: the freezer's from its Zijia application, reaching the AI by `ZijiaSkuLinks`' rule; the chiller's from the linked `citybox_products` row. A product on such a machine's live planogram that the AI lacks is marked red. Regression coverage: `tests/Feature/ProductAiPhotosTest.php`. Sources: **seed** (the approved set in
 `resources/welcome-sketches/{product code}.webp`, `ProductWelcomeSketchSeeder`, idempotent, never over an
 upload; a duplicated code resolves to the freezer-planogram product), **generated** (OpenAI image edit,
 `OpenAiSketchGenerator` behind `SketchGenerator`, the photo + three seed sketches as the style;

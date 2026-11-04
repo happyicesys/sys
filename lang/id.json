@@ -478,7 +478,6 @@
     "A reversal line is paired with its purchase line, not resolved to a sale.": "Baris reversal dipasangkan dengan baris pembeliannya, tidak dicocokkan ke penjualan.",
     "A sale is never interrupted. Try again in a minute.": "Penjualan tidak pernah diinterupsi. Coba lagi dalam satu menit.",
     "A SKU whose Available? tick is off in the warehouse (Product Movement) is skipped when a slot picks its SKUs.": "SKU yang centang Tersedia?-nya mati di gudang (Pergerakan Produk) dilewati saat sesi memilih SKU-nya.",
-    "A SKU whose name matches exactly one product links by itself within 3 minutes. These need a person, because a wrong link makes the AI name the wrong product and can charge the wrong amount.": "SKU yang namanya sama persis dengan satu produk akan tertaut sendiri dalam 3 menit. Yang berikut perlu dikonfirmasi orang, karena tautan yang salah membuat AI salah mengenali produk dan bisa menagih jumlah yang salah.",
     "A Smart Chiller is priced by CityBox, not by this switch.": "Smart Chiller diberi harga oleh CityBox, bukan oleh tombol ini.",
     "A Smart Freezer always uses Server Price — it has no machine price.": "Smart Freezer selalu memakai Harga Server — tidak punya harga mesin.",
     "A Smart Freezer always uses Server Price.": "Smart Freezer selalu memakai Harga Server.",
@@ -732,7 +731,6 @@
     "Approved by gateway :time": "Disetujui gateway :time",
     "Approved by gateway :time — later refunded": "Disetujui gateway :time — kemudian di-refund",
     "Approved by Zijia :time.": "Disetujui oleh Zijia :time.",
-    "Approved in Zijia's vms4 portal. Details and photos below are mirrored from their library (last changed there :time) and kept in step every 3 minutes.": "Disetujui di portal vms4 Zijia. Detail dan foto di bawah dicerminkan dari pustaka mereka (terakhir diubah di sana :time) dan diselaraskan setiap 3 menit.",
     "Approved in Zijia's vms4 portal; details and photos mirrored from their library": "Disetujui di portal vms4 Zijia; detail dan foto dicerminkan dari pustaka mereka",
     "Approved set": "Set disetujui",
     "Approx. time": "Perkiraan waktu",
@@ -6446,5 +6444,15 @@
     "🔁 Re-match Order ID": "🔁 Cocokkan Ulang Order ID",
     "🔗 Auto-matched": "🔗 Cocok otomatis",
     "🔗 Match Order ID": "🔗 Cocokkan Order ID",
-    "🗑 Delete ticket (permanent)": "🗑 Hapus tiket (permanen)"
+    "🗑 Delete ticket (permanent)": "🗑 Hapus tiket (permanen)",
+    ":count photo|:count photos": ":count foto|:count foto",
+    "Delisted by CityBox": "Dihapus dari daftar oleh CityBox",
+    "Disabled in CityBox": "Dinonaktifkan di CityBox",
+    "No photo copy": "Tidak ada salinan foto",
+    "Not in CityBox": "Tidak ada di CityBox",
+    "Smart Chiller AI Photo": "Foto AI Smart Chiller",
+    "Smart Freezer AI Photo": "Foto AI Smart Freezer",
+    "Waiting for approval": "Menunggu persetujuan",
+    "A SKU whose name matches exactly one product links by itself within 30 minutes. These need a person, because a wrong link makes the AI name the wrong product and can charge the wrong amount.": "SKU yang namanya sama persis dengan satu produk akan tertaut sendiri dalam 30 menit. Yang berikut perlu dikonfirmasi orang, karena tautan yang salah membuat AI salah mengenali produk dan bisa menagih jumlah yang salah.",
+    "Approved in Zijia's vms4 portal. Details and photos below are mirrored from their library (last changed there :time) and kept in step every 30 minutes.": "Disetujui di portal vms4 Zijia. Detail dan foto di bawah dicerminkan dari pustaka mereka (terakhir diubah di sana :time) dan diselaraskan setiap 30 menit."
 }

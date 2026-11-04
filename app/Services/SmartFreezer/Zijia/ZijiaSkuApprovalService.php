@@ -96,7 +96,7 @@ class ZijiaSkuApprovalService
      * - one of OUR applications (its `applicationNo`) names the product; an approval of the very
      *   barcode we submitted is applied, any other barcode must be in their library;
      * - anything else must be confirmed by their public library (§8) before a write: an approval
-     *   only when the library files that barcode under this product's name (the 3-minute crawl's
+     *   only when the library files that barcode under this product's name (the 30-minute crawl's
      *   rule — a real barcode of ANOTHER product is never planted), a rejection only when the
      *   library no longer lists the barcode. Otherwise the push waits for a person.
      * The product is found by `sku.attach` / `sku.applicationNo` = products.code (ours when we
@@ -263,7 +263,7 @@ class ZijiaSkuApprovalService
 
     /**
      * The one smart-freezer planogram product with exactly this name (case and punctuation aside),
-     * the same rule as the 3-minute crawl.
+     * the same rule as the 30-minute crawl.
      *
      * @return array{0: ?Product, 1: string}
      */

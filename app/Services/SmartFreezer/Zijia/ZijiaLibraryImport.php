@@ -20,7 +20,7 @@ use Throwable;
  * approved, its photos COPIED to our DO Spaces (`sys/zijia-sku/{product}/vms4/…`) so mark1 never
  * depends on their links, and the library record kept as read. When their `updatedTime` moves (a
  * change made in vms4), the row is refreshed and the change logged. A product already approved
- * through mark1 with that barcode is not mirrored twice. Run by the 3-minute
+ * through mark1 with that barcode is not mirrored twice. Run by the 30-minute
  * `smart-freezer:zijia-barcode-sync` for every smart-freezer product with a barcode.
  */
 class ZijiaLibraryImport

@@ -6,7 +6,7 @@ Brian: 18 products on 50001, only 13 sent to the AI, though Zijia's portal shows
 
 `goodsList` is built from `products.barcode` only (`FreezerRecognitionService::candidateCodes`).
 `zijia_sku_applications` is a mirror and plays no part, so importing it would have changed nothing.
-There was no screen to set a barcode either: only AI Training's approval and the 3-minute sync write it.
+There was no screen to set a barcode either: only AI Training's approval and the 30-minute sync write it.
 
 The sync searched Zijia's library with our exact product name. Their search is a substring match, so:
 

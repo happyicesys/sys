@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * POST /api/smart-freezer/zijia/sku/notify — Zijia tells us a product was approved, rejected or
  * withdrawn in their portal (requested 2026-10-05), so its barcode reaches the AI's goodsList at
- * once instead of on the 3-minute library crawl (`smart-freezer:zijia-barcode-sync`, kept as the
+ * once instead of on the 30-minute library crawl (`smart-freezer:zijia-barcode-sync`, kept as the
  * backstop).
  *
  * Two shapes. Their DOCUMENTED one (算法服务接口文档 §7 商品审批回调, found 2026-10-05): plain
