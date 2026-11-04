@@ -289,7 +289,8 @@
 
       <div class="mt-6 flex flex-col">
         <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
-          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
+          <!-- Shorter than the screen by the page footer, so the page cannot scroll the pinned header out of sight. -->
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll max-h-[calc(100vh-6rem)]">
             <p v-if="correctionNotice" class="mb-2 rounded-md border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800">{{ correctionNotice }}</p>
             <table class="min-w-full border-separate" style="border-spacing: 0">
               <thead class="bg-gray-100">
