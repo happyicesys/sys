@@ -304,7 +304,7 @@
           </dd>
         </div>
         <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-          <dt class="text-base font-bold text-gray-800">{{ $t('Qty Adjusted') }}</dt>
+          <dt class="text-base font-bold text-gray-800">{{ $t('Transactions Adjusted') }}</dt>
           <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
             {{ score.adjusted.toLocaleString() }}
             <span v-if="score.adjusted_pct !== null" class="text-xs text-gray-500">({{ score.adjusted_pct.toFixed(2) }}%)</span>
