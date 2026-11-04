@@ -4680,6 +4680,8 @@
     "Refund the rest (:amount)": "退还余额（:amount）",
     "Refund ticket deleted.": "退款单已删除。",
     "Refund to": "退款至",
+    "Refund Button Wording": "退款按钮文字",
+    "(From APK 325 the machine shows its button only when this is filled in)": "(APK 325 起，只有填写此项时机器才显示该按钮)",
     "Refund URL": "退款网址",
     "Refunded": "已退款",
     "refunded": "已退款",

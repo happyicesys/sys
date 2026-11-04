@@ -125,11 +125,25 @@ class VendParametersWireContractTest extends TestCase
 
         // clsSettingPromoParam binds the camelCase aliases, not the
         // snake_case storage keys — both must keep shipping.
-        foreach (['isGrabEnabled', 'companyUrl', 'companyAddress', 'companyName', 'refundUrl', 'campaigns'] as $key) {
+        foreach (['isGrabEnabled', 'companyUrl', 'companyAddress', 'companyName', 'refundUrl', 'refundButtonWording', 'campaigns'] as $key) {
             $this->assertArrayHasKey($key, $data);
         }
 
         $this->assertContains($data['isGrabEnabled'], ['true', 'false']);
+    }
+
+    public function test_refund_button_wording_defaults_to_refund_and_follows_the_setting(): void
+    {
+        $vend = $this->makeVendWithLegacyRow();
+
+        // An old row that has never stored the key.
+        $this->assertSame('refund', $this->getJson('/api/vends/9901/parameters/301')->assertOk()->json('refundButtonWording'));
+
+        $setting = $vend->apkSettings()->first();
+        $setting->settings_parameter_json = [...(array) $setting->settings_parameter_json, 'refund_button_wording' => 'complaint'];
+        $setting->save();
+
+        $this->assertSame('complaint', $this->getJson('/api/vends/9901/parameters/301')->assertOk()->json('refundButtonWording'));
     }
 
     public function test_promo_label_items_kept_for_pre_213_and_stripped_after(): void

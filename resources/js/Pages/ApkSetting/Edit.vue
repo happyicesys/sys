@@ -219,8 +219,28 @@
                   <span class="text-base">
                     {{ $t('Refund URL') }}
                   </span>
+                  <span class="text-sm text-gray-600">
+                    {{ $t('(From APK 325 the machine shows its button only when this is filled in)') }}
+                  </span>
                 </div>
               </FormInput>
+            </div>
+
+            <div class="sm:col-span-5">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+                {{ $t('Refund Button Wording') }}
+              </label>
+              <MultiSelect
+                v-model="form.refund_button_wording"
+                :options="refundButtonWordingOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                :placeholder="$t('Select')"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
             </div>
 
             <div class="sm:col-span-5">
@@ -1458,6 +1478,11 @@ const promoBannerKindOptions = ref([
   {id: 'mixed', value: t('Mixed (Pic + Video)')},
 ])
 
+const refundButtonWordingOptions = ref([
+  {id: 'refund', value: t('Refund')},
+  {id: 'complaint', value: t('Complaint')},
+])
+
 const promoTypeOptions = ref([
   {id: '1', value: t('Amount')},
   {id: '2', value: t('Percent')},
@@ -1578,6 +1603,9 @@ onMounted(() => {
     company_url: props.apkSetting.data.settings_parameter_json.company_url,
     company_address: props.apkSetting.data.settings_parameter_json.company_address,
     refund_url: props.apkSetting.data.settings_parameter_json.refund_url,
+    refund_button_wording: refundButtonWordingOptions.value.find(
+      option => option.id == (props.apkSetting.data.settings_parameter_json.refund_button_wording ?? 'refund')
+    ) ?? refundButtonWordingOptions.value[0],
 
   }) : useForm(getDefaultForm())
 
@@ -1664,6 +1692,7 @@ function getDefaultForm() {
     company_url: '',
     company_address: '',
     refund_url: '',
+    refund_button_wording: refundButtonWordingOptions.value[0],
   }
 }
 
@@ -1703,6 +1732,7 @@ function submit() {
             company_url: form.value.company_url,
             company_address: [addressLine1.value, addressLine2.value, addressLine3.value].join('\n'),
             refund_url: form.value.refund_url,
+            refund_button_wording: form.value.refund_button_wording?.id,
             vends: vends.value.map(vend => vend?.id).filter(id => id != null),
           }
       }).then(response => {

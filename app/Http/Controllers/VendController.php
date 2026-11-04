@@ -3952,6 +3952,7 @@ class VendController extends Controller
             'companyAddress' => $settingsParams['company_address'] ?? null,
             'companyName' => $settingsParams['companyName'] ?? null,
             'refundUrl' => $settingsParams['refund_url'] ?? null,
+            'refundButtonWording' => $settingsParams['refund_button_wording'] ?? 'refund',
             'promoLabelItems' => $campaignItems->map(function ($campaignItem) {
                 return [
                     'id' => isset($campaignItem->tagBindings[0]) ? $campaignItem->tagBindings[0]->tag->id : null,

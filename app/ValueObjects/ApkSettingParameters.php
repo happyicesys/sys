@@ -153,6 +153,8 @@ final class ApkSettingParameters implements JsonSerializable
         'company_url' => ['default' => null, 'type' => self::TYPE_STRING, 'group' => 'company', 'label' => 'Company URL'],
         'company_address' => ['default' => null, 'type' => self::TYPE_STRING, 'group' => 'company', 'label' => 'Company Address'],
         'refund_url' => ['default' => null, 'type' => self::TYPE_STRING, 'group' => 'company', 'label' => 'Refund URL'],
+        // 2026-11-04 (Brian): the wording of the machine's refund button. APK 325+ reads it; older boards ignore it.
+        'refund_button_wording' => ['default' => 'refund', 'type' => self::TYPE_ENUM, 'group' => 'company', 'label' => 'Refund Button Wording', 'options' => ['refund', 'complaint']],
         'companyName' => ['default' => null, 'type' => self::TYPE_STRING, 'group' => 'company', 'label' => 'Company Name'],
     ];
 

@@ -4680,6 +4680,8 @@
     "Refund the rest (:amount)": "Kembalikan sisanya (:amount)",
     "Refund ticket deleted.": "Tiket refund dihapus.",
     "Refund to": "Refund ke",
+    "Refund Button Wording": "Teks Tombol Refund",
+    "(From APK 325 the machine shows its button only when this is filled in)": "(Mulai APK 325, mesin hanya menampilkan tombolnya jika ini diisi)",
     "Refund URL": "URL Refund",
     "Refunded": "Di-refund",
     "refunded": "di-refund",

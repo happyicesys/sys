@@ -133,6 +133,12 @@ class ApkSettingParametersTest extends TestCase
         $this->assertSame('holo-display', $result['bannerKind']);
     }
 
+    public function test_refund_button_wording_defaults_to_refund(): void
+    {
+        $this->assertSame('refund', ApkSettingParameters::fromArray([])->toArray()['refund_button_wording']);
+        $this->assertSame('complaint', ApkSettingParameters::fromArray(['refund_button_wording' => 'complaint'])->toArray()['refund_button_wording']);
+    }
+
     public function test_legacy_null_becomes_minus_one_rule_is_preserved(): void
     {
         $result = ApkSettingParameters::fromArray([
