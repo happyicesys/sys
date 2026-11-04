@@ -115,7 +115,8 @@ class ProductMappingSaveAtomicTest extends TestCase
         $this->assertSame($small, $large, "products queries: {$small} for 2 items, {$large} for 8");
         $items = ProductMappingItem::where('product_mapping_id', $this->mapping->id)->get()->keyBy('channel_code');
         $this->assertCount(8, $items);
-        $this->assertNull($items['11']->capacity_override, 'an override equal to the default is stored as NULL');
+        $this->assertNull($items['21']->capacity_override, 'an override equal to the default is stored as NULL');
+        $this->assertSame(6, (int) $items['11']->capacity_override, "basket 1's default is half, so the listed 6 is a real override");
         $this->assertSame(4, (int) $items['12']->capacity_override);
     }
 }

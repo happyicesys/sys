@@ -97,7 +97,7 @@ class ProductMappingController extends Controller
      * today's default and a later change on Product → Edit would stop reaching
      * the machines. Typing a different number still overrides, as before.
      */
-    private function normalizeCapacityOverride(ProductMapping $mapping, $productId, $value, ?\Illuminate\Support\Collection $products = null): ?int
+    private function normalizeCapacityOverride(ProductMapping $mapping, $productId, $value, $channelCode, ?\Illuminate\Support\Collection $products = null): ?int
     {
         if ($value === null || $value === '') {
             return null;
@@ -106,7 +106,8 @@ class ProductMappingController extends Controller
         $override = max(0, min(999, (int) $value));
         $default = ProductMappingItem::productDefaultCapacity(
             $products ? $products->get((int) $productId) : \App\Models\Product::withoutGlobalScopes()->find($productId),
-            $mapping->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE
+            $mapping->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE,
+            $channelCode
         );
 
         return $override === $default ? null : $override;
@@ -1063,7 +1064,7 @@ class ProductMappingController extends Controller
             $item->channel_code = $validated['channel_code'];
             $item->product_id = $validated['product_id'];
             $item->capacity_override = $mapping
-                ? $this->normalizeCapacityOverride($mapping, $validated['product_id'], $validated['capacity_override'] ?? null)
+                ? $this->normalizeCapacityOverride($mapping, $validated['product_id'], $validated['capacity_override'] ?? null, $validated['channel_code'])
                 : null;
             $item->sequence = null; // set after clearing others
             $item->save();
@@ -1285,6 +1286,7 @@ class ProductMappingController extends Controller
                             $productMapping,
                             $productMappingItem['product']['id'],
                             $productMappingItem['capacity_override'] ?? null,
+                            $productMappingItem['channel_code'],
                             $products
                         ),
                     ]);
@@ -1335,7 +1337,8 @@ class ProductMappingController extends Controller
             $request->merge(['capacity_override' => $this->normalizeCapacityOverride(
                 $productMappingItem->productMapping,
                 $request->input('product_id', $productMappingItem->product_id),
-                $request->capacity_override
+                $request->capacity_override,
+                $request->input('channel_code', $productMappingItem->channel_code)
             )]);
         }
         if ($request->filled('channel_code')) {

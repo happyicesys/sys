@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ChannelCode;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,9 @@ use Illuminate\Database\Eloquent\Model;
 class ProductMappingItem extends Model
 {
     use HasFactory;
+
+    /** Freezer baskets that hold half a SKU's listed capacity (Brian, 2026-11-04). */
+    public const FREEZER_HALF_BASKETS = [1, 4];
 
     protected $fillable = [
         'channel_code',
@@ -23,7 +27,7 @@ class ProductMappingItem extends Model
     /**
      * The capacity this item gives its SKU on a SKU-stocked machine (Brian,
      * 2026-09-22): the mapping's "Real Capacity" override (capacity_override) when set, else the
-     * product's default (freezer_slot_qty / chiller_slot_qty, Product → Edit).
+     * product's default for this slot (see productDefaultCapacity).
      * 0 = unmeasured, which the dashboards read as "-". Meaningless for a
      * vending mapping — a vending slot's capacity is the board's.
      */
@@ -35,7 +39,8 @@ class ProductMappingItem extends Model
 
         return self::productDefaultCapacity(
             $this->relationLoaded('product') ? $this->product : $this->product()->first(['id', 'freezer_slot_qty', 'chiller_slot_qty']),
-            $machineType
+            $machineType,
+            $this->channel_code
         );
     }
 
@@ -44,14 +49,31 @@ class ProductMappingItem extends Model
      * column on ProductMapping → Edit, set on Product → Edit. 0 = unmeasured,
      * which the dashboards read as "-". One definition, shared by the effective
      * capacity above and by the controller's override normalisation.
+     *
+     * In freezer baskets 1 and 4 the default is half that number, rounded down to
+     * whole pieces, and never below 1 for a measured product.
      */
-    public static function productDefaultCapacity(?Product $product, string $machineType): int
+    public static function productDefaultCapacity(?Product $product, string $machineType, string|int|null $channelCode = null): int
     {
-        return (int) match ($machineType) {
+        $capacity = (int) match ($machineType) {
             Vend::MACHINE_TYPE_SMART_CHILLER => $product?->chiller_slot_qty,
             Vend::MACHINE_TYPE_SMART_FREEZER => $product?->freezer_slot_qty,
             default => 0,
         };
+
+        if ($capacity > 0 && $machineType === Vend::MACHINE_TYPE_SMART_FREEZER && self::isFreezerHalfBasket($channelCode)) {
+            return max(1, intdiv($capacity, 2));
+        }
+
+        return $capacity;
+    }
+
+    /** A freezer code is <basket><division>, so the basket is its first digit. */
+    private static function isFreezerHalfBasket(string|int|null $channelCode): bool
+    {
+        $parsed = ChannelCode::parse($channelCode);
+
+        return $parsed !== null && in_array(intdiv($parsed['code'], 10), self::FREEZER_HALF_BASKETS, true);
     }
 
     protected function serverAmount(): Attribute

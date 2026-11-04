@@ -73,7 +73,7 @@ class FreezerChannelSyncTest extends TestCase
         $this->assertSame(Product::where('code', 'U-01')->value('id'), $channels[11]['product_id'], 'the row is the SKU');
         $this->assertSame(300, $channels[11]['amount'], 'RP2 = the Site tier, in cents');
         $this->assertSame(0, $channels[11]['qty'], 'a new SKU starts empty');
-        $this->assertSame(48, $channels[11]['capacity'], "the SKU's own measured par, once per code it sits on");
+        $this->assertSame(36, $channels[11]['capacity'], "the SKU's own measured par per code it sits on: half in basket 1 (12) + all in basket 2 (24)");
     }
 
     public function test_a_sale_between_dispatch_and_run_is_not_written_back(): void
@@ -108,7 +108,7 @@ class FreezerChannelSyncTest extends TestCase
 
         $kept = VendChannel::where('vend_id', $vend->id)->where('product_id', $product->id)->first();
         $this->assertSame(7, (int) $kept->qty, 'topup ledger is never reset by a re-sync');
-        $this->assertSame(48, (int) $kept->capacity, 'the par follows the product, not the stale row');
+        $this->assertSame(36, (int) $kept->capacity, 'the par follows the product, not the stale row');
         $gone = VendChannel::where('vend_id', $vend->id)->where('product_id', $other->id)->first();
         $this->assertFalse((bool) $gone->is_active, 'a SKU off the planogram is retired, not left sold out');
         $this->assertSame(3, (int) $gone->qty, 'with its qty kept for the return');

@@ -23,7 +23,8 @@ use App\Services\Stock\SkuPlanogram;
  *    each row's qty, but flagged `qty_seed_only`: SyncVendChannels runs later on the `high` queue,
  *    and writing the dispatch-time figure then would put back every sale taken in between (audit
  *    STK-04, 2026-10-17). It seeds only a row with no live ledger — new, or back from retirement.
- *  - **capacity.** The mapping item's override, else the SKU's measured par (`products.freezer_slot_qty`).
+ *  - **capacity.** The mapping item's override, else the SKU's measured par (`products.freezer_slot_qty`),
+ *    half of it in baskets 1 and 4 (ProductMappingItem::productDefaultCapacity).
  *    Unmeasured products leave it at 0, which reads as "-" on the dashboard rather than as a made-up
  *    par; a freezer row stays active either way.
  *

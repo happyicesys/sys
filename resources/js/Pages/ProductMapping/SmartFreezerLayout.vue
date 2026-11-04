@@ -202,7 +202,7 @@
                 <div class="flex h-6 items-center justify-between gap-1 bg-slate-50 px-2" :title="$t('From Product → Edit → Smart Freezer (read-only here)')">
                   <span class="truncate text-slate-500">{{ $t('Default Capacity') }}</span>
                   <span class="font-semibold tabular-nums text-slate-600">
-                    {{ cell.item.product && cell.item.product.freezer_slot_qty ? cell.item.product.freezer_slot_qty : '–' }}
+                    {{ cell.item.product && cell.item.product.freezer_slot_qty ? cell.item.product.freezer_slot_qty : '–' }}<span v-if="isHalfBasket(cell.item) && defaultCapacityOf(cell.item) > 0" :title="$t('Baskets 1 and 4 use half of this number.')"> · ½</span>
                   </span>
                 </div>
                 <!-- Real Capacity: proper − / + buttons instead of the browser's tiny
@@ -617,9 +617,15 @@ function onUnbind(cell) {
 // server re-syncs the bound freezers' rows on its own.
 const capacityTimers = {}
 const realityDraft = reactive({})
+// Baskets 1 and 4 hold half the listed number, rounded down (ProductMappingItem::productDefaultCapacity).
+function isHalfBasket(item) {
+  return [1, 4].includes(Math.floor(parseInt(item && item.channel_code, 10) / 10))
+}
 function defaultCapacityOf(item) {
   const v = item && item.product ? item.product.freezer_slot_qty : null
-  return v === null || v === undefined || v === '' ? null : Number(v)
+  if (v === null || v === undefined || v === '') return null
+  const listed = Number(v)
+  return listed > 0 && isHalfBasket(item) ? Math.max(1, Math.floor(listed / 2)) : listed
 }
 function isCapacityOverridden(item) {
   return item.capacity_override !== null && item.capacity_override !== undefined && item.capacity_override !== ''

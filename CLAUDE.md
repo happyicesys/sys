@@ -1992,6 +1992,9 @@ never on "not a vending machine" at the call site.
   `product_mapping_items.capacity_override` ("Real Capacity" on ProductMapping →
   Edit) else the product's `freezer_slot_qty` / `chiller_slot_qty`). A SKU
   listed on two codes "never happens" but is not forbidden; it is one row.
+  In freezer baskets 1 and 4 the default is half the product's number, rounded
+  down (Brian, 2026-11-04, `ProductMappingItem::productDefaultCapacity`); a number
+  typed on the mapping still wins. Default Capacity keeps showing the listed number.
 - **Writers.** `FreezerChannelSync` (qty carried by product — our ledger) and
   `ChannelFrameAdapter` (qty from `device_product` per SKU) build a frame with
   `product_id` + `suffix` per entry; `SyncVendChannels` upserts by product,

@@ -134,7 +134,7 @@ class SkuStockIdentityTest extends TestCase
 
         $rows = $this->rows($vend);
         $this->assertCount(1, $rows);
-        $this->assertSame([11, 34], [(int) $rows[0]->code, (int) $rows[0]->capacity], '24 (product default) + 10 (mapping override)');
+        $this->assertSame([11, 22], [(int) $rows[0]->code, (int) $rows[0]->capacity], '12 (half the product default in basket 1) + 10 (mapping override)');
         $slot = app(SkuPlanogram::class)->forVend($vend)[$a->id];
         $this->assertSame(['11', '31'], $slot->labels);
     }

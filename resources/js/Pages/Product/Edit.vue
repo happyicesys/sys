@@ -385,6 +385,7 @@
                 </FormInput>
                 <p class="mt-1 text-xs text-gray-500">
                   {{ $t('How many of this product fit in ONE basket division. Used as the channel capacity on every Smart Freezer that carries it; leave blank until it has been counted.') }}
+                  {{ $t('Baskets 1 and 4 use half of this number.') }}
                 </p>
               </div>
 

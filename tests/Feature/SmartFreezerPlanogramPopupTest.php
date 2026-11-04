@@ -56,7 +56,7 @@ class SmartFreezerPlanogramPopupTest extends TestCase
         $items = collect($response->json('items'))->keyBy('channel_code');
 
         $this->assertSame(1, $items['11']['qty']);
-        $this->assertSame(10, $items['11']['capacity'], "the product's pieces per freezer slot");
+        $this->assertSame(5, $items['11']['capacity'], "half the product's pieces per freezer slot: basket 1");
         $this->assertSame(450, $items['11']['price_cents'], 'the Site tier (RP2), in cents');
 
         $this->assertSame(6, $items['13']['capacity'], "the mapping's Real Capacity beats the product's");
