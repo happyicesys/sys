@@ -1674,7 +1674,8 @@ AI-checked machine (a CityBox chiller once their order data exists). **Red means
 badge reads a solid blue Adjusted / Keyed in with who, the AI's verdict moving to the hover text (`handled`). A released hold
 (state `voided`, `released`) charged nothing, so it reads a grey Hold released unless a person released it. AI Recognition
 follows the same three looks: red = a difference nobody has dealt with, blue = handled, grey = nothing to do (a released
-hold included), the verdict pills grey on all but red rows, and a Refund still owed stays red. Regression coverage:
+hold included), the verdict pills grey on all but red rows, and a Refund still owed stays red. Each button turns blue only
+for its own action: Adjust Qty once adjusted, Refund once refunded; a refund also ends the row's red. Regression coverage:
 `tests/Feature/TransactionIndexAiRecognitionColumnTest.php`.
 
 Integration record, live proofs and open questions for Zijia:

@@ -728,9 +728,9 @@ function cardLabel(card) {
 }
 
 // Three looks, so a row says at a glance where it stands (Brian, 2026-11-04): red = the AI found a
-// difference and nobody has dealt with it, blue = a person has, grey = nothing to do, a released hold included.
+// difference and nobody has dealt with it, blue = a person did this, grey = nothing to do, a released hold included.
 function isHandled(row) {
-  return !!(row.correction || row.card?.by_person)
+  return !!(row.correction || row.card?.by_person || row.card?.refunds?.length)
 }
 
 function needsPerson(row) {
@@ -742,15 +742,16 @@ const BUTTON_RED = 'border-red-600 bg-red-600 text-white shadow-sm hover:bg-red-
 const BUTTON_BLUE = 'border-blue-700 bg-blue-600 text-white shadow-sm hover:bg-blue-700'
 const BUTTON_QUIET = 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
 
+// Each button turns blue only for its own action: an adjusted row with no refund keeps a plain Refund.
 function adjustButtonClass(row) {
-  if (isHandled(row)) return BUTTON_BLUE
+  if (row.correction) return BUTTON_BLUE
   return needsPerson(row) ? BUTTON_RED : BUTTON_QUIET
 }
 
 // Money still to go back outranks everything else on the row.
 function refundButtonClass(row) {
   if (row.correction?.to_refund_cents) return BUTTON_RED
-  if (isHandled(row)) return BUTTON_BLUE
+  if (row.card?.refunds?.length) return BUTTON_BLUE
   return needsPerson(row) ? 'border-red-600 bg-white text-red-700 hover:bg-red-50' : BUTTON_QUIET
 }
 
