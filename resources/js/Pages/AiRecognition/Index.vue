@@ -305,7 +305,7 @@
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
                     <div class="flex flex-col space-y-1">
-                      <span>{{ row.created_at }}</span>
+                      <span class="whitespace-nowrap">{{ row.created_at }}</span>
                       <span v-if="row.completed_at" class="text-xs text-gray-500" :title="$t('When the AI result came back')">
                         {{ $t('result :time', { time: row.completed_at.substring(11) }) }}
                       </span>
@@ -381,7 +381,7 @@
                       <thead class="text-[11px] font-medium text-gray-500">
                         <tr>
                           <th class="pb-1 text-left font-medium">{{ $t('Item') }}</th>
-                          <th class="pb-1 pr-2 text-right font-medium">{{ $t('Price') }}</th>
+                          <th class="pb-1 text-center font-medium">{{ $t('Price') }}</th>
                           <th class="pb-1 text-center font-medium">{{ $t('Paid') }}</th>
                           <th class="pb-1 text-center font-medium">{{ $t('AI saw') }}</th>
                           <th class="pb-1 text-center font-medium">{{ $t('Verdict') }}</th>
@@ -394,9 +394,9 @@
                             <img v-if="line.photo" :src="line.photo" :alt="line.name" loading="lazy" class="h-12 w-12 rounded object-contain bg-white" />
                             <span v-else class="flex h-12 w-12 items-center justify-center rounded bg-gray-100 text-center text-[10px] leading-tight text-gray-600 overflow-hidden">{{ line.code || line.name }}</span>
                           </td>
-                          <td class="py-1 pr-2 text-right text-gray-600">
+                          <td class="py-1 text-center text-gray-600">
                             {{ line.unit_cents !== null ? formatCents(line.unit_cents) : '—' }}
-                            <span v-if="line.happy_hour" class="ml-auto mt-0.5 flex w-fit items-center whitespace-nowrap rounded border border-amber-300 bg-amber-100 px-1 py-0.5 text-[10px] font-semibold leading-none text-amber-800" tabindex="0" v-tooltip="$t('Happy Hour')">★ {{ line.happy_hour }}</span>
+                            <span v-if="line.happy_hour" class="mx-auto mt-0.5 flex w-fit items-center whitespace-nowrap rounded border border-amber-300 bg-amber-100 px-1 py-0.5 text-[10px] font-semibold leading-none text-amber-800" tabindex="0" v-tooltip="$t('Happy Hour')">★ {{ line.happy_hour }}</span>
                           </td>
                           <td class="py-1 text-center text-sm">{{ line.paid }}</td>
                           <td class="py-1 text-center text-sm">{{ line.taken !== null ? line.taken : '—' }}</td>
@@ -429,7 +429,7 @@
                     </div>
                     <span v-else class="text-gray-400">—</span>
                     <div v-if="row.card" class="mt-1 flex flex-col space-y-0.5 text-xs" :title="row.card.reason || ''">
-                      <span class="inline-flex w-fit mx-auto items-center rounded px-1.5 py-0.5 font-bold border" :class="cardBadgeClass(row.card)">
+                      <span class="inline-flex w-fit mx-auto items-center whitespace-nowrap rounded px-1.5 py-0.5 font-bold border" :class="cardBadgeClass(row.card)">
                         {{ cardLabel(row.card) }}
                       </span>
                       <span v-if="row.card.increment_refused" class="text-gray-600 whitespace-nowrap">{{ $t('Payrallel refused the increase; hold charged') }}</span>

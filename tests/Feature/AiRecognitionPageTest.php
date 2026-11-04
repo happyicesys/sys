@@ -307,7 +307,7 @@ class AiRecognitionPageTest extends TestCase
 
         $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(function (AssertableInertia $page) {
             $row = $page->toArray()['props']['recognitions']['data'][0];
-            $this->assertSame(['Daniel', '2026-11-04 08:40'], [$row['correction']['by'], $row['correction']['at']]);
+            $this->assertSame(['Daniel', '261104 08:40 am'], [$row['correction']['by'], $row['correction']['at']]);
             $lines = collect($row['ai_check'])->keyBy('code');
             $this->assertSame(2, $lines['A']['adjusted']);
             $this->assertSame(0, $lines['B']['adjusted'], 'left out of the count = none taken');

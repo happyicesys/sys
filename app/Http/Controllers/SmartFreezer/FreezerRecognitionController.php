@@ -501,7 +501,7 @@ class FreezerRecognitionController extends Controller
 
         return [
             'by' => $correction['by']['name'] ?? null,
-            'at' => isset($correction['at']) ? Carbon::parse($correction['at'])->format('Y-m-d H:i') : null,
+            'at' => isset($correction['at']) ? Carbon::parse($correction['at'])->format('ymd h:i a') : null,
             'lines' => array_values((array) ($correction['lines'] ?? [])),
             'value_cents' => (int) ($correction['value_cents'] ?? 0),
             'to_refund_cents' => $card?->state === CardPaymentIntent::STATE_CAPTURED ? max(0, $collected - (int) ($correction['value_cents'] ?? 0)) : 0,
