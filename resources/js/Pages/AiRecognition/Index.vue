@@ -16,7 +16,9 @@
       <div v-if="$page.props.flash.success" class="mb-2 rounded-md border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800">
         {{ $page.props.flash.success }}
       </div>
-      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 my-3">
+      <span class="relative z-10 -mb-px inline-block rounded-t-md border border-b-white bg-white px-4 py-1.5 text-sm font-semibold text-gray-800">{{ $t('AI Dashboard') }}</span>
+      <div class="bg-white rounded-b-md rounded-tr-md border px-3 md:px-3 py-3">
         <span class="inline-flex items-center gap-1 text-xs text-gray-500" tabindex="0" v-tooltip="$t('Each row is one Smart Freezer door session: the camera videos Zijia pushed, what their AI saw taken, and how that compares with what the customer paid for. A sale paid on a T05 card terminal settles on its own only when the AI matches what was paid (charged) or saw nothing taken (the hold is released); anything else waits for a person to key in the charge. NETS and QR sales were charged at the machine.')">
           <InformationCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t('About this page') }}
         </span>
@@ -86,26 +88,10 @@
               {{ $t('Date From') }}
             </DatePicker>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">
-              {{ $t('Time From') }}
-            </label>
-            <input type="time" v-model="filters.time_from" @keyup.enter="onSearchFilterUpdated()"
-              class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
-            />
-          </div>
           <div class="md:col-span-2">
             <DatePicker v-model="filters.date_to" :minDate="filters.date_from">
               {{ $t('Date To') }}
             </DatePicker>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">
-              {{ $t('Time To') }}
-            </label>
-            <input type="time" v-model="filters.time_to" @keyup.enter="onSearchFilterUpdated()"
-              class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
-            />
           </div>
         </div>
 
@@ -144,6 +130,70 @@
             </MultiSelect>
           </div>
         </div>
+
+        <!-- Totals over everything the filters list. Each session lands in one outcome and its units in one count. -->
+        <dl class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+          <div class="overflow-hidden rounded-lg bg-gray-100 px-4 py-3 shadow">
+            <p class="text-base font-bold text-gray-800">{{ $t('Total Sales $') }}</p>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('What was collected: T05 charges, and sales paid at the machine.')">{{ $t('Charged $') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ formatCents(dashboard.charged_cents) }}</dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('What went back to the card or the gateway. A claim paid by hand is not included.')">{{ $t('Refund $') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ formatCents(dashboard.refunded_cents) }}</dd>
+            </div>
+          </div>
+          <div class="overflow-hidden rounded-lg bg-gray-100 px-4 py-3 shadow">
+            <p class="text-base font-bold text-gray-800">{{ $t('Transaction Count') }}</p>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Money was collected.')">{{ $t('Successful') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">
+                {{ dashboard.successful.toLocaleString() }}
+                <span v-if="dashboard.successful_pct !== null" class="text-xs font-normal text-gray-500">({{ dashboard.successful_pct.toFixed(2) }}%)</span>
+              </dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('The hold was released and nothing was charged.')">{{ $t('Void') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.void.toLocaleString() }}</dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Nothing was collected and the door failed, or the session was paid but never became a sale.')">{{ $t('Machine error') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.machine_error.toLocaleString() }}</dd>
+            </div>
+            <div v-if="dashboard.other" class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Still waiting for a charge, or a door session with no payment.')">{{ $t('Other') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.other.toLocaleString() }}</dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2 border-t border-gray-300 pt-1">
+              <dt>{{ $t('Total count') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.total.toLocaleString() }}</dd>
+            </div>
+          </div>
+          <div class="overflow-hidden rounded-lg bg-gray-100 px-4 py-3 shadow">
+            <p class="text-base font-bold text-gray-800">{{ $t('AI Accuracy') }}</p>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Units the AI counted right: it matched what was paid, or a person\'s count agreed with it.')">{{ $t('Correct qty') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">
+                {{ dashboard.correct_qty.toLocaleString() }}
+                <span v-if="dashboard.correct_pct !== null" class="text-xs font-normal text-gray-500">({{ dashboard.correct_pct.toFixed(2) }}%)</span>
+              </dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Units a person changed with Adjust Qty. One product swapped for another counts as one.')">{{ $t('Adjusted Qty') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.adjusted_qty.toLocaleString() }}</dd>
+            </div>
+            <div v-if="dashboard.unchecked_qty" class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Units where the AI differs from what was paid and nobody has adjusted the count yet. They do not count as correct.')">{{ $t('Not checked yet') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.unchecked_qty.toLocaleString() }}</dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2 border-t border-gray-300 pt-1">
+              <dt>{{ $t('Total Qty') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.total_qty.toLocaleString() }}</dd>
+            </div>
+          </div>
+        </dl>
+      </div>
       </div>
 
       <!-- T05 holds waiting for a person whose session has no row below (Zijia never pushed its videos). -->
@@ -634,6 +684,7 @@ import { t, tk } from '@/i18n';
 const props = defineProps({
   recognitions: Object,
   score: Object,
+  dashboard: Object,
   statuses: Array,
   verdicts: Array,
   canCharge: Boolean,
@@ -803,8 +854,6 @@ const filters = ref({
   processed_by: props.filters.processed_by || 'all',
   date_from: props.filters.date_from || '',
   date_to: props.filters.date_to || '',
-  time_from: props.filters.time_from || '',
-  time_to: props.filters.time_to || '',
   sortKey: props.filters.sortKey || 'transaction_time',
   // Query-string round-trips turn the boolean into "true"/"false" strings.
   sortBy: String(props.filters.sortBy ?? false) === 'true',
@@ -905,7 +954,7 @@ const correctionNotice = ref('')
 function correctionSaved(result) {
   correctRow.value = null
   correctionNotice.value = result.message
-  router.reload({ only: ['recognitions', 'score'] })
+  router.reload({ only: ['recognitions', 'score', 'dashboard'] })
   // What the count says should go back: nothing is sent until the person presses Refund there.
   if (result.to_refund_cents > 0 && result.intent_id && props.canRefund) {
     refundIntentId.value = result.intent_id
@@ -970,9 +1019,16 @@ function submitCharge() {
   })
 }
 
+// A cleared DatePicker hands back the text "Invalid date", which the server refuses and the page reopens on today.
+function pickedDate(date) {
+  return date === 'Invalid date' ? '' : date
+}
+
 function onSearchFilterUpdated() {
   router.get('/ai-recognition', {
     ...filters.value,
+    date_from: pickedDate(filters.value.date_from),
+    date_to: pickedDate(filters.value.date_to),
     status: filters.value.status ? filters.value.status.id : 'all',
     verdict: filters.value.verdict ? filters.value.verdict.id : 'all',
     processed_by: filters.value.processed_by ? filters.value.processed_by.id : 'all',

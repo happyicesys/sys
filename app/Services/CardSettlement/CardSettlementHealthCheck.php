@@ -246,7 +246,7 @@ class CardSettlementHealthCheck
                     default => null,
                 };
                 if ($text !== null) {
-                    $items[] = ['text' => $text, 'url' => $base.'/ai-recognition'];
+                    $items[] = ['text' => $text, 'url' => $base.'/ai-recognition?date_from=&date_to='];
                 }
             });
 

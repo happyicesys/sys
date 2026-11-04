@@ -207,7 +207,7 @@ class FreezerClipTest extends TestCase
         ]], $rows['WITH']['door_clips']);
         $this->assertNull($rows['WITHOUT']['door_clips']);
 
-        $this->actingAs($user)->get('/ai-recognition')->assertOk()
+        $this->actingAs($user)->get('/ai-recognition?date_from=')->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.clips.0.id', $clip->id)
                 ->where('recognitions.data.0.clips.0.camera_id', 5));

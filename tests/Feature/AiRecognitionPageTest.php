@@ -70,7 +70,7 @@ class AiRecognitionPageTest extends TestCase
 
     public function test_it_needs_its_permission(): void
     {
-        $this->actingAs(User::factory()->create(['operator_id' => 1]))->get('/ai-recognition')->assertForbidden();
+        $this->actingAs(User::factory()->create(['operator_id' => 1]))->get('/ai-recognition?date_from=')->assertForbidden();
     }
 
     /** A session whose sale carries a person's Adjust Qty count, or none. */
@@ -94,7 +94,7 @@ class AiRecognitionPageTest extends TestCase
         $this->recognition(['status' => SmartFreezerRecognition::STATUS_FAILED]); // no sale: still a listed transaction
 
         // The totals cover everything listed, not just the page on screen.
-        $this->actingAs($this->viewer())->get('/ai-recognition?numberPerPage=1')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=&numberPerPage=1')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->has('recognitions.data', 1)
                 ->where('score.total', 4)
@@ -109,7 +109,7 @@ class AiRecognitionPageTest extends TestCase
         $this->saleSession('O-1', true, ['verdict' => 'mixed']);
         $this->saleSession('O-2', false, ['verdict' => 'match']);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition?verdict=match')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=&verdict=match')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('score.total', 1)
                 ->where('score.adjusted', 0)
@@ -123,7 +123,7 @@ class AiRecognitionPageTest extends TestCase
         $this->saleSession('O-1', true);
         $this->saleSession('O-2', false, [], $other);
 
-        $this->actingAs($this->viewer(7))->get('/ai-recognition')
+        $this->actingAs($this->viewer(7))->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('score.total', 1)
                 ->where('score.adjusted', 0)
@@ -132,12 +132,158 @@ class AiRecognitionPageTest extends TestCase
 
     public function test_the_score_have_no_score_when_nothing_is_listed(): void
     {
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('score.total', 0)
                 ->where('score.adjusted', 0)
                 ->where('score.score_pct', null)
             );
+    }
+
+    /** Brian, 2026-11-04: the page opens on today, not on every session there has ever been. */
+    public function test_it_opens_on_today_until_a_date_is_cleared_or_one_session_is_searched(): void
+    {
+        $this->recognition(['trade_id' => 'SDK-today']);
+        $this->recognition(['trade_id' => 'SDK-old'])->forceFill(['created_at' => Carbon::parse('2026-10-01 12:00:00')])->save();
+        $today = Carbon::today()->toDateString();
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('filters.date_from', $today)
+                ->where('filters.date_to', $today)
+                ->has('recognitions.data', 1)
+                ->where('recognitions.data.0.trade_id', 'SDK-today')
+                ->where('score.total', 1)
+                ->where('dashboard.total', 1));
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=&date_to=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('filters.date_from', '')
+                ->where('filters.date_to', '')
+                ->has('recognitions.data', 2));
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?search=SDK-old')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('filters.date_from', '')
+                ->has('recognitions.data', 1)
+                ->where('recognitions.data.0.trade_id', 'SDK-old'));
+    }
+
+    private function dashboardSale(int $cents, array $attributes = []): VendTransaction
+    {
+        return VendTransaction::forceCreate($attributes + [
+            'order_id' => 'O-'.uniqid(), 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => $cents,
+            'transaction_datetime' => Carbon::now(), 'gst_vat_rate' => 9, 'operator_id' => 1,
+            'settlement_status' => VendTransaction::SETTLEMENT_SETTLED,
+        ]);
+    }
+
+    private function dashboardHold(string $sessionRef, string $state, int $capturedCents = 0, int $refundedCents = 0): void
+    {
+        $terminal = RemoteCardTerminal::firstOrCreate(['vend_id' => $this->vend->id], ['provider' => 'payrallel', 'access_token' => 't', 'is_active' => true]);
+        CardPaymentIntent::forceCreate([
+            'vend_id' => $this->vend->id, 'remote_card_terminal_id' => $terminal->id, 'provider' => 'payrallel',
+            'reference' => 'SF'.uniqid(), 'custom_order_id' => '50001-SF'.uniqid(), 'session_ref' => $sessionRef, 'mode' => 'preauth',
+            'amount_cents' => 500, 'captured_cents' => $capturedCents ?: null, 'refunded_cents' => $refundedCents, 'state' => $state,
+        ]);
+    }
+
+    /** Each session lands in one outcome, and the money is what the rail took and gave back. */
+    public function test_the_dashboard_counts_money_and_outcomes_over_everything_listed(): void
+    {
+        // A T05 charge with part refunded: the charge stays 4.50, the sale's own amount has already come down.
+        $this->dashboardHold('SF-50001-1793780000-1', CardPaymentIntent::STATE_CAPTURED, 450, 100);
+        $this->recognition(['session_ref' => 'SF-50001-1793780000-1', 'vend_transaction_id' => $this->dashboardSale(350)->id]);
+        // Paid at the machine, no hold; then one refunded in full on the gateway.
+        $this->recognition(['vend_transaction_id' => $this->dashboardSale(200)->id]);
+        $this->recognition(['vend_transaction_id' => $this->dashboardSale(120, ['is_refunded' => true])->id]);
+        // A released hold, its sale of 0 refunded.
+        $this->dashboardHold('SF-50001-1793780100-2', CardPaymentIntent::STATE_VOIDED);
+        $this->recognition(['session_ref' => 'SF-50001-1793780100-2', 'vend_transaction_id' => $this->dashboardSale(0, ['settlement_status' => VendTransaction::SETTLEMENT_REFUNDED])->id]);
+        // The door refused a paid session: a machine error, not a void, though its hold was released too.
+        $ref = 'SF-50001-1793784418-6';
+        $this->sessionWithNoSale($ref);
+        $this->holdWithoutSession($this->afterStart($ref, 3));
+        // A door fault with no payment.
+        $faulty = 'SF-50001-1793784500-7';
+        $this->sessionWithNoSale($faulty);
+        FreezerControlCommand::forceCreate([
+            'vend_id' => $this->vend->id, 'cmd_id' => '01KA0000000000000000000009', 'op' => 'error:BoxVmc', 'status' => 'ok', 'source' => 'event',
+            'response_msg' => "Door refused for {$faulty}: CAMERA (摄像头异常)", 'created_at' => $this->afterStart($faulty, 10),
+        ]);
+        // Still waiting for the AI: nothing collected yet.
+        $this->dashboardHold('SF-50001-1793780200-3', CardPaymentIntent::STATE_AWAITING_AI);
+        $this->recognition(['session_ref' => 'SF-50001-1793780200-3']);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=&numberPerPage=1')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('dashboard.charged_cents', 450 + 200 + 120)
+                ->where('dashboard.refunded_cents', 100 + 120)
+                ->where('dashboard.successful', 3)
+                ->where('dashboard.void', 1)
+                ->where('dashboard.machine_error', 2)
+                ->where('dashboard.other', 1)
+                ->where('dashboard.total', 7)
+                ->where('dashboard.successful_pct', 42.86));
+    }
+
+    /** A person's count is the truth; one product swapped for another is one unit wrong, and an open difference is not correct. */
+    public function test_the_dashboard_counts_the_units_the_ai_got_right(): void
+    {
+        $counted = fn (array $basket) => $this->dashboardSale(100, ['meta_json' => ['correction' => ['by' => ['name' => 'Daniel'], 'basket' => $basket]]]);
+        $line = fn (int $id, int $paid, int $taken) => ['product_id' => $id, 'code' => (string) $id, 'paid' => $paid, 'taken' => $taken, 'delta' => $taken - $paid];
+
+        // A match: 3 right.
+        $this->recognition(['vend_transaction_id' => $this->dashboardSale(100)->id, 'verdict' => 'match', 'verdict_lines' => [$line(1, 2, 2), $line(2, 1, 1)]]);
+        // Swapped: the AI saw product 3, a person says it was product 4. 1 unit wrong, not 2.
+        $this->recognition(['vend_transaction_id' => $counted([4 => 1])->id, 'verdict' => 'mixed', 'verdict_lines' => [$line(3, 0, 1), $line(4, 1, 0)]]);
+        // The AI saw 3 of product 5, a person says 2 and 1 of product 6 it missed: 2 right, 1 swapped.
+        $this->recognition(['vend_transaction_id' => $counted([5 => 2, 6 => 1])->id, 'verdict' => 'took_more', 'verdict_lines' => [$line(5, 2, 3)]]);
+        // A person confirmed the AI's count: nothing changed.
+        $this->recognition(['vend_transaction_id' => $counted([7 => 1])->id, 'verdict' => 'match', 'verdict_lines' => [$line(7, 1, 1)]]);
+        // A difference nobody has dealt with: 1 agrees, 1 extra not checked.
+        $this->recognition(['vend_transaction_id' => $this->dashboardSale(100)->id, 'verdict' => 'took_more', 'verdict_lines' => [$line(8, 1, 2)]]);
+        // Released with nothing seen: no units either way.
+        $this->dashboardHold('SF-50001-1793780300-4', CardPaymentIntent::STATE_VOIDED);
+        $this->recognition(['session_ref' => 'SF-50001-1793780300-4', 'verdict' => 'took_less', 'verdict_lines' => [$line(9, 1, 0)]]);
+        // No verdict and no count: nothing to judge.
+        $this->recognition(['status' => SmartFreezerRecognition::STATUS_PENDING]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('dashboard.correct_qty', 3 + 0 + 2 + 1 + 1)
+                ->where('dashboard.adjusted_qty', 1 + 1)
+                ->where('dashboard.unchecked_qty', 1)
+                ->where('dashboard.total_qty', 10)
+                ->where('dashboard.correct_pct', 70));
+    }
+
+    public function test_the_dashboard_follows_the_filters_and_the_viewers_operator(): void
+    {
+        $this->recognition(['vend_transaction_id' => $this->dashboardSale(100)->id, 'verdict' => 'match', 'verdict_lines' => [['product_id' => 1, 'code' => '1', 'paid' => 1, 'taken' => 1]]]);
+        $this->recognition(['vend_transaction_id' => $this->dashboardSale(200)->id, 'verdict' => 'took_more']);
+        $other = Vend::create(['code' => 50009, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER, 'is_active' => 1, 'operator_id' => 7]);
+        $this->recognition(['vend_id' => $other->id, 'vend_transaction_id' => $this->dashboardSale(900, ['vend_id' => $other->id, 'operator_id' => 7])->id, 'verdict' => 'match']);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=&verdict=match')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('dashboard.total', 2)
+                ->where('dashboard.charged_cents', 1000));
+
+        $this->actingAs($this->viewer(7))->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('dashboard.total', 1)
+                ->where('dashboard.charged_cents', 900));
+    }
+
+    public function test_the_dashboard_is_empty_when_nothing_is_listed(): void
+    {
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('dashboard.total', 0)
+                ->where('dashboard.successful_pct', null)
+                ->where('dashboard.total_qty', 0)
+                ->where('dashboard.correct_pct', null));
     }
 
     public function test_a_row_carries_order_numbers_videos_the_ai_result_and_the_sale(): void
@@ -156,7 +302,7 @@ class AiRecognitionPageTest extends TestCase
             'verdict_lines' => [['product_id' => $magnum->id, 'code' => '9726436016148', 'paid' => 1, 'taken' => 2, 'delta' => 1]],
         ]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('AiRecognition/Index')
@@ -190,7 +336,7 @@ class AiRecognitionPageTest extends TestCase
         $this->recognition(['session_ref' => 'SF-50001-1790732333-1', 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'verdict' => 'took_more']);
         $this->recognition(['trade_id' => 'SDK-other', 'session_ref' => 'SF-50001-1790732999-2']);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition?sortKey=created_at')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=&sortKey=created_at')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.1.card', [
@@ -217,7 +363,7 @@ class AiRecognitionPageTest extends TestCase
         // No sale yet: its door session stands in.
         $this->recognition(['trade_id' => 'SDK-none'])->forceFill(['created_at' => Carbon::parse('2026-11-03 18:31:00')])->save();
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('filters.sortKey', 'transaction_time')
                 ->where('recognitions.data.0.sale.order_id', 'O-NEW')
@@ -231,9 +377,10 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.0.sale.order_id', 'O-OLD'));
 
         // The date filter reads the same time: 18:40 is the door session, the sale was 18:30.
-        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=2026-11-03&time_from=18:32&date_to=2026-11-03&time_to=18:33')
+        $this->recognition(['trade_id' => 'SDK-next-day'])->forceFill(['created_at' => Carbon::parse('2026-11-04 00:10:00')])->save();
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=2026-11-03&date_to=2026-11-03')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->has('recognitions.data', 1)
+                ->has('recognitions.data', 3)
                 ->where('recognitions.data.0.sale.order_id', 'O-NEW'));
     }
 
@@ -259,7 +406,7 @@ class AiRecognitionPageTest extends TestCase
             ['product_id' => $notAsked->id, 'code' => null, 'paid' => 1, 'taken' => 0, 'delta' => -1],
         ]]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(function (AssertableInertia $page) {
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(function (AssertableInertia $page) {
             $lines = collect($page->toArray()['props']['recognitions']['data'][0]['ai_check']);
             $this->assertSame(['extra', 'extra', 'missing', 'unknown', 'ok'], $lines->pluck('state')->all());
             $byCode = $lines->keyBy('code');
@@ -279,7 +426,7 @@ class AiRecognitionPageTest extends TestCase
             ['product_id' => $product->id, 'code' => '111', 'paid' => 1, 'taken' => 0, 'delta' => -1],
         ]]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(fn (AssertableInertia $page) => $page
             ->where('recognitions.data.0.ai_check.0.paid', 1)
             ->where('recognitions.data.0.ai_check.0.taken', 0)
             ->where('recognitions.data.0.ai_check.0.state', 'missing')
@@ -324,7 +471,7 @@ class AiRecognitionPageTest extends TestCase
             'response_msg' => "Door refused for {$ref}: LOCK (1号门锁开锁超时(损坏,锁舌卡住))", 'created_at' => $this->afterStart($ref, 15),
         ]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.card.state', 'voided')
                 ->where('recognitions.data.0.card.hold_cents', 430)
@@ -359,7 +506,7 @@ class AiRecognitionPageTest extends TestCase
             ]);
         }
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.session_ref', $other)
                 ->where('recognitions.data.0.door_error', null)
@@ -390,7 +537,7 @@ class AiRecognitionPageTest extends TestCase
             ],
         ]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.ai_check.0.product_id', $product->id)
                 ->where('recognitions.data.0.ai_check.0.name', 'Aye')
@@ -419,7 +566,7 @@ class AiRecognitionPageTest extends TestCase
             'reason' => 'door_open_failed', 'ended_at' => $this->afterStart($ref, 10), 'items' => [],
         ]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.door_error.code', 'DOOR_OPEN_FAILED')
                 ->where('recognitions.data.0.door_error.plain', DoorFault::plain('DOOR_OPEN_FAILED'))
@@ -439,7 +586,7 @@ class AiRecognitionPageTest extends TestCase
             'items' => [['sku' => 'A', 'name' => 'Aye', 'unit_cents' => 215, 'qty' => 1, 'product_id' => $product->id]],
         ]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.ai_check.0.paid', 1)
                 ->where('recognitions.data.0.ai_check.0.taken', 1)
@@ -456,7 +603,7 @@ class AiRecognitionPageTest extends TestCase
         $this->holdWithoutSession($this->afterStart($first, 3), ['amount_cents' => 430]);
         $this->holdWithoutSession($this->afterStart($second, 2), ['amount_cents' => 400, 'payment_method' => 'visa']);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.session_ref', $second)
                 ->where('recognitions.data.0.card.hold_cents', 400)
@@ -477,7 +624,7 @@ class AiRecognitionPageTest extends TestCase
         $other = Vend::create(['code' => 50002, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER, 'is_active' => 1, 'operator_id' => 1]);
         $this->holdWithoutSession($this->afterStart($ref, 5), ['vend_id' => $other->id]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.card', null)
                 ->where('recognitions.data.0.paid_without_sale', null)
@@ -491,7 +638,7 @@ class AiRecognitionPageTest extends TestCase
         $this->sessionWithNoSale($ref);
         $this->holdWithoutSession($this->afterStart($ref, 5));
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.card', null)
                 ->where('recognitions.data.0.paid_without_sale', null)
@@ -508,7 +655,7 @@ class AiRecognitionPageTest extends TestCase
         $this->recognition(['trade_id' => $ref, 'session_ref' => $ref, 'vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0]);
         $this->holdWithoutSession($this->afterStart($ref, 3));
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.card', null)
                 ->where('recognitions.data.0.paid_without_sale', null)
@@ -521,7 +668,7 @@ class AiRecognitionPageTest extends TestCase
         $answered->forceFill(['created_at' => '2026-11-03 22:25:30'])->save();
         $this->recognition(['trade_id' => 'WAITING']);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(function (AssertableInertia $page) {
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(function (AssertableInertia $page) {
             $rows = collect($page->toArray()['props']['recognitions']['data'])->keyBy('trade_id');
             $this->assertSame(132, $rows['ANSWERED']['result_seconds']);
             $this->assertNull($rows['WAITING']['result_seconds']);
@@ -537,7 +684,7 @@ class AiRecognitionPageTest extends TestCase
         $this->recognition(['vend_transaction_id' => $sale->id, 'trade_id' => 'WITH-SALE']);
         $this->recognition(['trade_id' => 'NO-SALE']);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(function (AssertableInertia $page) {
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(function (AssertableInertia $page) {
             $rows = collect($page->toArray()['props']['recognitions']['data'])->keyBy('trade_id');
             $this->assertSame(['Hillview', 'RP2'], [$rows['WITH-SALE']['site']['name'], $rows['WITH-SALE']['site']['rp']]);
             $this->assertSame(['Moved to', 'RP3'], [$rows['NO-SALE']['site']['name'], $rows['NO-SALE']['site']['rp']], 'no sale yet: the machine\'s Site');
@@ -577,7 +724,7 @@ class AiRecognitionPageTest extends TestCase
             ['product_id' => $extra->id, 'code' => '444', 'paid' => 0, 'taken' => 1, 'delta' => 1],
         ]]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(function (AssertableInertia $page) {
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(function (AssertableInertia $page) {
             $rows = $page->toArray()['props']['recognitions']['data'];
             $this->assertSame('HH 30%', $rows[0]['ai_check'][0]['happy_hour']);
             $lines = collect($rows[1]['ai_check'])->keyBy('code');
@@ -604,7 +751,7 @@ class AiRecognitionPageTest extends TestCase
             ['product_id' => $removed->id, 'code' => '222', 'paid' => 1, 'taken' => 1, 'delta' => 0],
         ]]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(function (AssertableInertia $page) {
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(function (AssertableInertia $page) {
             $row = $page->toArray()['props']['recognitions']['data'][0];
             $this->assertSame(['Daniel', '261104 08:40 am'], [$row['correction']['by'], $row['correction']['at']]);
             $lines = collect($row['ai_check'])->keyBy('code');
@@ -623,7 +770,7 @@ class AiRecognitionPageTest extends TestCase
             ['product_id' => $product->id, 'code' => '111', 'paid' => 1, 'taken' => 1, 'delta' => 0],
         ]]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(fn (AssertableInertia $page) => $page
             ->where('recognitions.data.0.correction', null)
             ->where('recognitions.data.0.ai_check.0.adjusted', null));
     }
@@ -641,7 +788,7 @@ class AiRecognitionPageTest extends TestCase
         }
         $this->recognition(['session_ref' => 'SF-50001-1-1']);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(fn (AssertableInertia $page) => $page
             ->has('recognitions.data.0.card.refunds', 1) // a refused refund is not money back
             ->where('recognitions.data.0.card.refunds.0.amount_cents', 140)
             ->where('recognitions.data.0.card.refunds.0.at', '2026-11-04 08:42')
@@ -655,7 +802,7 @@ class AiRecognitionPageTest extends TestCase
             'vend_transaction_json' => ['Type' => 'TRADE', 'transf_info' => [['goods_id' => $product->id, 'Price' => 100]]]]);
         $this->recognition(['vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_SUBMITTED]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(fn (AssertableInertia $page) => $page
             ->where('recognitions.data.0.ai_check.0.state', 'pending')
             ->where('recognitions.data.0.ai_check.0.taken', null));
 
@@ -663,7 +810,7 @@ class AiRecognitionPageTest extends TestCase
             ['product_id' => $product->id, 'code' => '111', 'paid' => 1, 'taken' => 1, 'delta' => 0],
             ['product_id' => null, 'code' => '999', 'paid' => 0, 'taken' => 1, 'delta' => 1],
         ]]);
-        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(fn (AssertableInertia $page) => $page
             ->where('recognitions.data.0.ai_check.0.state', 'unknown')
             ->where('recognitions.data.0.ai_check.0.name', '999')
             ->where('recognitions.data.0.ai_check.1.state', 'ok'));
@@ -681,7 +828,7 @@ class AiRecognitionPageTest extends TestCase
         ]);
         $this->recognition(['session_ref' => 'SF-50001-1790732333-1', 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'verdict' => 'incomplete']);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.card.person_reason', CardPaymentService::PERSON_AI_UNSURE)
@@ -710,7 +857,7 @@ class AiRecognitionPageTest extends TestCase
             'verdict_lines' => [['product_id' => 1, 'code' => '111', 'paid' => 1, 'taken' => 2, 'delta' => 1]],
         ]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.card.person_reason', CardPaymentService::PERSON_AI_MISMATCH)
@@ -733,7 +880,7 @@ class AiRecognitionPageTest extends TestCase
         ]);
         $this->recognition(['vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'verdict' => 'incomplete']);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.purchased', [
@@ -764,7 +911,7 @@ class AiRecognitionPageTest extends TestCase
             ]],
         ]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.submitted', [
@@ -782,7 +929,7 @@ class AiRecognitionPageTest extends TestCase
             'callback_payload' => ['bizContent' => json_encode(['tradeId' => 'X', 'orderStatus' => 501, 'jsOrderStatus' => 503, 'jsOrderStatusName' => '商品未上架'])],
         ]);
 
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.algorithm_status', 'recognition error — 503 goods not listed in the model (商品未上架)'));
     }
@@ -795,7 +942,7 @@ class AiRecognitionPageTest extends TestCase
         $this->recognition(['vend_id' => $other->id, 'status' => SmartFreezerRecognition::STATUS_PENDING]);
 
         $viewer = $this->viewer();
-        $count = fn (array $q) => $this->actingAs($viewer)->get('/ai-recognition?'.http_build_query($q))->viewData('page')['props']['recognitions']['meta']['total'];
+        $count = fn (array $q) => $this->actingAs($viewer)->get('/ai-recognition?date_from=&'.http_build_query($q))->viewData('page')['props']['recognitions']['meta']['total'];
 
         $this->assertSame(3, $count([]));
         $this->assertSame(2, $count(['status' => 'pending']));
@@ -812,7 +959,7 @@ class AiRecognitionPageTest extends TestCase
         $this->recognition(['status' => SmartFreezerRecognition::STATUS_SUBMITTED])->forceFill(['created_at' => Carbon::parse('2026-10-09 07:00:00')])->save();
 
         $viewer = $this->viewer();
-        $this->actingAs($viewer)->get('/ai-recognition')
+        $this->actingAs($viewer)->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.processed_by', 'ai')
                 ->where('recognitions.data.1.processed_by', 'human')
@@ -820,21 +967,21 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.3.processed_by', null)
                 ->where('filters.processed_by', 'all'));
 
-        $this->actingAs($viewer)->get('/ai-recognition')
+        $this->actingAs($viewer)->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->has('orderStatusLegend', 7)
                 ->where('orderStatusLegend.0', ['code' => 0, 'label' => 'normal', 'name_zh' => '正常', 'processed_by' => 'ai', 'plain' => 'the AI answered on its own'])
                 ->where('orderStatusLegend.3', ['code' => 502, 'label' => 'unfriendly behaviour', 'name_zh' => '非友好行为', 'processed_by' => 'human', 'plain' => 'the items were handled unusually']));
 
-        $count = fn (array $q) => $this->actingAs($viewer)->get('/ai-recognition?'.http_build_query($q))->viewData('page')['props']['recognitions']['meta']['total'];
+        $count = fn (array $q) => $this->actingAs($viewer)->get('/ai-recognition?date_from=&'.http_build_query($q))->viewData('page')['props']['recognitions']['meta']['total'];
         $this->assertSame(4, $count(['processed_by' => 'all']));
         $this->assertSame(1, $count(['processed_by' => 'ai']));
         $this->assertSame(2, $count(['processed_by' => 'human']));
         $this->assertSame(1, $count(['processed_by' => 'none']));
-        $this->actingAs($viewer)->get('/ai-recognition?processed_by=robot')->assertSessionHasErrors('processed_by');
+        $this->actingAs($viewer)->get('/ai-recognition?date_from=&processed_by=robot')->assertSessionHasErrors('processed_by');
     }
 
-    public function test_machine_id_and_time_filters_narrow_the_list(): void
+    public function test_machine_id_and_date_filters_narrow_the_list(): void
     {
         $this->recognition()->forceFill(['created_at' => Carbon::parse('2026-09-30 09:15:00')])->save();
         $this->recognition()->forceFill(['created_at' => Carbon::parse('2026-09-30 13:28:00')])->save();
@@ -843,17 +990,15 @@ class AiRecognitionPageTest extends TestCase
         $this->recognition(['vend_id' => $chiller->id])->forceFill(['created_at' => Carbon::parse('2026-09-30 13:00:00')])->save();
 
         $viewer = $this->viewer();
-        $count = fn (array $q) => $this->actingAs($viewer)->get('/ai-recognition?'.http_build_query($q))->viewData('page')['props']['recognitions']['meta']['total'];
+        $count = fn (array $q) => $this->actingAs($viewer)->get('/ai-recognition?date_from=&'.http_build_query($q))->viewData('page')['props']['recognitions']['meta']['total'];
 
         $this->assertSame(3, $count(['codes' => '50001']));
         $this->assertSame(1, $count(['codes' => 'C6003']));
         $this->assertSame(4, $count(['codes' => '50001, C6003']));
-        // Date + time: a bounded window on one day.
-        $this->assertSame(2, $count(['date_from' => '2026-09-30', 'time_from' => '12:00', 'date_to' => '2026-09-30', 'time_to' => '14:00']));
-        $this->assertSame(1, $count(['codes' => '50001', 'date_from' => '2026-09-30', 'time_from' => '12:00', 'date_to' => '2026-09-30']));
-        // Time alone: that time of day on every day.
-        $this->assertSame(3, $count(['time_from' => '13:00', 'time_to' => '14:00']));
-        $this->actingAs($viewer)->get('/ai-recognition?time_from=25:99')->assertSessionHasErrors('time_from');
+        // Dates only: a whole day, end to end.
+        $this->assertSame(3, $count(['date_from' => '2026-09-30', 'date_to' => '2026-09-30']));
+        $this->assertSame(2, $count(['codes' => '50001', 'date_from' => '2026-09-30', 'date_to' => '2026-09-30']));
+        $this->assertSame(4, $count(['date_from' => '2026-09-29']));
     }
 
     /** A T05 hold awaiting the AI on 50001, whose session the AI answered with 501 and no verdict. */
@@ -899,7 +1044,7 @@ class AiRecognitionPageTest extends TestCase
         $this->assertSame([], $gateway->callsOf('capture'));
 
         Carbon::setTestNow(Carbon::now()->addHour());
-        $this->actingAs($this->charger())->get('/ai-recognition')
+        $this->actingAs($this->charger())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->has('sessionlessHolds', 1)
                 ->where('sessionlessHolds.0.id', $intent->id)
@@ -919,17 +1064,17 @@ class AiRecognitionPageTest extends TestCase
         $gateway->answer('50001-SF9', TerminalTransaction::APPROVED);
         $payments->capture($payments->refresh($intent), 500, 'SF-50001-1791200000-9'); // no video push ever came
 
-        $this->actingAs($this->charger())->get('/ai-recognition')
+        $this->actingAs($this->charger())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page->has('sessionlessHolds', 0)); // the AI may still answer
 
         Carbon::setTestNow(Carbon::now()->addHour());
-        $this->actingAs($this->charger())->get('/ai-recognition')
+        $this->actingAs($this->charger())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->has('sessionlessHolds', 1)
                 ->where('sessionlessHolds.0.id', $intent->id)
                 ->where('sessionlessHolds.0.hold_cents', 500)
                 ->where('sessionlessHolds.0.person_reason', CardPaymentService::PERSON_AI_NO_ANSWER));
-        $this->actingAs($this->charger(2))->get('/ai-recognition')
+        $this->actingAs($this->charger(2))->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page->has('sessionlessHolds', 0)); // another operator's freezer
 
         $this->actingAs($this->charger())->post($this->chargeUrl(), ['amount_cents' => 500])->assertSessionHasNoErrors();
@@ -950,12 +1095,12 @@ class AiRecognitionPageTest extends TestCase
     {
         $this->holdTheAiCouldNotDecide();
 
-        $this->actingAs($this->charger())->get('/ai-recognition')
+        $this->actingAs($this->charger())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('canCharge', true)
                 ->where('recognitions.data.0.card.state', CardPaymentIntent::STATE_AWAITING_AI)
                 ->where('recognitions.data.0.card.awaits_person', true));
-        $this->actingAs($this->viewer())->get('/ai-recognition')
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page->where('canCharge', false));
     }
 
@@ -992,7 +1137,7 @@ class AiRecognitionPageTest extends TestCase
         $intent = CardPaymentIntent::sole();
         $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state);
         $this->assertSame(460, $intent->ai_decision['capture_cents']);
-        $this->actingAs($this->charger())->get('/ai-recognition')
+        $this->actingAs($this->charger())->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page->where('recognitions.data.0.card.awaits_person', false));
     }
 
@@ -1011,7 +1156,7 @@ class AiRecognitionPageTest extends TestCase
         $this->recognition(['vend_id' => $theirs->id]);      // operator 7's freezer
         $this->recognition(['vend_id' => null, 'device_id' => 'JS093519']); // supplier test cabinet
 
-        $total = fn (User $u) => $this->actingAs($u)->get('/ai-recognition')->viewData('page')['props']['recognitions']['meta']['total'];
+        $total = fn (User $u) => $this->actingAs($u)->get('/ai-recognition?date_from=')->viewData('page')['props']['recognitions']['meta']['total'];
 
         $this->assertSame(3, $total($this->viewer(1)));
         $this->assertSame(1, $total($this->viewer(7)));

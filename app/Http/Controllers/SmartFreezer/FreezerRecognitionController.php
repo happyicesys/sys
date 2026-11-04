@@ -68,8 +68,6 @@ class FreezerRecognitionController extends Controller
         $request->validate([
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date'],
-            'time_from' => ['nullable', 'date_format:H:i'],
-            'time_to' => ['nullable', 'date_format:H:i'],
             'numberPerPage' => ['nullable', 'regex:/^(\d+|All)$/'],
             'processed_by' => ['nullable', 'in:all,ai,human,none'],
         ]);
@@ -83,6 +81,12 @@ class FreezerRecognitionController extends Controller
         $numberPerPage = $request->numberPerPage ?: 100;
         $sortKey = in_array($request->sortKey, self::SORTS, true) ? $request->sortKey : 'transaction_time';
         $sortBy = filter_var($request->sortBy ?? false, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+
+        // Opens on today (Brian, 2026-11-04). A date cleared on the form stays cleared, and a link to
+        // one session (Sales Transactions' verdict badge) finds it whatever its day.
+        $opensOnToday = ! $request->hasAny(['date_from', 'date_to']) && ! filled($request->input('search'));
+        $dateFrom = $opensOnToday ? Carbon::today()->toDateString() : $request->input('date_from');
+        $dateTo = $opensOnToday ? Carbon::today()->toDateString() : $request->input('date_to');
 
         $query = SmartFreezerRecognition::query()
             ->with([
@@ -104,12 +108,8 @@ class FreezerRecognitionController extends Controller
                 'none' => $q->whereNull('order_status'),
                 default => $q,
             })
-            // A time narrows its date to "from 14:00" / "to 16:30"; with no date it is a time-of-day
-            // window over every day (e.g. all sales between 12:00 and 14:00).
-            ->when($request->input('date_from'), fn ($q, $d) => $q->whereRaw(self::TRANSACTION_TIME.' >= ?', [$d.' '.($request->input('time_from') ?: '00:00').':00']))
-            ->when($request->input('date_to'), fn ($q, $d) => $q->whereRaw(self::TRANSACTION_TIME.' <= ?', [$d.' '.($request->input('time_to') ?: '23:59').':59']))
-            ->when(! $request->input('date_from') && $request->input('time_from'), fn ($q) => $q->whereRaw('TIME('.self::TRANSACTION_TIME.') >= ?', [$request->input('time_from').':00']))
-            ->when(! $request->input('date_to') && $request->input('time_to'), fn ($q) => $q->whereRaw('TIME('.self::TRANSACTION_TIME.') <= ?', [$request->input('time_to').':59']))
+            ->when($dateFrom, fn ($q, $d) => $q->whereRaw(self::TRANSACTION_TIME.' >= ?', [$d.' 00:00:00']))
+            ->when($dateTo, fn ($q, $d) => $q->whereRaw(self::TRANSACTION_TIME.' <= ?', [$d.' 23:59:59']))
             // Machine ID box: "50001", "C6003", or a comma list for an exact set — the Sales grid's rule.
             ->when(trim((string) $request->input('codes')), fn ($q, $codes) => $q->whereIn('vend_id', Vend::withoutGlobalScopes()->select('id')
                 ->where(fn ($v) => VendCode::whereSearch($v, $codes))))
@@ -134,6 +134,7 @@ class FreezerRecognitionController extends Controller
         }
 
         $score = $this->score(clone $query);
+        $dashboard = $this->dashboard(clone $query);
         $page = $query->paginate($numberPerPage === 'All' ? 10000 : (int) $numberPerPage)->withQueryString();
         $names = $this->productNames($page->getCollection());
         $failedSessions = $this->failedSessions($page->getCollection());
@@ -161,6 +162,7 @@ class FreezerRecognitionController extends Controller
             // Resource-collection shape (data / links / meta) — what Components/Paginator.vue reads.
             'recognitions' => JsonResource::collection($page),
             'score' => $score,
+            'dashboard' => $dashboard,
             // Per freezer, how many of its products the AI is asked about today (SKU Links).
             'aiCoverage' => array_values(app(ZijiaSkuLinks::class)->coverage(ZijiaSkuLinks::viewerVendIds())),
             'statuses' => [
@@ -188,10 +190,8 @@ class FreezerRecognitionController extends Controller
                 'processed_by' => $request->input('processed_by', 'all'),
                 'search' => $request->input('search', ''),
                 'codes' => $request->input('codes', ''),
-                'date_from' => $request->input('date_from', ''),
-                'date_to' => $request->input('date_to', ''),
-                'time_from' => $request->input('time_from', ''),
-                'time_to' => $request->input('time_to', ''),
+                'date_from' => $dateFrom ?? '',
+                'date_to' => $dateTo ?? '',
                 'sortKey' => $sortKey,
                 'sortBy' => $request->sortBy ?? false,
             ],
@@ -216,6 +216,99 @@ class FreezerRecognitionController extends Controller
             'score_pct' => $total > 0 ? round(($total - $adjusted) / $total * 100, 2) : null,
             'adjusted_pct' => $total > 0 ? round($adjusted / $total * 100, 2) : null,
         ];
+    }
+
+    /**
+     * The AI Dashboard over everything the filters list and the viewer may see, not just this page
+     * (Brian, 2026-11-04). Each session lands in one outcome and its units in one count, so both
+     * add up to their total.
+     */
+    private function dashboard($query): array
+    {
+        $rows = $query->reorder()
+            ->setEagerLoads(['vendTransaction' => fn ($sale) => $sale->select(['id', 'amount', 'is_refunded', 'settlement_status', 'meta_json'])])
+            ->get(['id', 'vend_id', 'session_ref', 'vend_transaction_id', 'verdict', 'verdict_lines']);
+        $failed = $this->failedSessions($rows);
+        $cards = $this->cardCharges($rows, $failed);
+        $doorErrors = $this->doorErrors($rows);
+
+        $charged = $refunded = 0;
+        $outcomes = ['successful' => 0, 'void' => 0, 'machine_error' => 0, 'other' => 0];
+        $correct = $adjusted = $unchecked = 0;
+        foreach ($rows as $r) {
+            $sale = $r->vendTransaction;
+            $card = $r->session_ref ? ($cards[$r->vend_id.'|'.$r->session_ref] ?? null) : null;
+            $rowCharged = match (true) {
+                $card !== null => $card->state === CardPaymentIntent::STATE_CAPTURED ? (int) $card->captured_cents : 0,
+                (int) $sale?->settlement_status === VendTransaction::SETTLEMENT_SETTLED => (int) $sale?->amount,
+                default => 0,
+            };
+            $charged += $rowCharged;
+            $refunded += $card !== null ? (int) $card->refunded_cents : ($sale?->is_refunded ? (int) $sale->amount : 0);
+
+            $outcomes[match (true) {
+                $rowCharged > 0 => 'successful',
+                $this->doorError($r, $doorErrors, $failed) !== null || ($sale === null && $card !== null && $card->session_ref === null) => 'machine_error',
+                $card?->state === CardPaymentIntent::STATE_VOIDED => 'void',
+                default => 'other',
+            }]++;
+
+            [$rowCorrect, $rowAdjusted, $rowUnchecked] = $this->qtyCheck($r, $card);
+            $correct += $rowCorrect;
+            $adjusted += $rowAdjusted;
+            $unchecked += $rowUnchecked;
+        }
+        $totalQty = $correct + $adjusted + $unchecked;
+
+        return $outcomes + [
+            'charged_cents' => $charged,
+            'refunded_cents' => $refunded,
+            'total' => $rows->count(),
+            'successful_pct' => $rows->isNotEmpty() ? round($outcomes['successful'] / $rows->count() * 100, 2) : null,
+            'correct_qty' => $correct,
+            'correct_pct' => $totalQty > 0 ? round($correct / $totalQty * 100, 2) : null,
+            'adjusted_qty' => $adjusted,
+            'unchecked_qty' => $unchecked,
+            'total_qty' => $totalQty,
+        ];
+    }
+
+    /**
+     * One session's units as [AI correct, a person changed, nobody has checked]. A person's count is
+     * the truth, so one product swapped for another is one unit wrong. With no count the AI stands
+     * only where nothing is in doubt: a match, or a hold released with nothing seen taken. A session
+     * the AI gave no verdict on and nobody counted has no units to judge.
+     *
+     * @return array{int, int, int}
+     */
+    private function qtyCheck(SmartFreezerRecognition $r, ?CardPaymentIntent $card): array
+    {
+        $correction = ((array) $r->vendTransaction?->meta_json)['correction'] ?? null;
+        if ($r->verdict === null && ! is_array($correction)) {
+            return [0, 0, 0];
+        }
+
+        $taken = $paid = [];
+        foreach ((array) $r->verdict_lines as $line) {
+            $key = (int) ($line['product_id'] ?? 0) ?: 'code:'.($line['code'] ?? '?');
+            $taken[$key] = ($taken[$key] ?? 0) + (int) ($line['taken'] ?? 0);
+            $paid[$key] = ($paid[$key] ?? 0) + (int) ($line['paid'] ?? 0);
+        }
+
+        $agreed = fn (array $other) => array_sum(array_map(fn ($key) => min($taken[$key] ?? 0, $other[$key] ?? 0), array_keys($taken)));
+
+        if (is_array($correction)) {
+            $counted = array_map('intval', (array) ($correction['basket'] ?? []));
+            $right = $agreed($counted);
+
+            return [$right, max(array_sum($taken), array_sum($counted)) - $right, 0];
+        }
+        if ($r->verdict === RecognitionVerdict::MATCH || ($card?->state === CardPaymentIntent::STATE_VOIDED && array_sum($taken) === 0)) {
+            return [array_sum($taken), 0, 0];
+        }
+        $right = $agreed($paid);
+
+        return [$right, 0, max(array_sum($taken), array_sum($paid)) - $right];
     }
 
     /**

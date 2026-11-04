@@ -431,7 +431,7 @@ class FreezerSaleCorrectionTest extends TestCase
         $recognition = $this->recognition($sale);
         $this->correct($recognition, [$this->cone->id => 2, $this->bar->id => 1], 700)->assertOk();
 
-        $this->actingAs($this->admin)->get('/ai-recognition')
+        $this->actingAs($this->admin)->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.can_correct', true)
                 ->where('recognitions.data.0.correction.by', 'Admin One')
