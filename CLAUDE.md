@@ -1820,6 +1820,16 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   A settle, T05 refund or AI Recognition correction on a closed day runs `RefreshMachineSalesDay`: that
   machine's `vend_records` row, then its totals JSON, so the Ops Dashboard matches Sales Transactions at
   once. The product and GP rollups still wait for the 02:00 dirty pass.
+- **Prompt check** (Brian, 2026-11-05; freezer app 49+, `payrallel.prompt_*`, off with
+  `PAYRALLEL_PROMPT_CHECK=false`). Payrallel answers "success" to requests the terminal never shows,
+  and its query says "not found" both then and while it waits for a tap. So `authorize` tells the app
+  the limits (`prompt_resend_seconds` 7, `prompt_give_up_seconds` 15) and each poll of a `processing`
+  attempt carries `terminal_state` (`promptTerminalState`: read at most every 2 s, 5 s once past the
+  limit; null = unknown, never a verdict). The app decides from those (`TerminalPromptWatch`): spinner
+  until `in_payment`, re-send under `<reference>-2` once, then "Technical problem". A withdrawn request
+  goes through the ordinary cancel, so a tap landing on it is voided as usual. An app below
+  `prompt_check_min_app` gets none of this and causes no extra status reads. Their guide states no rate
+  limit for `terminal/status`. Coverage: `tests/Feature/FreezerCardApiTest.php`.
 - Only an exact provider `approved` approves (`PayrallelGateway::query`); an
   unknown word stays processing.
 - Device requests are HMAC-signed with the vend's `private_key`

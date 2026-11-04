@@ -44,6 +44,8 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
 
     public TerminalStatus $status;
 
+    public ?CardTerminalException $failStatus = null;
+
     public function __construct()
     {
         $this->status = new TerminalStatus(true, TerminalStatus::STATE_READY);
@@ -131,6 +133,9 @@ class FakeRemoteCardTerminalGateway implements RemoteCardTerminalGateway
     public function status(RemoteCardTerminal $terminal): TerminalStatus
     {
         $this->calls[] = ['status', null, null];
+        if ($this->failStatus) {
+            throw $this->failStatus;
+        }
 
         return $this->status;
     }

@@ -84,6 +84,22 @@ return [
     'refund_same_day' => (bool) env('PAYRALLEL_REFUND_SAME_DAY', false),
     'refund_timeout' => (int) env('PAYRALLEL_REFUND_TIMEOUT', 20),
 
+    /*
+    | Prompt check (Brian, 2026-11-05). Payrallel can answer "success" to a payment
+    | request the terminal never shows (2 of 45 attempts on 50001, 2026-11-02..04), so
+    | while the freezer waits for a tap mark1 tells it what the terminal is doing. The
+    | freezer shows "Connecting" until the terminal reads in_payment, re-sends once at
+    | `prompt_resend_seconds` and gives up at `prompt_give_up_seconds`. Off, or an app
+    | below `prompt_check_min_app`: the fields are not sent, nothing changes.
+    */
+    'prompt_check' => (bool) env('PAYRALLEL_PROMPT_CHECK', true),
+    'prompt_check_min_app' => (int) env('PAYRALLEL_PROMPT_CHECK_MIN_APP', 49),
+    'prompt_resend_seconds' => (int) env('PAYRALLEL_PROMPT_RESEND_SECONDS', 7),
+    'prompt_give_up_seconds' => (int) env('PAYRALLEL_PROMPT_GIVE_UP_SECONDS', 15),
+    // How often a poll may read the terminal: while connecting, then while waiting for the tap.
+    'prompt_status_seconds' => (int) env('PAYRALLEL_PROMPT_STATUS_SECONDS', 2),
+    'prompt_status_seconds_after' => (int) env('PAYRALLEL_PROMPT_STATUS_SECONDS_AFTER', 5),
+
     // Accepted clock skew on device-signed requests (X-Device-Timestamp).
     'device_signature_skew_seconds' => (int) env('PAYRALLEL_DEVICE_SIGNATURE_SKEW_SECONDS', 300),
 ];

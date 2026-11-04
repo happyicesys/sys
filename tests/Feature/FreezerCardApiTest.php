@@ -8,7 +8,9 @@ use App\Models\CardPaymentIntent;
 use App\Models\RemoteCardTerminal;
 use App\Models\Vend;
 use App\Services\CardTerminal\CardPaymentService;
+use App\Services\CardTerminal\CardTerminalException;
 use App\Services\CardTerminal\Payrallel\PayrallelGateway;
+use App\Services\CardTerminal\TerminalStatus;
 use App\Services\CardTerminal\TerminalTransaction as T;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -96,6 +98,82 @@ class FreezerCardApiTest extends TestCase
         $this->signed('POST', '/api/v1/vends/50001/card/SF2/capture', ['amount_cents' => 430, 'session_ref' => 'SF-50001-1791100000-3'])
             ->assertOk()->assertJson(['state' => 'awaiting_ai', 'final' => false, 'captured_cents' => null]);
         $this->assertSame([], $this->gateway->callsOf('capture'));
+    }
+
+    public function test_an_app_below_the_minimum_gets_no_prompt_check_and_causes_no_status_reads(): void
+    {
+        Vend::where('code', 50001)->update(['apk_version_code' => 48]);
+
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF1', 'amount_cents' => 430])
+            ->assertStatus(202)->assertJsonMissingPath('prompt_give_up_seconds');
+        $this->signed('GET', '/api/v1/vends/50001/card/SF1')->assertOk()->assertJsonMissingPath('terminal_state');
+
+        $this->assertSame([], $this->gateway->callsOf('status'));
+    }
+
+    public function test_the_prompt_check_switch_turns_it_off_for_every_app(): void
+    {
+        config(['payrallel.prompt_check' => false]);
+        Vend::where('code', 50001)->update(['apk_version_code' => 49]);
+
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF1', 'amount_cents' => 430])
+            ->assertStatus(202)->assertJsonMissingPath('prompt_resend_seconds');
+        $this->signed('GET', '/api/v1/vends/50001/card/SF1')->assertOk()->assertJsonMissingPath('terminal_state');
+    }
+
+    public function test_the_freezer_is_told_the_limits_and_what_the_terminal_is_doing(): void
+    {
+        Vend::where('code', 50001)->update(['apk_version_code' => 49]);
+
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF1', 'amount_cents' => 430])
+            ->assertStatus(202)->assertJson(['prompt_resend_seconds' => 7, 'prompt_give_up_seconds' => 15]);
+
+        $this->gateway->status = new TerminalStatus(true, 'in_payment');
+        $this->signed('GET', '/api/v1/vends/50001/card/SF1')->assertOk()->assertJson(['terminal_state' => 'in_payment']);
+    }
+
+    public function test_a_reading_from_before_the_request_is_not_used(): void
+    {
+        Vend::where('code', 50001)->update(['apk_version_code' => 49]);
+        $this->signed('GET', '/api/v1/vends/50001/card/terminal')->assertJson(['state' => 'ready']);
+
+        $this->gateway->status = new TerminalStatus(true, 'in_payment');
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF1', 'amount_cents' => 430])->assertStatus(202);
+
+        $this->signed('GET', '/api/v1/vends/50001/card/SF1')->assertJson(['terminal_state' => 'in_payment']);
+    }
+
+    public function test_the_terminal_is_read_at_most_every_few_seconds(): void
+    {
+        Vend::where('code', 50001)->update(['apk_version_code' => 49]);
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF1', 'amount_cents' => 430])->assertStatus(202);
+
+        $this->signed('GET', '/api/v1/vends/50001/card/SF1');
+        $this->signed('GET', '/api/v1/vends/50001/card/SF1');
+        $this->signed('GET', '/api/v1/vends/50001/card/SF1');
+
+        $this->assertCount(1, $this->gateway->callsOf('status'));
+    }
+
+    public function test_a_failed_terminal_read_is_unknown_not_an_error(): void
+    {
+        Vend::where('code', 50001)->update(['apk_version_code' => 49]);
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF1', 'amount_cents' => 430])->assertStatus(202);
+
+        $this->gateway->failStatus = CardTerminalException::notSent('down');
+        $this->signed('GET', '/api/v1/vends/50001/card/SF1')
+            ->assertOk()->assertJson(['state' => 'processing', 'terminal_state' => null]);
+    }
+
+    public function test_an_approval_is_answered_without_reading_the_terminal(): void
+    {
+        Vend::where('code', 50001)->update(['apk_version_code' => 49]);
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF1', 'amount_cents' => 430])->assertStatus(202);
+        $this->gateway->answer('50001-SF1', T::APPROVED);
+
+        $this->signed('GET', '/api/v1/vends/50001/card/SF1')
+            ->assertOk()->assertJson(['state' => 'approved'])->assertJsonMissingPath('terminal_state');
+        $this->assertSame([], $this->gateway->callsOf('status'));
     }
 
     public function test_full_purchase_authorize_poll_capture(): void
@@ -220,6 +298,15 @@ class FreezerCardApiTest extends TestCase
         $this->assertSame('warning', $rows[1]->level);
 
         $this->signed('POST', '/api/v1/vends/50001/card/events', ['events' => [['event' => 'Bad Name!']]])->assertStatus(422);
+    }
+
+    public function test_timeline_of_an_attempt_includes_its_resent_request(): void
+    {
+        $this->signed('POST', '/api/v1/vends/50001/card/authorize', ['reference' => 'SF7-2', 'amount_cents' => 430]);
+
+        $this->artisan('payrallel:timeline', ['vend' => '50001', '--ref' => 'SF7'])
+            ->expectsOutputToContain('[SF7-2]')
+            ->assertSuccessful();
     }
 
     public function test_timeline_command_prints_the_attempt(): void

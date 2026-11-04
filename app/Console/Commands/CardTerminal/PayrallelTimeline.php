@@ -39,7 +39,8 @@ class PayrallelTimeline extends Command
 
         $query = CardPaymentEvent::query()->where('vend_id', $vend->id)->orderBy('id');
         if ($ref = $this->option('ref')) {
-            $query->where('custom_order_id', $vend->code.'-'.$ref);
+            // A freezer's re-sent request is its own order: <ref>-2 (app 49+).
+            $query->whereIn('custom_order_id', [$vend->code.'-'.$ref, $vend->code.'-'.$ref.'-2']);
         } else {
             $query->where('created_at', '>=', $this->since((string) $this->option('since')));
         }

@@ -107,6 +107,9 @@ class CardPaymentService
                     ? $gateway->requestPreauth($terminal, $intent->custom_order_id, $intent->amount_cents)
                     : $gateway->requestSale($terminal, $intent->custom_order_id, $intent->amount_cents);
                 $intent->update(['state' => CardPaymentIntent::STATE_PROCESSING]);
+                // A reading taken before this request says nothing about its prompt.
+                Cache::forget($this->statusCacheKey($terminal));
+                Cache::forget($this->promptReadCacheKey($terminal));
             } catch (CardTerminalException $e) {
                 $this->failSend($intent, $gateway, $terminal, $e);
             }
@@ -303,6 +306,38 @@ class CardPaymentService
         Cache::put($this->statusCacheKey($terminal), $status, self::TERMINAL_STATUS_CACHE_SECONDS);
 
         return $status;
+    }
+
+    /**
+     * Whether this freezer is told what its terminal is doing during a payment
+     * (payrallel.prompt_check). Off for an app below the minimum, so an older app causes
+     * no extra provider calls.
+     */
+    public function promptCheckAppliesTo(Vend $vend): bool
+    {
+        return (bool) config('payrallel.prompt_check')
+            && (int) $vend->apk_version_code >= (int) config('payrallel.prompt_check_min_app');
+    }
+
+    /**
+     * What the terminal is doing while this attempt waits for a tap, for the device's
+     * poll: in_payment = its prompt is up. Read from the provider at most every few
+     * seconds per terminal; null = unknown (the read failed), never a verdict.
+     */
+    public function promptTerminalState(Vend $vend, CardPaymentIntent $intent): ?string
+    {
+        $terminal = RemoteCardTerminal::activeForVend($vend);
+        if (! $terminal) {
+            return null;
+        }
+
+        $connecting = $intent->created_at->diffInSeconds(Carbon::now(), true) <= (int) config('payrallel.prompt_give_up_seconds');
+        $every = (int) config($connecting ? 'payrallel.prompt_status_seconds' : 'payrallel.prompt_status_seconds_after');
+        if (Cache::add($this->promptReadCacheKey($terminal), 1, max(1, $every))) {
+            Cache::forget($this->statusCacheKey($terminal));
+        }
+
+        return $this->terminalStatus($vend)?->state;
     }
 
     /**
@@ -1190,6 +1225,11 @@ class CardPaymentService
     private function statusCacheKey(RemoteCardTerminal $terminal): string
     {
         return 'remote-card-terminal-status:'.$terminal->id;
+    }
+
+    private function promptReadCacheKey(RemoteCardTerminal $terminal): string
+    {
+        return 'remote-card-terminal-prompt-read:'.$terminal->id;
     }
 
     private function errorText(string $text): string

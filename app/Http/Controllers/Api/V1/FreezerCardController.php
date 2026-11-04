@@ -59,17 +59,30 @@ class FreezerCardController extends Controller
             'amount_cents' => ['required', 'integer', 'min:1', 'max:10000000'],
         ]);
 
-        return $this->logged('authorize', $request, $data['reference'], fn () => response()->json(
-            $this->present($this->payments->authorize($this->vend($request), $data['reference'], (int) $data['amount_cents'])),
-            202,
-        ), ['amount_cents' => (int) $data['amount_cents']]);
+        return $this->logged('authorize', $request, $data['reference'], function () use ($request, $data) {
+            $vend = $this->vend($request);
+            $body = $this->present($this->payments->authorize($vend, $data['reference'], (int) $data['amount_cents']));
+            if ($this->payments->promptCheckAppliesTo($vend)) {
+                $body['prompt_resend_seconds'] = (int) config('payrallel.prompt_resend_seconds');
+                $body['prompt_give_up_seconds'] = (int) config('payrallel.prompt_give_up_seconds');
+            }
+
+            return response()->json($body, 202);
+        }, ['amount_cents' => (int) $data['amount_cents']]);
     }
 
     public function show(Request $request, string $code, string $reference): JsonResponse
     {
-        return $this->guard(fn () => response()->json(
-            $this->present($this->payments->refresh($this->intent($request, $reference))),
-        ));
+        return $this->guard(function () use ($request, $reference) {
+            $intent = $this->payments->refresh($this->intent($request, $reference));
+            $body = $this->present($intent);
+            $vend = $this->vend($request);
+            if ($intent->state === CardPaymentIntent::STATE_PROCESSING && $this->payments->promptCheckAppliesTo($vend)) {
+                $body['terminal_state'] = $this->payments->promptTerminalState($vend, $intent);
+            }
+
+            return response()->json($body);
+        });
     }
 
     public function cancel(Request $request, string $code, string $reference): JsonResponse
