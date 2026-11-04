@@ -6,6 +6,7 @@ use App\Models\Operator;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Models\VendTransaction;
+use App\Support\FreezerTestSale;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -62,8 +63,13 @@ class RemoveOddTransactions implements ShouldQueue
             })
             ->where('vend_transactions.created_at', '>=', Carbon::parse($this->from)->startOfDay())
             ->where('vend_transactions.created_at', '<=', Carbon::parse($this->to)->endOfDay())
-            ->chunkById(500, function ($transactions) {
-                $transactionIds = $transactions->pluck('id')->toArray();
+            ->chunkById(500, function ($transactions) use ($testOperator) {
+                // A freezer's Testing Mode sale (20c a unit) stays, whatever its amount: it goes through
+                // Sales Transactions and AI Recognition like a normal purchase (Brian, 2026-11-05).
+                $transactionIds = $transactions
+                    ->reject(fn ($t) => FreezerTestSale::is($t) && ! in_array($t->operator_id, $testOperator))
+                    ->pluck('id')
+                    ->toArray();
 
                 if (! empty($transactionIds)) {
                     \App\Models\VendChannelErrorLog::whereIn('vend_transaction_id', $transactionIds)->delete();

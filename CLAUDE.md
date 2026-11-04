@@ -1633,7 +1633,7 @@ merged, `ai_check` on each row): one line per product, photo (name and item code
 machine's at that moment, "(HH 30%)" under it when Happy Hour priced it), Paid, AI saw, a verdict of ✓ / +n / −n / ?
 with its meaning on hover, problems first, and an Adjusted count per line (a dash until a person adjusts) with who and
 when below the lines. The columns are fixed widths, so they line up down the page. A released hold's sale of 0 is deleted
-by the nightly odd-amount sweep, so with no sale the lines take Paid from the verdict. Each refund that went back shows its amount, when it was sent and who sent it. Explanations go in hover popups
+by the nightly odd-amount sweep (a Testing Mode sale is kept), so with no sale the lines take Paid from the verdict. Each refund that went back shows its amount, when it was sent and who sent it. Explanations go in hover popups
 (`v-tooltip`), not on the page. Barcodes are in Sent to AI.
 
 **A paid session with no sale still shows the payment** (Brian, 2026-11-04: 50001's lock refused three doors, the rows read
@@ -1671,6 +1671,8 @@ session matched to no freezer (a supplier test cabinet) only the unrestricted op
 Each row is badged **AI** (`orderStatus` 0) or **Human** (any other
 code: Zijia's AI could not answer on its own) — one rule, `RecognitionResult::processedBy()`, which
 the badge and the Processed By filter (`processed_by`: all / ai / human / none) both read (Brian, 2026-10-09).
+
+**Testing Mode sales go the whole way** (Brian, 2026-11-05: "the entire same process as normal purchase", `App\Support\FreezerTestSale`, TRADE `TEST`, freezer app 45+). A test sale is on Sales Transactions and AI Recognition with a TEST badge and counts like any other in sales, revenue, GP, qty and the AI Dashboard (his call, about -$1.10 GP a unit). `RemoveOddTransactions` keeps it at any amount off the TEST operator; a one-item test sale is 20c, a swept amount, and a released hold's sale is 0, so both used to vanish at 23:59. It still moves no stock (his call), and Happy Hour never tags it (20c is no slot's promo price, and the app drops promos in Testing Mode). A door failure in Testing Mode reports no `TEST` (`/sessions/{ref}/failed`), so that row has no badge. Regression coverage: `tests/Feature/FreezerTestSaleFullPathTest.php`.
 
 **Sidebar badge** (Brian, 2026-11-04; `App\Services\SmartFreezer\RecognitionIssues`, the one rule): the red number beside AI Recognition counts what is new since this user last opened the page, like Refund Requests: any verdict but a match, an AI that could not answer (status `failed`), and each door fault the app filed (`error:BoxVmc`, "Door refused for" / "Door call never reached host for"). A session still waiting for its verdict counts when the verdict lands (`updated_at`), and other `error:*` lines (59 `error:CardDetect` in a week) never count. Opening the page clears it, except a table reload or a link to one session (`?search=`). Never opened = the last 24 h, unlike refunds' 0, or the badge could never bring anyone there. No permission = 0, because the section rolls its children's numbers up. Viewer ceiling as on the page. Regression coverage: `tests/Feature/AiRecognitionSidebarBadgeTest.php`.
 

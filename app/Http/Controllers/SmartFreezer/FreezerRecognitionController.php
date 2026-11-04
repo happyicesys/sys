@@ -443,6 +443,7 @@ class FreezerRecognitionController extends Controller
                 'amount' => (int) $sale->amount,
                 'date' => $sale->transaction_datetime ? substr((string) $sale->transaction_datetime, 0, 10) : null,
                 'time' => $sale->transaction_datetime ? substr((string) $sale->transaction_datetime, 11, 8) : null,
+                'is_test_sale' => FreezerTestSale::is($sale),
             ] : null,
             'paid_without_sale' => $paidWithoutSale ? [
                 'method' => self::cardBrand($card->payment_method),

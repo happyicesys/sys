@@ -246,7 +246,7 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.0.items.0', ['code' => '9726436016148', 'name' => 'Magnum', 'number' => 2])
                 ->where('recognitions.data.0.verdict', 'took_more')
                 ->where('recognitions.data.0.verdict_lines.0.name', 'Magnum')
-                ->where('recognitions.data.0.sale', ['id' => $sale->id, 'order_id' => 'O-123', 'amount' => 350, 'date' => '2026-09-30', 'time' => '10:00:00'])
+                ->where('recognitions.data.0.sale', ['id' => $sale->id, 'order_id' => 'O-123', 'amount' => 350, 'date' => '2026-09-30', 'time' => '10:00:00', 'is_test_sale' => false])
                 ->where('recognitions.data.0.algorithm_status', 'normal')
                 ->has('recognitions.meta')
             );

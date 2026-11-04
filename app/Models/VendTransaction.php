@@ -47,7 +47,8 @@ class VendTransaction extends Model
     // remove:today-odd-transactions, dailyAt 23:59): test-rig amounts, and
     // anything under the TEST operator. Amounts are in MINOR units
     // (0, 0.10, 0.20, 200.00 at currency_exponent 2). Rows whose payment method
-    // code is in ODD_TRANSACTION_RETAIN_PAYMENT_METHOD_CODES are always kept.
+    // code is in ODD_TRANSACTION_RETAIN_PAYMENT_METHOD_CODES are always kept, and so is
+    // a freezer's Testing Mode sale (App\Support\FreezerTestSale) off the TEST operator.
     //
     // Exposed as constants because PaymentGatewayLog::scopeUnreportedDispensed
     // must exclude the same rows — a swept transaction leaves its gateway log

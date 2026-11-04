@@ -343,6 +343,9 @@
                     <div class="flex flex-col space-y-1 text-xs">
                       <a v-if="row.sale" :href="saleUrl(row.sale)" target="_blank" class="text-sm font-semibold text-blue-600 hover:underline font-mono whitespace-nowrap">{{ row.sale.order_id }}</a>
                       <span v-else class="text-gray-400" :title="$t('Shown once the sale is matched to this session')">—</span>
+                      <span v-if="row.sale?.is_test_sale"
+                        class="inline-flex w-fit items-center rounded border border-fuchsia-300 bg-fuchsia-100 px-1 text-[10px] font-bold text-fuchsia-800 hover:cursor-help"
+                        :title="$t('Testing Mode sale: every item $0.20, no stock deducted')">{{ $t('TEST') }}</span>
                       <span class="whitespace-nowrap" :title="$t('Zijia\'s order no for the door session (tradeId sent to the AI)')">
                         <span class="text-gray-500">Zijia:</span> <span class="font-mono">{{ row.trade_id }}</span>
                       </span>

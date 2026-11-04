@@ -9,14 +9,17 @@ use App\Models\VendTransaction;
  *
  * A technician turns Testing Mode on in the freezer's Freezer care panel: every product then sells
  * at UNIT_PRICE_CENTS, and the TRADE carries `"TEST":1` (Mark1SaleUploader). Such a sale is booked
- * in full like any other — Sales Transactions, AI recognition, the T05 charge from the AI verdict —
- * with two differences only:
+ * in full like any other — Sales Transactions, AI recognition and the AI Dashboard (both with a TEST
+ * badge), the T05 charge from the AI verdict — with three differences only:
  *
  *  - **no stock moves** (FreezerStockLedger::unitsDispensed reads nothing from it, so neither the
  *    live ledger nor `freezer:rebuild-stock` counts it);
  *  - **the AI verdict prices every unit at UNIT_PRICE_CENTS**, an extra item of a product not in the
  *    cart included (CardPaymentService::decideForAi, FreezerSaleAudit::rewriteBasket) — otherwise a
- *    took_more of another SKU would be charged at the shelf price.
+ *    took_more of another SKU would be charged at the shelf price;
+ *  - **the nightly odd-amount sweep keeps it** (RemoveOddTransactions, Brian 2026-11-05), or a
+ *    one-item test sale, exactly a swept amount, would vanish at 23:59. A machine under the TEST
+ *    operator is still swept whole.
  *
  * The flag lives in the stored frame (`vend_transaction_json->TEST`), the way SFREF does: no column
  * on vend_transactions.
