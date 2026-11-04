@@ -1597,8 +1597,9 @@ order no + our SF ref, the sale's Site and that Site's current RP (the machine's
 long the result took from the door session ("Δ 0d 0h 2m"), links to the original videos, and **Verification** (2026-11-03, a user's sketch: Paid For, AI Saw Taken and Verdict vs Paid
 merged, `ai_check` on each row): one line per product, photo (name and item code on hover), price (paid, else the
 machine's at that moment, "(HH 30%)" under it when Happy Hour priced it), Paid, AI saw, a verdict of ✓ / +n / −n / ?
-with its meaning on hover, problems first, and once a person adjusted the sale an Adjusted count per line with who and
-when. Each refund that went back shows its amount, when it was sent and who sent it. Explanations go in hover popups
+with its meaning on hover, problems first, and an Adjusted count per line (a dash until a person adjusts) with who and
+when below the lines. The columns are fixed widths, so they line up down the page. A released hold's sale of 0 is deleted
+by the nightly odd-amount sweep, so with no sale the lines take Paid from the verdict. Each refund that went back shows its amount, when it was sent and who sent it. Explanations go in hover popups
 (`v-tooltip`), not on the page. Barcodes are in Sent to AI.
 
 **AI Recognition is the control panel** (Brian, 2026-11-03: "not only info"). **Adjust Qty** (`FreezerSaleCorrection`, the
