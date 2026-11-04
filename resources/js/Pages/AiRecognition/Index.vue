@@ -803,9 +803,9 @@ function seenBarcodes(row) {
   return new Set(row.items.map((item) => item.code))
 }
 
-const showLegend = ref(true)
+const showLegend = ref(false)
 try {
-  showLegend.value = localStorage.getItem('aiRecognition.legend') !== 'hidden'
+  showLegend.value = localStorage.getItem('aiRecognition.legend') === 'shown'
 } catch (e) {}
 
 function toggleLegend() {
