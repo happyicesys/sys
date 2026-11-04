@@ -13,8 +13,12 @@ use Illuminate\Http\Client\Response;
  *
  * Only the events that move money or goods are checked - an APPROVE (dispense)
  * and a REFUND (is_refunded). Pending / declined events are skipped. Fiuu
- * verifies its own signature in the controller and Midtrans is not in use, so
- * both are skipped here rather than half-verified.
+ * verifies its own signature in the controller, so it is skipped here rather
+ * than half-verified.
+ *
+ * Midtrans signs every notification, so each of its events is checked, with no
+ * API call: a forged `expire` would close an open order and lose the real
+ * payment that follows.
  *
  * Pure function of (webhook, log): no writes, no dispatch. Mode handling
  * (log vs enforce) lives in the caller - see config/payment.php.
@@ -26,6 +30,10 @@ class WebhookVerifier
 
     public function verify(string $company, array $input, PaymentGatewayLog $log, int $status): WebhookVerdict
     {
+        if ($company === 'midtrans') {
+            return $this->verifyMidtrans($input, $log);
+        }
+
         if (! in_array($status, [PaymentGatewayLog::STATUS_APPROVE, PaymentGatewayLog::STATUS_REFUND], true)) {
             return WebhookVerdict::skipped('event moves no money');
         }
@@ -35,6 +43,34 @@ class WebhookVerifier
             'fiuu' => WebhookVerdict::skipped('fiuu is signature-verified in the controller'),
             default => WebhookVerdict::skipped("no verifier for {$company}"),
         };
+    }
+
+    /** SHA512(order_id + status_code + gross_amount + server key), on the strings exactly as sent. */
+    private function verifyMidtrans(array $input, PaymentGatewayLog $log): WebhookVerdict
+    {
+        $serverKey = $log->operatorPaymentGateway?->key1;
+        if (! $serverKey) {
+            return WebhookVerdict::unverifiable('log has no Midtrans server key');
+        }
+
+        $signature = $input['signature_key'] ?? null;
+        $parts = [$input['order_id'] ?? null, $input['status_code'] ?? null, $input['gross_amount'] ?? null];
+        $detail = ['order_id' => $log->order_id, 'gross_amount' => is_scalar($parts[2]) ? $parts[2] : null, 'expected_amount' => $log->amount];
+
+        if (! is_string($signature) || $signature === '' || array_filter($parts, 'is_scalar') !== $parts) {
+            return WebhookVerdict::mismatch('notification carries no signature', $detail);
+        }
+        if (! hash_equals(hash('sha512', implode('', $parts).$serverKey), $signature)) {
+            return WebhookVerdict::mismatch('signature does not match', $detail);
+        }
+        if ((string) $parts[0] !== (string) $log->order_id) {
+            return WebhookVerdict::mismatch('notification belongs to a different order', $detail);
+        }
+        if ((float) $parts[2] !== (float) $log->amount) {
+            return WebhookVerdict::mismatch('amount differs from our order', $detail);
+        }
+
+        return WebhookVerdict::verified($detail);
     }
 
     private function verifyOmise(array $input, PaymentGatewayLog $log, int $status): WebhookVerdict

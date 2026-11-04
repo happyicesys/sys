@@ -20,6 +20,8 @@ class PaymentGatewayLogResource extends JsonResource
             'amount' => $this->amount,
             'approved_at' => $this->approved_at,
             'approved_at_formatted' => $this->approved_at ? Carbon::parse($this->approved_at)->format('ymd h:ia') : null,
+            // Set only with no approved_at: when Midtrans says it was paid, else when the QR was made.
+            'paid_at_formatted' => $this->approved_at ? null : Carbon::parse($this->response['settlement_time'] ?? $this->created_at)->format('ymd h:ia'),
             'created_at' => $this->created_at,
             'is_dispensed' => $this->is_dispensed,
             'method' => $this->method,

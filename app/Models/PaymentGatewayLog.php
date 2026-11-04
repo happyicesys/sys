@@ -25,6 +25,12 @@ class PaymentGatewayLog extends Model
     // figures before this date continue to tally with prior accounting exports.
     const UNREPORTED_GATEWAY_CUTOFF = '2026-06-01';
 
+    // Paid, not served: how long a machine gets to report before a payment is listed.
+    const PAID_NOT_SERVED_AFTER_MINUTES = 30;
+
+    // The window the page's count and Needs attention look at: GoPay QRIS refunds close after 45 days.
+    const PAID_NOT_SERVED_WINDOW_DAYS = 45;
+
     use HasFactory;
 
     protected $fillable = [
@@ -228,14 +234,49 @@ class PaymentGatewayLog extends Model
         });
     }
 
+    /**
+     * Midtrans took the money and no machine confirmed a sale (2026-11-04): the payment confirmed past
+     * the 210 s cutoff or found by payment:reconcile-midtrans (no sale, approved_at NULL), and the sale
+     * stuck PENDING with no ACK or TRADE. None of it counts as revenue. A person looks and refunds at
+     * Midtrans; the refund notification, or a late TRADE, takes the row off the list. is_dispensed = 0
+     * does not prove the customer got nothing, so nothing here calls it failed.
+     *
+     * Midtrans only for now: Omise refunds these by itself (RefundOmiseJob). Raw NOT EXISTS, because
+     * VendTransaction's global scopes would hide another operator's sale (see scopeWhereNoVendTransaction).
+     */
+    public function scopePaidNotServed($query)
+    {
+        return $query
+            ->where('payment_gateway_logs.status', self::STATUS_APPROVE)
+            ->where('payment_gateway_logs.is_dispensed', false)
+            ->where('payment_gateway_logs.created_at', '<=', now()->subMinutes(self::PAID_NOT_SERVED_AFTER_MINUTES))
+            ->whereIn('payment_gateway_logs.payment_gateway_id', PaymentGateway::where('name', 'midtrans')->select('id'))
+            ->whereNotExists(function ($sub) {
+                $sub->selectRaw('1')
+                    ->from('vend_transactions')
+                    ->whereColumn('vend_transactions.payment_gateway_log_id', 'payment_gateway_logs.id')
+                    ->where('vend_transactions.settlement_status', '<>', VendTransaction::SETTLEMENT_PENDING);
+            })
+            ->excludeSweptOddTransactions();
+    }
+
     // scopes
     public function scopeFilterIndex($query, $request)
     {
-        $query = $query->when($request->date_from, function ($query, $search) {
-            $query->where('approved_at', '>=', $search);
-        })
-            ->when($request->date_to, function ($query, $search) {
-                $query->where('approved_at', '<=', $search);
+        // A payment on the Paid, not served list may have no approved_at, so its date is when the QR was made.
+        $paidNotServed = filter_var($request->paid_not_served, FILTER_VALIDATE_BOOLEAN);
+        $whereDate = function ($query, string $operator, $value) use ($paidNotServed) {
+            $paidNotServed
+                ? $query->whereRaw("COALESCE(payment_gateway_logs.approved_at, payment_gateway_logs.created_at) {$operator} ?", [$value])
+                : $query->where('approved_at', $operator, $value);
+        };
+
+        $query = $query->when($paidNotServed, fn ($query) => $query->paidNotServed()->whereVisibleToViewer())
+            ->when($request->date_from, function ($query, $search) use ($whereDate) {
+                $whereDate($query, '>=', $search);
+            })
+            ->when($request->date_to, function ($query, $search) use ($whereDate) {
+                $whereDate($query, '<=', $search);
             })
             ->when($request->ref_id, function ($query, $search) {
                 $query->where('ref_id', 'LIKE', "%{$search}%");

@@ -38,6 +38,7 @@
 						<span class="text-sm font-medium text-indigo-600 group-hover:underline">{{ $t('show entries') }}</span>
 					</button>
 					<span v-else class="text-[1.375rem] leading-7 font-semibold tabular-nums" :class="countClass(group)">0</span>
+					<a v-if="group.link" :href="group.link" class="text-sm font-medium text-indigo-600 hover:underline">{{ $t('Show list') }}</a>
 				</dd>
 				<!-- Every flagged machine, "code - site", straight away (Brian, 2026-10-18: no Show / more
 				     click). A line narrows the full rows below to that machine. -->

@@ -99,6 +99,8 @@ class Kernel extends ConsoleKernel
         // open (empty ones are voided). Idempotent — a no-op when none are open.
         $schedule->command('refund-settlements:auto-close')->dailyAt('23:58')->withoutOverlapping();
         $schedule->command('refund:payment-gateway-every-ten-minutes')->everyTenMinutes();
+        $schedule->command('payment:reconcile-midtrans --apply')->everyTenMinutes()->withoutOverlapping()->runInBackground()
+            ->when(fn () => (bool) config('payment.midtrans_reconcile.enabled'));
         // Live sim status from telco usage APIs (VoicePing today) for the
         // Simcard Index "Status" column. Data-driven: only telcos with a
         // usage_provider are polled, so instances with none mapped no-op —

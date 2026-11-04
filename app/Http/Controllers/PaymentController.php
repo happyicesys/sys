@@ -86,6 +86,12 @@ class PaymentController extends Controller
                             break;
                     }
                 }
+                // A state with no mapping (`failure`, `authorize`) changes nothing; the reconcile sweep logs it.
+                if ($status === null) {
+                    Log::warning('Midtrans notification with an unmapped state', ['order_id' => $input['order_id'] ?? null, 'state' => $input['transaction_status'] ?? null]);
+
+                    return;
+                }
                 $orderId = $input['order_id'];
                 $refId = $input['transaction_id'];
                 $qrRefID = null;
@@ -229,7 +235,9 @@ class PaymentController extends Controller
         //            warning - see config/payment.php for why.
         //   log:     queued AFTER processing (bottom of this method) so the
         //            approval path is untouched while the check is proven.
-        $verificationMode = config('payment.webhook_verification', 'log');
+        $verificationMode = $company === 'midtrans'
+            ? config('payment.midtrans_webhook_verification', 'log')
+            : config('payment.webhook_verification', 'log');
         if ($verificationMode === 'enforce') {
             $verdict = app(WebhookVerifier::class)->verify($company, $input, $paymentGatewayLog, $status);
             $verdictContext = $verdict->toLogContext() + ['mode' => 'enforce', 'company' => $company, 'log_id' => $paymentGatewayLog->id, 'vend_code' => $paymentGatewayLog->vend_code, 'status' => $status];

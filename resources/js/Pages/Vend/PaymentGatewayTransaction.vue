@@ -205,6 +205,18 @@
             </div>
 
         <!-- <dl class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-5"> -->
+        <!-- Paid, not served (2026-11-04). Rules: PaymentGatewayLog::scopePaidNotServed. Hidden with nothing to show. -->
+        <button
+            v-if="paidNotServed.count || filters.paid_not_served"
+            type="button"
+            class="mb-2 flex w-full flex-wrap items-baseline gap-x-2 rounded-lg px-4 py-2 text-left text-sm ring-1 ring-inset"
+            :class="filters.paid_not_served ? 'bg-rose-100 text-rose-900 ring-rose-400' : 'bg-rose-50 text-rose-800 ring-rose-200 hover:bg-rose-100'"
+            @click="togglePaidNotServed"
+        >
+            <span class="font-semibold">{{ $t('Paid, not served') }}: {{ paidNotServed.count }}</span>
+            <span>{{ $t('Paid at the gateway, no sale confirmed by the machine (last :days days). Not counted as revenue. Check with the customer, then refund at the gateway.', { days: paidNotServed.window_days }) }}</span>
+            <span class="ml-auto font-medium underline">{{ filters.paid_not_served ? $t('Show all payments') : $t('Show list') }}</span>
+        </button>
         <dl class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                 <dt class="truncate text-sm font-medium text-gray-500">{{ $t('Paid Count') }}</dt>
@@ -302,12 +314,15 @@
                             {{ paymentGatewayLog.ref_id }}
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
-                            {{ paymentGatewayLog.approved_at_formatted }}
+                            {{ paymentGatewayLog.approved_at_formatted || paymentGatewayLog.paid_at_formatted }}
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
                           <div class="flex justify-between">
                             <span>
                               {{ paymentGatewayLog.order_id }}
+                              <span v-if="filters.paid_not_served" class="block text-xs font-medium text-rose-700">
+                                {{ paymentGatewayLog.approved_at ? $t('Machine sent no report') : $t('Confirmed too late to dispense') }}
+                              </span>
                             </span>
                           </div>
                         </TableData>
@@ -399,7 +414,10 @@ const props = defineProps({
     paymentGatewayLogs: Object,
     totals: [Object, Array],
     paymentGatewayOptions: Object,
+    paidNotServed: { type: Object, default: () => ({ count: 0, window_days: 45 }) },
 })
+// Needs attention links straight to the list.
+const urlParams = new URLSearchParams(window.location.search)
 const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
 const successfulOptions = ref([])
@@ -468,8 +486,9 @@ const filters = ref({
     is_refunded: '',
     paymentMethod: '',
     qr_ref_id: '',
-    date_from: moment().format('YYYY-MM-DD'),
-    date_to: moment().format('YYYY-MM-DD'),
+    date_from: urlParams.get('date_from') || moment().format('YYYY-MM-DD'),
+    date_to: urlParams.get('date_to') || moment().format('YYYY-MM-DD'),
+    paid_not_served: urlParams.get('paid_not_served') === 'true',
     sortKey: '',
     sortBy: false,
     numberPerPage: 50,
@@ -524,6 +543,15 @@ function onSearchFilterUpdated() {
         preserveState: true,
         replace: true,
     })
+}
+
+function togglePaidNotServed() {
+    filters.value.paid_not_served = !filters.value.paid_not_served
+    filters.value.date_from = filters.value.paid_not_served
+        ? moment().subtract(props.paidNotServed.window_days, 'days').format('YYYY-MM-DD')
+        : moment().format('YYYY-MM-DD')
+    filters.value.date_to = moment().format('YYYY-MM-DD')
+    onSearchFilterUpdated()
 }
 
 function resetFilters() {

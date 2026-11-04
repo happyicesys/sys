@@ -156,14 +156,10 @@ operator_admin (Edit refused). lsh turned out ~170 grants behind (Stock Count, S
 Happy Hour, the `picker` role, …); the full sync was run there the same day (Brian's go-ahead)
 and lsh now matches sys grant for grant. **After every deploy that touches the seeder, run it on
 lsh too.** **Indonesia (`idn-sys.happyice.net`, `forge@178.128.31.69`, plain checkout
-`/home/forge/idn-sys.happyice.net`, DB `idn_sys`) is deployed by a push too since 2026-10-31**
-(Brian turned on Forge auto-deploy; first proven with `679c5dcc11`: code, migrations and Horizon follow
-within ~2 min). Like lsh, nothing seeds its permissions: **run the seeder on IDN after a deploy that touches
-it.** Its deploy does NOT restart the MQTT listener (`daemon-787381`, `subscribe:mqtt`): restart it with
-`sudo -n supervisorctl restart daemon-787381:daemon-787381_00` when a deploy changes what it runs (TRADE /
-`P` ingest — `VendDataService`, `SubscribeMqtt`, the models and jobs they call). Before 2026-10-31 its
-checkout was pulled by hand (2026-10-28 it sat 754 commits behind; the seeder was then run against IDN's
-DB from a temp copy, and sys, lsh and IDN matched exactly: 331 permissions, 18 roles, 1,580 grants). `observer_transactions` holds zero permissions on both hosts (it did before, too).
+`/home/forge/idn-sys.happyice.net`, DB `idn_sys`) has deployed on push too since 2026-10-31, and nothing runs the
+seeder there either**: run it on IDN as well after a seeder change. On 2026-10-28 (Brian: "same roles and
+permission access level" on all three) sys, lsh and IDN were made to match exactly (331 permissions, 18 roles,
+1,580 grants). `observer_transactions` holds zero permissions on both hosts (it did before, too).
 
 Amending it:
 
@@ -625,6 +621,32 @@ URLs) and lists no blank-Dispense (no-TRADE) row on either side; its
 Regression coverage: `tests/Unit/SaleStatusTest.php`,
 `tests/Feature/TransactionIndexDispenseFilterTest.php`,
 `tests/Feature/TransactionIndexStatusColumnsTest.php`.
+
+## Midtrans (IDN QRIS): QR life, signatures, missed confirmations
+
+Plan and evidence: `IDN_MIDTRANS_MISSING_SALES_PLAN_2026-11-04.md`. Midtrans is IDN's only gateway; sys and lsh have none.
+
+- **A QR lives at most 180 s** (`Midtrans::MAX_QR_SECONDS`), under `PaymentController`'s 210 s cutoff. Old boards send
+  `expiry_seconds = 120000` (120 s in milliseconds), which was 33 hours to Midtrans.
+- **Each notification is signed** (`WebhookVerifier::verifyMidtrans`: SHA512 of order_id + status_code + gross_amount +
+  `key1` of the LOG's operator gateway; checked on every event, because a forged `expire` loses the real payment). It has
+  its own switch, `PAYMENT_WEBHOOK_VERIFICATION_MIDTRANS` (`log` default, `enforce`), apart from the Omise one sys enforces.
+  9,981 stored IDN notifications with a key on file matched the formula on 2026-11-04, none failed.
+- **`payment:reconcile-midtrans`** (`MidtransReconciler`, every 10 min once `MIDTRANS_RECONCILE_ENABLED=true`; no `--apply` =
+  asks, writes nothing) asks `GET /v2/{order_id}/status` about status-1 rows whose QR expired over 5 min ago, last 90 days.
+  Paid → status 2 with `approved_at` NULL, `expire` / `cancel` / `deny` → 99, refund → 98 through `OmiseRefundRecorder`,
+  anything else stays and is logged. **It never dispenses and never creates a sale.** Turn it on only after enforcing.
+- **Paid, not served** (`PaymentGatewayLog::scopePaidNotServed`): Midtrans, status 2, `is_dispensed = 0`, over 30 min old,
+  with no sale or a PENDING one, minus swept test amounts. Never revenue (Brian, 2026-11-04); a person checks and refunds at
+  Midtrans, and the refund notification or a late TRADE takes the row off. `is_dispensed = 0` does not prove the customer
+  got nothing, so Dispense stays blank. Shown on Payment Gateway Transactions (`paid_not_served=true`, dated by
+  `COALESCE(approved_at, created_at)`, count over the last 45 days = GoPay's refund window) and as a Needs attention group
+  that appears only when it has machines. Rows that stay forever past 45 days drop out of the count, not the list.
+- **Still open:** `nofound_txn` (`LogNofoundTxnIfStillMissing`) cannot fire under unified transactions, because the
+  pre-created row always exists; it is fleet-wide, so it was left alone. No Midtrans refund API yet: widening
+  `supportsApiRefund()` also switches on failed-vend demotion, `HandleFailedVendTransaction` and the 10-minute sweep.
+
+Regression coverage: `tests/Feature/MidtransSalesGapTest.php`.
 
 ## Selling prices: never edited in place, so each row records who set it
 

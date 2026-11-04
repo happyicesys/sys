@@ -5411,6 +5411,14 @@ class VendController extends Controller
                 ->get()
         );
 
+        // Not narrowed by the page's dates, which open on today: the list is what is still waiting.
+        $paidNotServedCount = PaymentGatewayLog::query()
+            ->paidNotServed()
+            ->whereVisibleToViewer()
+            ->where('payment_gateway_logs.created_at', '>=', now()->subDays(PaymentGatewayLog::PAID_NOT_SERVED_WINDOW_DAYS))
+            ->when(! in_array('all', (array) $request->operators), fn ($q) => $q->whereHas('operatorPaymentGateway', fn ($sub) => $sub->whereIn('operator_id', (array) $request->operators)))
+            ->count();
+
         return Inertia::render('Vend/PaymentGatewayTransaction', [
             'operatorOptions' => $operatorOptions,
             'paymentMethods' => $paymentMethods,
@@ -5419,6 +5427,10 @@ class VendController extends Controller
                 $paymentGatewayLogs
             ),
             'totals' => $totals,
+            'paidNotServed' => [
+                'count' => $paidNotServedCount,
+                'window_days' => PaymentGatewayLog::PAID_NOT_SERVED_WINDOW_DAYS,
+            ],
         ]);
     }
 

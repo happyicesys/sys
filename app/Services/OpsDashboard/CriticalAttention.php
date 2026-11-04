@@ -3,6 +3,7 @@
 namespace App\Services\OpsDashboard;
 
 use App\Jobs\SyncP;
+use App\Models\PaymentGatewayLog;
 use App\Models\Vend;
 use App\Models\VendDailyStat;
 use App\Models\VendSmartAlert;
@@ -37,6 +38,9 @@ use Illuminate\Support\Facades\DB;
  *  - No sales: a machine whose last sale is older than `vend.attention.no_sales_hours`. Every
  *    machine kind. A machine that has never sold (new) is not flagged.
  *  - AI list: a smart freezer selling products Zijia's AI is not asked about (ZijiaSkuLinks).
+ *  - Paid, not served: Midtrans took the money and no machine confirmed a sale
+ *    (PaymentGatewayLog::scopePaidNotServed). Shown only when there is one, so a server with no
+ *    Midtrans machines looks as it did.
  */
 class CriticalAttention
 {
@@ -49,6 +53,8 @@ class CriticalAttention
     public const GROUP_NO_SALES = 'no_sales';
 
     public const GROUP_AI_LIST = 'ai_list';
+
+    public const GROUP_PAID_NOT_SERVED = 'paid_not_served';
 
     /** Machine Health's operation errors, with Machine Health's own wording. */
     public const TEMPERATURE_GROUPS = [
@@ -101,6 +107,16 @@ class CriticalAttention
         $groups[] = $this->group(self::GROUP_SCREEN, __('Touch screen frozen'), 'warning', $this->screenFaults($vendingIds, $now));
         $groups[] = $this->group(self::GROUP_NO_SALES, __('No sales for :duration', ['duration' => $this->noSalesHours().'h']), 'warning', $this->noSales($vends, $now));
         $groups[] = $this->group(self::GROUP_AI_LIST, __('Freezer products not on the AI\'s list'), 'warning', $this->aiListGaps($vends));
+        $paidNotServed = $this->paidNotServed($vendIds, $now);
+        if ($paidNotServed !== []) {
+            $groups[] = $this->group(self::GROUP_PAID_NOT_SERVED, __('Paid, not served'), 'warning', $paidNotServed) + [
+                'link' => auth()->user()?->can('read transactions-payment-gateway') ? route('payment-gateway-transactions', [
+                    'paid_not_served' => 'true',
+                    'date_from' => $now->copy()->subDays(PaymentGatewayLog::PAID_NOT_SERVED_WINDOW_DAYS)->toDateString(),
+                    'date_to' => $now->toDateString(),
+                ], false) : null,
+            ];
+        }
 
         $groups = array_map(function (array $group) use ($vends) {
             $group['machines'] = collect($group['machines'])
@@ -275,6 +291,24 @@ class CriticalAttention
         return $out;
     }
 
+    /** @return array<int, string> vend id => detail */
+    private function paidNotServed(array $vendIds, Carbon $now): array
+    {
+        if ($vendIds === []) {
+            return [];
+        }
+
+        return PaymentGatewayLog::query()
+            ->paidNotServed()
+            ->whereIn('payment_gateway_logs.vend_id', $vendIds)
+            ->where('payment_gateway_logs.created_at', '>=', $now->copy()->subDays(PaymentGatewayLog::PAID_NOT_SERVED_WINDOW_DAYS))
+            ->selectRaw('payment_gateway_logs.vend_id, COUNT(*) AS payments')
+            ->groupBy('payment_gateway_logs.vend_id')
+            ->pluck('payments', 'vend_id')
+            ->mapWithKeys(fn ($count, $vendId) => [(int) $vendId => (int) $count === 1 ? __(':count payment', ['count' => $count]) : __(':count payments', ['count' => $count])])
+            ->all();
+    }
+
     /** Today's and yesterday's rows of the given metrics. */
     private function dailyStats(array $vendIds, array $metrics, Carbon $now): Collection
     {
@@ -302,6 +336,7 @@ class CriticalAttention
         self::GROUP_SCREEN => 'Screen frozen',
         self::GROUP_NO_SALES => 'No sales',
         self::GROUP_AI_LIST => 'AI list',
+        self::GROUP_PAID_NOT_SERVED => 'Paid, not served',
     ];
 
     private function group(string $key, string $label, string $severity, array $machines): array

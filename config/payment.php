@@ -25,6 +25,25 @@ return [
     */
     'webhook_verification' => env('PAYMENT_WEBHOOK_VERIFICATION', 'log'),
 
+    /*
+    | Midtrans has its own switch (same three words), so IDN can enforce it without touching Omise, and
+    | sys's `enforce` does not apply to it before its traffic has been seen. Each Midtrans notification
+    | carries a signature checked locally, so enforcing adds no API call.
+    */
+    'midtrans_webhook_verification' => env('PAYMENT_WEBHOOK_VERIFICATION_MIDTRANS', 'log'),
+
+    /*
+    | payment:reconcile-midtrans (2026-11-04): asks Midtrans about QRs that expired with no final
+    | notification. Never dispenses. Off until PAYMENT_WEBHOOK_VERIFICATION_MIDTRANS=enforce and a dry
+    | run has been read. Only rows created in the last `days` are asked about on schedule.
+    */
+    'midtrans_reconcile' => [
+        'enabled' => (bool) env('MIDTRANS_RECONCILE_ENABLED', false),
+        'days' => (int) env('MIDTRANS_RECONCILE_DAYS', 90),
+        'limit' => (int) env('MIDTRANS_RECONCILE_LIMIT', 300),
+        'timeout' => (int) env('MIDTRANS_RECONCILE_TIMEOUT', 8),
+    ],
+
     /* Seconds allowed for the verification read of GET /charges/{id}. */
     'webhook_verify_timeout' => (int) env('PAYMENT_WEBHOOK_VERIFY_TIMEOUT', 8),
 
