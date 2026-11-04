@@ -1394,7 +1394,10 @@ const aiHandledBadges = {
     adjusted: { label: t('Adjusted'), cls: 'bg-blue-600 text-white border-blue-700' },
     keyed_in: { label: t('Keyed in'), cls: 'bg-blue-600 text-white border-blue-700' },
 }
+// A released hold charged nothing, so nobody has anything to do: grey, not the verdict's colour (Brian, 2026-11-04).
+const aiReleasedBadge = { label: t('Hold released'), cls: 'bg-gray-100 text-gray-700 border-gray-300' }
 const aiRecognitionBadge = (ai) => (ai.handled && aiHandledBadges[ai.handled.kind])
+    || (ai.released && aiReleasedBadge)
     || (ai.verdict && aiVerdictBadges[ai.verdict])
     || aiStatusBadges[ai.status]
     || { label: ai.status, cls: 'bg-gray-100 text-gray-700 border-gray-300' }
@@ -1405,7 +1408,7 @@ const formatDuration = (seconds) => {
     return h ? h + 'h ' + m + 'm' : m + 'm ' + String(s).padStart(2, '0') + 's'
 }
 const aiRecognitionTooltip = (ai) => [
-    ai.handled && ai.verdict && aiVerdictBadges[ai.verdict] ? t('AI verdict: :verdict', { verdict: aiVerdictBadges[ai.verdict].label }) : null,
+    (ai.handled || ai.released) && ai.verdict && aiVerdictBadges[ai.verdict] ? t('AI verdict: :verdict', { verdict: aiVerdictBadges[ai.verdict].label }) : null,
     t('Camera check of door opening :trade', { trade: ai.trade_id }),
     ai.received_at ? t('Video received :time', { time: ai.received_at }) : null,
     ai.submitted_at ? t('Sent for checking :time', { time: ai.submitted_at }) : null,

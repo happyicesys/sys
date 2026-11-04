@@ -1669,9 +1669,10 @@ recognition's `vend_transaction_id`, or before the verdict by its TRADE's `SFREF
 `session_ref`: two indexed lookups per page, no column on `vend_transactions`. Built for any
 AI-checked machine (a CityBox chiller once their order data exists). **Red means nobody has dealt with it** (Brian,
 2026-11-04): once a person adjusted the count (`meta_json.correction`) or keyed in the charge (`ai_decision.by_person`) the
-badge reads a solid blue Adjusted / Keyed in with who, the AI's verdict moving to the hover text (`handled`). AI Recognition
-follows the same three looks: red = a difference nobody has dealt with, blue = handled (the verdict pills go grey), grey
-buttons = nothing to do, and a Refund still owed stays red. Regression coverage:
+badge reads a solid blue Adjusted / Keyed in with who, the AI's verdict moving to the hover text (`handled`). A released hold
+(state `voided`, `released`) charged nothing, so it reads a grey Hold released unless a person released it. AI Recognition
+follows the same three looks: red = a difference nobody has dealt with, blue = handled, grey = nothing to do (a released
+hold included), the verdict pills grey on all but red rows, and a Refund still owed stays red. Regression coverage:
 `tests/Feature/TransactionIndexAiRecognitionColumnTest.php`.
 
 Integration record, live proofs and open questions for Zijia:

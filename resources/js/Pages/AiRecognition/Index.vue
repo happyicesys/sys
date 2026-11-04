@@ -403,8 +403,8 @@
                           <td class="py-1 text-center" tabindex="0" v-tooltip="$t(CHECK_KINDS[line.state].meaning)">
                             <CheckCircleIcon v-if="line.state === 'ok'" class="mx-auto h-5 w-5 text-green-600" :aria-label="$t(CHECK_KINDS.ok.meaning)" />
                             <QuestionMarkCircleIcon v-else-if="line.state === 'unknown'" class="mx-auto h-5 w-5 text-gray-400" :aria-label="$t(CHECK_KINDS.unknown.meaning)" />
-                            <span v-else-if="line.state === 'extra'" :class="['inline-flex min-w-[2rem] justify-center rounded-full px-1.5 py-0.5 text-sm font-bold', isHandled(row) ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700']">+{{ line.delta }}</span>
-                            <span v-else-if="line.state === 'missing'" :class="['inline-flex min-w-[2rem] justify-center rounded-full px-1.5 py-0.5 text-sm font-bold', isHandled(row) ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-800']">−{{ -line.delta }}</span>
+                            <span v-else-if="line.state === 'extra'" :class="['inline-flex min-w-[2rem] justify-center rounded-full px-1.5 py-0.5 text-sm font-bold', needsPerson(row) ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500']">+{{ line.delta }}</span>
+                            <span v-else-if="line.state === 'missing'" :class="['inline-flex min-w-[2rem] justify-center rounded-full px-1.5 py-0.5 text-sm font-bold', needsPerson(row) ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-500']">−{{ -line.delta }}</span>
                             <span v-else-if="line.state === 'none'" class="text-gray-400">—</span>
                             <span v-else class="text-gray-400">…</span>
                           </td>
@@ -702,13 +702,13 @@ function cardLabel(card) {
 }
 
 // Three looks, so a row says at a glance where it stands (Brian, 2026-11-04): red = the AI found a
-// difference and nobody has dealt with it, blue = a person has, grey = nothing to do.
+// difference and nobody has dealt with it, blue = a person has, grey = nothing to do, a released hold included.
 function isHandled(row) {
   return !!(row.correction || row.card?.by_person)
 }
 
 function needsPerson(row) {
-  if (isHandled(row)) return false
+  if (isHandled(row) || row.card?.state === 'voided') return false
   return !!row.card?.awaits_person || (!!row.verdict && row.verdict !== 'match')
 }
 

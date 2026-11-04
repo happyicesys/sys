@@ -161,4 +161,39 @@ class TransactionIndexAiRecognitionColumnTest extends TestCase
         $this->assertSame(['kind' => 'keyed_in', 'by' => 'Daniel'], $rows['ORD-KEY']['ai_recognition']['handled']);
         $this->assertNull($rows['ORD-OPEN']['ai_recognition']['handled']);
     }
+
+    public function test_a_released_hold_says_released_and_a_person_releasing_it_counts_as_handled(): void
+    {
+        $auto = $this->sale('ORD-AUTO', 'SF-50001-4-4');
+        $byPerson = $this->sale('ORD-PERSON', 'SF-50001-5-4');
+        $charged = $this->sale('ORD-CHARGED', 'SF-50001-6-4');
+        foreach ([[$auto, 'SF-50001-4-4'], [$byPerson, 'SF-50001-5-4'], [$charged, 'SF-50001-6-4']] as [$sale, $ref]) {
+            SmartFreezerRecognition::create([
+                'trade_id' => $ref, 'session_ref' => $ref, 'vend_id' => $this->vendId,
+                'vend_transaction_id' => $sale->id, 'status' => 'completed', 'verdict' => 'took_less',
+            ]);
+        }
+        $terminal = \App\Models\RemoteCardTerminal::create([
+            'vend_id' => $this->vendId, 'provider' => \App\Models\RemoteCardTerminal::PROVIDER_PAYRALLEL,
+            'access_token' => 'tok', 'is_active' => true,
+        ]);
+        foreach ([
+            ['A', 'SF-50001-4-4', 'voided', ['reason' => 'AI saw nothing taken: hold released']],
+            ['P', 'SF-50001-5-4', 'voided', ['by_person' => ['name' => 'Daniel']]],
+            ['C', 'SF-50001-6-4', 'captured', []],
+        ] as [$key, $ref, $state, $decision]) {
+            \App\Models\CardPaymentIntent::forceCreate([
+                'vend_id' => $this->vendId, 'remote_card_terminal_id' => $terminal->id, 'reference' => 'R-'.$key, 'custom_order_id' => 'C-'.$key,
+                'session_ref' => $ref, 'amount_cents' => 430, 'state' => $state, 'ai_decision' => $decision,
+            ]);
+        }
+
+        $rows = $this->gridRows();
+
+        $this->assertTrue($rows['ORD-AUTO']['ai_recognition']['released']);
+        $this->assertNull($rows['ORD-AUTO']['ai_recognition']['handled']);
+        $this->assertSame('took_less', $rows['ORD-AUTO']['ai_recognition']['verdict']);
+        $this->assertSame(['kind' => 'keyed_in', 'by' => 'Daniel'], $rows['ORD-PERSON']['ai_recognition']['handled']);
+        $this->assertFalse($rows['ORD-CHARGED']['ai_recognition']['released']);
+    }
 }

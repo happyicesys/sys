@@ -2707,6 +2707,7 @@
     "History · last :count": "历史 · 最近 :count 张",
     "hold :amount": "预授权 :amount",
     "hold a product this chiller does not carry in CityBox — their AI cannot recognise it, and Stock In will refuse to push. Ask ops to add it in OPS Pro first.": "存放的商品不在此冷柜的 CityBox 商品中 — 他们的 AI 无法识别，补货入库将拒绝推送。请先让运营在 OPS Pro 中添加。",
+    "Hold released": "预授权已释放",
     "Hold released — nothing charged.": "预授权已释放 — 未扣款。",
     "Holiday created successfully": "假期已创建",
     "Holiday deleted successfully": "节假日已删除",

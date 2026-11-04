@@ -48,16 +48,19 @@ class RecognitionBadges
                 $matched[$sale->id] = $recognition;
             }
         }
-        // A hold a person keyed in without adjusting the count is handled too. One query for the page.
-        $keyedIn = collect($matched)->isEmpty() ? collect() : CardPaymentIntent::query()
+        // The session's T05 hold: keyed in by a person, or released. One query for the page.
+        $holds = collect($matched)->isEmpty() ? collect() : CardPaymentIntent::query()
             ->whereIn('session_ref', collect($matched)->pluck('session_ref')->filter()->unique()->values())
-            ->orderBy('id')->get(['session_ref', 'ai_decision'])->keyBy('session_ref');
+            ->orderBy('id')->get(['session_ref', 'state', 'ai_decision'])->keyBy('session_ref');
 
         $saleById = $sales->keyBy('id');
         $out = [];
         foreach ($matched as $saleId => $recognition) {
+            $hold = $holds->get($recognition->session_ref);
             $out[$saleId] = $this->badge($recognition) + [
-                'handled' => $this->handled($saleById->get($saleId), $keyedIn->get($recognition->session_ref)),
+                'handled' => $this->handled($saleById->get($saleId), $hold),
+                // Nothing was charged, so nothing is left to do, whoever released it.
+                'released' => $hold?->state === CardPaymentIntent::STATE_VOIDED,
             ];
         }
 

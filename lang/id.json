@@ -2707,6 +2707,7 @@
     "History · last :count": "Riwayat · :count terakhir",
     "hold :amount": "pra-otorisasi :amount",
     "hold a product this chiller does not carry in CityBox — their AI cannot recognise it, and Stock In will refuse to push. Ask ops to add it in OPS Pro first.": "berisi produk yang tidak terdaftar untuk chiller ini di CityBox — AI mereka tidak dapat mengenalinya, dan Isi Stok akan menolak mengirim. Minta ops menambahkannya di OPS Pro terlebih dahulu.",
+    "Hold released": "Pra-otorisasi dilepas",
     "Hold released — nothing charged.": "Pra-otorisasi dilepas — tidak ada tagihan.",
     "Holiday created successfully": "Hari libur berhasil dibuat",
     "Holiday deleted successfully": "Hari libur berhasil dihapus",
