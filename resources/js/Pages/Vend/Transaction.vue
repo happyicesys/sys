@@ -794,16 +794,13 @@
                             {{ $t('TXN_SRC') }}
                         </TableHead>
                         <TableHead>
-                            {{ $t('Member ID') }}
+                            {{ $t('Campaign Label(s)') }}
                         </TableHead>
                         <TableHead>
                             {{ $t('HID Card ID') }}
                         </TableHead>
                         <TableHead>
                             {{ $t('Voucher') }}
-                        </TableHead>
-                        <TableHead>
-                            {{ $t('Campaign Label(s)') }}
                         </TableHead>
                       </tr>
                   </thead>
@@ -1116,25 +1113,6 @@
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.interface_type }}
                         </TableData>
-                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['dcvend_user_id'] ? vendTransaction.vendTransactionJson['dcvend_user_id'] : null }}
-                        </TableData>
-                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.metaJson && vendTransaction.metaJson['hid_card_id'] ? vendTransaction.metaJson['hid_card_id'] : null }}
-                        </TableData>
-                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            <div
-                                class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-blue-100 text-blue-800 border-blue-300"
-                                v-if="vendTransaction.metaJson && vendTransaction.metaJson['vouchers']"
-                            >
-                                <div class="flex space-x-1">
-                                    <span class="font-semibold grow-0">
-                                        {{ vendTransaction.metaJson['vouchers'][0].code }}
-                                    </span>
-                                </div>
-                            </div>
-
-                        </TableData>
                         <TableData
                         :currentIndex="vendTransactionIndex"
                         :totalLength="vendTransactions.length"
@@ -1158,6 +1136,22 @@
                             </div>
                         </template>
                         <!-- else: render nothing (empty cell) -->
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.metaJson && vendTransaction.metaJson['hid_card_id'] ? vendTransaction.metaJson['hid_card_id'] : null }}
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <div
+                                class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-blue-100 text-blue-800 border-blue-300"
+                                v-if="vendTransaction.metaJson && vendTransaction.metaJson['vouchers']"
+                            >
+                                <div class="flex space-x-1">
+                                    <span class="font-semibold grow-0">
+                                        {{ vendTransaction.metaJson['vouchers'][0].code }}
+                                    </span>
+                                </div>
+                            </div>
+
                         </TableData>
 
                       </tr>
@@ -1255,17 +1249,17 @@
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             {{ vendTransaction.interface_type }}
                         </TableData>
-                        <!-- Member ID / HID Card ID / Voucher: header-level only -->
-                        <TableData v-for="n in 3" :key="'pad-' + n" :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="bg-gray-100">
-                        </TableData>
                         <!-- Campaign Label(s): this line's Happy Hour -->
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-left bg-gray-100">
                             <HappyHourBadge :hh="vendTransactionItem.happy_hour" :exponent="operatorCountry.currency_exponent" />
                         </TableData>
+                        <!-- HID Card ID / Voucher: header-level only -->
+                        <TableData v-for="n in 2" :key="'pad-' + n" :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="bg-gray-100">
+                        </TableData>
                       </tr>
                     </template>
                     <tr v-if="!vendTransactions || !vendTransactions.data.length">
-                        <td colspan="25" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                        <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                             {{ $t('No Results Found') }}
                         </td>
                     </tr>
