@@ -386,6 +386,16 @@ class FreezerRecognitionController extends Controller
             }
         }
 
+        // A released hold leaves a sale of 0, which the nightly odd-amount sweep deletes. The verdict
+        // still says what was paid for, so the line never reads as nothing paid and nothing taken.
+        if ($sale === null) {
+            foreach ((array) $r->verdict_lines as $line) {
+                if (($id = (int) ($line['product_id'] ?? 0)) > 0 && (int) ($line['paid'] ?? 0) > 0) {
+                    $paid[$id] = ['qty' => (int) $line['paid'], 'unit_cents' => null];
+                }
+            }
+        }
+
         $verdict = $r->verdict;
         $answered = $verdict !== null || $r->order_status !== null;
         $seen = [];
@@ -417,10 +427,12 @@ class FreezerRecognitionController extends Controller
         $adjusted = is_array($correction) ? array_map('intval', (array) ($correction['basket'] ?? [])) : null;
         $adjustedPrices = is_array($correction) ? array_column((array) ($correction['lines'] ?? []), 'unit_cents', 'product_id') : [];
 
-        // A product taken but not paid has no price on the sale: the machine's at that moment.
-        $at = $sale?->transaction_datetime ? Carbon::parse($sale->transaction_datetime) : null;
+        // A product with no price on the sale (taken but not paid, or the sale is gone): the machine's
+        // at that moment.
+        $at = $sale?->transaction_datetime ? Carbon::parse($sale->transaction_datetime) : ($r->created_at ? Carbon::parse($r->created_at) : null);
         $isTest = $sale && FreezerTestSale::is($sale);
-        $extras = array_values(array_diff(array_keys($seen + ($adjusted ?? [])), array_keys($paid)));
+        $priced = array_keys(array_filter($paid, fn (array $line) => ($line['unit_cents'] ?? null) !== null));
+        $extras = array_values(array_diff(array_keys($paid + $seen + ($adjusted ?? [])), $priced));
         $shelf = $extras !== [] && $r->vend_id
             ? ($isTest
                 ? array_fill_keys($extras, FreezerTestSale::UNIT_PRICE_CENTS)
@@ -461,7 +473,7 @@ class FreezerRecognitionController extends Controller
                 'delta' => $taken === null ? null : $taken - $qty,
                 'state' => match (true) {
                     ! $answered => 'pending',
-                    $qty === 0 && ! isset($seen[$id]) => 'none',
+                    $qty === 0 && $taken === 0 => 'none',
                     $verdict === null || ($seen[$id]['not_asked'] ?? false) => 'unknown',
                     $taken > $qty => 'extra',
                     $taken < $qty => 'missing',

@@ -200,6 +200,22 @@ class AiRecognitionPageTest extends TestCase
         });
     }
 
+    /** Released holds on 50001 (2026-11-03): the sale of 0 was swept, and the line read 0 paid, 0 taken, ticked. */
+    public function test_a_session_whose_sale_is_gone_keeps_what_the_verdict_says_was_paid(): void
+    {
+        $product = Product::forceCreate(['code' => 'A', 'name' => 'Aye', 'operator_id' => 1, 'barcode' => '111']);
+        \App\Models\VendChannel::create(['vend_id' => $this->vend->id, 'code' => 11, 'product_id' => $product->id, 'qty' => 5, 'capacity' => 5, 'amount' => 170, 'is_active' => 1]);
+        $this->recognition(['vend_transaction_id' => 999999, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0, 'verdict' => 'took_less', 'verdict_lines' => [
+            ['product_id' => $product->id, 'code' => '111', 'paid' => 1, 'taken' => 0, 'delta' => -1],
+        ]]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('recognitions.data.0.ai_check.0.paid', 1)
+            ->where('recognitions.data.0.ai_check.0.taken', 0)
+            ->where('recognitions.data.0.ai_check.0.state', 'missing')
+            ->where('recognitions.data.0.ai_check.0.unit_cents', 170));
+    }
+
     public function test_a_row_says_how_long_the_result_took_from_the_door_session(): void
     {
         $answered = $this->recognition(['trade_id' => 'ANSWERED', 'completed_at' => '2026-11-03 22:27:42']);

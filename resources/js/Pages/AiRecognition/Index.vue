@@ -373,29 +373,33 @@
                     <span v-if="verdictNote(row)" class="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700" tabindex="0" v-tooltip="row.status_reason || row.algorithm_status || ''">
                       <QuestionMarkCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t(verdictNote(row)) }}
                     </span>
-                    <table v-if="row.ai_check.length" class="w-full min-w-[20rem] text-xs">
+                    <!-- Fixed widths, so every row's columns line up down the page whatever its contents. -->
+                    <table v-if="row.ai_check.length" class="w-[24rem] table-fixed text-xs">
+                      <colgroup>
+                        <col class="w-14" /><col class="w-[5.5rem]" /><col class="w-12" /><col class="w-14" /><col class="w-14" /><col class="w-[4.5rem]" />
+                      </colgroup>
                       <thead class="text-[11px] font-medium text-gray-500">
                         <tr>
-                          <th class="pb-1 pr-3 text-left font-medium">{{ $t('Item') }}</th>
-                          <th class="pb-1 pr-3 text-right font-medium">{{ $t('Price') }}</th>
-                          <th class="pb-1 pr-3 text-center font-medium">{{ $t('Paid') }}</th>
-                          <th class="pb-1 pr-3 text-center font-medium">{{ $t('AI saw') }}</th>
+                          <th class="pb-1 text-left font-medium">{{ $t('Item') }}</th>
+                          <th class="pb-1 pr-2 text-right font-medium">{{ $t('Price') }}</th>
+                          <th class="pb-1 text-center font-medium">{{ $t('Paid') }}</th>
+                          <th class="pb-1 text-center font-medium">{{ $t('AI saw') }}</th>
                           <th class="pb-1 text-center font-medium">{{ $t('Verdict') }}</th>
-                          <th v-if="row.correction" class="pb-1 pl-3 text-center font-medium text-indigo-700">{{ $t('Adjusted') }}</th>
+                          <th class="pb-1 text-center font-medium text-indigo-700">{{ $t('Adjusted') }}</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr v-for="line in row.ai_check" :key="line.product_id || line.name" class="border-t border-gray-100">
-                          <td class="py-1 pr-3" tabindex="0" v-tooltip="line.code ? line.code + ' · ' + line.name : line.name">
+                          <td class="py-1" tabindex="0" v-tooltip="line.code ? line.code + ' · ' + line.name : line.name">
                             <img v-if="line.photo" :src="line.photo" :alt="line.name" loading="lazy" class="h-12 w-12 rounded object-contain bg-white" />
                             <span v-else class="flex h-12 w-12 items-center justify-center rounded bg-gray-100 text-center text-[10px] leading-tight text-gray-600 overflow-hidden">{{ line.code || line.name }}</span>
                           </td>
-                          <td class="py-1 pr-3 text-right text-gray-600">
+                          <td class="py-1 pr-2 text-right text-gray-600">
                             {{ line.unit_cents !== null ? formatCents(line.unit_cents) : '—' }}
-                            <span v-if="line.happy_hour" class="block whitespace-nowrap font-semibold text-amber-700" tabindex="0" v-tooltip="$t('Happy Hour')">({{ line.happy_hour }})</span>
+                            <span v-if="line.happy_hour" class="ml-auto mt-0.5 flex w-fit items-center whitespace-nowrap rounded border border-amber-300 bg-amber-100 px-1 py-0.5 text-[10px] font-semibold leading-none text-amber-800" tabindex="0" v-tooltip="$t('Happy Hour')">★ {{ line.happy_hour }}</span>
                           </td>
-                          <td class="py-1 pr-3 text-center text-sm">{{ line.paid }}</td>
-                          <td class="py-1 pr-3 text-center text-sm">{{ line.taken !== null ? line.taken : '—' }}</td>
+                          <td class="py-1 text-center text-sm">{{ line.paid }}</td>
+                          <td class="py-1 text-center text-sm">{{ line.taken !== null ? line.taken : '—' }}</td>
                           <td class="py-1 text-center" tabindex="0" v-tooltip="$t(CHECK_KINDS[line.state].meaning)">
                             <CheckCircleIcon v-if="line.state === 'ok'" class="mx-auto h-5 w-5 text-green-600" :aria-label="$t(CHECK_KINDS.ok.meaning)" />
                             <QuestionMarkCircleIcon v-else-if="line.state === 'unknown'" class="mx-auto h-5 w-5 text-gray-400" :aria-label="$t(CHECK_KINDS.unknown.meaning)" />
@@ -404,7 +408,10 @@
                             <span v-else-if="line.state === 'none'" class="text-gray-400">—</span>
                             <span v-else class="text-gray-400">…</span>
                           </td>
-                          <td v-if="row.correction" class="py-1 pl-3 text-center text-sm font-bold text-indigo-700">{{ line.adjusted }}</td>
+                          <td class="py-1 text-center text-sm">
+                            <span v-if="line.adjusted !== null" class="font-bold text-indigo-700">{{ line.adjusted }}</span>
+                            <span v-else class="text-gray-400" tabindex="0" v-tooltip="$t('Not adjusted')">—</span>
+                          </td>
                         </tr>
                       </tbody>
                     </table>
