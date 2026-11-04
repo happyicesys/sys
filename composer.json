@@ -6,6 +6,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.0.2",
+        "anthropic-ai/sdk": "^1.4",
         "doctrine/dbal": "^3.0",
         "dsiddharth2/php-zxing": "^1.0",
         "guzzlehttp/guzzle": "^7.2",
@@ -75,6 +76,9 @@
     },
     "config": {
         "optimize-autoloader": true,
+        "allow-plugins": {
+            "php-http/discovery": false
+        },
         "preferred-install": "dist",
         "sort-packages": true
     },

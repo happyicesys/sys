@@ -2,6 +2,7 @@
 
 namespace App\Services\Products\WelcomeSketch;
 
+use App\Jobs\CheckProductWelcomeSketch;
 use App\Jobs\GenerateProductWelcomeSketch;
 use App\Models\Product;
 use App\Models\ProductWelcomeSketch;
@@ -34,6 +35,9 @@ use Throwable;
  *    one is (the next save or the hourly sweep).
  *  - Upload: a person's own drawing on Product → Edit — live at once.
  *
+ * A drawn entry is then checked against its photo (SketchChecker, inert until ANTHROPIC_API_KEY is
+ * set) and any faults are flagged on the album entry. Advice only: a check never changes what is live.
+ *
  * A redraw in progress or a failed one keeps the live drawing on the freezer; the photo is the
  * fallback only when a product has never had one. Every image is stored trimmed, at most
  * `max_px` on its longest side, as transparent WebP under sys/products/{id}/welcome-sketch/, named
@@ -65,6 +69,7 @@ class ProductWelcomeSketchService
     public function __construct(
         private readonly SketchGenerator $generator,
         private readonly CutoutMaker $cutouts,
+        private readonly SketchChecker $checker,
     ) {}
 
     /** Something can make a drawing: the image model, or the cut-out fallback. */
@@ -448,6 +453,7 @@ class ProductWelcomeSketchService
                     ]);
                     Log::info('Welcome sketch generated', ['product_id' => $product->id, 'version_id' => $version->id]);
                     $this->promoteIfDue($version);
+                    $this->queueCheck($version);
 
                     return;
                 } catch (SketchGenerationException $e) {
@@ -474,6 +480,114 @@ class ProductWelcomeSketchService
             ]);
             Log::warning('Welcome sketch failed', ['version_id' => $version->id, 'error' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Ask for a check of a stored drawing. The drawing is finished by now, so nothing here may fail
+     * it: a queue that is down only leaves the entry unchecked.
+     */
+    private function queueCheck(ProductWelcomeSketchVersion $version): void
+    {
+        if (! $this->checker->isConfigured()) {
+            return;
+        }
+        try {
+            $version->update([
+                'check_status' => ProductWelcomeSketchVersion::CHECK_PENDING,
+                'check_issues' => null, 'check_model' => null, 'check_error' => null, 'checked_at' => null,
+            ]);
+            CheckProductWelcomeSketch::dispatch($version->id)->afterCommit();
+        } catch (Throwable $e) {
+            Log::warning('Welcome sketch check not queued', ['version_id' => $version->id, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * The job: claim the check (pending → checking, so a redelivered job never pays twice), compare
+     * the drawing with the photo it was drawn from, keep what was found. Writes only the check
+     * columns; what is live does not move, whatever the answer.
+     */
+    public function check(int $versionId): void
+    {
+        $claimed = ProductWelcomeSketchVersion::query()->whereKey($versionId)
+            ->where('check_status', ProductWelcomeSketchVersion::CHECK_PENDING)
+            ->update(['check_status' => ProductWelcomeSketchVersion::CHECK_CHECKING, 'updated_at' => now()]);
+        if ($claimed === 0) {
+            return;
+        }
+        $version = ProductWelcomeSketchVersion::query()->findOrFail($versionId);
+
+        try {
+            $product = Product::withoutGlobalScopes()->find($version->product_id) ?? throw new SketchGenerationException('Product no longer exists.');
+            $photoUrl = $version->source_photo_url ?? throw new SketchGenerationException('The drawing has no photo on record.');
+            $drawing = $version->path !== null ? Storage::get($version->path) : null;
+            if (! is_string($drawing) || $drawing === '') {
+                throw new SketchGenerationException('The drawing could not be read from storage.');
+            }
+            $issues = $this->checker->check($this->download($photoUrl), $drawing, (string) $product->name, $version->instructions);
+            $version->update([
+                'check_status' => $issues === [] ? ProductWelcomeSketchVersion::CHECK_PASSED : ProductWelcomeSketchVersion::CHECK_FLAGGED,
+                'check_issues' => $issues,
+                'check_model' => $this->checker->model(),
+                'check_error' => null,
+                'checked_at' => now(),
+            ]);
+            Log::info('Welcome sketch checked', ['version_id' => $version->id, 'issues' => count($issues)]);
+        } catch (Throwable $e) {
+            $version->update([
+                'check_status' => ProductWelcomeSketchVersion::CHECK_FAILED,
+                'check_error' => mb_substr($e->getMessage(), 0, 1000),
+                'checked_at' => now(),
+            ]);
+            Log::warning('Welcome sketch check failed', ['version_id' => $version->id, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Drawings already on the freezers that were never checked: the check queued for each. Drawn
+     * only, as a cut-out or an upload has no brief to hold it to; each one queued is a paid call.
+     *
+     * @return list<int> version ids queued
+     */
+    public function queueChecksForLive(bool $dryRun = false): array
+    {
+        if (! $this->checker->isConfigured()) {
+            return [];
+        }
+        $versions = ProductWelcomeSketchVersion::query()
+            ->whereIn('id', ProductWelcomeSketch::query()->whereNotNull('version_id')->select('version_id'))
+            ->where('source', ProductWelcomeSketch::SOURCE_GENERATED)
+            ->whereNull('check_status')
+            ->whereNotNull('source_photo_url')
+            ->orderBy('id')->get();
+        if (! $dryRun) {
+            $versions->each(fn (ProductWelcomeSketchVersion $version) => $this->queueCheck($version));
+        }
+
+        return $versions->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * What Product → Edit shows; null = never checked. A check a dead worker left reads `stopped`.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function checkData(ProductWelcomeSketchVersion $version): ?array
+    {
+        if ($version->check_status === null) {
+            return null;
+        }
+        $running = in_array($version->check_status, [ProductWelcomeSketchVersion::CHECK_PENDING, ProductWelcomeSketchVersion::CHECK_CHECKING], true);
+        $abandoned = $running && ($version->updated_at === null || $version->updated_at->lte(now()->subMinutes(self::STALE_MINUTES)));
+
+        return [
+            'status' => $abandoned ? 'stopped' : $version->check_status,
+            'running' => $running && ! $abandoned,
+            'issues' => $version->check_issues ?? [],
+            'error' => $version->check_error,
+            'model' => $version->check_model,
+            'at' => optional($version->checked_at)->toIso8601String(),
+        ];
     }
 
     /**
@@ -693,6 +807,7 @@ class ProductWelcomeSketchService
             ->orderByRaw('COALESCE(generated_at, created_at) DESC')->orderByDesc('id')
             ->limit(self::ALBUM_LIMIT)->get();
         $iso = fn ($at) => optional($at)->toIso8601String();
+        $checks = $versions->mapWithKeys(fn (ProductWelcomeSketchVersion $v) => [$v->id => $this->checkData($v)]);
 
         return [
             'configured' => $this->canDraw(),
@@ -704,6 +819,8 @@ class ProductWelcomeSketchService
             'max_per_draw' => self::MAX_PER_DRAW,
             'max_in_flight' => self::MAX_IN_FLIGHT,
             'in_flight' => $this->inFlightCount($product->id),
+            // Keeps the page re-reading the album until the checks have landed too.
+            'checks_running' => $checks->filter(fn (?array $check) => $check['running'] ?? false)->count(),
             'max_instructions' => self::MAX_INSTRUCTIONS,
             // What the last person's Draw asked for, to start the next one from.
             'last_instructions' => ProductWelcomeSketchVersion::query()->where('product_id', $product->id)
@@ -739,6 +856,7 @@ class ProductWelcomeSketchService
                 'is_live' => $v->id === $liveVersionId,
                 // null = not known (an upload, seed art, or a drawing recovered from storage).
                 'from_current_photo' => $v->source_photo_url === null ? null : $v->source_photo_url === $photo,
+                'check' => $checks[$v->id],
             ])->values()->all(),
         ];
     }

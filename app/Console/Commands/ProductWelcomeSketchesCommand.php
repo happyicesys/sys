@@ -12,7 +12,8 @@ use Illuminate\Console\Command;
  * drawing for every smart-freezer product with a photo and none yet. --product draws a new version
  * of named products into their album (like Draw on Product → Edit). --recover puts earlier drawings
  * still in storage back into each product's album (every redraw before 2026-10-12 replaced the
- * live one and left its file behind).
+ * live one and left its file behind). --check-live queues the check of drawings already on the
+ * freezers; new drawings are checked as they are drawn.
  */
 class ProductWelcomeSketchesCommand extends Command
 {
@@ -20,6 +21,7 @@ class ProductWelcomeSketchesCommand extends Command
         {--missing-freezer : queue every smart-freezer product that has a photo and no sketch, then a few welcome-scene vending products}
         {--product=* : product id(s) to draw a new album version for, from their current photo}
         {--recover : add earlier drawings found in storage to their product album}
+        {--check-live : queue a check of every live drawn sketch not checked yet (each is a paid call)}
         {--dry-run : list what would be queued, send nothing}';
 
     protected $description = 'Queue freezer welcome-sketch drawings (image model) for products';
@@ -44,6 +46,11 @@ class ProductWelcomeSketchesCommand extends Command
                 $total += $n;
             }
             $this->line(($dry ? 'Would recover' : 'Recovered').": {$total}");
+        }
+
+        if ($this->option('check-live')) {
+            $ids = $sketches->queueChecksForLive($dry);
+            $this->line(($dry ? 'Would check' : 'Queued checks').': '.count($ids).(count($ids) ? ' ('.implode(', ', $ids).')' : ''));
         }
 
         foreach ((array) $this->option('product') as $id) {

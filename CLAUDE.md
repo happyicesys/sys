@@ -1281,6 +1281,17 @@ freezer). The model prompt forbids text not printed on the product (it invented 
 only when eaten from it (cup, tub, fruit tray) (Brian, 2026-10-08: Magnum/Yakoo/Oukuk came with wrappers). Freezer APK 29+ drops the sketch (`welcome_sketch`), then its built-in drawing, then the
 photo. Regression coverage: `tests/Feature/ProductWelcomeSketchTest.php`.
 
+**The AI check of each drawing** (Brian, 2026-11-04; inert without `ANTHROPIC_API_KEY`). Claude cannot draw, so OpenAI stays
+the image model; `ClaudeSketchChecker` behind `SketchChecker` compares each finished DRAWN entry (never a cut-out, upload or
+seed) with the photo it came from, against `OpenAiSketchGenerator::PROMPT`, so changing the brief changes the check.
+`CheckProductWelcomeSketch` (`low`, one try, the pending → checking claim) runs it after the drawing is stored; the answer lands
+on the album entry (`check_status` passed / flagged / failed, `check_issues`) and Product → Edit badges it. **Advice only:
+nothing reads it to decide what goes live**, so an automatic drawing with a flagged fault still goes live, and a failed check
+never touches the drawing. A person's instructions outrank the brief, so what they asked for is not a fault. It uses the official
+`anthropic-ai/sdk`, whose own timeout is advisory, so the checker hands it a Guzzle client with one (config
+`smart_freezer.welcome_sketch.check_*`). `products:welcome-sketches --check-live [--dry-run]` checks what is already live. Regression
+coverage: `tests/Feature/ProductWelcomeSketchCheckTest.php`.
+
 **Happy Hour campaigns** (Brian, 2026-10-09; Machine Management → Happy Hour Campaign, permission
 `happy-hour-campaigns`: superadmin, admin, and since the 2026-10-15 sheet sync supervisor and technician).
 Audit 2026-10-30: `HAPPY_HOUR_AUDIT_2026-10-30.md` (its nine "fix first" items are in; the rest is listed there).

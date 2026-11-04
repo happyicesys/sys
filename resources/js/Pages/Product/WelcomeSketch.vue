@@ -106,6 +106,10 @@
           <p v-else-if="live.curated" class="text-gray-500">{{ $t('Approved art — kept until someone uses another.') }}</p>
           <p v-else class="text-gray-500">{{ $t('Went live automatically; a new product photo redraws it.') }}</p>
           <p v-if="live.photo_changed" class="text-amber-700">{{ $t('The product photo changed since this was drawn.') }}</p>
+          <p v-if="liveVersion?.check?.status === 'flagged'" class="flex items-start gap-1 text-amber-700">
+            <ExclamationTriangleIcon class="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            {{ tc('The AI check found a possible fault in this drawing.|The AI check found :count possible faults in this drawing.', liveVersion.check.issues.length) }}
+          </p>
           <p v-if="live.source === 'cutout' && live.last_error" class="text-amber-700">{{ live.last_error }}</p>
         </div>
         <div v-if="state.photo_url" class="mt-3 flex items-center gap-2 text-xs text-gray-500">
@@ -176,6 +180,15 @@
               </div>
 
               <span v-if="v.is_live" class="absolute left-1.5 top-1.5 rounded-full bg-green-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow">{{ $t('Live') }}</span>
+              <span
+                v-if="v.check?.status === 'flagged'"
+                class="pointer-events-none absolute left-1.5 inline-flex items-center gap-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow"
+                :class="v.is_live ? 'top-7' : 'top-1.5'"
+                :title="checkSummary(v)"
+              >
+                <ExclamationTriangleIcon class="h-3 w-3" aria-hidden="true" />
+                {{ $t('Check') }}
+              </span>
               <button
                 v-if="canUpdate && v.status === 'ready'"
                 type="button"
@@ -209,6 +222,8 @@
               <span class="flex min-w-0 items-center gap-1" :title="metaTitle(v)">
                 <span class="truncate">{{ shortTime(v.at) }} · {{ sourceShort(v) }}</span>
                 <ChatBubbleBottomCenterTextIcon v-if="v.instructions" class="h-3.5 w-3.5 shrink-0 text-indigo-500" :aria-label="$t('Drawn with instructions')" />
+                <CheckCircleIcon v-if="v.check?.status === 'passed'" class="h-3.5 w-3.5 shrink-0 text-green-600" :aria-label="$t('AI check found no faults')" />
+                <span v-else-if="v.check?.running" class="h-2 w-2 shrink-0 animate-pulse rounded-full bg-indigo-400" role="img" :aria-label="$t('AI check running')"></span>
               </span>
               <button
                 v-if="canUpdate && !v.is_live && !isPending(v)"
@@ -288,6 +303,16 @@
                   <dd v-else class="text-amber-700">{{ $t('From an earlier photo') }}</dd>
                 </div>
                 <div v-if="viewing.last_error" class="text-amber-700">{{ viewing.last_error }}</div>
+                <div v-if="viewing.check?.status === 'flagged'" class="rounded bg-amber-50 p-2 text-amber-900">
+                  <dt class="font-semibold">{{ $t('AI check') }}</dt>
+                  <dd v-for="(issue, i) in viewing.check.issues" :key="i" class="mt-1">
+                    <span class="font-semibold">{{ faultLabel(issue.type) }}:</span> {{ issue.detail }}
+                  </dd>
+                  <dd class="mt-1 text-[11px] text-amber-800">{{ $t('Advice only. It does not change what the freezers show.') }}</dd>
+                </div>
+                <div v-else-if="viewing.check?.status === 'passed'" class="text-green-700">{{ $t('AI check found no faults') }}</div>
+                <div v-else-if="viewing.check?.running" class="text-gray-500">{{ $t('AI check running') }}</div>
+                <div v-else-if="viewing.check" class="text-gray-500" :title="viewing.check.error ?? ''">{{ $t('AI check could not finish') }}</div>
               </dl>
             </div>
           </div>
@@ -407,6 +432,19 @@ function metaTitle(v) {
   return [sourceLabel(v.source), formatTime(v.at), v.model, v.requested_by && t('by :name', { name: v.requested_by }), v.instructions && `“${v.instructions}”`]
     .filter(Boolean).join(' · ');
 }
+const FAULT_LABELS = {
+  invented_text: tk('Invented text'),
+  misspelled_text: tk('Misspelled text'),
+  packaging: tk('Packaging shown'),
+  wrong_product: tk('Does not match the photo'),
+  extra_objects: tk('Extra objects'),
+};
+function faultLabel(type) {
+  return t(FAULT_LABELS[type] ?? tk('Other'));
+}
+function checkSummary(v) {
+  return (v.check?.issues ?? []).map((issue) => `${faultLabel(issue.type)}: ${issue.detail}`).join('\n');
+}
 function formatTime(iso) {
   return iso ? new Date(iso).toLocaleString() : '';
 }
@@ -502,13 +540,13 @@ watch(viewing, (v) => {
   else window.removeEventListener('keydown', onKey);
 });
 
-// While drawings are queued or being drawn, re-read the album every few seconds.
+// While drawings are queued, being drawn or being checked, re-read the album every few seconds.
 let pollTimer = null;
 let pollStarted = 0;
 function schedulePoll() {
   clearTimeout(pollTimer);
   pollTimer = null;
-  if (!state.value.in_flight) {
+  if (!state.value.in_flight && !state.value.checks_running) {
     pollStarted = 0;
     return;
   }
@@ -527,7 +565,7 @@ function schedulePoll() {
     schedulePoll();
   }, 4000);
 }
-watch(() => state.value.in_flight, () => { if (!pollTimer) schedulePoll(); }, { immediate: true });
+watch(() => [state.value.in_flight, state.value.checks_running], () => { if (!pollTimer) schedulePoll(); }, { immediate: true });
 
 onBeforeUnmount(() => {
   clearTimeout(pollTimer);

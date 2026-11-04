@@ -42,6 +42,11 @@ class AppServiceProvider extends ServiceProvider
             \App\Services\Products\WelcomeSketch\SketchGenerator::class,
             \App\Services\Products\WelcomeSketch\OpenAiSketchGenerator::class,
         );
+        // ...checked against their photo by Claude, which cannot draw (inert without ANTHROPIC_API_KEY)...
+        $this->app->bind(
+            \App\Services\Products\WelcomeSketch\SketchChecker::class,
+            \App\Services\Products\WelcomeSketch\ClaudeSketchChecker::class,
+        );
         // ...and fall back to an open-source background cut-out (rembg) finished as a sticker.
         $this->app->bind(
             \App\Services\Products\WelcomeSketch\CutoutMaker::class,

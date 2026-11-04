@@ -20,6 +20,11 @@ return [
         // Longest side of the stored sketch, px (the approved set is ≤ 512).
         'max_px' => (int) env('WELCOME_SKETCH_MAX_PX', 512),
         'timeout_seconds' => (int) env('WELCOME_SKETCH_TIMEOUT', 150),
+        // Claude compares each drawn sketch with its photo and flags faults in the album (advice only;
+        // inert without ANTHROPIC_API_KEY, config services.anthropic.api_key).
+        'check_model' => env('WELCOME_SKETCH_CHECK_MODEL', 'claude-opus-5-5'),
+        'check_effort' => env('WELCOME_SKETCH_CHECK_EFFORT', 'low'),
+        'check_timeout_seconds' => (int) env('WELCOME_SKETCH_CHECK_TIMEOUT', 60),
         // Free fallback (RembgCutout): background removed, finished as a white-outlined sticker.
         // Used when no image model is configured or its drawing fails. Missing binary = off.
         'rembg_bin' => env('WELCOME_SKETCH_REMBG_BIN', '/home/forge/.local/bin/rembg'),
