@@ -42,6 +42,8 @@ class FreezerControlService
         'delta',
         // APK v33
         'clip',
+        // APK v49
+        'demistmode',
     ];
 
     /** Ops that end or restart the app / the box: confirmed in the UI, refused by the device mid-sale. */
@@ -92,6 +94,18 @@ class FreezerControlService
      * after 30 minutes. The page shows one "Demist fan" row instead of Cabinet fan + Fan control.
      */
     public const MIN_APK_VERSION_CODE_DEMIST_FAN = 22;
+
+    /**
+     * `demistmode` needs APK 49: how the demist fan runs, the service panel's two Fan buttons (Brian,
+     * 2026-11-05). Not `fanmode`, which is the controller's own register. Every app from 36 reports the
+     * mode as `fanMode` in its status, so the page can show it on a unit that cannot yet take the command.
+     */
+    public const DEMIST_MODE_OPS = ['demistmode'];
+
+    public const MIN_APK_VERSION_CODE_DEMIST_MODE = 49;
+
+    /** Modes as the APK names them (DemistFanMode.wire). */
+    public const DEMIST_MODES = ['always', 'cycle5'];
 
     /** The AG-325's own C0 range (manual parameter table; factory value 3). The APK enforces it too. */
     public const DELTA_MIN = 1;
@@ -342,6 +356,7 @@ class FreezerControlService
     public static function minApkVersionFor(string $op): int
     {
         return match (true) {
+            in_array($op, self::DEMIST_MODE_OPS, true) => self::MIN_APK_VERSION_CODE_DEMIST_MODE,
             in_array($op, self::CLIP_OPS, true) => self::MIN_APK_VERSION_CODE_CLIP,
             in_array($op, self::DELTA_OPS, true) => self::MIN_APK_VERSION_CODE_DELTA,
             in_array($op, self::THERMOSTAT_MODE_OPS, true) => self::MIN_APK_VERSION_CODE_THERMOSTAT_MODES,
@@ -388,6 +403,9 @@ class FreezerControlService
             'fan', 'light', 'comprmode', 'fanmode' => is_bool($args['on'] ?? null)
                 ? ['on' => $args['on']]
                 : throw ValidationException::withMessages(['args.on' => __('Choose on or off.')]),
+            'demistmode' => in_array($args['mode'] ?? null, self::DEMIST_MODES, true)
+                ? ['mode' => $args['mode']]
+                : throw ValidationException::withMessages(['args.mode' => __('Choose Always run or 5 min on · 5 min off.')]),
             'setpoint' => $this->setpoint($args['celsius'] ?? null),
             'delta' => $this->delta($args['celsius'] ?? null),
             'volume' => in_array($args['step'] ?? null, ['up', 'down', 'mute'], true)

@@ -184,8 +184,22 @@ export class FreezerStatus {
         return numberOrNull(this.thermostat.delta);
     }
 
+    /** The host reports the words "true" / "false"; null on a unit whose host cannot read the lamp. */
     get lightState() {
-        return this.raw?.lightState || null;
+        const state = this.raw?.lightState;
+        if (state === 'true' || state === true) return t('on');
+        if (state === 'false' || state === false) return t('off');
+        return state || null;
+    }
+
+    /** How the app runs the demist fan: `always` or `cycle5` (app 36+); null before that. */
+    get fanMode() {
+        return this.raw?.fanMode ?? null;
+    }
+
+    /** The app stops the demist fan in either mode while the lock is unlocked or the lid is open. */
+    get fanStoppedByDoor() {
+        return this.door.lockState === 'unlocked' || this.door.doorState === 'opened';
     }
 
     get volume() {

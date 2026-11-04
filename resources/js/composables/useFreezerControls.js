@@ -148,6 +148,7 @@ const OP_LABELS = {
     unlock: tk('Unlock door'),
     fan: tk('Demist fan'),
     demistfan: tk('Demist fan (auto)'),
+    demistmode: tk('Demist fan mode'),
     light: tk('Light'),
     compressor: tk('Compressor'),
     comprmode: tk('Compressor control'),

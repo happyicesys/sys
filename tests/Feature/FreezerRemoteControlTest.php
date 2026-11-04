@@ -234,6 +234,29 @@ class FreezerRemoteControlTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_demist_fan_mode_needs_app_49_and_takes_always_or_cycle5(): void
+    {
+        // App 48 does not know the op: never send it, say why.
+        $old = $this->freezer(['code' => 50048, 'apk_version_code' => 48]);
+        $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'demistmode', 'args' => ['mode' => 'cycle5']])
+            ->assertStatus(422)->assertJsonFragment(['message' => "This machine's app is too old for this control (needs versionCode 49)."]);
+        $this->assertSame(0, FreezerControlCommand::count());
+        $this->assertFalse($this->getJson("/vends/{$old->id}/freezer-controls")->json('supported_demist_mode'));
+
+        $vend = $this->freezer(['code' => 50049, 'apk_version_code' => 49]);
+        $this->assertTrue($this->getJson("/vends/{$vend->id}/freezer-controls")->json('supported_demist_mode'));
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'demistmode', 'args' => ['mode' => 'cycle5']])
+            ->assertStatus(202);
+        $row = FreezerControlCommand::sole();
+        $this->assertSame('demistmode', $row->op);
+        $this->assertSame(['mode' => 'cycle5'], $row->args);
+
+        // Only the two modes the app has; there is no "off" mode.
+        $other = $this->freezer(['code' => 50050, 'apk_version_code' => 49]);
+        $this->postJson("/vends/{$other->id}/freezer-controls", ['op' => 'demistmode', 'args' => ['mode' => 'off']])
+            ->assertStatus(422);
+    }
+
     public function test_delta_needs_app_22_and_a_whole_number_from_1_to_25(): void
     {
         // App 21 does not know the op: never send it, say why.

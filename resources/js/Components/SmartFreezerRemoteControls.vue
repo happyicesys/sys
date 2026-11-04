@@ -99,6 +99,69 @@
 
             <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
               <!--
+                The order of the machine's own service panel, so staff read one sequence on both screens
+                (Brian, 2026-11-05): door, fan, light, volume, temperature, cooling mode, compressor. The
+                cameras, log and machine cards have no place on that Control page and follow it.
+              -->
+              <ControlRow v-if="data.can_door" :label="$t('Door')" :busy="['lock', 'unlock'].includes(busyOp)" :state="status.doorText" :tone="status.doorTone" danger :reason="blockedReason"
+                          :hint="$t('Unlocking here opens the lock with no order, no video and no AI check.')" class="md:col-span-2">
+                <ControlButton :disabled="!canSend" @click="send('lock')">
+                  <LockClosedIcon class="mr-1 h-4 w-4" /> {{ $t('Lock') }}
+                </ControlButton>
+                <ControlButton tone="danger" :disabled="!canSend"
+                               @click="ask('unlock', {}, $t('Unlock the door remotely?'), $t('This opens the lock with no order, no video and no AI check — stock taken is not recorded. It is logged with your name. The machine refuses while a customer sale is in progress.'), true)">
+                  <LockOpenIcon class="mr-1 h-4 w-4" /> {{ $t('Unlock') }}
+                </ControlButton>
+              </ControlRow>
+
+              <!--
+                How the fan runs, the panel's two Fan buttons. App 36+ reports the mode; choosing it from
+                here needs app 49. In both modes the machine stops the fan while the door is unlocked or open.
+              -->
+              <ControlRow v-if="data.supported_demist_fan" :label="$t('Fan mode')" :busy="busyOp === 'demistmode'" :state="fanModeText" :tone="status.fanMode ? 'info' : 'unknown'"
+                          :note="data.supported_demist_mode ? '' : $t('needs app v49')" :hint="fanModeHint" :reason="demistModeBlocked">
+                <ControlButton v-for="mode in FAN_MODES" :key="mode.wire" :disabled="!canSendDemistMode" :active="status.fanMode === mode.wire"
+                               @click="chooseFanMode(mode.wire)">{{ $t(mode.label) }}</ControlButton>
+              </ControlRow>
+
+              <!--
+                App 22+: the AG-325's fan output is the demister above the glass lid. The machine runs it in the
+                mode above, takes it to remote itself on every press, and turns an Off back on after 30 minutes.
+              -->
+              <ControlRow v-if="data.supported_demist_fan" :label="$t('Demist fan (glass lid)')" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="status.fanOn === false ? 'warn' : boolTone(status.fanOn)"
+                          :note="$t('Off lasts 30 min')" :reason="blockedReason">
+                <ControlButton :disabled="!canSend" :active="status.fanOn === true" @click="send('fan', { on: true })">{{ $t('On') }}</ControlButton>
+                <ControlButton :disabled="!canSend" :active="status.fanOn === false"
+                               @click="ask('fan', { on: false }, $t('Turn the demist fan off?'), $t('The glass lid may fog while it is off. The machine turns it back on by itself after 30 minutes.'))">{{ $t('Off') }}</ControlButton>
+              </ControlRow>
+
+              <ControlRow v-if="!data.supported_demist_fan" :label="$t('Cabinet fan')" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :reason="fanBlocked">
+                <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === true" @click="send('fan', { on: true })">{{ $t('On') }}</ControlButton>
+                <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === false" @click="send('fan', { on: false })">{{ $t('Off') }}</ControlButton>
+              </ControlRow>
+
+              <!-- The fan's own control register (风机控制): app v20–21 only; from 22 the demist fan row does it. -->
+              <ControlRow v-if="!data.supported_demist_fan" :label="$t('Fan control')" :busy="busyOp === 'fanmode'" :state="modeText(status.fanRemote)" :tone="modeTone(status.fanRemote)"
+                          :note="data.supported_thermostat_modes ? '' : $t('needs app v20')" :reason="thermostatModeBlocked">
+                <ControlButton :disabled="!canSendThermostatMode" :active="status.fanRemote === false"
+                               @click="ask('fanmode', { on: false }, $t('Give the fan back to the controller?'), $t('The controller then runs it off the door switch, and remote on/off stops working.'))">{{ $t('Controller') }}</ControlButton>
+                <ControlButton :disabled="!canSendThermostatMode" :active="status.fanRemote === true"
+                               @click="ask('fanmode', { on: true }, $t('Take remote control of the fan?'), $t('The controller stops running it off the door switch. Hand it back when you are done. From app v21 the machine hands it back by itself after :minutes minutes.', { minutes: REMOTE_LEASE_MINUTES }))">{{ $t('Remote') }}</ControlButton>
+              </ControlRow>
+
+              <ControlRow :label="$t('Light')" :busy="busyOp === 'light'" :state="status.lightState || $t('not reported')" :tone="status.lightState ? 'info' : 'unknown'" :reason="blockedReason">
+                <ControlButton :disabled="!canSend" @click="send('light', { on: true })">{{ $t('On') }}</ControlButton>
+                <ControlButton :disabled="!canSend" @click="send('light', { on: false })">{{ $t('Off') }}</ControlButton>
+              </ControlRow>
+
+              <ControlRow :label="$t('Music volume')" :busy="busyOp === 'volume'" :state="status.volume ?? '—'" :tone="volumeTone" :reason="blockedReason">
+                <ControlButton :disabled="!canSend"
+                               @click="ask('volume', { step: 'mute' }, $t('Mute the machine?'), $t('Mute persists across restarts until someone turns it back up.'))">{{ $t('Mute') }}</ControlButton>
+                <ControlButton :disabled="!canSend" @click="send('volume', { step: 'down' })">{{ $t('Down') }}</ControlButton>
+                <ControlButton :disabled="!canSend" @click="send('volume', { step: 'up' })">{{ $t('Up') }}</ControlButton>
+              </ControlRow>
+
+              <!--
                 Setpoint and delta. From app 22 on a BoxSDK 1.2.0 plugin the controller reads both back
                 (thermostat.setPoint / delta in the status); otherwise "now" is the last value mark1 got accepted.
               -->
@@ -170,7 +233,7 @@
                 Setpoint command at its time, so every run shows in the timeline with the machine's
                 verdict. The controller cannot read its setpoint back: the chamber is the proof.
               -->
-              <div class="rounded-lg border border-gray-200 bg-white p-3">
+              <div class="rounded-lg border border-gray-200 bg-white p-3 md:col-span-2">
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="text-sm font-medium text-gray-800">{{ $t('Setpoint schedule') }}</span>
                   <StateChip :value="activeSchedule ? $t(':count active', { count: activeSchedule }) : $t('none')" :tone="activeSchedule ? 'info' : 'unknown'" />
@@ -200,6 +263,14 @@
                 </div>
               </div>
 
+              <ControlRow :label="$t('Compressor control')" :busy="busyOp === 'comprmode'" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)"
+                          :note="data.supported_thermostat_modes ? '' : $t('needs app v20')" :reason="thermostatModeBlocked">
+                <ControlButton :disabled="!canSendThermostatMode" :active="status.compressorRemote === false"
+                               @click="ask('comprmode', { on: false }, $t('Give the compressor back to the controller?'), $t('The controller then runs it from its own setpoint and differential, and remote on/off stops working.'))">{{ $t('Controller') }}</ControlButton>
+                <ControlButton :disabled="!canSendThermostatMode" :active="status.compressorRemote === true"
+                               @click="ask('comprmode', { on: true }, $t('Take remote control of the compressor?'), $t('The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature. From app v21 the machine hands it back by itself after :minutes minutes.', { minutes: REMOTE_LEASE_MINUTES }))">{{ $t('Remote') }}</ControlButton>
+              </ControlRow>
+
               <!--
                 App 40+: Off asks how long (0.5–12 h). The machine takes the compressor to remote itself, keeps
                 it off for that long instead of its 30-minute remote limit, then gives it back to the controller,
@@ -213,52 +284,6 @@
                                @click="openTimedOff">{{ $t('Off…') }}</ControlButton>
                 <ControlButton v-else :disabled="!!compressorBlocked" :active="status.compressorOn === false"
                                @click="ask('compressor', { on: false }, $t('Switch the compressor off?'), $t('The chamber will warm until the controller switches it back on. The machine hands it back to the controller after :minutes minutes; a chosen duration needs app v40.', { minutes: REMOTE_LEASE_MINUTES }))">{{ $t('Off') }}</ControlButton>
-              </ControlRow>
-
-              <ControlRow :label="$t('Compressor control')" :busy="busyOp === 'comprmode'" :state="modeText(status.compressorRemote)" :tone="modeTone(status.compressorRemote)"
-                          :note="data.supported_thermostat_modes ? '' : $t('needs app v20')" :reason="thermostatModeBlocked">
-                <ControlButton :disabled="!canSendThermostatMode" :active="status.compressorRemote === false"
-                               @click="ask('comprmode', { on: false }, $t('Give the compressor back to the controller?'), $t('The controller then runs it from its own setpoint and differential, and remote on/off stops working.'))">{{ $t('Controller') }}</ControlButton>
-                <ControlButton :disabled="!canSendThermostatMode" :active="status.compressorRemote === true"
-                               @click="ask('comprmode', { on: true }, $t('Take remote control of the compressor?'), $t('The controller stops cycling it on its own. Hand it back when you are done, or the cabinet will not hold temperature. From app v21 the machine hands it back by itself after :minutes minutes.', { minutes: REMOTE_LEASE_MINUTES }))">{{ $t('Remote') }}</ControlButton>
-              </ControlRow>
-
-              <!--
-                App 22+: the AG-325's fan output is the demister above the glass lid. The machine keeps it on,
-                takes it to remote itself on every press, and turns an Off back on after 30 minutes.
-              -->
-              <ControlRow v-if="data.supported_demist_fan" :label="$t('Demist fan (glass lid)')" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="status.fanOn === false ? 'warn' : boolTone(status.fanOn)"
-                          :note="$t('always on · Off lasts 30 min')" :reason="blockedReason">
-                <ControlButton :disabled="!canSend" :active="status.fanOn === true" @click="send('fan', { on: true })">{{ $t('On') }}</ControlButton>
-                <ControlButton :disabled="!canSend" :active="status.fanOn === false"
-                               @click="ask('fan', { on: false }, $t('Turn the demist fan off?'), $t('The glass lid may fog while it is off. The machine turns it back on by itself after 30 minutes.'))">{{ $t('Off') }}</ControlButton>
-              </ControlRow>
-
-              <ControlRow v-if="!data.supported_demist_fan" :label="$t('Cabinet fan')" :busy="busyOp === 'fan'" :state="onOff(status.fanOn)" :tone="boolTone(status.fanOn)" :reason="fanBlocked">
-                <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === true" @click="send('fan', { on: true })">{{ $t('On') }}</ControlButton>
-                <ControlButton :disabled="!!fanBlocked" :active="status.fanOn === false" @click="send('fan', { on: false })">{{ $t('Off') }}</ControlButton>
-              </ControlRow>
-
-              <!-- The fan's own control register (风机控制): app v20–21 only; from 22 the demist fan row does it. -->
-              <ControlRow v-if="!data.supported_demist_fan" :label="$t('Fan control')" :busy="busyOp === 'fanmode'" :state="modeText(status.fanRemote)" :tone="modeTone(status.fanRemote)"
-                          :note="data.supported_thermostat_modes ? '' : $t('needs app v20')" :reason="thermostatModeBlocked">
-                <ControlButton :disabled="!canSendThermostatMode" :active="status.fanRemote === false"
-                               @click="ask('fanmode', { on: false }, $t('Give the fan back to the controller?'), $t('The controller then runs it off the door switch, and remote on/off stops working.'))">{{ $t('Controller') }}</ControlButton>
-                <ControlButton :disabled="!canSendThermostatMode" :active="status.fanRemote === true"
-                               @click="ask('fanmode', { on: true }, $t('Take remote control of the fan?'), $t('The controller stops running it off the door switch. Hand it back when you are done. From app v21 the machine hands it back by itself after :minutes minutes.', { minutes: REMOTE_LEASE_MINUTES }))">{{ $t('Remote') }}</ControlButton>
-              </ControlRow>
-
-              <!-- lightState is null on every unit so far: Zijia's own portal answers 不支持 for light. -->
-              <ControlRow :label="$t('Light')" :busy="busyOp === 'light'" :state="status.lightState || $t('not reported')" :tone="status.lightState ? 'info' : 'unknown'" :reason="blockedReason">
-                <ControlButton :disabled="!canSend" @click="send('light', { on: true })">{{ $t('On') }}</ControlButton>
-                <ControlButton :disabled="!canSend" @click="send('light', { on: false })">{{ $t('Off') }}</ControlButton>
-              </ControlRow>
-
-              <ControlRow :label="$t('Music volume')" :busy="busyOp === 'volume'" :state="status.volume ?? '—'" :tone="volumeTone" :reason="blockedReason">
-                <ControlButton :disabled="!canSend"
-                               @click="ask('volume', { step: 'mute' }, $t('Mute the machine?'), $t('Mute persists across restarts until someone turns it back up.'))">{{ $t('Mute') }}</ControlButton>
-                <ControlButton :disabled="!canSend" @click="send('volume', { step: 'down' })">{{ $t('Down') }}</ControlButton>
-                <ControlButton :disabled="!canSend" @click="send('volume', { step: 'up' })">{{ $t('Up') }}</ControlButton>
               </ControlRow>
 
               <!--
@@ -384,17 +409,6 @@
                   </div>
                 </div>
               </div>
-
-              <ControlRow v-if="data.can_door" :label="$t('Door')" :busy="['lock', 'unlock'].includes(busyOp)" :state="status.doorText" :tone="status.doorTone" danger :reason="blockedReason"
-                          :hint="$t('Unlocking here opens the lock with no order, no video and no AI check.')" class="md:col-span-2">
-                <ControlButton :disabled="!canSend" @click="send('lock')">
-                  <LockClosedIcon class="mr-1 h-4 w-4" /> {{ $t('Lock') }}
-                </ControlButton>
-                <ControlButton tone="danger" :disabled="!canSend"
-                               @click="ask('unlock', {}, $t('Unlock the door remotely?'), $t('This opens the lock with no order, no video and no AI check — stock taken is not recorded. It is logged with your name. The machine refuses while a customer sale is in progress.'), true)">
-                  <LockOpenIcon class="mr-1 h-4 w-4" /> {{ $t('Unlock') }}
-                </ControlButton>
-              </ControlRow>
             </div>
           </section>
 
@@ -466,7 +480,7 @@ import StatusTile from '@/Components/SmartFreezer/StatusTile.vue'
 import { ArrowPathIcon, DocumentArrowDownIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/vue/20/solid'
 import { computed, ref } from 'vue'
 import moment from 'moment'
-import { t } from '@/i18n'
+import { t, tk } from '@/i18n'
 import { resultLabel, useFreezerControls } from '@/composables/useFreezerControls'
 import { boolTone, cameraLabel, cameraOnline, everySeconds, modeText, modeTone, onOff, TONE } from '@/support/freezerStatus'
 
@@ -644,6 +658,26 @@ function sendTimedOff() {
   const minutes = timedOff.value.minutes
   timedOff.value.open = false
   if (minutes) send('compressor', { on: false, minutes })
+}
+
+/** The two modes, as the APK names them (DemistFanMode) and as its panel words them. */
+const FAN_MODES = [
+  { wire: 'always', label: tk('Always run') },
+  { wire: 'cycle5', label: tk('5 min on · 5 min off') },
+]
+const fanModeText = computed(() => {
+  const mode = FAN_MODES.find((m) => m.wire === status.value.fanMode)
+  return mode ? t(mode.label) : t('not reported')
+})
+const fanModeHint = computed(() => (status.value.fanStoppedByDoor
+  ? t('Stopped now: the door is unlocked or open.')
+  : t('In both modes the fan stops while the door is unlocked or open.')))
+const canSendDemistMode = computed(() => canSend.value && !!data.value.supported_demist_mode)
+const demistModeBlocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_demist_mode ? '' : t("This machine's app is older than v49; choosing the fan mode needs the update.")))
+
+/** The chosen mode is inert, as on the panel: pressing it again would only restart the cycle. */
+function chooseFanMode(mode) {
+  if (status.value.fanMode !== mode) send('demistmode', { mode })
 }
 
 const fanBlocked = computed(() => blockedReason.value || (status.value.fanRemote === false ? t('The controller owns the fan (door switch) — set Fan control to Remote first.') : ''))
