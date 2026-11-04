@@ -1,70 +1,93 @@
 <template>
-  <div class="text-sm">
+  <div class="text-left text-sm">
     <div v-if="loading" class="py-3 text-gray-500">{{ $t('Loading…') }}</div>
     <template v-else-if="editor">
-      <p class="text-xs text-gray-600">
-        {{ $t('Order ID') }}: <span class="font-mono">{{ editor.order_id }}</span>.
+      <p class="text-sm text-gray-600">
+        {{ $t('Order ID') }}: <span class="font-mono font-medium text-gray-900">{{ editor.order_id }}</span>.
         {{ $t('Check the videos, then set how many of each product really left the cabinet.') }}
       </p>
-      <p v-if="editor.blocked_reason" class="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">{{ editor.blocked_reason }}</p>
-      <p v-if="message" class="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">{{ message }}</p>
+      <p v-if="editor.blocked_reason" class="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{{ editor.blocked_reason }}</p>
+      <p v-if="message" class="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">{{ message }}</p>
 
-      <table class="mt-3 min-w-full">
-        <thead class="text-xs text-gray-600 font-semibold">
-          <tr>
-            <th class="text-left py-1">{{ $t('Product') }}</th>
-            <th class="text-center px-2">{{ $t('Paid') }}</th>
-            <th class="text-center px-2">{{ $t('AI saw') }}</th>
-            <th class="text-center px-2">{{ $t('Taken') }}</th>
-            <th class="text-right px-2">{{ $t('Price') }}</th>
-            <th class="text-right">{{ $t('Amount') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="line in shown" :key="line.product_id" class="border-t" :class="line.taken !== line.paid ? 'bg-amber-50' : ''">
-            <td class="py-1.5 pr-2">{{ line.name }}<span v-if="line.code" class="block text-xs text-gray-500">{{ line.code }}</span></td>
-            <td class="text-center px-2">{{ line.paid }}</td>
-            <td class="text-center px-2">{{ line.ai }}</td>
-            <td class="px-2">
-              <div class="flex items-center justify-center gap-1">
-                <button type="button" class="h-7 w-7 rounded border border-gray-300 bg-white font-semibold hover:bg-gray-50 disabled:opacity-40" :disabled="frozen || line.taken <= 0" :aria-label="$t('Less')" @click="line.taken--">−</button>
-                <span class="w-6 text-center font-semibold">{{ line.taken }}</span>
-                <button type="button" class="h-7 w-7 rounded border border-gray-300 bg-white font-semibold hover:bg-gray-50 disabled:opacity-40" :disabled="frozen || line.unit_cents === null || line.taken >= editor.max_units" :aria-label="$t('More')" @click="line.taken++">+</button>
-              </div>
-            </td>
-            <td class="text-right px-2 whitespace-nowrap">
-              <span v-if="line.unit_cents !== null">{{ money(line.unit_cents) }}</span>
-              <span v-else class="text-xs text-red-700">{{ $t('No price') }}</span>
-            </td>
-            <td class="text-right whitespace-nowrap">{{ money((line.unit_cents || 0) * line.taken) }}</td>
-          </tr>
-          <tr class="border-t font-semibold">
-            <td colspan="5" class="py-2 text-right pr-2">{{ $t('This count comes to') }}</td>
-            <td class="text-right whitespace-nowrap">{{ money(total) }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="mt-4 overflow-x-auto rounded-xl border border-gray-200">
+        <table class="min-w-full">
+          <thead class="bg-gray-50 text-xs font-semibold text-gray-500">
+            <tr>
+              <th class="px-3 py-2 text-left">{{ $t('Product') }}</th>
+              <th class="px-2 py-2 text-center">{{ $t('Paid') }}</th>
+              <th class="px-2 py-2 text-center whitespace-nowrap">{{ $t('AI saw') }}</th>
+              <th class="px-2 py-2 text-center">{{ $t('Taken') }}</th>
+              <th class="px-2 py-2 text-right">{{ $t('Price') }}</th>
+              <th class="px-3 py-2 text-right">{{ $t('Amount') }}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="line in shown" :key="line.product_id" :class="line.taken !== line.paid ? 'bg-amber-50' : 'bg-white'">
+              <td class="px-3 py-2.5">
+                <div class="flex min-w-[12rem] items-center gap-3">
+                  <img v-if="line.photo" :src="line.photo" :alt="line.name" loading="lazy" class="h-14 w-14 flex-none rounded-lg border border-gray-200 bg-white object-contain p-0.5" />
+                  <span v-else class="flex h-14 w-14 flex-none items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-300"><PhotoIcon class="h-6 w-6" aria-hidden="true" /></span>
+                  <span class="min-w-0">
+                    <span class="block font-semibold text-gray-900">{{ line.name }}</span>
+                    <span v-if="line.code" class="block font-mono text-xs text-gray-500">{{ line.code }}</span>
+                  </span>
+                </div>
+              </td>
+              <td class="px-2 text-center text-gray-700">{{ line.paid }}</td>
+              <td class="px-2 text-center text-gray-700">{{ line.ai }}</td>
+              <td class="px-2">
+                <div class="mx-auto flex w-max items-center overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm">
+                  <button type="button" class="h-8 w-8 text-base font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-30" :disabled="frozen || line.taken <= 0" :aria-label="$t('Less')" @click="line.taken--">−</button>
+                  <span class="w-9 border-x border-gray-200 text-center font-bold leading-8" :class="line.taken !== line.paid ? 'text-amber-700' : 'text-gray-900'">{{ line.taken }}</span>
+                  <button type="button" class="h-8 w-8 text-base font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-30" :disabled="frozen || line.unit_cents === null || line.taken >= editor.max_units" :aria-label="$t('More')" @click="line.taken++">+</button>
+                </div>
+              </td>
+              <td class="px-2 text-right whitespace-nowrap text-gray-700">
+                <span v-if="line.unit_cents !== null">{{ money(line.unit_cents) }}</span>
+                <span v-else class="text-xs text-red-700">{{ $t('No price') }}</span>
+              </td>
+              <td class="px-3 text-right whitespace-nowrap font-medium text-gray-900">{{ money((line.unit_cents || 0) * line.taken) }}</td>
+            </tr>
+          </tbody>
+          <tfoot class="border-t border-gray-200 bg-gray-50">
+            <tr>
+              <td colspan="5" class="px-2 py-2.5 text-right font-semibold text-gray-700">{{ $t('This count comes to') }}</td>
+              <td class="px-3 py-2.5 text-right whitespace-nowrap text-base font-bold text-gray-900">{{ money(total) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
-      <div v-if="others.length && !frozen" class="mt-2 flex items-center gap-2">
-        <select v-model="adding" class="rounded-md border-gray-300 py-1 pl-2 pr-7 text-xs" :aria-label="$t('Add another product')">
-          <option value="">{{ $t('Add another product') }}</option>
-          <option v-for="line in others" :key="line.product_id" :value="line.product_id">{{ line.name }}</option>
-        </select>
-        <button type="button" class="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-40" :disabled="!adding" @click="add">{{ $t('Add') }}</button>
+      <div v-if="others.length && !frozen" class="mt-3">
+        <button type="button" class="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-gray-300 px-3 py-2 font-medium text-gray-600 hover:border-indigo-400 hover:text-indigo-700" :aria-expanded="picking" @click="picking = !picking">
+          <PlusIcon class="h-4 w-4" aria-hidden="true" />{{ $t('Add another product') }}
+        </button>
+        <div v-if="picking" class="mt-2 grid max-h-64 grid-cols-2 gap-2 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-2 sm:grid-cols-3">
+          <button v-for="line in others" :key="line.product_id" type="button" class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-1.5 text-left hover:border-indigo-400 hover:shadow-sm" @click="add(line)">
+            <img v-if="line.photo" :src="line.photo" :alt="line.name" loading="lazy" class="h-10 w-10 flex-none rounded object-contain" />
+            <span v-else class="flex h-10 w-10 flex-none items-center justify-center rounded bg-gray-50 text-gray-300"><PhotoIcon class="h-5 w-5" aria-hidden="true" /></span>
+            <span class="min-w-0">
+              <span class="block truncate text-xs font-medium text-gray-900" :title="line.name">{{ line.name }}</span>
+              <span class="block text-xs text-gray-500">{{ money(line.unit_cents) }}</span>
+            </span>
+          </button>
+        </div>
       </div>
 
       <template v-if="!editor.blocked_reason">
-        <p class="mt-3 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-900">{{ outcome }}</p>
+        <p class="mt-3 flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
+          <InformationCircleIcon class="mt-0.5 h-4 w-4 flex-none text-indigo-500" aria-hidden="true" /><span>{{ outcome }}</span>
+        </p>
 
-        <div v-if="!confirming" class="mt-3 flex items-center justify-end gap-2">
+        <div v-if="!confirming" class="mt-4 flex items-center justify-end gap-2">
           <button v-if="editor.mode === 'hold'" type="button" class="mr-auto text-xs text-blue-600 hover:underline" @click="$emit('key-in')">{{ $t('Key in an amount instead') }}</button>
-          <button type="button" class="rounded-md border border-indigo-600 bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700" @click="confirming = true">{{ $t('Next') }}</button>
+          <button type="button" class="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700" @click="confirming = true">{{ $t('Next') }}</button>
         </div>
-        <div v-else class="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-3">
+        <div v-else class="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3">
           <p class="font-semibold text-amber-900">{{ confirmText }}</p>
           <div class="mt-2 flex justify-end gap-2">
-            <button type="button" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs hover:bg-gray-50" :disabled="sending" @click="confirming = false">{{ $t('Back') }}</button>
-            <button type="button" class="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50" :disabled="sending" @click="save">{{ sending ? $t('Sending…') : $t('Confirm') }}</button>
+            <button type="button" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50" :disabled="sending" @click="confirming = false">{{ $t('Back') }}</button>
+            <button type="button" class="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50" :disabled="sending" @click="save">{{ sending ? $t('Sending…') : $t('Confirm') }}</button>
           </div>
         </div>
       </template>
@@ -76,6 +99,7 @@
 <script setup>
 import axios from 'axios';
 import { computed, onMounted, ref } from 'vue';
+import { InformationCircleIcon, PhotoIcon, PlusIcon } from '@heroicons/vue/20/solid';
 import { t, tk } from '@/i18n';
 
 const props = defineProps({
@@ -86,7 +110,7 @@ const emit = defineEmits(['saved', 'key-in']);
 const editor = ref(null);
 const lines = ref([]);
 const added = ref([]);
-const adding = ref('');
+const picking = ref(false);
 const loading = ref(true);
 const sending = ref(false);
 const confirming = ref(false);
@@ -144,12 +168,10 @@ onMounted(async () => {
   }
 });
 
-function add() {
-  const id = Number(adding.value);
-  added.value.push(id);
-  const line = lines.value.find((l) => l.product_id === id);
-  if (line) line.taken = 1;
-  adding.value = '';
+function add(line) {
+  added.value.push(line.product_id);
+  line.taken = 1;
+  picking.value = false;
 }
 
 async function save() {

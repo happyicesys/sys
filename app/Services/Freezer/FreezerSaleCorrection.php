@@ -72,12 +72,13 @@ class FreezerSaleCorrection
         $machine = $vend ? VendChannel::where('vend_id', $vend->id)->where('is_active', true)->whereNotNull('product_id')->pluck('product_id')->map(fn ($id) => (int) $id)->all() : [];
         $ids = array_values(array_unique(array_filter(array_merge(array_keys($paid), array_keys($ai), array_keys($current), $machine))));
         $prices = $sale && $vend ? $this->unitPrices($sale, $vend, $intent, $ids) : [];
-        $products = Product::withoutGlobalScopes()->whereIn('id', $ids)->get(['id', 'name', 'code'])->keyBy('id');
+        $products = Product::withoutGlobalScopes()->with('thumbnail')->whereIn('id', $ids)->get(['id', 'name', 'code'])->keyBy('id');
 
         $lines = array_map(fn (int $id) => [
             'product_id' => $id,
             'name' => (string) ($products[$id]->name ?? 'Item'),
             'code' => $products[$id]->code ?? null,
+            'photo' => $products[$id]->thumbnail?->full_url ?? null,
             'unit_cents' => $prices[$id] ?? null,
             'paid' => $paid[$id] ?? 0,
             'ai' => $ai[$id] ?? 0,

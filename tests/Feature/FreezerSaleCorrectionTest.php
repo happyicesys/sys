@@ -169,6 +169,17 @@ class FreezerSaleCorrectionTest extends TestCase
         return $this->sale(['settlement_status' => VendTransaction::SETTLEMENT_PENDING, 'audit_pending_at' => Carbon::now()]);
     }
 
+    public function test_the_editor_shows_each_products_photo(): void
+    {
+        $this->cone->thumbnail()->create(['type' => 1, 'full_url' => 'https://spaces/cone.jpg', 'local_url' => 'https://spaces/cone.jpg']);
+        $recognition = $this->recognition($this->sale());
+
+        $lines = collect($this->actingAs($this->admin)->getJson("/ai-recognition/{$recognition->id}/correction")->assertOk()->json('editor.lines'))->keyBy('product_id');
+
+        $this->assertSame('https://spaces/cone.jpg', $lines[$this->cone->id]['photo']);
+        $this->assertNull($lines[$this->bar->id]['photo'], 'a product with no photo shows the placeholder');
+    }
+
     public function test_an_open_hold_charges_the_count_and_items_and_stock_follow(): void
     {
         $this->holdOpen();
