@@ -871,7 +871,7 @@
                                 class="mr-1 inline-flex items-center rounded border border-fuchsia-300 bg-fuchsia-100 px-1 text-[10px] font-bold text-fuchsia-800 hover:cursor-help"
                                 :title="$t('Testing Mode sale: every item $0.10, no stock deducted')">{{ $t('TEST') }}</span>
                             <span v-if="vendTransaction.audit_pending"
-                                class="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800 hover:cursor-help"
+                                class="inline-flex items-center justify-center gap-1 rounded border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-center text-xs font-semibold text-amber-800 hover:cursor-help"
                                 :title="auditPendingTooltip(vendTransaction)">
                                 <svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
