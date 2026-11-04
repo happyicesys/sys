@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\RefundTicket;
 use App\Models\User;
 use App\Models\UserPageView;
+use App\Services\SmartFreezer\RecognitionIssues;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 
@@ -29,13 +30,18 @@ class NoteNotificationService
     public const PAGE_SUMMARY = 'customers.summary';
     public const PAGE_AVAILABILITY = 'products.availability';
     public const PAGE_REFUNDS = 'refunds';
+    public const PAGE_AI_RECOGNITION = 'ai-recognition';
 
     /** page_key => sidebar href, so the Vue layout can map badges to menu links. */
     public const PAGE_HREFS = [
         self::PAGE_SUMMARY => '/customers/summary',
         self::PAGE_AVAILABILITY => '/products/availability',
         self::PAGE_REFUNDS => '/refunds',
+        self::PAGE_AI_RECOGNITION => '/ai-recognition',
     ];
+
+    /** A viewer who has never opened AI Recognition still hears about the last day's issues. */
+    private const AI_RECOGNITION_FIRST_LOOK_HOURS = 24;
 
     /** Cached once per process: is the tracking table migrated yet? */
     protected static ?bool $tableReady = null;
@@ -89,6 +95,7 @@ class NoteNotificationService
                 self::PAGE_HREFS[self::PAGE_SUMMARY] => 0,
                 self::PAGE_HREFS[self::PAGE_AVAILABILITY] => 0,
                 self::PAGE_HREFS[self::PAGE_REFUNDS] => 0,
+                self::PAGE_HREFS[self::PAGE_AI_RECOGNITION] => 0,
             ];
         }
 
@@ -109,6 +116,10 @@ class NoteNotificationService
             self::PAGE_HREFS[self::PAGE_REFUNDS] => $this->refundUnreadCount(
                 $user,
                 $views[self::PAGE_REFUNDS]->last_viewed_at ?? null
+            ),
+            self::PAGE_HREFS[self::PAGE_AI_RECOGNITION] => $this->aiRecognitionUnreadCount(
+                $user,
+                $views[self::PAGE_AI_RECOGNITION]->last_viewed_at ?? null
             ),
         ];
     }
@@ -248,6 +259,21 @@ class NoteNotificationService
         }
 
         return RefundTicket::where('created_at', '>', $since)->count();
+    }
+
+    /**
+     * New issues on AI Recognition since the user last opened it (RecognitionIssues). The section
+     * rolls its children's badges up whatever the user may open, so no permission means 0. Unlike
+     * refunds, never visited does not mean 0: only an opened page would ever start the count, and
+     * this badge exists to bring people to that page.
+     */
+    public function aiRecognitionUnreadCount(User $user, ?Carbon $since): int
+    {
+        if (! $user->can('read ai-recognition')) {
+            return 0;
+        }
+
+        return app(RecognitionIssues::class)->countSince($since ?? Carbon::now()->subHours(self::AI_RECOGNITION_FIRST_LOOK_HOURS));
     }
 
     // --- Mentions (Phase 2 autocomplete) ---------------------------------

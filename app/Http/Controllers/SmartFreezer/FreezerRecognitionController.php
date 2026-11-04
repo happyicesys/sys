@@ -16,6 +16,7 @@ use App\Models\VendTransaction;
 use App\Services\CardTerminal\CardPaymentService;
 use App\Services\Freezer\FreezerSaleCorrection;
 use App\Services\HappyHour\HappyHourPricing;
+use App\Services\NoteNotificationService;
 use App\Services\SmartFreezer\DoorFault;
 use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\RecognitionBadges;
@@ -72,6 +73,12 @@ class FreezerRecognitionController extends Controller
             'numberPerPage' => ['nullable', 'regex:/^(\d+|All)$/'],
             'processed_by' => ['nullable', 'in:all,ai,human,none'],
         ]);
+
+        // Sidebar badge (RecognitionIssues): opening the page clears it. Not a table reload, and not
+        // a link to one session (Sales Transactions' verdict badge), which shows only that row.
+        if ($request->user() && ! $request->hasHeader('X-Inertia-Partial-Data') && ! filled($request->input('search'))) {
+            app(NoteNotificationService::class)->markViewed($request->user(), NoteNotificationService::PAGE_AI_RECOGNITION);
+        }
 
         $numberPerPage = $request->numberPerPage ?: 100;
         $sortKey = in_array($request->sortKey, self::SORTS, true) ? $request->sortKey : 'transaction_time';
