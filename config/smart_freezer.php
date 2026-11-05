@@ -92,7 +92,11 @@ return [
     | was never commanded to open — and only within max_age_minutes of the approval are refunded.
     */
     'unfulfilled_refund' => [
-        'reasons' => ['cameras_down', 'unlock_authorization_failed'],
+        // The hw: codes are the host's own door refusals (APK 51+, UnfulfilledOrderReporter).
+        'reasons' => [
+            'cameras_down', 'unlock_authorization_failed',
+            'hw:shoplock', 'hw:business', 'hw:camera', 'hw:lock', 'hw:storage', 'hw:door', 'hw:machine', 'hw:power', 'hw:exception', 'hw:unknown',
+        ],
         'max_age_minutes' => (int) env('FREEZER_UNFULFILLED_REFUND_MAX_AGE_MINUTES', 360),
     ],
 
@@ -137,8 +141,10 @@ return [
             // Submit a recognition once a video push is matched to a freezer...
             'auto_submit' => (bool) env('ZIJIA_ALGO_AUTO_SUBMIT', false),
             // ...after this settle window, so a door session pushed as one push per camera goes
-            // to the algorithm with every camera's video, not just the first to arrive.
-            'submit_delay_seconds' => (int) env('ZIJIA_ALGO_SUBMIT_DELAY', 60),
+            // to the algorithm with every camera's video, not just the first to arrive. Short since
+            // 2026-11-05: every session since 10-20 arrived as a single push, and the 60 s it was
+            // cost every result a minute (Brian).
+            'submit_delay_seconds' => (int) env('ZIJIA_ALGO_SUBMIT_DELAY', 5),
             'timeout' => (int) env('ZIJIA_ALGO_TIMEOUT', 20),
             // Callback signature: `log` records the verdict and processes anyway;
             // `enforce` refuses a callback whose signature does not verify. Their

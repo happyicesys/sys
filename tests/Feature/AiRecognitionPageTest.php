@@ -218,6 +218,33 @@ class AiRecognitionPageTest extends TestCase
                 ->where('dashboard.correct_pct', null));
     }
 
+    public function test_a_sale_waiting_for_its_video_shows_at_once_and_leaves_when_the_video_arrives(): void
+    {
+        Carbon::setTestNow('2026-11-05 10:30:00');
+        $product = Product::withoutGlobalScopes()->forceCreate(['code' => 'W1', 'name' => 'Waiting Bar', 'operator_id' => 1]);
+        $frame = ['SFREF' => 'SF-50001-1-1', 'transf_info' => [['goods_id' => $product->id, 'goods_name' => 'Waiting Bar', 'Price' => 170]]];
+        $this->dashboardSale(170, ['order_id' => 'O-WAIT', 'vend_transaction_json' => $frame, 'transaction_datetime' => Carbon::now()->subMinutes(3)]);
+        $this->dashboardSale(170, ['order_id' => 'O-OLD', 'vend_transaction_json' => ['SFREF' => 'SF-50001-1-2'], 'transaction_datetime' => Carbon::now()->subMinutes(61)]);
+        $this->dashboardSale(170, ['order_id' => 'O-NOREF', 'transaction_datetime' => Carbon::now()->subMinutes(2)]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('waitingForVideo', 1)
+            ->where('waitingForVideo.0.order_id', 'O-WAIT')
+            ->where('waitingForVideo.0.session_ref', 'SF-50001-1-1')
+            ->where('waitingForVideo.0.amount_cents', 170)
+            ->where('waitingForVideo.0.waited_minutes', 3)
+            ->where('waitingForVideo.0.items.0.name', 'Waiting Bar'));
+
+        $this->actingAs($this->viewer(2))->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('waitingForVideo', 0));
+        $this->actingAs($this->viewer())->get('/ai-recognition?verdict=match')
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('waitingForVideo', 0));
+
+        $this->recognition(['session_ref' => 'SF-50001-1-1']);
+        $this->actingAs($this->viewer())->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('waitingForVideo', 0));
+    }
+
     public function test_a_row_carries_order_numbers_videos_the_ai_result_and_the_sale(): void
     {
         $magnum = Product::forceCreate(['code' => 'CC-01', 'name' => 'Magnum', 'operator_id' => 1, 'barcode' => '9726436016148']);

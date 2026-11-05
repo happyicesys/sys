@@ -55,6 +55,9 @@ class FreezerRecognitionController extends Controller
      * Transactions shows, else the door session until a sale is matched. The door session is when
      * the videos reached us, minutes after the sale.
      */
+    /** Longer than this and the video is not simply on its way: the row stops promising it. */
+    private const WAITING_FOR_VIDEO_MINUTES = 60;
+
     private const TRANSACTION_TIME = '(COALESCE((SELECT vt.transaction_datetime FROM vend_transactions vt WHERE vt.id = smart_freezer_recognitions.vend_transaction_id), smart_freezer_recognitions.created_at))';
 
     public function __construct()
@@ -177,6 +180,7 @@ class FreezerRecognitionController extends Controller
             'canCharge' => (bool) $request->user()?->can('charge ai-recognition'),
             'canRefund' => (bool) $request->user()?->can('verify refunds'),
             'sessionlessHolds' => $this->sessionlessHolds($payments, $operatorId),
+            'waitingForVideo' => $this->waitingForVideo($request, $dateFrom, $dateTo, $operatorId),
             // Zijia's orderStatus codes (§6.2) with ops' plain words — the legend above the table.
             'orderStatusLegend' => array_map(fn (array $l) => $l + [
                 'plain' => RecognitionBadges::PLAIN_REASONS[$l['code']] ?? 'the AI answered on its own',
@@ -679,6 +683,54 @@ class FreezerRecognitionController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Freezer sales of the last WAITING_FOR_VIDEO_MINUTES whose door session has no row yet: a row is
+     * born when Zijia pushes the videos, usually about 6 minutes after the door closes, and until then
+     * the table looked as if the sale had not happened (Brian, 2026-11-05). Only on an unfiltered view
+     * that includes today, since these sales have no AI status or verdict to filter by.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function waitingForVideo(Request $request, ?string $dateFrom, ?string $dateTo, ?int $operatorId): array
+    {
+        $today = Carbon::today()->toDateString();
+        $filtered = filled($request->input('search')) || filled($request->input('codes'))
+            || collect(['status', 'verdict', 'processed_by'])->contains(fn (string $f) => ! in_array($request->input($f), [null, '', 'all'], true));
+        if ($filtered || ($dateFrom && $dateFrom > $today) || ($dateTo && $dateTo < $today) || (int) $request->input('page', 1) > 1) {
+            return [];
+        }
+
+        $freezers = Vend::withoutGlobalScopes()->select('id')->where('machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)
+            ->when($operatorId !== null, fn ($q) => $q->where('operator_id', $operatorId));
+        $sales = VendTransaction::query()
+            ->with('vend:id,code,code_prefix')
+            ->whereIn('vend_id', $freezers)
+            ->where('transaction_datetime', '>=', Carbon::now()->subMinutes(self::WAITING_FOR_VIDEO_MINUTES))
+            ->orderByDesc('transaction_datetime')
+            ->get(['id', 'vend_id', 'order_id', 'amount', 'transaction_datetime', 'vend_transaction_json', 'meta_json']);
+        $refOf = function (VendTransaction $sale): ?string {
+            $frame = is_string($sale->vend_transaction_json) ? json_decode($sale->vend_transaction_json, true) : $sale->vend_transaction_json;
+
+            return ((array) $frame)['SFREF'] ?? null;
+        };
+        $known = SmartFreezerRecognition::query()->whereIn('session_ref', $sales->map($refOf)->filter()->values())->pluck('session_ref')->flip();
+        $waiting = $sales->filter(fn (VendTransaction $sale) => $refOf($sale) !== null && ! $known->has($refOf($sale)));
+        $ids = $waiting->flatMap(fn (VendTransaction $sale) => array_map(fn ($u) => (int) ($u['goods_id'] ?? 0), $this->tradeUnits($sale)))->filter()->unique();
+        $products = Product::withoutGlobalScopes()->whereIn('id', $ids)->get(['id', 'code', 'name', 'barcode'])->keyBy('id')->all();
+
+        return $waiting->map(fn (VendTransaction $sale) => [
+            'id' => $sale->id,
+            'time' => $sale->transaction_datetime?->format('Y-m-d H:i:s'),
+            'order_id' => $sale->order_id,
+            'session_ref' => $refOf($sale),
+            'vend_label' => $sale->vend?->codeLabel(),
+            'amount_cents' => (int) $sale->amount,
+            'waited_minutes' => (int) floor(($sale->transaction_datetime?->diffInSeconds(Carbon::now(), true) ?? 0) / 60),
+            'is_test_sale' => FreezerTestSale::is($sale),
+            'items' => array_map(fn (array $line) => ['name' => $line['name'], 'qty' => $line['qty']], $this->purchased($sale, $products, null)),
+        ])->values()->all();
     }
 
     /**

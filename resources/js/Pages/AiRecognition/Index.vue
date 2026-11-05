@@ -325,6 +325,28 @@
                 </tr>
               </thead>
               <tbody class="bg-white">
+                <!-- Door closed, Zijia's videos not here yet: no AI row exists until they are (Brian, 2026-11-05). -->
+                <tr v-for="sale in waitingForVideo" :key="'waiting-' + sale.id" class="divide-x divide-y-2 divide-gray-300 bg-sky-50 align-top text-sm">
+                  <td class="px-3 py-2 text-center text-gray-400">—</td>
+                  <td class="px-3 py-2 text-center whitespace-nowrap">{{ sale.time }}</td>
+                  <td class="px-3 py-2 text-xs">
+                    <span class="block font-mono text-sm font-semibold text-gray-900 whitespace-nowrap">{{ sale.order_id }}</span>
+                    <span v-if="sale.is_test_sale" class="inline-flex w-fit items-center rounded border border-fuchsia-300 bg-fuchsia-100 px-1 text-[10px] font-bold text-fuchsia-800">{{ $t('TEST') }}</span>
+                    <span class="block whitespace-nowrap"><span class="text-gray-500">{{ $t('Ours:') }}</span> <span class="font-mono">{{ sale.session_ref }}</span></span>
+                  </td>
+                  <td class="px-3 py-2 font-medium"><MachineIdLink :code="sale.vend_label" /></td>
+                  <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
+                    {{ $t('Waiting for video') }}
+                    <span class="block text-gray-500">{{ $t(':count min so far', { count: sale.waited_minutes }) }}</span>
+                  </td>
+                  <td class="px-3 py-2"><span class="inline-flex rounded border border-sky-300 bg-sky-100 px-1.5 py-0.5 text-xs font-semibold text-sky-800 whitespace-nowrap">{{ $t('Waiting') }}</span></td>
+                  <td class="px-3 py-2 text-xs">
+                    <span v-for="item in sale.items" :key="item.name" class="block">{{ item.qty }} × {{ item.name }}</span>
+                    <span class="mt-1 block text-gray-500">{{ $t('The AI check starts when the video arrives.') }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-center font-medium">{{ formatCents(sale.amount_cents) }}</td>
+                  <td class="px-3 py-2"></td>
+                </tr>
                 <tr v-for="(row, rowIndex) in recognitions.data" :key="row.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100 align-top">
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
                     {{ recognitions.meta.from + rowIndex }}
@@ -645,7 +667,7 @@ import { CheckCircleIcon, InformationCircleIcon, MagnifyingGlassIcon, PencilSqua
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { t, tk } from '@/i18n';
 
@@ -657,6 +679,7 @@ const props = defineProps({
   canCharge: Boolean,
   canRefund: Boolean,
   sessionlessHolds: { type: Array, default: () => [] },
+  waitingForVideo: { type: Array, default: () => [] },
   aiCoverage: { type: Array, default: () => [] },
   orderStatusLegend: Array,
   doorFaultLegend: { type: Array, default: () => [] },
@@ -831,7 +854,19 @@ const statusOptions = ref([])
 const verdictOptions = ref([])
 const processedByOptions = ref([])
 
+// While a sale waits for its video the row is about to change, so the table keeps itself current.
+// Not with a popup open: nothing may shift under someone keying in a charge.
+const WAITING_REFRESH_MS = 30000
+let waitingRefresh = null
+
+onUnmounted(() => clearInterval(waitingRefresh))
+
 onMounted(() => {
+  waitingRefresh = setInterval(() => {
+    if (props.waitingForVideo.length && !charge.value.open && correctRow.value === null && refundIntentId.value === null) {
+      router.reload({ only: ['recognitions', 'dashboard', 'waitingForVideo'] })
+    }
+  }, WAITING_REFRESH_MS)
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },

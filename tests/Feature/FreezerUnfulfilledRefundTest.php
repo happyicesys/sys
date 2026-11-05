@@ -110,6 +110,15 @@ class FreezerUnfulfilledRefundTest extends TestCase
         $this->assertRefundQueued();
     }
 
+    public function test_a_door_the_host_refused_to_open_is_refunded_too(): void
+    {
+        $this->payment();
+
+        $this->report(['reason' => 'hw:machine'])->assertStatus(202);
+
+        $this->assertRefundQueued();
+    }
+
     public function test_an_already_refunded_order_answers_done_without_a_second_refund(): void
     {
         $this->payment(['status' => PaymentGatewayLog::STATUS_REFUND]);

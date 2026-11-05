@@ -200,6 +200,22 @@ class FreezerSaleCorrectionTest extends TestCase
         $this->assertSame(250, (int) VendTransactionItem::where('vend_transaction_id', $sale->id)->where('product_id', $this->lolly->id)->value('unit_price_amount'));
     }
 
+    public function test_one_adjust_on_an_open_hold_also_shows_as_adjusted(): void
+    {
+        $this->holdOpen();
+        $sale = $this->heldSale();
+        $recognition = $this->recognition($sale);
+
+        $this->correct($recognition, [$this->cone->id => 1, $this->bar->id => 1, $this->lolly->id => 1], 750)->assertOk();
+
+        $meta = (array) $sale->fresh()->meta_json;
+        $this->assertSame(750, (int) $meta['correction']['value_cents']);
+        $this->assertSame('Admin One', $meta['correction']['by']['name']);
+        $this->assertCount(1, $meta['corrections']);
+        $this->assertSame([11, 10, 9], [$this->qty($this->cone), $this->qty($this->bar), $this->qty($this->lolly)], 'recording it moves the stock once');
+        $this->assertSame([['capture', '50001-SF1', 750]], $this->gateway->callsOf('capture'));
+    }
+
     public function test_an_open_hold_counted_as_nothing_taken_is_released_and_the_stock_goes_back(): void
     {
         $this->holdOpen();
