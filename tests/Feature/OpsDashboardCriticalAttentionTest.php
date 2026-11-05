@@ -140,7 +140,7 @@ class OpsDashboardCriticalAttentionTest extends TestCase
         $this->assertSame(11, $result['machine_count']);
         $this->assertSame(7, $result['flagged_count']);
         $this->assertSame('Site 1001', $result['groups'][0]['machines'][0]['site']);
-        $this->assertSame('2A Fan OFF', $result['groups'][1]['short'], 'the tag each full grid row carries');
+        $this->assertSame('2A Fan OFF', collect($result['groups'])->firstWhere('key', VendSmartAlert::TYPE_COMP_FAN_OFF)['short'], 'the tag each full grid row carries');
     }
 
     /**

@@ -9,6 +9,7 @@ use App\Models\VendDailyStat;
 use App\Models\VendSmartAlert;
 use App\Services\MachineHealthDashboardService;
 use App\Services\SmartFreezer\Zijia\ZijiaSkuLinks;
+use App\Support\ControllerLink;
 use App\Support\VendCode;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -45,6 +46,8 @@ use Illuminate\Support\Facades\DB;
 class CriticalAttention
 {
     public const GROUP_OFFLINE = 'offline';
+
+    public const GROUP_CONTROLLER_SILENT = 'controller_silent';
 
     public const GROUP_APK_RESTART = 'apk_restart';
 
@@ -86,6 +89,7 @@ class CriticalAttention
             ->select([
                 'vends.id', 'vends.code', 'vends.code_prefix', 'vends.machine_type',
                 'vends.is_online', 'vends.last_vend_transaction_at',
+                'vends.temp_updated_at', 'vends.last_updated_at', 'vends.mqtt_last_updated_at', 'vends.is_mqtt',
                 'customers.name AS site_name',
                 DB::raw(MachineHealthDashboardService::lastContactSql().' AS last_contact_at'),
             ])
@@ -98,6 +102,7 @@ class CriticalAttention
 
         $groups = [
             $this->group(self::GROUP_OFFLINE, __('(1) Lost connectivity or electricity'), 'critical', $this->offline($vends, $vendingIds, $now)),
+            $this->group(self::GROUP_CONTROLLER_SILENT, __('(1B) Controller not responding'), 'critical', $this->controllerSilent($vends, $vendingIds, $now)),
         ];
         $alerts = $this->temperatureAlerts($vendingIds, $now);
         foreach (self::TEMPERATURE_GROUPS as $type => $label) {
@@ -157,6 +162,24 @@ class CriticalAttention
             $hours = Carbon::parse($vend->last_contact_at)->diffInMinutes($now) / 60;
             if ($hours < MachineHealthDashboardService::OFFLINE_ALERT_MAX_HOURS) {
                 $out[$id] = __('offline :duration', ['duration' => $this->hours($hours)]);
+            }
+        }
+
+        return $out;
+    }
+
+    /** @return array<int, string> vend id => detail */
+    private function controllerSilent(Collection $vends, array $vendingIds, Carbon $now): array
+    {
+        $out = [];
+        foreach ($vendingIds as $id) {
+            $vend = $vends->get($id);
+            $state = ControllerLink::state($vend, $now);
+            if ($state !== null) {
+                $duration = $this->hours((float) ControllerLink::silentHours($vend, $now));
+                $out[$id] = $state === ControllerLink::STATE_SILENT
+                    ? __('silent :duration', ['duration' => $duration])
+                    : __('no data :duration, MQTT only', ['duration' => $duration]);
             }
         }
 
@@ -327,6 +350,7 @@ class CriticalAttention
     /** The tag a machine's full grid row carries for each group (Ops Dashboard, before Search). */
     private const SHORT = [
         self::GROUP_OFFLINE => 'Offline',
+        self::GROUP_CONTROLLER_SILENT => '1B Controller',
         VendSmartAlert::TYPE_COMP_FAN_OFF => '2A Fan OFF',
         VendSmartAlert::TYPE_TEMPS_ABOVE_0 => '2B >0°C',
         VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8 => '2C >-8°C',

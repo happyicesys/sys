@@ -338,6 +338,7 @@ const showMarkers = ref(true)
 // Map alert_type -> short dashboard label
 const ALERT_TYPE_LABEL = {
   'connectivity':        '1',
+  'controller_silent':   '1B',
   'comp_fan_off':        '2A',
   'temps_above_0':       '2B',
   'temps_above_minus_8': '2C',
@@ -353,6 +354,7 @@ const ALERT_TYPE_LABEL = {
 // Map alert_type -> human readable title
 const ALERT_TYPE_TITLE = {
   'connectivity':        t('Connectivity'),
+  'controller_silent':   t('Controller not responding'),
   'comp_fan_off':        t('Compressor & or Fan, in OFF condition'),
   'temps_above_0':       t('T1 & or T2, above 0°C'),
   'temps_above_minus_8': t('T1 & or T2, above -8°C'),

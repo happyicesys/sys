@@ -2,27 +2,27 @@
 
 namespace App\Jobs;
 
+use App\Models\MachineHealthHistory;
 use App\Models\ModemUnit;
 use App\Models\Vend;
-use App\Jobs\PublishMqtt;
-use App\Services\MqttService;
+use App\Models\VendLog;
 use App\Services\AlertEmailService;
+use App\Services\MqttService;
+use App\Support\ControllerLink;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SyncOnlineStatus implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function __construct()
-    {
-    }
+    public function __construct() {}
 
     public function handle(MqttService $mqttService, AlertEmailService $alertEmailService): void
     {
@@ -52,9 +52,9 @@ class SyncOnlineStatus implements ShouldQueue
                         $isMqttOffline = false;
 
                         if ($vend->is_mqtt) {
-                            $isMqttOffline = !$vend->mqtt_last_updated_at || $vend->mqtt_last_updated_at->diffInMinutes($now) > 30;
+                            $isMqttOffline = ! $vend->mqtt_last_updated_at || $vend->mqtt_last_updated_at->diffInMinutes($now) > 30;
 
-                            if ($isMqttOffline && !$vend->is_mqtt_offline_notified) {
+                            if ($isMqttOffline && ! $vend->is_mqtt_offline_notified) {
                                 $vend->is_mqtt_offline_notified = true;
                             }
                         }
@@ -63,7 +63,7 @@ class SyncOnlineStatus implements ShouldQueue
                             $vend->last_updated_at,
                             $vend->last_vend_transaction_at,
                             $vend->offline_restart_count_datetime,
-                            $vend->is_mqtt ? $vend->mqtt_last_updated_at : null
+                            $vend->is_mqtt ? $vend->mqtt_last_updated_at : null,
                         ])->filter()->max();
 
                         $duration = $dates ? $dates->diffInMinutes($now) : 999999;
@@ -99,16 +99,21 @@ class SyncOnlineStatus implements ShouldQueue
                         if ($level > $currentLevel) {
                             if ($currentLevel > 0) {
                                 $oldLabels = [];
-                                if ($currentLevel >= 1)
+                                if ($currentLevel >= 1) {
                                     $oldLabels[] = '< 1hr';
-                                if ($currentLevel >= 2)
+                                }
+                                if ($currentLevel >= 2) {
                                     $oldLabels[] = '< 2hr';
-                                if ($currentLevel >= 3)
+                                }
+                                if ($currentLevel >= 3) {
                                     $oldLabels[] = '< 4hr';
-                                if ($currentLevel >= 4)
+                                }
+                                if ($currentLevel >= 4) {
                                     $oldLabels[] = '< 8hr';
-                                if ($currentLevel >= 5)
+                                }
+                                if ($currentLevel >= 5) {
                                     $oldLabels[] = '< 12hr';
+                                }
 
                                 \App\Models\VendLog::where('vend_id', $vend->id)
                                     ->where('event', \App\Models\VendLog::EVENT_POWER_OFF)
@@ -120,7 +125,7 @@ class SyncOnlineStatus implements ShouldQueue
                             try {
                                 $alertEmailService->sendVendOfflineNotificationMail($vend, $label);
                             } catch (\Throwable $e) {
-                                Log::error('SyncVendOnlineStatus: Failed to send offline mail for ' . $vend->code, ['error' => $e->getMessage()]);
+                                Log::error('SyncVendOnlineStatus: Failed to send offline mail for '.$vend->code, ['error' => $e->getMessage()]);
                             }
                             $vend->offline_notification_level = $level;
                             $vend->is_offline_notification_sent = true;
@@ -131,7 +136,7 @@ class SyncOnlineStatus implements ShouldQueue
                             try {
                                 $alertEmailService->sendVendPowerRestoredNotificationMail($vend);
                             } catch (\Throwable $e) {
-                                Log::error('SyncVendOnlineStatus: Failed to send restored mail for ' . $vend->code, ['error' => $e->getMessage()]);
+                                Log::error('SyncVendOnlineStatus: Failed to send restored mail for '.$vend->code, ['error' => $e->getMessage()]);
                             }
                             $vend->offline_notification_level = 0;
                             $vend->is_offline_notification_sent = false;
@@ -161,26 +166,143 @@ class SyncOnlineStatus implements ShouldQueue
                                     }
                                 }
                             } catch (\Throwable $e) {
-                                Log::error('SyncVendOnlineStatus: Failed to reset modem for ' . $vend->code, ['error' => $e->getMessage()]);
+                                Log::error('SyncVendOnlineStatus: Failed to reset modem for '.$vend->code, ['error' => $e->getMessage()]);
                             }
+                        }
+
+                        try {
+                            $this->checkControllerLink($vend, $now, $alertEmailService);
+                        } catch (\Throwable $e) {
+                            Log::error('SyncVendOnlineStatus: Failed controller check for '.$vend->code, ['error' => $e->getMessage()]);
                         }
 
                         if ($vend->isDirty()) {
                             $vend->save();
                         }
                     } catch (\Throwable $e) {
-                        Log::error('SyncVendOnlineStatus: Unhandled error for vend ' . ($vend->code ?? 'unknown'), [
+                        Log::error('SyncVendOnlineStatus: Unhandled error for vend '.($vend->code ?? 'unknown'), [
                             'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString()
+                            'trace' => $e->getTraceAsString(),
                         ]);
                     }
                 }
             });
 
         // 3. Modem online status - Bulk update
-        ModemUnit::whereHas('modemType', fn($q) => $q->where('name', 'Air724UGB4'))
+        ModemUnit::whereHas('modemType', fn ($q) => $q->where('name', 'Air724UGB4'))
             ->update([
-                'is_online' => DB::raw("CASE WHEN last_updated_at >= '{$thresholdStr}' THEN 1 ELSE 0 END")
+                'is_online' => DB::raw("CASE WHEN last_updated_at >= '{$thresholdStr}' THEN 1 ELSE 0 END"),
             ]);
+    }
+
+    /**
+     * (1B) Controller not responding: the same rising buckets as the offline alert, from
+     * App\Support\ControllerLink. Clears only when the controller is heard again, so a machine that
+     * also goes fully offline keeps its alert.
+     */
+    private function checkControllerLink(Vend $vend, Carbon $now, AlertEmailService $alertEmailService): void
+    {
+        // Not migrated yet (deploy order, or a server that pulls by hand): nothing to record a level in.
+        if (! array_key_exists('controller_silent_level', $vend->getAttributes())) {
+            return;
+        }
+
+        $currentLevel = (int) $vend->controller_silent_level;
+
+        if (ControllerLink::heardRecently($vend, $now)) {
+            if ($currentLevel > 0) {
+                $this->logControllerBack($vend, $currentLevel, $now);
+                $vend->controller_silent_level = 0;
+            }
+
+            return;
+        }
+
+        $state = ControllerLink::state($vend, $now);
+        if ($state === null) {
+            return;
+        }
+
+        $hours = (float) ControllerLink::silentHours($vend, $now);
+        [$level, $label] = ControllerLink::bucket($hours);
+        if ($level <= $currentLevel) {
+            return;
+        }
+
+        $this->logControllerSilent($vend, $label, $state, $hours, $currentLevel, $now);
+
+        // A first alert right after the last one is the same fault dropping out again (2351 on 4 Nov).
+        $cooldown = (int) config('vend.attention.controller_silent_email_cooldown_minutes', 60);
+        $isRepeatDrop = $currentLevel === 0 && $vend->controller_silent_alert_at
+            && $vend->controller_silent_alert_at->diffInMinutes($now) < $cooldown;
+
+        if (config('vend.attention.controller_silent_email', true) && ! $isRepeatDrop) {
+            // Like the offline alert, the level moves on even if the send fails: no re-log every minute.
+            try {
+                $alertEmailService->sendVendControllerSilentNotificationMail($vend, $label, $state);
+                $vend->controller_silent_alert_at = $now;
+            } catch (\Throwable $e) {
+                Log::error('SyncVendOnlineStatus: Failed to send controller mail for '.$vend->code, ['error' => $e->getMessage()]);
+            }
+        }
+
+        $vend->controller_silent_level = $level;
+    }
+
+    private function logControllerSilent(Vend $vend, string $label, string $state, float $hours, int $previousLevel, Carbon $now): void
+    {
+        // Only this silence's highest bucket stays, as with the offline alert.
+        if ($previousLevel > 0) {
+            VendLog::where('vend_id', $vend->id)
+                ->where('event', 'machine_health_alert')
+                ->where('context->alert_type', ControllerLink::ALERT_TYPE)
+                ->where('occurred_at', '>=', $vend->temp_updated_at)
+                ->delete();
+            MachineHealthHistory::where('vend_id', $vend->id)
+                ->where('event', 'machine_health_alert')
+                ->where('alert_type', ControllerLink::ALERT_TYPE)
+                ->where('occurred_at', '>=', $vend->temp_updated_at)
+                ->delete();
+        }
+
+        $context = [
+            'bucket' => $label,
+            'alert_type' => ControllerLink::ALERT_TYPE,
+            'state' => $state,
+            'hours_offline' => $hours,
+            'triggered_at' => $vend->temp_updated_at?->copy()->addMinutes(ControllerLink::silenceMinutes())->toIso8601String(),
+        ];
+        VendLog::create([
+            'vend_id' => $vend->id,
+            'event' => 'machine_health_alert',
+            'subject' => ($state === ControllerLink::STATE_SILENT ? 'Controller not responding' : 'Machine data not arriving')." ({$label})",
+            'context' => $context,
+            'occurred_at' => $now,
+        ]);
+        MachineHealthHistory::log($vend->id, 'machine_health_alert', ControllerLink::ALERT_TYPE, $label, null, $context, $now);
+    }
+
+    private function logControllerBack(Vend $vend, int $level, Carbon $now): void
+    {
+        $label = array_values(ControllerLink::BUCKETS)[count(ControllerLink::BUCKETS) - $level] ?? null;
+        $trigger = MachineHealthHistory::where('vend_id', $vend->id)
+            ->where('event', 'machine_health_alert')
+            ->where('alert_type', ControllerLink::ALERT_TYPE)
+            ->orderByDesc('occurred_at')
+            ->first();
+
+        $context = [
+            'bucket' => $label,
+            'alert_type' => ControllerLink::ALERT_TYPE,
+            'lapse_hours' => $trigger ? max(0, round(Carbon::parse($trigger->occurred_at)->diffInMinutes($now) / 60, 2)) : null,
+        ];
+        VendLog::create([
+            'vend_id' => $vend->id,
+            'event' => 'machine_health_alert_dismissed',
+            'subject' => "Controller responding (was {$label})",
+            'context' => $context,
+            'occurred_at' => $now,
+        ]);
+        MachineHealthHistory::log($vend->id, 'machine_health_alert_dismissed', ControllerLink::ALERT_TYPE, (string) $label, null, $context, $now);
     }
 }

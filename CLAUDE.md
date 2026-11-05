@@ -2261,6 +2261,28 @@ no point on a day without Happy Hour. Windows start at midnight: today, yesterda
 Hour per machine on prod (2026-10-23), so the page adds no query. Regression coverage:
 `tests/Feature/TransactionMixTest.php`, `tests/Feature/MachineHappyHourTrendTest.php`.
 
+## Controller not responding: online does not mean the controller is alive
+
+Brian, 2026-11-05, machine 2351: its controller went silent for 41 hours (the board's own log: "serial silent",
+thousands of port reopens) while the Android board stayed on MQTT and HTTP. The offline alert counts ANY contact, so
+it saw a live machine; the freezer warmed from -21 °C to -7 °C and the stock melted. `App\Support\ControllerLink` is
+the one rule. The controller's proof of life is `vends.temp_updated_at`: VENDER (every 5 min, every vending machine)
+and ACBSTATUS (every ~3 min, 35 machines on 2026-11-05) both stamp it and both are relayed off the serial link, so
+neither arrives while the controller is silent. After `vend.attention.controller_silent_minutes` (30) without one:
+HTTP traffic still arriving = `silent` ("Controller not responding"); only MQTT left = `no_data` ("Machine data not
+arriving": VENDER travels over HTTP, so a healthy controller looks the same, and the wording never blames it); nothing
+left = the offline alert's job, not this one. Vending machines only.
+
+`SyncOnlineStatus` runs it every minute with the offline alert's rising buckets (`vends.controller_silent_level`) and
+emails the offline list (`is_send_offline_notification`). It clears only when the controller is heard again, so a
+machine that also goes fully offline keeps its alert. A first alert within
+`controller_silent_email_cooldown_minutes` (60) of the last email is logged, not emailed, because a controller that
+keeps dropping out would otherwise email per drop. `OPS_ATTENTION_CONTROLLER_SILENT_EMAIL=false` stops the emails and
+nothing else. Shown as Machine Health "(1B)" (alert type `controller_silent`, history popup included), the Needs
+attention group of the same name (so Show Alert/Error too) and marker 1B on the temperature chart. Not caught: a
+controller that talks while its compressor is dead; that is the temperature alerts' job. Regression coverage:
+`tests/Feature/ControllerSilentAlertTest.php`.
+
 ## Fan detection: the board decides, a person can only reset
 
 Brian, 2026-10-19. `vends.is_fan_enabled` ("Fan speed signal") is no longer chosen on Setting/Edit:

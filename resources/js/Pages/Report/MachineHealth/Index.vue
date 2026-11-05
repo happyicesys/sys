@@ -107,6 +107,7 @@ const errorBuckets = computed(() => {
 })
 const temperature = computed(() => props.machineHealth?.temperature ?? {})
 const connectivity = computed(() => props.machineHealth?.connectivity ?? {})
+const controllerSilent = computed(() => props.machineHealth?.controller_silent ?? {})
 const noTransactions = computed(() => props.machineHealth?.no_transactions ?? {})
 const errorDefinitions = computed(() => props.machineHealth?.error_definitions ?? {})
 const operatorOptions = computed(() => normalizeCollection(props.operatorOptions))
@@ -948,6 +949,80 @@ const loadMoreHistory = () => {
                                       {{ row.card_terminal_name ? row.card_terminal_name : 'N/A' }}
                                   </span>
                               </div>
+                          </div>
+                        </div>
+                      </li>
+                      <li
+                        v-if="!bucket.rows.length"
+                        class="text-xs text-gray-400 italic text-center py-4"
+                      >
+                        {{ $t('No machines') }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bg-white shadow-sm sm:rounded-lg">
+          <div class="p-6">
+            <div class="mb-4">
+              <h3 class="text-lg font-semibold text-gray-900">{{ $t('(1B) Alert on Controller Not Responding') }}</h3>
+              <p class="text-sm text-gray-500">{{ $t('The machine is still connected, but its controller has stopped reporting, so there is no temperature reading.') }}</p>
+              <p class="text-sm text-gray-500">{{ $t('Handling methods:') }}</p>
+              <div class="mt-2 text-xs text-gray-500 space-y-1">
+                <div>{{ $t('i) Contact location personnel to check whether the machine is cold and has power') }}</div>
+                <div>{{ $t('ii) Arrange a technician to check the controller board, its power supply and the serial cable') }}</div>
+                <div>{{ $t('iii) If the freezer may have warmed, check the stock before it is sold') }}</div>
+              </div>
+              <p class="pt-2 text-sm text-gray-500">{{ $t('Silent hours') }}</p>
+            </div>
+
+            <div class="pb-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
+                <div
+                  v-for="bucket in controllerSilent.buckets"
+                  :key="bucket.label"
+                  class="flex flex-col rounded-lg border border-gray-200"
+                  :class="getBucketBgClass(bucket.label)"
+                >
+                  <div class="p-3 border-b border-gray-200 bg-opacity-50 rounded-t-lg">
+                    <h4 class="text-sm font-semibold text-gray-800 flex items-center justify-between">
+                      <span>
+                        {{ bucket.label }}
+                        <span class="ml-1 text-xs font-normal text-gray-500">
+                          ({{ bucket.rows.length }})
+                        </span>
+                      </span>
+                      <button @click="fetchHistory('controller_silent', bucket.label, $t('Controller History (:bucket)', { bucket: bucket.label }), null, bucket.rows)" class="text-gray-500 hover:text-indigo-600">
+                          <ClockIcon class="w-4 h-4" />
+                      </button>
+                    </h4>
+                  </div>
+                  <div class="p-3 overflow-y-auto max-h-[800px]">
+                    <ul class="space-y-3">
+                      <li
+                        v-for="row in bucket.rows"
+                        :key="row.vend_id"
+                        class="rounded border border-gray-200 bg-white p-3 shadow-sm"
+                      >
+                        <div class="font-medium text-gray-900">
+                          <MachineIdLink :code="row.vend_code" />
+                           · {{ (row.hours_offline).toFixed(2) }}
+                        </div>
+                        <div class="mt-1 text-xs text-gray-500 grid gap-0.5">
+                          <div>{{ row.vend_prefix_name ?? '—' }}</div>
+                          <div>{{ row.customer_name ?? '—' }}</div>
+                          <div class="text-gray-400">
+                            {{ $t('Last controller data: :time', { time: formatDateTimeComma(row.last_contact_at) }) }}
+                          </div>
+                          <div v-if="row.temp !== null" class="text-gray-400">
+                            {{ $t('Last reading: :temp°C', { temp: row.temp }) }}
+                          </div>
+                          <div v-if="row.state === 'no_data'" class="font-medium text-amber-700">
+                            {{ $t('MQTT only: internet or controller, cannot tell which') }}
                           </div>
                         </div>
                       </li>

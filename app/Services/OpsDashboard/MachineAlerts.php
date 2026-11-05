@@ -134,7 +134,7 @@ class MachineAlerts
 
         // A fixed order: Needs attention's groups as that section shows them, then the badges.
         $order = array_flip([
-            CriticalAttention::GROUP_OFFLINE, ...array_keys(CriticalAttention::TEMPERATURE_GROUPS),
+            CriticalAttention::GROUP_OFFLINE, CriticalAttention::GROUP_CONTROLLER_SILENT, ...array_keys(CriticalAttention::TEMPERATURE_GROUPS),
             CriticalAttention::GROUP_APK_RESTART, CriticalAttention::GROUP_SCREEN, CriticalAttention::GROUP_NO_SALES,
             ...array_keys(self::REASONS),
         ]);

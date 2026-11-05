@@ -24,6 +24,13 @@ return [
         // A fitted payment rail (card terminal / LCD QR / coin mech) with no sale for this long gets a
         // red frame on its Operation Dashboard badge (App\Support\PaymentRailIdle, Brian 2026-10-17).
         'payment_idle_hours' => (int) env('OPS_ATTENTION_PAYMENT_IDLE_HOURS', 48),
+        // (1B) Controller not responding: no VENDER / ACBSTATUS for this long while the machine is still
+        // in contact (App\Support\ControllerLink, Brian 2026-11-05). Normal silences, refill visits
+        // included, lasted about 10 min on 2351. The switch stops the emails only.
+        'controller_silent_minutes' => (int) env('OPS_ATTENTION_CONTROLLER_SILENT_MINUTES', 30),
+        'controller_silent_email' => (bool) env('OPS_ATTENTION_CONTROLLER_SILENT_EMAIL', true),
+        // A controller that keeps dropping out emails once per this many minutes, not per drop.
+        'controller_silent_email_cooldown_minutes' => (int) env('OPS_ATTENTION_CONTROLLER_SILENT_EMAIL_COOLDOWN_MINUTES', 60),
     ],
 
 ];

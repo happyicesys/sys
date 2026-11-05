@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\VendChannelErrorLogsMail;
+use App\Mail\VendControllerSilentNotificationMail;
 use App\Mail\VendOfflineNotificationMail;
 use App\Mail\VendPowerRestoredNotificationMail;
 use App\Mail\VendTransactionNoEntryNotificationMail;
@@ -11,8 +12,8 @@ use App\Models\Operator;
 use App\Models\Vend;
 use App\Models\VendLog;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class AlertEmailService
 {
@@ -29,6 +30,7 @@ class AlertEmailService
                 'recipient_count' => $emails->count(),
                 'vend_count' => $vendErrorsByVend->count(),
             ]);
+
             return 0;
         }
 
@@ -75,7 +77,7 @@ class AlertEmailService
         $recipientCount = $this->queueVendNotification(
             $vend,
             'is_send_offline_notification',
-            fn() => new VendOfflineNotificationMail((int) $vend->getKey(), $thresholdMinutes, $label),
+            fn () => new VendOfflineNotificationMail((int) $vend->getKey(), $thresholdMinutes, $label),
             'VendOfflineNotificationMail',
             [
                 'threshold_minutes' => $thresholdMinutes,
@@ -119,6 +121,23 @@ class AlertEmailService
     }
 
     /**
+     * CONTROLLER SILENT: per-vend email to the offline list; as urgent as the offline alert.
+     */
+    public function sendVendControllerSilentNotificationMail(Vend $vend, string $label, string $state): int
+    {
+        return $this->queueVendNotification(
+            $vend,
+            'is_send_offline_notification',
+            fn () => new VendControllerSilentNotificationMail((int) $vend->getKey(), $label, $state),
+            'VendControllerSilentNotificationMail',
+            [
+                'label' => $label,
+                'state' => $state,
+            ]
+        );
+    }
+
+    /**
      * POWER RESTORED: per-vend email (no aggregation).
      */
     public function sendVendPowerRestoredNotificationMail(Vend $vend): int
@@ -131,7 +150,7 @@ class AlertEmailService
         $recipientCount = $this->queueVendNotification(
             $vend,
             'is_send_power_restored_notification',
-            fn() => new VendPowerRestoredNotificationMail((int) $vend->getKey(), $thresholdMinutes),
+            fn () => new VendPowerRestoredNotificationMail((int) $vend->getKey(), $thresholdMinutes),
             'VendPowerRestoredNotificationMail',
             [
                 'threshold_minutes' => $thresholdMinutes,
@@ -170,13 +189,13 @@ class AlertEmailService
     /**
      * TRANSACTION NO ENTRY: aggregated per-operator email containing all machines that exceeded threshold.
      *
-     * @param \App\Models\Operator|null $operator
-     * @param \Illuminate\Support\Collection<int, array<string, mixed>> $vendSummaries
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $vendSummaries
      */
     public function sendVendTransactionNoEntryNotificationMail(?Operator $operator, Collection $vendSummaries): int
     {
         $vendSummaries = $vendSummaries->filter(function ($summary) {
             $threshold = (int) ($summary['threshold_hours'] ?? 0);
+
             return $threshold > 0;
         });
 
@@ -184,6 +203,7 @@ class AlertEmailService
             Log::info('AlertEmail: no machines met criteria for VendTransactionNoEntryNotificationMail', [
                 'operator_id' => $operator?->id,
             ]);
+
             return 0;
         }
 
@@ -197,6 +217,7 @@ class AlertEmailService
 
         if ($emails->isEmpty()) {
             Log::info('AlertEmail: no recipients for VendTransactionNoEntryNotificationMail', $baseContext);
+
             return 0;
         }
 
@@ -206,7 +227,7 @@ class AlertEmailService
         ]));
 
         $payload = $vendSummaries
-            ->map(fn($summary) => $summary)
+            ->map(fn ($summary) => $summary)
             ->values()
             ->all();
 
@@ -243,7 +264,7 @@ class AlertEmailService
     /**
      * Helper: queue per-vend notification emails with shared logging.
      *
-     * @param callable(): \Illuminate\Mail\Mailable $mailableFactory
+     * @param  callable(): \Illuminate\Mail\Mailable  $mailableFactory
      */
     protected function queueVendNotification(
         Vend $vend,
@@ -262,6 +283,7 @@ class AlertEmailService
 
         if ($emails->isEmpty()) {
             Log::info("AlertEmail: no recipients for {$logKey}", $baseContext);
+
             return 0;
         }
 
@@ -279,6 +301,7 @@ class AlertEmailService
 
         return $emails->count();
     }
+
     public function sendVendOperationErrorNotificationMail(Vend $vend, string $alertType, string $label): int
     {
         // Check if alert already sent for this specific severity/duration (handled by caller logic typically, but we track 'is_email_alert_sent' in VendSmartAlert)
@@ -294,7 +317,7 @@ class AlertEmailService
             // Let's assume 'is_send_channel_error_log' (General Error) or 'is_send_offline_notification' (Critical).
             // Context: "Machine Health Dashboard" -> Critical Parts Failure.
             // "is_send_channel_error_log" seems most appropriate for "Operation Error".
-            fn() => new \App\Mail\VendOperationErrorNotificationMail((int) $vend->getKey(), $alertType, $label),
+            fn () => new \App\Mail\VendOperationErrorNotificationMail((int) $vend->getKey(), $alertType, $label),
             'VendOperationErrorNotificationMail',
             [
                 'alert_type' => $alertType,

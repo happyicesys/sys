@@ -13,6 +13,7 @@ use App\Models\VendSmartAlert;
 use App\Models\VendTemp;
 use App\Models\VendTempMetric;
 use App\Models\VendTransaction;
+use App\Support\ControllerLink;
 use App\Support\VendCode;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
@@ -74,6 +75,7 @@ class MachineHealthDashboardService
             'error_codes' => $this->getErrorCodeMetrics($filters),
             'temperature' => $this->getTemperatureMetrics($filters),
             'connectivity' => $this->getConnectivityMetrics($filters),
+            'controller_silent' => $this->getControllerSilentMetrics($filters),
             'no_transactions' => $this->getNoTransactionMetrics($filters),
             'stockouts' => $stockoutMetrics,
             'error_definitions' => VendChannelError::pluck('desc', 'code')->all(),
@@ -876,6 +878,49 @@ class MachineHealthDashboardService
             'buckets' => array_map(function ($label, $rows) {
                 return ['label' => $label, 'rows' => $rows];
             }, array_keys($buckets), array_values($buckets)),
+        ];
+    }
+
+    /** (1B) Machines in contact whose controller stopped reporting; App\\Support\\ControllerLink is the rule. */
+    private function getControllerSilentMetrics(array $filters): array
+    {
+        $now = Carbon::now();
+        $heardBefore = $now->copy()->subMinutes(ControllerLink::silenceMinutes());
+        $contactSince = $now->copy()->subMinutes(ControllerLink::CONTACT_MINUTES);
+
+        $vends = $this->baseVendQuery($filters)
+            ->where('is_active', true)
+            ->whereNotNull('customer_id')
+            ->whereNotNull('temp_updated_at')
+            ->where('temp_updated_at', '<', $heardBefore)
+            ->where(fn ($q) => $q->where('last_updated_at', '>=', $contactSince)
+                ->orWhere(fn ($mqtt) => $mqtt->where('is_mqtt', true)->where('mqtt_last_updated_at', '>=', $contactSince)))
+            ->select([
+                'id', 'code', 'code_prefix', 'name', 'operator_id', 'vend_prefix_id', 'customer_id', 'card_terminal_id', 'machine_type', 'temp',
+                'temp_updated_at', 'last_updated_at', 'mqtt_last_updated_at', 'is_mqtt',
+            ])
+            ->orderBy('temp_updated_at', 'desc')
+            ->limit(500)
+            ->get();
+
+        $buckets = array_fill_keys(array_reverse(array_values(ControllerLink::BUCKETS)), []);
+
+        foreach ($vends as $vend) {
+            $state = ControllerLink::state($vend, $now);
+            if ($state === null) {
+                continue;
+            }
+            $hours = (float) ControllerLink::silentHours($vend, $now);
+            $buckets[ControllerLink::bucket($hours)[1]][] = array_merge($this->baseVendInfo($vend), [
+                'hours_offline' => $hours,
+                'state' => $state,
+                'temp' => $vend->temp !== null ? round($vend->temp / 10, 1) : null,
+                'last_contact_at' => $vend->temp_updated_at?->toIso8601String(),
+            ]);
+        }
+
+        return [
+            'buckets' => array_map(fn ($label, $rows) => ['label' => $label, 'rows' => $rows], array_keys($buckets), array_values($buckets)),
         ];
     }
 
