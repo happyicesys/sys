@@ -1628,13 +1628,13 @@ the sale's Order ID and Transaction DateTime first (Brian, 2026-11-03: the refer
 shared with Sales Transactions; they lead the sort, date filter and search, and the door session,
 when the videos reached us minutes later, stands in only until a sale is matched), machine, Zijia's
 order no + our SF ref, the sale's Site and that Site's current RP (the machine's Site until a sale is matched), how
-long the result took from the door session ("Δ 0d 0h 2m"), links to the original videos, and **Verification** (2026-11-03, a user's sketch: Paid For, AI Saw Taken and Verdict vs Paid
+long the result took from when the videos reached us ("Δ 0d 0h 2m"), links to the original videos (Videos Received, with those times; Machine, Site and RP share a column and the list sent to the AI sits under Status, Brian 2026-11-05), and **Verification** (2026-11-03, a user's sketch: Paid For, AI Saw Taken and Verdict vs Paid
 merged, `ai_check` on each row): one line per product, photo (name and item code on hover), price (paid, else the
 machine's at that moment, "(HH 30%)" under it when Happy Hour priced it), Paid, AI saw, a verdict of ✓ / +n / −n / ?
 with its meaning on hover, problems first, and an Adjusted count per line (a dash until a person adjusts) with who and
 when below the lines. The columns are fixed widths, so they line up down the page. A released hold's sale of 0 is deleted
 by the nightly odd-amount sweep (a Testing Mode sale is kept), so with no sale the lines take Paid from the verdict. Each refund that went back shows its amount, when it was sent and who sent it. Explanations go in hover popups
-(`v-tooltip`), not on the page. Barcodes are in Sent to AI.
+(`v-tooltip`), not on the page. Barcodes are in Sent to AI, under Status.
 
 **A paid session with no sale still shows the payment** (Brian, 2026-11-04: 50001's lock refused three doors, the rows read
 as if nobody paid). The app names a hold's session only in the door-closed capture and sends no TRADE when the door fails,

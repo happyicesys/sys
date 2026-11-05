@@ -305,23 +305,14 @@
                     {{ $t('Order ID') }}
                   </TableHead>
                   <TableHead>
-                    {{ $t('Machine') }}
-                  </TableHead>
-                  <TableHead>
-                    {{ $t('Site / RP') }}
+                    {{ $t('Machine / Site / RP') }}
                   </TableHead>
                   <TableHeadSort modelName="created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('created_at')">
-                    <span :title="$t('When the door videos reached us, usually minutes after the sale')">{{ $t('Door Session') }}</span>
+                    <span :title="$t('When the door videos reached us, usually minutes after the sale')">{{ $t('Videos Received') }}</span>
                   </TableHeadSort>
-                  <TableHead>
-                    {{ $t('Videos') }}
-                  </TableHead>
                   <TableHeadSort modelName="status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('status')">
                     {{ $t('Status') }}
                   </TableHeadSort>
-                  <TableHead>
-                    {{ $t('Sent to AI') }}
-                  </TableHead>
                   <TableHeadSort modelName="verdict" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('verdict')">
                     {{ $t('Verification') }}
                   </TableHeadSort>
@@ -357,19 +348,16 @@
                       </span>
                     </div>
                   </TableData>
-                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
-                    <div class="flex flex-col space-y-1">
+                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
+                    <div class="flex w-32 flex-col space-y-1">
                       <span v-if="row.vend_label" class="font-medium"><MachineIdLink :code="row.vend_label" /></span>
                       <span v-else class="text-amber-700 text-xs" :title="$t('The push named no freezer of ours')">{{ $t('Not matched') }}</span>
                       <span v-if="row.device_id" class="text-xs text-gray-500" :title="$t('Device no / IMEI in the push')">{{ row.device_id }}</span>
                     </div>
-                  </TableData>
-                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
-                    <div v-if="row.site" class="flex w-32 flex-col space-y-1 whitespace-normal">
+                    <div v-if="row.site" class="mt-2 flex w-32 flex-col space-y-1 whitespace-normal">
                       <span class="text-xs">{{ row.site.name }}</span>
                       <span v-if="row.site.rp" class="inline-flex w-fit items-center rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs font-semibold text-gray-700">{{ row.site.rp }}</span>
                     </div>
-                    <span v-else class="text-gray-400">—</span>
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
                     <div class="flex flex-col space-y-1">
@@ -377,11 +365,9 @@
                       <span v-if="row.completed_at" class="text-xs text-gray-500" :title="$t('When the AI result came back')">
                         {{ $t('result :time', { time: row.completed_at.substring(11) }) }}
                       </span>
-                      <span v-if="row.result_seconds !== null" class="text-xs text-gray-500 whitespace-nowrap" tabindex="0" v-tooltip="$t('How long the AI result took, from the door session')">Δ {{ durationText(row.result_seconds) }}</span>
+                      <span v-if="row.result_seconds !== null" class="text-xs text-gray-500 whitespace-nowrap" tabindex="0" v-tooltip="$t('How long the AI result took, from when the videos reached us')">Δ {{ durationText(row.result_seconds) }}</span>
                     </div>
-                  </TableData>
-                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
-                    <div class="flex flex-col space-y-1 text-xs">
+                    <div class="mt-2 flex flex-col space-y-1 text-xs">
                       <a v-for="(url, urlIndex) in row.videos" :key="url" :href="url" target="_blank" rel="noopener noreferrer"
                         class="text-blue-600 hover:underline whitespace-nowrap" :title="url"
                       >
@@ -397,9 +383,9 @@
                       <span v-if="row.pushes > 1" class="text-gray-400" :title="$t('Zijia pushed this session more than once')">{{ $t(':count pushes', { count: row.pushes }) }}</span>
                     </div>
                   </TableData>
-                  <!-- Kept narrow: the long AI reason lives in a hover popup, Verification gets the room. -->
+                  <!-- Kept narrow: the long AI reason lives in a hover popup, Verification gets the room. An open "Sent to AI" list widens it. -->
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
-                    <div class="flex w-[4.5rem] flex-col space-y-1">
+                    <div class="flex w-24 flex-col space-y-1">
                       <span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-bold border" :class="statusBadgeClass(row.status)">
                         {{ statusLabels[row.status] ? $t(statusLabels[row.status]) : row.status }}
                       </span>
@@ -412,11 +398,10 @@
                       <InformationCircleIcon v-if="row.status_reason && row.status_reason !== ('algorithm: ' + row.algorithm_status)" class="h-4 w-4 text-gray-400" tabindex="0" :aria-label="row.status_reason" v-tooltip="row.status_reason" />
                       <span v-if="row.callback_verified === false" class="text-xs text-red-700">{{ $t('Result signature NOT verified') }}</span>
                     </div>
-                  </TableData>
-                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
                     <!-- The product list sent with the videos (goodsList): the AI can only name a product
                          on it. Paid-for products are marked, and so is what the AI saw taken. -->
-                    <div v-if="row.submitted" class="flex flex-col space-y-1 text-xs">
+                    <div v-if="row.submitted" class="mt-2 flex flex-col space-y-1 text-xs">
+                      <span class="text-gray-500">{{ $t('Sent to AI') }}</span>
                       <button type="button" class="inline-flex w-fit items-center whitespace-nowrap rounded border border-gray-300 bg-white px-1.5 py-0.5 font-semibold text-gray-700 hover:bg-gray-50"
                         :title="$t('The products sent to the AI with this door session: it can only name a product on this list')"
                         @click="toggleSubmitted(row.id)"
@@ -434,7 +419,6 @@
                         </span>
                       </template>
                     </div>
-                    <span v-else class="text-gray-400" :title="$t('Not sent to the AI yet')">—</span>
                   </TableData>
                   <!-- Verification: one line per product (Brian's user, 2026-11-03): photo, price, paid, AI saw, verdict, and a person's count once adjusted. -->
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
@@ -548,7 +532,7 @@
                   </TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
-                  <td colspan="11" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td colspan="8" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                     {{ $t('No Results Found') }}
                   </td>
                 </tr>
