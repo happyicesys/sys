@@ -910,21 +910,22 @@
 		</svg>
 		<span>{{ $t('Loading financial & stock columns…') }}</span>
 	</div>
-	<div class="relative -my-2 -mx-3 sm:-mx-6 lg:-mx-8">
-	<!-- On the box, not in the table, so it stays in view however far the table is scrolled sideways. -->
+	<div class="relative mt-9 -mb-2 -mx-3 sm:-mx-6 lg:-mx-8">
+	<!-- A tab on the box's top edge: stays in view however far the table is scrolled sideways, and covers no label or row.
+	     The box stops 3rem short of the screen so the tab is still on screen at the page's last scroll position. -->
 	<button
 		v-if="vends.data.length"
 		type="button"
-		class="absolute top-2 right-2 md:right-5 z-40 inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow hover:bg-gray-50"
+		class="absolute bottom-full right-2 md:right-5 z-40 inline-flex items-center gap-1.5 rounded-t-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md transition hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
 		@click="isTableHeaderHidden = !isTableHeaderHidden"
 	>
 		<ChevronDoubleDownIcon v-if="isTableHeaderHidden" class="h-4 w-4" aria-hidden="true" />
 		<ChevronDoubleUpIcon v-else class="h-4 w-4" aria-hidden="true" />
 		{{ isTableHeaderHidden ? $t('Show header') : $t('Hide header') }}
 	</button>
-	<div class="cv-scroll overflow-scroll max-h-[max(40rem,calc(100vh-1rem))] shadow-sm ring-1 ring-black ring-opacity-5">
+	<div class="cv-scroll overflow-scroll max-h-[max(40rem,calc(100vh-3rem))] shadow-sm ring-1 ring-black ring-opacity-5">
 		<table class="min-w-full border-separate" style="border-spacing: 0">
-			<thead class="bg-gray-100">
+			<thead class="ops-head bg-gray-100">
 				<!-- collapse, not display:none: the columns keep the widths the header gives them. -->
 				<tr class="divide-x divide-gray-200" :class="{ collapse: isTableHeaderHidden && vends.data.length }">
 					<TableHead v-if="isShowOperationDiv">
@@ -965,10 +966,10 @@
 							<SingleSortItem modelName="customers.selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.selling_price_type', false)">
 								{{ $t('Ref Price') }}
 							</SingleSortItem>
-							<span class="text-sm font-medium text-gray-700">
+							<span class="text-gray-700">
 								{{ $t('Campaign') }}
 							</span>
-							<span class="text-sm font-medium text-gray-700">
+							<span class="text-gray-700">
 								{{ $t('Happy Hour') }}
 							</span>
 						</div>
@@ -993,7 +994,7 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Last Updated Timestamp <br> (every 3 mins)'), html: true }"></ExclamationCircleIcon>
 							</div>
-							<div class="flex justify-center items-center mt-2">
+							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="t1_lowest_48h" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('t1_lowest_48h', true)">
 									{{ $t('T1 lowest L48hr') }}
 								</SingleSortItem>
@@ -1005,7 +1006,7 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Delta of T1 and T2 <br> Under normal condition, 1.5C to 3.5C'), html: true }"></ExclamationCircleIcon>
 							</div>
-							<div class="flex justify-center items-center mt-2">
+							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="parameter_json->fan" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->fan', false)">
 									{{ $t('Fan RPM') }}
 								</SingleSortItem>
@@ -1027,12 +1028,13 @@
 									<span>
 										{{ $t('Inventory Status') }}
 									</span>
-									<span>
+									<span class="block max-w-[190px]">
 										{{ $t('#Channel, Required, Balance/Capacity (LastStockIn)') }}
 									</span>
 								</span>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('#Channel <br> Black = P1 same as RP, correct <br> Red = P1 not same with RP <br><br> Balance/Capacity <br> Green = Balance > 2 <br> Blue = Balance 1 & 2 <br> Red = Balance = 0'), html: true }"></ExclamationCircleIcon>
 							</div>
+							<div class="flex flex-wrap justify-center items-center gap-x-2 gap-y-0.5">
 							<div class="flex justify-center items-center">
 								<SingleSortItem modelName="total_stock_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_cost')">
 									{{ $t('Stock Cost') }}
@@ -1050,14 +1052,15 @@
 									{{ $t('Full Load Value') }}
 								</SingleSortItem>
 							</div>
-							<div class="flex flex-col items-center pt-2 space-y-1 w-full mt-2">
-								<span>
+							</div>
+							<div class="flex flex-wrap justify-center items-center gap-1 w-full">
+								<span class="w-full">
 									{{ $t('Refill Planning') }}
 								</span>
-								<div class="bg-gray-300 px-2 py-0.5 rounded text-xs text-gray-800 w-fit">
+								<div class="bg-gray-300 px-1 py-0.5 rounded text-[10px] text-gray-800 w-fit">
 									{{ $t('Grey: Capped Qty (Next Day)') }}
 								</div>
-								<div class="bg-red-200 px-2 py-0.5 rounded text-xs text-gray-800 w-fit flex items-center space-x-1">
+								<div class="bg-red-200 px-1 py-0.5 rounded text-[10px] text-gray-800 w-fit flex items-center space-x-1">
 									<span>{{ $t('Red: Not Available') }}</span>
 								</div>
 							</div>
@@ -1130,7 +1133,7 @@
 								</SingleSortItem>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Balance Qty % <br> Red: < 30% <br> Blue: >= 30% and < 50% <br> Green: >= 50%'), html: true }"></ExclamationCircleIcon>
 							</div>
-							<div class="flex justify-center items-center border-b border-gray-300 pb-2 mb-2 w-full">
+							<div class="flex justify-center items-center border-b border-gray-300 pb-1 w-full">
 								<SingleSortItem modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
 									{{ $t('Remaining Channel#') }}
 								</SingleSortItem>
@@ -1149,6 +1152,7 @@
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
 						{{ $t('Sales(qty)') }}
+						<div class="grid grid-cols-[auto_auto] justify-center gap-x-2 gap-y-0.5 whitespace-nowrap">
 						<SingleSortItem modelName="totals_json->today_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->today_amount', false)">
 							{{ $t('Today') }}
 						</SingleSortItem>
@@ -1161,6 +1165,7 @@
 						<SingleSortItem modelName="totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_amount', false)">
 							{{ $t('Last30d') }}
 						</SingleSortItem>
+						</div>
 						<!-- Mthly Sales $ — calendar-month split sitting under the rolling
 							Today/Yday/Last7d/Last30d block. Four sub-rows (Current Mth /
 							Last Mth / Last 2Mth / Last 3Mth) sourced from vend_records
@@ -1213,7 +1218,7 @@
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')" inputClass="!px-1">
-						<div class="flex flex-col space-y-2 max-w-28 mx-auto">
+						<div class="flex flex-col space-y-2 max-w-[84px] mx-auto">
 							<span>
 								{{ $t('Upcoming Job') }}
 							</span>
@@ -1230,7 +1235,7 @@
 								rendered on the customers index, where the value is
 								computed; the matching <hr>/value sits at the bottom of
 								this column's TableData. -->
-							<div v-if="indexType === 'customers'" class="border-t border-gray-300 !mt-5 pt-5 mb-1 flex flex-col space-y-1">
+							<div v-if="indexType === 'customers'" class="border-t border-gray-300 pt-1 flex flex-col space-y-1">
 								<SingleSortItem modelName="last_thirty_days_jobs_done_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_thirty_days_jobs_done_count', true)">
 									{{ $t('# of Job Done L30d') }}
 								</SingleSortItem>
@@ -1265,8 +1270,8 @@
 							<SingleSortItem modelName="totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_latest', true)">
 								{{ $t('Lifetime Sales') }}
 							</SingleSortItem>
-							<SingleSortItem modelName="accumulate_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('accumulate_vending_earning_cents', true)">
-								{{ $t('Accumulated VendEarning') }}
+							<SingleSortItem class="whitespace-nowrap" modelName="accumulate_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('accumulate_vending_earning_cents', true)">
+								{{ $t('Accum VendEarning') }}
 							</SingleSortItem>
 							<!-- Section divider — visually groups the sales metrics
 								above (Lifetime / Accumulated) from the contract /
@@ -1299,8 +1304,8 @@
 							<SingleSortItem modelName="totals_json->vend_records_amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_average_day', true)">
 								{{ $t('Avg Sales/ Day') }}
 							</SingleSortItem>
-							<SingleSortItem modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
-								{{ $t('AvgDailySales (Last30d)') }}
+							<SingleSortItem class="whitespace-nowrap" modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
+								{{ $t('AvgDailySales L30d') }}
 							</SingleSortItem>
 							<!-- Section divider — separates the daily-sales pair
 								from the VM Binding History block below. Matching
@@ -1313,7 +1318,7 @@
 								History" panel). Lets ops spot a model swap without
 								opening the site. Values render at the matching
 								position in this column's TableData. -->
-							<span v-if="indexType === 'customers'">
+							<span v-if="indexType === 'customers'" class="whitespace-nowrap">
 								{{ $t('VM Binding History') }}
 							</span>
 							<!-- Section divider — closes the VM Binding History
@@ -1332,7 +1337,7 @@
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
 						<div class="flex flex-col space-y-2">
-							<SingleSortItem modelName="customers.contract_commission_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_commission_type', false)">
+							<SingleSortItem class="whitespace-nowrap" modelName="customers.contract_commission_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.contract_commission_type', false)">
 								{{ $t('Contract Type') }}
 							</SingleSortItem>
 							<!-- External Subsidize + Net Loc Fee replace the old
@@ -1350,10 +1355,10 @@
 								earnings cluster (GrossEarning / VendEarning).
 								Matching <hr> in the TableData. -->
 							<hr class="border-t border-gray-300 my-2" />
-							<SingleSortItem modelName="totals_json->thirty_days_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_gross_profit', true)">
+							<SingleSortItem class="whitespace-nowrap" modelName="totals_json->thirty_days_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_gross_profit', true)">
 								{{ $t('L30d GrossEarning') }}
 							</SingleSortItem>
-							<SingleSortItem modelName="thirty_days_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_vending_earning_cents', true)">
+							<SingleSortItem class="whitespace-nowrap" modelName="thirty_days_vending_earning_cents" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_vending_earning_cents', true)">
 								{{ $t('L30d VendEarning') }}
 							</SingleSortItem>
 							<!-- Section divider — splits the L30d earnings pair
@@ -1410,7 +1415,7 @@
 							     do not report sort last. Data renders at the bottom of the cell. -->
 							<hr class="border-t border-gray-300 my-1 w-full" />
 							<div class="flex justify-center items-center">
-								<span class="text-[11px] font-semibold text-gray-900">{{ $t('MQTT Offline (min)') }}</span>
+								<span class="text-[11px] font-semibold text-gray-900 whitespace-nowrap">{{ $t('MQTT Offline (min)') }}</span>
 								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Minutes per day the machine had no working MQTT session (QR payments and remote commands unavailable), measured by the machine itself. Includes outages still in progress. Hover today\'s value for drops / client recycles / failed connects.<br>Green under 10 min, amber 10-59, red 60+. “–” = no data: the machine runs a build older than big 306 / small v14.'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<div class="flex justify-center items-center space-x-1">
@@ -1440,10 +1445,10 @@
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
-						{{ $t('Payment Device') }}
+						<span class="block max-w-[60px] mx-auto">{{ $t('Payment Device') }}</span>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
-						<div class="flex flex-col space-y-2">
+						<div class="flex flex-col space-y-2 whitespace-nowrap">
 							<SingleSortItem modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
 								{{ $t('Operator') }}
 							</SingleSortItem>
@@ -3584,6 +3589,24 @@ v-if="showMapMarkerModal"
 .cv-row {
 	content-visibility: auto;
 	contain-intrinsic-size: auto 480px;
+}
+/* The header: tight gaps and small info icons, so a machine's row starts near the top of the box. */
+.ops-head th {
+	padding: 4px 3px !important;
+	line-height: 1.15;
+}
+.ops-head .space-y-2 > * + * {
+	margin-top: 3px !important;
+}
+.ops-head hr {
+	margin-top: 2px !important;
+	margin-bottom: 2px !important;
+}
+.ops-head svg.text-sky-500 {
+	width: 14px;
+	height: 14px;
+	min-width: 14px;
+	padding-left: 2px;
 }
 /* PERF (scroll): the shared TableHead applies `backdrop-blur-3xl` + a
    translucent bg to the sticky header. A backdrop-filter re-samples and
