@@ -49,6 +49,11 @@ class CardPaymentService
 
     private const TERMINAL_STATUS_CACHE_SECONDS = 10;
 
+    /** After a cancel the device re-checks every couple of seconds to bring its card button back. */
+    private const TERMINAL_STATUS_AFTER_CANCEL_CACHE_SECONDS = 2;
+
+    private const TERMINAL_AFTER_CANCEL_SECONDS = 30;
+
     /** How often the reconciler retries a pre-auth capture the provider refused. */
     private const AUTO_CAPTURE_RETRY_MINUTES = 10;
 
@@ -161,6 +166,9 @@ class CardPaymentService
                 // Best effort: the reconciler still watches for a late approval.
                 $intent->update(['last_error' => $this->errorText('cancel: '.$e->getMessage())]);
             }
+            // A reading from before this cancel says nothing about the terminal now.
+            Cache::forget($this->statusCacheKey($terminal));
+            Cache::put($this->afterCancelCacheKey($terminal), true, self::TERMINAL_AFTER_CANCEL_SECONDS);
 
             return $this->advance($intent);
         });
@@ -303,7 +311,13 @@ class CardPaymentService
             'last_state' => $status->state,
             'last_status_at' => Carbon::now(),
         ]);
-        Cache::put($this->statusCacheKey($terminal), $status, self::TERMINAL_STATUS_CACHE_SECONDS);
+        Cache::put(
+            $this->statusCacheKey($terminal),
+            $status,
+            Cache::has($this->afterCancelCacheKey($terminal))
+                ? self::TERMINAL_STATUS_AFTER_CANCEL_CACHE_SECONDS
+                : self::TERMINAL_STATUS_CACHE_SECONDS,
+        );
 
         return $status;
     }
@@ -1225,6 +1239,11 @@ class CardPaymentService
     private function statusCacheKey(RemoteCardTerminal $terminal): string
     {
         return 'remote-card-terminal-status:'.$terminal->id;
+    }
+
+    private function afterCancelCacheKey(RemoteCardTerminal $terminal): string
+    {
+        return 'remote-card-terminal-after-cancel:'.$terminal->id;
     }
 
     private function promptReadCacheKey(RemoteCardTerminal $terminal): string

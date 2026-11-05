@@ -308,6 +308,29 @@ class CardPaymentServiceTest extends TestCase
         $this->assertSame('ready', $terminal->last_state);
     }
 
+    public function test_a_cancel_drops_the_terminal_reading_and_keeps_later_ones_short_for_a_while(): void
+    {
+        $this->service->terminalStatus($this->vend);
+        $this->assertCount(1, $this->gateway->callsOf('status'));
+
+        $this->service->cancel($this->start());
+        $before = count($this->gateway->callsOf('status'));
+        $this->service->terminalStatus($this->vend);
+        $this->assertCount($before + 1, $this->gateway->callsOf('status'), 'a reading from before the cancel is not reused');
+
+        // Within 30 s of the cancel a reading lasts 2 s, so the device's card button comes back quickly.
+        Carbon::setTestNow(Carbon::now()->addSeconds(3));
+        $this->service->terminalStatus($this->vend);
+        $this->assertCount($before + 2, $this->gateway->callsOf('status'));
+
+        // Long after it, the usual 10 s again.
+        Carbon::setTestNow(Carbon::now()->addSeconds(60));
+        $this->service->terminalStatus($this->vend);
+        Carbon::setTestNow(Carbon::now()->addSeconds(3));
+        $this->service->terminalStatus($this->vend);
+        $this->assertCount($before + 3, $this->gateway->callsOf('status'));
+    }
+
     public function test_preauth_is_the_default_mode(): void
     {
         $config = require base_path('config/payrallel.php');
