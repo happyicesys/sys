@@ -3,7 +3,9 @@
 Brian, 2026-11-05: AI Recognition now has room for a Settlement column, as on Sales Transactions. Get settlement
 information from Payrallel by API and make sure the money reaches our bank. Study the flow first.
 
-**Status: study only. Nothing here is built, and nothing has been sent to Payrallel.**
+**Status: study only. Nothing here is built, and nothing has been sent to Payrallel.** Brian, 2026-11-05: he will
+implement settlement himself later; AI Recognition has a blank Settlement column waiting for it. The card-number fix in
+§4 was done separately.
 
 Sources: `card_payment_intents`, `card_payment_events` (Payrallel's raw answers since 2026-10-02), one read-only
 `transactions/actions/query` of every captured charge from prod on 2026-11-05, and payrallel.io/docs.
@@ -81,8 +83,10 @@ in clear text**. mark1 logs raw answers, so this is now in:
 
 `card_payment_intents.last_response` has none. Storing this breaks PCI DSS rules for card data. To fix:
 
-1. Strip tag `57` (and tags `5A`, `9F6B`) in `CardTerminalEventLog` before anything is written or logged.
-2. Clean the 31 rows and the log files, on every server that has them.
+1. Done in code (Brian, 2026-11-05: keep first 2 + last 4 digits only): `App\Support\CardNumberMask`, applied in
+   `PayrallelGateway` and `CardTerminalEventLog`.
+2. Clean what is stored, on every server that has it: `php artisan card-payments:mask-card-numbers` counts,
+   `--apply` rewrites. `card_refunds.response` holds it too (2 rows).
 3. Tell Payrallel to stop returning it.
 
 While this study read those rows, card numbers also came back in the query output of this Claude session.
@@ -93,7 +97,7 @@ While this study read those rows, card numbers also came back in the query outpu
 
 ### Phase 1: without Payrallel
 
-1. Stop storing card numbers (§4).
+1. Stop storing card numbers (§4, done in code).
 2. Keep what we are already given, on the charge: batch no / id, RRN, approval code, merchant name + MID, card last 4.
    Fill older rows by one query run.
 3. **Daily check against Payrallel** (a new command): query each charge from the last N days, then flag an amount that

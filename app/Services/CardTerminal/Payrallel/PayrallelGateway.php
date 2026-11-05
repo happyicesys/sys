@@ -8,6 +8,7 @@ use App\Services\CardTerminal\CardTerminalException;
 use App\Services\CardTerminal\RemoteCardTerminalGateway;
 use App\Services\CardTerminal\TerminalStatus;
 use App\Services\CardTerminal\TerminalTransaction;
+use App\Support\CardNumberMask;
 use GuzzleHttp\Exception\ConnectException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -27,7 +28,8 @@ use Illuminate\Support\Facades\Http;
  *
  * Auth is per terminal: every request carries that terminal's own token in the
  * header shape `payrallel.authorization_format`. Tokens never reach a log or
- * an exception message.
+ * an exception message. Nor does a card number: every answer is cut to first 2 + last 4 digits
+ * here, before anything can store it (CardNumberMask).
  *
  * Every call is written to the trial timeline (CardTerminalEventLog
  * `provider.http` / `provider.unreachable`) with its raw answer and timing —
@@ -90,7 +92,7 @@ class PayrallelGateway implements RemoteCardTerminalGateway
         }
         $path = 'transactions/actions/refund';
         $response = $this->post($terminal, $path, ['transactionId' => $transactionId, 'amountInCents' => $cents], $orderId, (int) config('payrallel.refund_timeout', 20));
-        $body = (array) ($response->json() ?? []);
+        $body = $this->answer($response);
         if ($response->successful() && ($body['success'] ?? true) === false) {
             $message = $body['error'] ?? $body['message'] ?? null;
             throw CardTerminalException::refused('Payrallel refund refused'.(is_string($message) && $message !== '' ? ': '.mb_substr($message, 0, 180) : ''), $response->status());
@@ -116,7 +118,7 @@ class PayrallelGateway implements RemoteCardTerminalGateway
     public function query(RemoteCardTerminal $terminal, string $orderId): TerminalTransaction
     {
         $response = $this->post($terminal, 'transactions/actions/query', ['customOrderId' => $orderId]);
-        $body = (array) ($response->json() ?? []);
+        $body = $this->answer($response);
 
         if ($this->isNotFound($response, $body)) {
             return new TerminalTransaction(TerminalTransaction::NOT_FOUND, raw: $body);
@@ -143,7 +145,7 @@ class PayrallelGateway implements RemoteCardTerminalGateway
     public function status(RemoteCardTerminal $terminal): TerminalStatus
     {
         $response = $this->post($terminal, 'terminal/status', []);
-        $body = (array) ($response->json() ?? []);
+        $body = $this->answer($response);
         $this->assertOk($response, $body, 'terminal status');
 
         return new TerminalStatus(
@@ -167,10 +169,16 @@ class PayrallelGateway implements RemoteCardTerminalGateway
     private function send(RemoteCardTerminal $terminal, string $path, array $body): array
     {
         $response = $this->post($terminal, $path, $body);
-        $answer = (array) ($response->json() ?? []);
+        $answer = $this->answer($response);
         $this->assertOk($response, $answer, $path);
 
         return $answer;
+    }
+
+    /** @return array<string, mixed> the provider's answer, card numbers already cut */
+    private function answer(Response $response): array
+    {
+        return CardNumberMask::data((array) ($response->json() ?? []));
     }
 
     /** $logOrderId labels the timeline for a body that names no order; $timeout overrides the configured one. */
@@ -201,7 +209,7 @@ class PayrallelGateway implements RemoteCardTerminalGateway
             'path' => $path,
             'request' => $body,
             'http_status' => $response->status(),
-            'response' => CardTerminalEventLog::body($response->body()),
+            'response' => CardTerminalEventLog::body(CardNumberMask::text($response->body())),
         ], $terminal, $orderId, $this->elapsedMs($started), $response->successful() ? 'info' : 'warning');
 
         return $response;

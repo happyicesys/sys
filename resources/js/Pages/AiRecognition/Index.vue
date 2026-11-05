@@ -319,6 +319,9 @@
                   <TableHead>
                     {{ $t('Sale / Card charge') }}
                   </TableHead>
+                  <TableHead>
+                    {{ $t('Settlement') }}
+                  </TableHead>
                 </tr>
               </thead>
               <tbody class="bg-white">
@@ -530,9 +533,11 @@
                       {{ $t('Adjust Qty') }}
                     </button>
                   </TableData>
+                  <!-- Left blank on purpose (Brian, 2026-11-05: he builds it later). See T05_SETTLEMENT_PLAN_2026-11-05.md. -->
+                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center"></TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
-                  <td colspan="8" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td colspan="9" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                     {{ $t('No Results Found') }}
                   </td>
                 </tr>

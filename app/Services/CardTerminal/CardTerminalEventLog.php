@@ -4,6 +4,7 @@ namespace App\Services\CardTerminal;
 
 use App\Models\CardPaymentEvent;
 use App\Models\RemoteCardTerminal;
+use App\Support\CardNumberMask;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -38,6 +39,8 @@ class CardTerminalEventLog
         ?int $vendId = null,
     ): void {
         $vendId ??= $terminal?->vend_id;
+        // Whoever calls: neither the table nor the log file keeps more of a card than first 2 + last 4.
+        $detail = CardNumberMask::data($detail);
         try {
             CardPaymentEvent::create([
                 'vend_id' => $vendId,

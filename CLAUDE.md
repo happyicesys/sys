@@ -1709,6 +1709,10 @@ steps: `apk/smart-freezer/PAYRALLEL_BENCH_RUNBOOK_2026-09-30.md`. Inert until
 freezer's runtime row is `remote_card_terminals`). Nothing here touches NETS: those
 terminals are `card_terminal_units`, reconciled from the NETS CSV.
 
+- **mark1 keeps the first 2 and last 4 digits of a card, nothing else** (Brian, 2026-11-05; `App\Support\CardNumberMask`). Payrallel's
+  capture and refund answers carry EMV tag 57, the whole number and expiry in clear text, so `PayrallelGateway` cuts every answer
+  and `CardTerminalEventLog` cuts every detail before the table or the log file sees it; expiry and name are dropped. Stored ones:
+  `card-payments:mask-card-numbers [--apply]`. Regression coverage: `tests/Feature/CardNumberMaskTest.php`.
 - **`App\Services\CardTerminal\CardPaymentService` is the only writer of
   `card_payment_intents`** (state diagram on the model). The device API
   (`Api\V1\FreezerCardController`, `/api/v1/vends/{code}/card/*`) and
