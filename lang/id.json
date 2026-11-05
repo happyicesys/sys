@@ -6045,7 +6045,6 @@
     "Un-drop this refund request and restore it to the queue?": "Pulihkan permintaan refund ini dan kembalikan ke antrean?",
     "Un-dropped": "Dipulihkan",
     "Unable to create the job because a duplicate code was generated. Please try again.": "Tidak dapat membuat tugas karena kode duplikat terbentuk. Silakan coba lagi.",
-    "Unable to generate a unique job code. Please try again.": "Tidak dapat membuat kode tugas yang unik. Silakan coba lagi.",
     "Unable to update sequence. Please refresh the page and try again.": "Tidak dapat memperbarui urutan. Muat ulang halaman dan coba lagi.",
     "Unassigned": "Belum Ditugaskan",
     "unavailable": "tidak tersedia",

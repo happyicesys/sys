@@ -1875,7 +1875,7 @@ class OpsJobController extends Controller
             ->first();
 
         if (! $opsJob) {
-            $code = $this->generateUniqueOpsJobCode('driver_id');
+            $code = $this->generateUniqueOpsJobCode();
 
             $opsJob = OpsJob::create([
                 'code' => $code,
@@ -2130,7 +2130,7 @@ class OpsJobController extends Controller
             'delivered_by' => 'required',
         ]);
 
-        $code = $this->generateUniqueOpsJobCode('delivered_by');
+        $code = $this->generateUniqueOpsJobCode();
 
         try {
             $opsJob = OpsJob::create([
@@ -3053,23 +3053,20 @@ class OpsJobController extends Controller
         // ]);
     }
 
-    private function generateUniqueOpsJobCode(string $errorField): string
+    /**
+     * Codes are unique across every operator, but each operator counts from its own highest code,
+     * so a smaller operator's next number is often already held by a bigger one. It then takes the
+     * number after the highest code anyone holds.
+     */
+    private function generateUniqueOpsJobCode(): string
     {
         $operatorId = auth()->user()->operator_id;
-        $candidateCode = (int) $this->runningNumberService->getRunningCode(new OpsJob, $operatorId);
-        $attempts = 0;
+        $code = (int) $this->runningNumberService->getRunningCode(new OpsJob, $operatorId);
 
-        while (OpsJob::where('code', (string) $candidateCode)->exists()) {
-            $candidateCode++;
-            $attempts++;
-
-            if ($attempts >= 50) {
-                throw ValidationException::withMessages([
-                    $errorField => __('Unable to generate a unique job code. Please try again.'),
-                ]);
-            }
+        if (OpsJob::where('code', $code)->exists()) {
+            $code = (int) OpsJob::max('code') + 1;
         }
 
-        return (string) $candidateCode;
+        return (string) $code;
     }
 }

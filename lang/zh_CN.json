@@ -6045,7 +6045,6 @@
     "Un-drop this refund request and restore it to the queue?": "撤销放弃此退款申请并放回队列？",
     "Un-dropped": "已撤销放弃",
     "Unable to create the job because a duplicate code was generated. Please try again.": "生成了重复的任务编号，无法创建任务，请重试。",
-    "Unable to generate a unique job code. Please try again.": "无法生成唯一的任务编号，请重试。",
     "Unable to update sequence. Please refresh the page and try again.": "无法更新顺序，请刷新页面后重试。",
     "Unassigned": "未分配",
     "unavailable": "不可用",
