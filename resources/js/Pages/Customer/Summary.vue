@@ -606,7 +606,7 @@
             scrolls (without max-h, the page itself scrolls and sticky has
             no containing block to stick to).
           -->
-          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll max-h-[max(40rem,calc(100vh-6rem))]">
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll max-h-[max(40rem,calc(100vh-1rem))]">
             <table class="min-w-full border-separate" style="border-spacing: 0">
               <thead class="bg-gray-100">
                 <tr class="divide-x divide-gray-200">

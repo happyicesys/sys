@@ -910,11 +910,23 @@
 		</svg>
 		<span>{{ $t('Loading financial & stock columns…') }}</span>
 	</div>
-	<div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
-	<div class="cv-scroll overflow-scroll max-h-[max(40rem,calc(100vh-6rem))] shadow-sm ring-1 ring-black ring-opacity-5">
+	<div class="relative -my-2 -mx-3 sm:-mx-6 lg:-mx-8">
+	<!-- On the box, not in the table, so it stays in view however far the table is scrolled sideways. -->
+	<button
+		v-if="vends.data.length"
+		type="button"
+		class="absolute top-2 right-2 md:right-5 z-40 inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow hover:bg-gray-50"
+		@click="isTableHeaderHidden = !isTableHeaderHidden"
+	>
+		<ChevronDoubleDownIcon v-if="isTableHeaderHidden" class="h-4 w-4" aria-hidden="true" />
+		<ChevronDoubleUpIcon v-else class="h-4 w-4" aria-hidden="true" />
+		{{ isTableHeaderHidden ? $t('Show header') : $t('Hide header') }}
+	</button>
+	<div class="cv-scroll overflow-scroll max-h-[max(40rem,calc(100vh-1rem))] shadow-sm ring-1 ring-black ring-opacity-5">
 		<table class="min-w-full border-separate" style="border-spacing: 0">
 			<thead class="bg-gray-100">
-				<tr class="divide-x divide-gray-200">
+				<!-- collapse, not display:none: the columns keep the widths the header gives them. -->
+				<tr class="divide-x divide-gray-200" :class="{ collapse: isTableHeaderHidden && vends.data.length }">
 					<TableHead v-if="isShowOperationDiv">
 						<input
 								id="isSelectedAll"
@@ -997,65 +1009,6 @@
 								<SingleSortItem modelName="parameter_json->fan" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->fan', false)">
 									{{ $t('Fan RPM') }}
 								</SingleSortItem>
-							</div>
-							<!-- PWRON 1d/2d/3d trend block — moved here from the Error column
-							     (Daniel, 2026-08-24; the Error column bottom now carries
-							     "# of Refund"). Per-day sort handles hit the
-							     `pwron_{1,2,3}d_count` aliases exposed conditionally by
-							     VendController::indexCustomer (single leftJoin against
-							     vend_daily_stats). Actual counts render at the bottom of
-							     the data cell below. -->
-							<hr class="border-t border-gray-300 my-1 w-full" />
-							<div class="flex justify-center items-center">
-								<span class="text-[11px] font-semibold text-gray-900">PWRON</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Stability of connectivity. PWRON = Count of machine auto reconnect to server after dropline.<br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal. 3d is the baseline.'), html: true }"></ExclamationCircleIcon>
-							</div>
-							<div class="flex justify-center items-center space-x-1">
-								<SingleSortItem modelName="pwron_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_1d_count', false)">
-									1d
-								</SingleSortItem>
-								<span class="text-gray-400">/</span>
-								<SingleSortItem modelName="pwron_2d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_2d_count', false)">
-									2d
-								</SingleSortItem>
-								<span class="text-gray-400">/</span>
-								<SingleSortItem modelName="pwron_3d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_3d_count', false)">
-									3d
-								</SingleSortItem>
-							</div>
-							<!-- MQTT Offline 1d/2d/3d — minutes per day with no subscribed MQTT
-							     session, measured on the machine itself (big 306+ / small
-							     v14+, P heartbeat -> vend_daily_stats metric=mqtt_offline_s).
-							     Sort hits the mqtt_offline_{1,2,3}d_s aliases; machines that
-							     do not report sort last. Data renders at the bottom of the cell. -->
-							<hr class="border-t border-gray-300 my-1 w-full" />
-							<div class="flex justify-center items-center">
-								<span class="text-[11px] font-semibold text-gray-900">{{ $t('MQTT Offline (min)') }}</span>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Minutes per day the machine had no working MQTT session (QR payments and remote commands unavailable), measured by the machine itself. Includes outages still in progress. Hover today\'s value for drops / client recycles / failed connects.<br>Green under 10 min, amber 10-59, red 60+. “–” = no data: the machine runs a build older than big 306 / small v14.'), html: true }"></ExclamationCircleIcon>
-							</div>
-							<div class="flex justify-center items-center space-x-1">
-								<SingleSortItem modelName="mqtt_offline_1d_s" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('mqtt_offline_1d_s', false)">
-									1d
-								</SingleSortItem>
-								<span class="text-gray-400">/</span>
-								<SingleSortItem modelName="mqtt_offline_2d_s" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('mqtt_offline_2d_s', false)">
-									2d
-								</SingleSortItem>
-								<span class="text-gray-400">/</span>
-								<SingleSortItem modelName="mqtt_offline_3d_s" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('mqtt_offline_3d_s', false)">
-									3d
-								</SingleSortItem>
-							</div>
-							<!-- Unsent Sales — TRADEs the machine holds on disk that mark1 has
-							     not accepted yet (big 307+ / small v15+ TradeOutbox, P heartbeat
-							     TrdQ/TrdQAge -> vend_daily_stats metric=trade_queue). Sort hits
-							     the trade_queue alias; machines that do not report sort last. -->
-							<hr class="border-t border-gray-300 my-1 w-full" />
-							<div class="flex justify-center items-center">
-								<SingleSortItem modelName="trade_queue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('trade_queue', false)">
-									<span class="text-[11px] font-semibold text-gray-900">{{ $t('Unsent Sales') }}</span>
-								</SingleSortItem>
-								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Sales the machine has saved on its own storage that mark1 has not received yet, with how long the oldest has waited. The machine keeps resending them until mark1 confirms, so a number that stays above 0 means sales are happening that mark1 cannot see yet (poor signal, server unreachable).<br>Green 0, amber waiting under 30 min, red 30 min+. “–” = no data today: the machine runs a build older than big 307 / small v15.'), html: true }"></ExclamationCircleIcon>
 							</div>
 							<!-- SIM Card block — telco (or Wi-Fi/LAN) the machine reports,
 							     plus its signal strength pill. Data renders at the bottom
@@ -1144,8 +1097,8 @@
 							     refund_tickets by vend_id. Per-day sort handles hit the
 							     refund_{1,2,3}d_count aliases exposed conditionally by
 							     VendController::indexCustomer. Data renders at the bottom of
-							     the cell below. (PWRON / SIM Card moved
-							     to the bottom of the Temperature column.) -->
+							     the cell below. (SIM Card moved to the bottom of the Temperature
+							     column, PWRON to the Machine Status column.) -->
 							<hr class="border-t border-gray-300 my-1 w-full" />
 							<div class="flex justify-center items-center">
 								<span class="text-[11px] font-semibold text-gray-900">{{ $t('# of Refund') }}</span>
@@ -1424,7 +1377,67 @@
 						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
-						{{ $t('Machine Status') }}
+						<div class="flex flex-col space-y-2">
+							<div>{{ $t('Machine Status') }}</div>
+							<!-- PWRON 1d/2d/3d trend block — moved here from the T1 column to
+							     shorten the header (Brian, 2026-11-05). Per-day sort handles hit the
+							     `pwron_{1,2,3}d_count` aliases exposed conditionally by
+							     VendController::indexCustomer (single leftJoin against
+							     vend_daily_stats). Actual counts render at the bottom of
+							     the data cell below. -->
+							<hr class="border-t border-gray-300 my-1 w-full" />
+							<div class="flex justify-center items-center">
+								<span class="text-[11px] font-semibold text-gray-900">PWRON</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Stability of connectivity. PWRON = Count of machine auto reconnect to server after dropline.<br>1d color vs 2d, 2d color vs 3d — red if higher, green if lower, black if equal. 3d is the baseline.'), html: true }"></ExclamationCircleIcon>
+							</div>
+							<div class="flex justify-center items-center space-x-1">
+								<SingleSortItem modelName="pwron_1d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_1d_count', false)">
+									1d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="pwron_2d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_2d_count', false)">
+									2d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="pwron_3d_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('pwron_3d_count', false)">
+									3d
+								</SingleSortItem>
+							</div>
+							<!-- MQTT Offline 1d/2d/3d — minutes per day with no subscribed MQTT
+							     session, measured on the machine itself (big 306+ / small
+							     v14+, P heartbeat -> vend_daily_stats metric=mqtt_offline_s).
+							     Sort hits the mqtt_offline_{1,2,3}d_s aliases; machines that
+							     do not report sort last. Data renders at the bottom of the cell. -->
+							<hr class="border-t border-gray-300 my-1 w-full" />
+							<div class="flex justify-center items-center">
+								<span class="text-[11px] font-semibold text-gray-900">{{ $t('MQTT Offline (min)') }}</span>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Minutes per day the machine had no working MQTT session (QR payments and remote commands unavailable), measured by the machine itself. Includes outages still in progress. Hover today\'s value for drops / client recycles / failed connects.<br>Green under 10 min, amber 10-59, red 60+. “–” = no data: the machine runs a build older than big 306 / small v14.'), html: true }"></ExclamationCircleIcon>
+							</div>
+							<div class="flex justify-center items-center space-x-1">
+								<SingleSortItem modelName="mqtt_offline_1d_s" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('mqtt_offline_1d_s', false)">
+									1d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="mqtt_offline_2d_s" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('mqtt_offline_2d_s', false)">
+									2d
+								</SingleSortItem>
+								<span class="text-gray-400">/</span>
+								<SingleSortItem modelName="mqtt_offline_3d_s" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('mqtt_offline_3d_s', false)">
+									3d
+								</SingleSortItem>
+							</div>
+							<!-- Unsent Sales — TRADEs the machine holds on disk that mark1 has
+							     not accepted yet (big 307+ / small v15+ TradeOutbox, P heartbeat
+							     TrdQ/TrdQAge -> vend_daily_stats metric=trade_queue). Sort hits
+							     the trade_queue alias; machines that do not report sort last. -->
+							<hr class="border-t border-gray-300 my-1 w-full" />
+							<div class="flex justify-center items-center">
+								<SingleSortItem modelName="trade_queue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('trade_queue', false)">
+									<span class="text-[11px] font-semibold text-gray-900">{{ $t('Unsent Sales') }}</span>
+								</SingleSortItem>
+								<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: $t('Sales the machine has saved on its own storage that mark1 has not received yet, with how long the oldest has waited. The machine keeps resending them until mark1 confirms, so a number that stays above 0 means sales are happening that mark1 cannot see yet (poor signal, server unreachable).<br>Green 0, amber waiting under 30 min, red 30 min+. “–” = no data today: the machine runs a build older than big 307 / small v15.'), html: true }"></ExclamationCircleIcon>
+							</div>
+						</div>
 					</TableHead>
 					<TableHead v-if="!roles.includes('operator_driver')">
 						{{ $t('Payment Device') }}
@@ -1883,81 +1896,6 @@
 										({{ getAlertLabel(alert) }})
 									</span>
 								</div>
-							<!-- PWRON 1d/2d/3d trend (counts from vend_daily_stats).
-							     Coloring (inactive machines stay gray):
-							       - 1d: red if 1d > 2d, green if 1d < 2d, black if equal
-							       - 2d: red if 2d > 3d, green if 2d < 3d, black if equal
-							       - 3d: always black (baseline for comparison)
-							     v-if guards the block when the controller hasn't
-							     attached the counts (e.g. older /vends path). -->
-							<template v-if="vend.pwron_1d_count !== null && vend.pwron_1d_count !== undefined">
-								<hr class="border-t border-gray-300 my-2 w-full" />
-								<div class="flex justify-center items-center space-x-1 text-sm">
-									<span
-										:class="
-											(vend.is_active || vend.is_testing) ?
-											(
-												vend.pwron_1d_count > vend.pwron_2d_count ? 'text-red-700' :
-												(vend.pwron_1d_count < vend.pwron_2d_count ? 'text-green-700' : 'text-gray-900')
-											) :
-											'text-gray-400'
-										"
-									>
-										{{ vend.pwron_1d_count }}
-									</span>
-									<span class="text-gray-400">/</span>
-									<span
-										:class="
-											(vend.is_active || vend.is_testing) ?
-											(
-												vend.pwron_2d_count > vend.pwron_3d_count ? 'text-red-700' :
-												(vend.pwron_2d_count < vend.pwron_3d_count ? 'text-green-700' : 'text-gray-900')
-											) :
-											'text-gray-400'
-										"
-									>
-										{{ vend.pwron_2d_count }}
-									</span>
-									<span class="text-gray-400">/</span>
-									<span :class="(vend.is_active || vend.is_testing) ? 'text-gray-900' : 'text-gray-400'">
-										{{ vend.pwron_3d_count }}
-									</span>
-								</div>
-							</template>
-							<!-- MQTT Offline 1d/2d/3d in minutes (vend_daily_stats metric=
-							     mqtt_offline_s). Absolute colouring, not trend: <10 green,
-							     10-59 amber, 60+ red; inactive machines gray. "–" when the
-							     machine sent no link health that day (older build). Shown
-							     only once the controller has enriched the fields. -->
-							<template v-if="vend.mqtt_offline_1d_s !== undefined">
-								<hr class="border-t border-gray-300 my-2 w-full" />
-								<div class="flex justify-center items-center space-x-1 text-sm">
-									<span
-										:class="mqttOfflineClass(vend, vend.mqtt_offline_1d_s)"
-										v-tooltip="mqttLinkTooltip(vend)"
-									>
-										{{ mqttOfflineMinutes(vend.mqtt_offline_1d_s) }}
-									</span>
-									<span class="text-gray-400">/</span>
-									<span :class="mqttOfflineClass(vend, vend.mqtt_offline_2d_s)">
-										{{ mqttOfflineMinutes(vend.mqtt_offline_2d_s) }}
-									</span>
-									<span class="text-gray-400">/</span>
-									<span :class="mqttOfflineClass(vend, vend.mqtt_offline_3d_s)">
-										{{ mqttOfflineMinutes(vend.mqtt_offline_3d_s) }}
-									</span>
-								</div>
-							</template>
-							<!-- Unsent Sales: count · age of the oldest (vend_daily_stats
-							     metric=trade_queue / trade_queue_age_s, today's latest reading). -->
-							<template v-if="vend.trade_queue !== undefined">
-								<hr class="border-t border-gray-300 my-2 w-full" />
-								<div class="flex justify-center items-center space-x-1 text-sm">
-									<span :class="tradeQueueClass(vend)" v-tooltip="tradeQueueTooltip(vend)">
-										{{ tradeQueueLabel(vend) }}
-									</span>
-								</div>
-							</template>
 							<!-- SIM Card — moved here from the Machine Status column (Daniel,
 							     2026-08-24). Telco/Wi-Fi/LAN title + signal pill (1-2 red,
 							     3 yellow, 4-5 green — shared constants/internetLink.js).
@@ -2122,7 +2060,7 @@
 							</span>
 							<!-- "# of Refund" 1d/2d/3d (RF tickets submitted per day, any
 							     status - counted from refund_tickets by vend_id; Daniel 2026-08-24).
-							     Coloring mirrors the PWRON block (now in the Temperature column):
+							     Coloring mirrors the PWRON block (now in the Machine Status column):
 							       - 1d: red if 1d > 2d, green if 1d < 2d, black if equal
 							       - 2d: red if 2d > 3d, green if 2d < 3d, black if equal
 							       - 3d: always black (baseline)
@@ -3105,6 +3043,81 @@
 													</span>
 											</div>
 							</div>
+							<!-- PWRON 1d/2d/3d trend (counts from vend_daily_stats).
+							     Coloring (inactive machines stay gray):
+							       - 1d: red if 1d > 2d, green if 1d < 2d, black if equal
+							       - 2d: red if 2d > 3d, green if 2d < 3d, black if equal
+							       - 3d: always black (baseline for comparison)
+							     v-if guards the block when the controller hasn't
+							     attached the counts (e.g. older /vends path). -->
+							<template v-if="vend.pwron_1d_count !== null && vend.pwron_1d_count !== undefined">
+								<hr class="border-t border-gray-300 my-2 w-full" />
+								<div class="flex justify-center items-center space-x-1 text-sm">
+									<span
+										:class="
+											(vend.is_active || vend.is_testing) ?
+											(
+												vend.pwron_1d_count > vend.pwron_2d_count ? 'text-red-700' :
+												(vend.pwron_1d_count < vend.pwron_2d_count ? 'text-green-700' : 'text-gray-900')
+											) :
+											'text-gray-400'
+										"
+									>
+										{{ vend.pwron_1d_count }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span
+										:class="
+											(vend.is_active || vend.is_testing) ?
+											(
+												vend.pwron_2d_count > vend.pwron_3d_count ? 'text-red-700' :
+												(vend.pwron_2d_count < vend.pwron_3d_count ? 'text-green-700' : 'text-gray-900')
+											) :
+											'text-gray-400'
+										"
+									>
+										{{ vend.pwron_2d_count }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span :class="(vend.is_active || vend.is_testing) ? 'text-gray-900' : 'text-gray-400'">
+										{{ vend.pwron_3d_count }}
+									</span>
+								</div>
+							</template>
+							<!-- MQTT Offline 1d/2d/3d in minutes (vend_daily_stats metric=
+							     mqtt_offline_s). Absolute colouring, not trend: <10 green,
+							     10-59 amber, 60+ red; inactive machines gray. "–" when the
+							     machine sent no link health that day (older build). Shown
+							     only once the controller has enriched the fields. -->
+							<template v-if="vend.mqtt_offline_1d_s !== undefined">
+								<hr class="border-t border-gray-300 my-2 w-full" />
+								<div class="flex justify-center items-center space-x-1 text-sm">
+									<span
+										:class="mqttOfflineClass(vend, vend.mqtt_offline_1d_s)"
+										v-tooltip="mqttLinkTooltip(vend)"
+									>
+										{{ mqttOfflineMinutes(vend.mqtt_offline_1d_s) }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span :class="mqttOfflineClass(vend, vend.mqtt_offline_2d_s)">
+										{{ mqttOfflineMinutes(vend.mqtt_offline_2d_s) }}
+									</span>
+									<span class="text-gray-400">/</span>
+									<span :class="mqttOfflineClass(vend, vend.mqtt_offline_3d_s)">
+										{{ mqttOfflineMinutes(vend.mqtt_offline_3d_s) }}
+									</span>
+								</div>
+							</template>
+							<!-- Unsent Sales: count · age of the oldest (vend_daily_stats
+							     metric=trade_queue / trade_queue_age_s, today's latest reading). -->
+							<template v-if="vend.trade_queue !== undefined">
+								<hr class="border-t border-gray-300 my-2 w-full" />
+								<div class="flex justify-center items-center space-x-1 text-sm">
+									<span :class="tradeQueueClass(vend)" v-tooltip="tradeQueueTooltip(vend)">
+										{{ tradeQueueLabel(vend) }}
+									</span>
+								</div>
+							</template>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_driver')">
@@ -3643,6 +3656,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	import SingleSortItem from '@/Components/SingleSortItem.vue';
 	import { ref, computed, onMounted, defineAsyncComponent, watch, nextTick } from 'vue';
 	import { router, Link, Head, usePage } from '@inertiajs/vue3';
+	import { useStorage } from '@vueuse/core';
 	import { hiplDefaultOperators } from '@/constants/defaultOperators';
 	import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 	import moment from 'moment';
@@ -4082,6 +4096,8 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	const frequencyPerWeekOptions = ref([])
 	const isActiveFactoryOptions = ref([])
 	const isShowOperationDiv = ref(false)
+	// The header fills most of a phone's screen, so a phone opens without it. Per browser, like the sidebar.
+	const isTableHeaderHidden = useStorage('mark1-ops-table-header-hidden', window.innerWidth < 768)
 	const isSelectedAll = ref(false)
 	const loading = ref(false)
 	const lcdMonitorOptions = ref([])
