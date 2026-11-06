@@ -32,6 +32,10 @@ use Illuminate\Support\Facades\DB;
  * the QR shows at once even with the board's data link down. The first valid open stores it in
  * `freezer_receipts`, and the stored value decides every later open — a key change never breaks a
  * link a customer already holds.
+ *
+ * The same row says who followed the link (Brian, 2026-11-05): `first_opened_at` set = scanned,
+ * `final_seen_at` set = the page showed that viewer the decided outcome. No login, so it is a phone,
+ * never a person. Link previews and scripts are not viewers ({@see viewerDevice()}).
  */
 class FreezerReceipt
 {
@@ -50,6 +54,9 @@ class FreezerReceipt
 
     /** "SF-<vend code>-<epoch>-<seq>", the freezer's own session ref (the TRADE's SFREF). */
     private const SESSION_REF = '/^SF-(\d+)-(\d{9,11})-\d+$/';
+
+    /** Link previews, crawlers and scripts. "(?<!cu)bot" because CUBOT is an Android phone brand. */
+    private const NOT_A_VIEWER = '/(?<!cu)bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|curl|wget|python|okhttp|go-http|java\/|headless/i';
 
     public function __construct(
         private readonly FreezerSaleLocator $locator,
@@ -78,11 +85,26 @@ class FreezerReceipt
         return preg_match(self::SESSION_REF, $sessionRef, $m) === 1 && $m[1] === (string) $vend->code;
     }
 
-    /**
-     * Is $signature this session's link? The first valid open is remembered and decides from then
-     * on. Counting is for opens of the page, not for its own refresh calls.
-     */
-    public function verify(Vend $vend, string $sessionRef, string $signature, bool $countOpen): bool
+    /** The kind of device behind a user agent, or null when it is no person's browser. */
+    public static function viewerDevice(?string $userAgent): ?string
+    {
+        $userAgent = (string) $userAgent;
+        if ($userAgent === '' || preg_match(self::NOT_A_VIEWER, $userAgent) === 1) {
+            return null;
+        }
+
+        return match (true) {
+            str_contains($userAgent, 'iPhone') => 'iPhone',
+            str_contains($userAgent, 'iPad') => 'iPad',
+            str_contains($userAgent, 'Android') => 'Android',
+            str_contains($userAgent, 'Windows') => 'Windows',
+            str_contains($userAgent, 'Macintosh') => 'Mac',
+            default => 'Other',
+        };
+    }
+
+    /** Is $signature this session's link? The first valid open is remembered and decides from then on. */
+    public function verify(Vend $vend, string $sessionRef, string $signature): bool
     {
         if ($signature === '' || ! self::isSessionRefOf($vend, $sessionRef)) {
             return false;
@@ -109,19 +131,31 @@ class FreezerReceipt
             }
         }
 
-        if ($valid && $countOpen) {
-            DB::table('freezer_receipts')
-                ->where('vend_id', $vend->id)
-                ->where('session_ref', $sessionRef)
-                ->update([
-                    'open_count' => DB::raw('open_count + 1'),
-                    'first_opened_at' => DB::raw('COALESCE(first_opened_at, NOW())'),
-                    'last_opened_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
+        return $valid;
+    }
+
+    /**
+     * A viewer has the page, showing $status. Only a new open counts: the page reloading itself when
+     * the invoice changes is the same viewer. A device stays as first seen.
+     */
+    public function recordView(Vend $vend, string $sessionRef, string $status, string $device, bool $isNewOpen): void
+    {
+        $receipt = fn () => DB::table('freezer_receipts')->where('vend_id', $vend->id)->where('session_ref', $sessionRef);
+
+        $changes = [
+            'first_opened_at' => DB::raw('COALESCE(first_opened_at, NOW())'),
+            'updated_at' => Carbon::now(),
+        ];
+        if ($isNewOpen) {
+            $changes['open_count'] = DB::raw('open_count + 1');
+            $changes['last_opened_at'] = Carbon::now();
+        }
+        if (in_array($status, [self::FINAL, self::NOTHING, self::NOT_COMPLETED], true)) {
+            $changes['final_seen_at'] = DB::raw('COALESCE(final_seen_at, NOW())');
         }
 
-        return $valid;
+        $receipt()->update($changes);
+        $receipt()->whereNull('device')->update(['device' => $device]);
     }
 
     /**

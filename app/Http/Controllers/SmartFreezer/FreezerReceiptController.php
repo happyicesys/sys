@@ -21,11 +21,18 @@ class FreezerReceiptController extends Controller
 
     public function show(Request $request, string $code, string $ref): Response
     {
-        $vend = $this->authorised($request, $code, $ref, countOpen: true);
+        $vend = $this->authorised($request, $code, $ref);
+        $receipt = $this->receipts->state($vend, $ref);
+
+        // `auto` marks the page's own reload when the invoice changes: the same viewer, not a new open.
+        $device = FreezerReceipt::viewerDevice($request->userAgent());
+        if ($device !== null && $request->isMethod('GET')) {
+            $this->receipts->recordView($vend, $ref, $receipt['status'], $device, isNewOpen: ! $request->boolean('auto'));
+        }
 
         return response()
             ->view('freezer-receipt', [
-                'receipt' => $this->receipts->state($vend, $ref),
+                'receipt' => $receipt,
                 'stateUrl' => url('/r/'.$vend->code.'/'.$ref.'/state').'?s='.urlencode((string) $request->query('s')),
             ])
             ->header('Cache-Control', 'no-store')
@@ -34,7 +41,7 @@ class FreezerReceiptController extends Controller
 
     public function state(Request $request, string $code, string $ref): JsonResponse
     {
-        $vend = $this->authorised($request, $code, $ref, countOpen: false);
+        $vend = $this->authorised($request, $code, $ref);
         $state = $this->receipts->state($vend, $ref);
 
         return response()
@@ -42,12 +49,12 @@ class FreezerReceiptController extends Controller
             ->header('Cache-Control', 'no-store');
     }
 
-    private function authorised(Request $request, string $code, string $ref, bool $countOpen): Vend
+    private function authorised(Request $request, string $code, string $ref): Vend
     {
         $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)->bareCode($code)->first();
         abort_unless(
             $vend !== null && $vend->isSmartFreezer()
-                && $this->receipts->verify($vend, $ref, (string) $request->query('s', ''), $countOpen),
+                && $this->receipts->verify($vend, $ref, (string) $request->query('s', '')),
             404,
         );
 

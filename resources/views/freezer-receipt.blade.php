@@ -203,6 +203,17 @@
     </div>
 </div>
 
+@if (request()->boolean('auto'))
+<script>
+// The page's own reload marker. Gone from the address bar, so a shared link or a refresh is a real open.
+(function () {
+    var clean = new URL(window.location.href);
+    clean.searchParams.delete('auto');
+    window.history.replaceState(null, '', clean.toString());
+})();
+</script>
+@endif
+
 @if ($live)
 <script>
 (function () {
@@ -214,7 +225,11 @@
             .then(function (res) { return res.ok ? res.json() : null; })
             .then(function (s) {
                 if (!s) return;
-                if (s.version !== version) { window.location.reload(); }
+                if (s.version !== version) {
+                    var next = new URL(window.location.href);
+                    next.searchParams.set('auto', '1');
+                    window.location.replace(next.toString());
+                }
             })
             .catch(function () {})
             .finally(function () { setTimeout(tick, every); });

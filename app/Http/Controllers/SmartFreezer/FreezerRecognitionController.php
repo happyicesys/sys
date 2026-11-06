@@ -32,6 +32,7 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use InvalidArgumentException;
 
@@ -49,6 +50,9 @@ class FreezerRecognitionController extends Controller
 
     /** How long after a door session starts a hold with no session can still be its payment (session 9 took 2m41s over three tries). */
     private const SESSIONLESS_HOLD_WINDOW_SECONDS = 600;
+
+    /** Freezer app 41 published, 2026-11-02 16:39: a session before this never showed the invoice QR. */
+    private const INVOICE_QR_SINCE = 1793608740;
 
     /**
      * The row's main time (Brian, 2026-11-03): its sale's Transaction DateTime, the time Sales
@@ -144,6 +148,7 @@ class FreezerRecognitionController extends Controller
         $doorErrors = $this->doorErrors($page->getCollection());
         $purchasedProducts = $this->purchasedProducts($page->getCollection(), $failedSessions);
         $sites = $this->sites($page->getCollection());
+        $invoiceScans = $this->invoiceScans($page->getCollection());
         $happyHour = CampaignLabelFilter::happyHourLabels($page->getCollection()->map(fn (SmartFreezerRecognition $r) => $r->vendTransaction)->filter()
             ->flatMap(fn (VendTransaction $sale) => $sale->vendTransactionItems->pluck('happy_hour_slot_id')->push($sale->happy_hour_slot_id)));
 
@@ -157,6 +162,7 @@ class FreezerRecognitionController extends Controller
         $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards, $purchasedProducts, $happyHour, $payments, $failedSessions) + [
             'door_error' => $this->doorError($r, $doorErrors, $failedSessions),
             'clips' => $clips[$r->id] ?? [],
+            'invoice' => $this->invoiceScan($r, $invoiceScans),
             'site' => $sites[$r->vendTransaction?->customer_id ?? $r->vend?->customer_id] ?? null,
         ]);
 
@@ -208,15 +214,17 @@ class FreezerRecognitionController extends Controller
     private function dashboard($query): array
     {
         $rows = $query->reorder()
-            ->setEagerLoads(['vendTransaction' => fn ($sale) => $sale->select(['id', 'amount', 'is_refunded', 'settlement_status', 'meta_json'])])
+            ->setEagerLoads(['vendTransaction' => fn ($sale) => $sale->select(['id', 'amount', 'is_refunded', 'settlement_status', 'meta_json', 'vend_transaction_json'])])
             ->get(['id', 'vend_id', 'session_ref', 'vend_transaction_id', 'verdict', 'verdict_lines']);
         $failed = $this->failedSessions($rows);
         $cards = $this->cardCharges($rows, $failed);
         $doorErrors = $this->doorErrors($rows);
+        $invoiceScans = $this->invoiceScans($rows);
 
         $charged = $refunded = 0;
         $outcomes = ['successful' => 0, 'void' => 0, 'machine_error' => 0, 'other' => 0];
         $correct = $adjusted = $unchecked = 0;
+        $invoiceSales = $invoiceScanned = $invoiceFinalSeen = 0;
         foreach ($rows as $r) {
             $sale = $r->vendTransaction;
             $card = $r->session_ref ? ($cards[$r->vend_id.'|'.$r->session_ref] ?? null) : null;
@@ -239,6 +247,14 @@ class FreezerRecognitionController extends Controller
             $correct += $rowCorrect;
             $adjusted += $rowAdjusted;
             $unchecked += $rowUnchecked;
+
+            // The scan rate is over real paid sales that showed the QR, so staff in Testing Mode do not lift it.
+            $invoice = $this->invoiceScan($r, $invoiceScans);
+            if ($rowCharged > 0 && $invoice['offered'] && ! FreezerTestSale::is($sale)) {
+                $invoiceSales++;
+                $invoiceScanned += $invoice['opened_at'] !== null ? 1 : 0;
+                $invoiceFinalSeen += $invoice['final_seen_at'] !== null ? 1 : 0;
+            }
         }
         $totalQty = $correct + $adjusted + $unchecked;
 
@@ -252,6 +268,45 @@ class FreezerRecognitionController extends Controller
             'adjusted_qty' => $adjusted,
             'unchecked_qty' => $unchecked,
             'total_qty' => $totalQty,
+            'invoice_sales' => $invoiceSales,
+            'invoice_scanned' => $invoiceScanned,
+            'invoice_scanned_pct' => $invoiceSales > 0 ? round($invoiceScanned / $invoiceSales * 100, 2) : null,
+            'invoice_final_seen' => $invoiceFinalSeen,
+        ];
+    }
+
+    /**
+     * The invoice QR's scans, batched: a row whose first open is empty only pinned a signature.
+     *
+     * @return array<string, object> "vend_id|session_ref" => its freezer_receipts row
+     */
+    private function invoiceScans($recognitions): array
+    {
+        $refs = $recognitions->pluck('session_ref')->filter()->unique()->values();
+        if ($refs->isEmpty()) {
+            return [];
+        }
+
+        return DB::table('freezer_receipts')
+            ->whereIn('vend_id', $recognitions->pluck('vend_id')->filter()->unique()->values())
+            ->whereIn('session_ref', $refs)
+            ->whereNotNull('first_opened_at')
+            ->get(['vend_id', 'session_ref', 'open_count', 'first_opened_at', 'final_seen_at', 'device'])
+            ->keyBy(fn (object $scan) => $scan->vend_id.'|'.$scan->session_ref)
+            ->all();
+    }
+
+    /** One session's invoice QR as the page shows it. `offered` = the app of its day could show one. */
+    private function invoiceScan(SmartFreezerRecognition $r, array $invoiceScans): array
+    {
+        $scan = $invoiceScans[$r->vend_id.'|'.$r->session_ref] ?? null;
+
+        return [
+            'offered' => (self::sessionStart($r->session_ref) ?? 0) >= self::INVOICE_QR_SINCE,
+            'opened_at' => $scan?->first_opened_at,
+            'opens' => (int) ($scan?->open_count ?? 0),
+            'final_seen_at' => $scan?->final_seen_at,
+            'device' => $scan?->device,
         ];
     }
 

@@ -1622,6 +1622,15 @@ The heading reads "Tax Invoice" only once the operator's profile (`operators.pro
 ICE PTE LTD) has `gst_reg_no`; otherwise "Receipt". Customer-facing, so English only. The
 bear art (`public/img/freezer-receipt/`) is the freezer APK's own. Regression coverage: `tests/Feature/FreezerReceiptTest.php`.
 
+**Who follows the invoice QR** (Brian, 2026-11-05): `freezer_receipts.first_opened_at` set = scanned (no separate boolean;
+a row with it empty only pinned a signature), `final_seen_at` set = the page showed that viewer a decided outcome (`final`,
+`nothing`, `not_completed`), `device` = the kind of phone at the first open. The page has no login, so this names a phone,
+never a person, and the raw user agent and IP are not stored. `open_count` skips the page's own reload (`?auto=1`, which it
+then removes from the address bar); a manual refresh still counts. Link previews, crawlers and scripts are not viewers
+(`FreezerReceipt::viewerDevice`). AI Recognition shows it per session ("Invoice QR" column) and as a box on the AI Dashboard:
+scan rate over paid sales from app 41 on, Testing Mode left out. Staff scanning on a real purchase still count as customers.
+A row opened before 2026-11-05 has no device and no `final_seen_at`, and its `open_count` includes reloads.
+
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
 permission `ai-recognition` read: superadmin/admin/supervisor) lists every recognition:
 the sale's Order ID and Transaction DateTime first (Brian, 2026-11-03: the reference and the time

@@ -23,6 +23,7 @@ use App\Services\CardTerminal\TerminalTransaction;
 use App\Services\SmartFreezer\DoorFault;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Permission;
 use Tests\Support\FakeRemoteCardTerminalGateway;
@@ -118,6 +119,54 @@ class AiRecognitionPageTest extends TestCase
             'reference' => 'SF'.uniqid(), 'custom_order_id' => '50001-SF'.uniqid(), 'session_ref' => $sessionRef, 'mode' => 'preauth',
             'amount_cents' => 500, 'captured_cents' => $capturedCents ?: null, 'refunded_cents' => $refundedCents, 'state' => $state,
         ]);
+    }
+
+    private function invoiceScan(string $sessionRef, array $attributes = []): void
+    {
+        DB::table('freezer_receipts')->insert($attributes + [
+            'vend_id' => $this->vend->id, 'session_ref' => $sessionRef, 'signature' => 'sig', 'open_count' => 1,
+            'first_opened_at' => '2026-11-05 12:00:00', 'device' => 'Android',
+        ]);
+    }
+
+    /** Brian, 2026-11-05: who followed the invoice QR, per session and as a rate over real paid sales. */
+    public function test_it_shows_invoice_qr_scans_and_their_rate_over_real_paid_sales(): void
+    {
+        // Paid and followed to the final amount.
+        $this->recognition(['session_ref' => 'SF-50001-1793780000-1', 'vend_transaction_id' => $this->dashboardSale(350)->id]);
+        $this->invoiceScan('SF-50001-1793780000-1', ['final_seen_at' => '2026-11-05 12:01:00']);
+        // Paid, scanned, gone before the amount was decided.
+        $this->recognition(['session_ref' => 'SF-50001-1793780100-2', 'vend_transaction_id' => $this->dashboardSale(200)->id]);
+        $this->invoiceScan('SF-50001-1793780100-2');
+        // Paid, not scanned.
+        $this->recognition(['session_ref' => 'SF-50001-1793780200-3', 'vend_transaction_id' => $this->dashboardSale(150)->id]);
+        // Only pinned a signature (a refresh call): no scan.
+        $this->recognition(['session_ref' => 'SF-50001-1793780300-4', 'vend_transaction_id' => $this->dashboardSale(150)->id]);
+        $this->invoiceScan('SF-50001-1793780300-4', ['first_opened_at' => null, 'open_count' => 0, 'device' => null]);
+        // Testing Mode: scanned, but out of the rate.
+        $this->recognition(['session_ref' => 'SF-50001-1793780400-5', 'vend_transaction_id' => $this->dashboardSale(20, ['vend_transaction_json' => ['TEST' => 1]])->id]);
+        $this->invoiceScan('SF-50001-1793780400-5');
+        // Before app 41: no QR was ever shown, though a person opened the link by hand.
+        $this->recognition(['session_ref' => 'SF-50001-1791539003-2', 'vend_transaction_id' => $this->dashboardSale(22)->id]);
+        $this->invoiceScan('SF-50001-1791539003-2', ['device' => null]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=&date_to=')
+            ->assertInertia(function (AssertableInertia $page) {
+                $page->where('dashboard.invoice_sales', 4)
+                    ->where('dashboard.invoice_scanned', 2)
+                    ->where('dashboard.invoice_scanned_pct', 50)
+                    ->where('dashboard.invoice_final_seen', 1);
+
+                $invoice = collect($page->toArray()['props']['recognitions']['data'])->pluck('invoice', 'session_ref');
+                $this->assertSame('Android', $invoice['SF-50001-1793780000-1']['device']);
+                $this->assertSame('2026-11-05 12:01:00', $invoice['SF-50001-1793780000-1']['final_seen_at']);
+                $this->assertSame('2026-11-05 12:00:00', $invoice['SF-50001-1793780100-2']['opened_at']);
+                $this->assertNull($invoice['SF-50001-1793780100-2']['final_seen_at']);
+                $this->assertNull($invoice['SF-50001-1793780200-3']['opened_at']);
+                $this->assertTrue($invoice['SF-50001-1793780200-3']['offered']);
+                $this->assertNull($invoice['SF-50001-1793780300-4']['opened_at']);
+                $this->assertFalse($invoice['SF-50001-1791539003-2']['offered']);
+            });
     }
 
     /** Each session lands in one outcome, and the money is what the rail took and gave back. */

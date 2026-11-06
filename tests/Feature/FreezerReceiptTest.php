@@ -267,5 +267,65 @@ class FreezerReceiptTest extends TestCase
 
         $this->assertNotSame($before, $after);
         $this->assertSame(0, (int) DB::table('freezer_receipts')->value('open_count'), 'refreshes are not opens');
+        $this->assertNull(DB::table('freezer_receipts')->value('first_opened_at'), 'a refresh call alone is no scan');
+    }
+
+    private const ANDROID = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36';
+
+    /** Brian, 2026-11-05: a scan is a phone on the page, and following it means seeing the final amount. */
+    public function test_a_t05_scan_records_the_phone_and_when_the_final_amount_was_seen(): void
+    {
+        $this->doorClosed(380);
+        $sale = $this->trade(units: 1);
+
+        $this->withHeader('User-Agent', self::ANDROID)->get($this->link())->assertOk();
+        $row = DB::table('freezer_receipts')->first();
+        $this->assertNotNull($row->first_opened_at);
+        $this->assertSame('Android', $row->device);
+        $this->assertSame(1, (int) $row->open_count);
+        $this->assertNull($row->final_seen_at, 'still calculating');
+
+        $this->verdict('match', 1, 1, $sale);
+        $this->service->reconcile();
+
+        // The page's own reload once the amount is decided: the same viewer, not a second open.
+        $this->withHeader('User-Agent', self::ANDROID)->get($this->link().'&auto=1')->assertOk()
+            ->assertSee("searchParams.delete('auto')", false);
+        $row = DB::table('freezer_receipts')->first();
+        $this->assertSame(1, (int) $row->open_count);
+        $this->assertNotNull($row->final_seen_at);
+    }
+
+    public function test_a_paynow_scan_sees_the_final_amount_at_once_and_a_refresh_is_another_open(): void
+    {
+        $this->trade(units: 1, paymentType: 0);
+
+        $this->withHeader('User-Agent', self::ANDROID)->get($this->link())->assertOk();
+        $this->withHeader('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1')->get($this->link())->assertOk();
+
+        $row = DB::table('freezer_receipts')->first();
+        $this->assertNotNull($row->final_seen_at);
+        $this->assertSame(2, (int) $row->open_count);
+        $this->assertSame('Android', $row->device, 'the first phone stays');
+    }
+
+    public function test_a_link_preview_gets_the_page_but_is_not_a_scan(): void
+    {
+        $this->trade(units: 1, paymentType: 0);
+
+        foreach (['WhatsApp/2.23.20 A', 'TelegramBot (like TwitterBot)', 'facebookexternalhit/1.1', 'curl/8.4.0', 'okhttp/4.12.0', ''] as $notAViewer) {
+            $this->withHeader('User-Agent', $notAViewer)->get($this->link())->assertOk();
+        }
+        $this->withHeader('User-Agent', self::ANDROID)->head($this->link())->assertOk();
+
+        $row = DB::table('freezer_receipts')->first();
+        $this->assertNull($row->first_opened_at);
+        $this->assertSame(0, (int) $row->open_count);
+        $this->assertNull($row->device);
+    }
+
+    public function test_a_cubot_phone_is_a_viewer(): void
+    {
+        $this->assertSame('Android', FreezerReceipt::viewerDevice('Mozilla/5.0 (Linux; Android 10; CUBOT X50) Chrome/120.0 Mobile'));
     }
 }

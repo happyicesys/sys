@@ -132,7 +132,7 @@
         </div>
 
         <!-- Totals over everything the filters list. Each session lands in one outcome and its units in one count. -->
-        <dl class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+        <dl class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
           <div class="overflow-hidden rounded-lg bg-gray-100 px-4 py-3 shadow">
             <p class="text-base font-bold text-gray-800">{{ $t('Total Sales $') }}</p>
             <div class="mt-1 flex justify-between gap-2">
@@ -190,6 +190,24 @@
             <div class="mt-1 flex justify-between gap-2 border-t border-gray-300 pt-1">
               <dt>{{ $t('Total Qty') }}:</dt>
               <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.total_qty.toLocaleString() }}</dd>
+            </div>
+          </div>
+          <div class="overflow-hidden rounded-lg bg-gray-100 px-4 py-3 shadow">
+            <p class="text-base font-bold text-gray-800">{{ $t('Invoice QR') }}</p>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Sales whose invoice QR was opened on a phone. We know the phone, not the person.')">{{ $t('Scanned') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">
+                {{ dashboard.invoice_scanned.toLocaleString() }}
+                <span v-if="dashboard.invoice_scanned_pct !== null" class="text-xs font-normal text-gray-500">({{ dashboard.invoice_scanned_pct.toFixed(2) }}%)</span>
+              </dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('The page showed the final amount on that phone. A T05 amount comes after the AI.')">{{ $t('Saw final amount') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.invoice_final_seen.toLocaleString() }}</dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2 border-t border-gray-300 pt-1">
+              <dt tabindex="0" v-tooltip="$t('Paid sales from freezer app 41 on. Testing Mode sales are left out.')">{{ $t('Paid sales') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.invoice_sales.toLocaleString() }}</dd>
             </div>
           </div>
         </dl>
@@ -321,6 +339,9 @@
                   </TableHead>
                   <TableHead>
                     {{ $t('Settlement') }}
+                  </TableHead>
+                  <TableHead>
+                    {{ $t('Invoice QR') }}
                   </TableHead>
                 </tr>
               </thead>
@@ -557,9 +578,21 @@
                   </TableData>
                   <!-- Left blank on purpose (Brian, 2026-11-05: he builds it later). See T05_SETTLEMENT_PLAN_2026-11-05.md. -->
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center"></TableData>
+                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
+                    <div v-if="row.invoice.opened_at" class="flex w-28 flex-col space-y-0.5 text-xs">
+                      <span class="w-fit rounded border border-green-300 bg-green-100 px-1.5 py-0.5 font-bold text-green-800">{{ $t('Scanned') }}</span>
+                      <span class="text-gray-700">{{ row.invoice.opened_at }}</span>
+                      <span v-if="row.invoice.device" class="text-gray-500">{{ row.invoice.device === 'Other' ? $t('Other') : row.invoice.device }}<template v-if="row.invoice.opens > 1"> · {{ $t(':count opens', { count: row.invoice.opens }) }}</template></span>
+                      <!-- A row with no device was opened before this was recorded, so what it saw is unknown. -->
+                      <span v-if="row.invoice.final_seen_at" class="text-green-700">{{ $t('Saw final amount') }}</span>
+                      <span v-else-if="row.invoice.device" class="text-amber-700">{{ $t('Final amount not seen') }}</span>
+                    </div>
+                    <span v-else-if="row.invoice.offered" class="whitespace-nowrap text-xs text-gray-500">{{ $t('Not scanned') }}</span>
+                    <span v-else class="text-gray-400">—</span>
+                  </TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
-                  <td colspan="9" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                     {{ $t('No Results Found') }}
                   </td>
                 </tr>
