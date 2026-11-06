@@ -229,6 +229,29 @@ class FreezerSaleCorrectionTest extends TestCase
         $this->assertSame([12, 11], [$this->qty($this->cone), $this->qty($this->bar)]);
     }
 
+    // 50002, 2026-11-06: a release at 0 showed no adjustment, so the person adjusted again.
+    public function test_one_adjust_that_releases_the_hold_also_shows_as_adjusted(): void
+    {
+        $this->holdOpen();
+        $sale = $this->heldSale();
+        $recognition = $this->recognition($sale);
+
+        $this->correct($recognition, [], 0)->assertOk();
+
+        $meta = (array) $sale->fresh()->meta_json;
+        $this->assertSame(0, (int) $meta['correction']['value_cents']);
+        $this->assertSame([], $meta['correction']['lines']);
+        $this->assertSame('Admin One', $meta['correction']['by']['name']);
+        $this->assertCount(1, $meta['corrections']);
+        $this->assertSame([12, 11], [$this->qty($this->cone), $this->qty($this->bar)], 'recording it puts the stock back once');
+        $this->assertCount(1, $this->gateway->callsOf('void'));
+
+        $this->actingAs($this->admin)->get('/ai-recognition?date_from=&date_to=')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.correction.by', 'Admin One')
+                ->where('recognitions.data.0.correction.value_cents', 0));
+    }
+
     public function test_a_hold_the_ai_may_still_answer_cannot_be_corrected(): void
     {
         $this->holdOpen()->update(['door_closed_at' => Carbon::now()]);

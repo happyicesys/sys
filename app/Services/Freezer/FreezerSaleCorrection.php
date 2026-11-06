@@ -115,9 +115,12 @@ class FreezerSaleCorrection
             $this->assertCorrectable($sale, $vend, $intent);
             [$cents, $prices] = $this->value($basket, $sale, $vend, $intent, $confirmedCents);
             $intent = $this->payments->chargeByPerson($intent, $cents, $by, $basket, $prices);
-            // The charge is done: record the count on the sale too, or the row shows no adjustment
-            // and the person has to adjust a second time.
-            if ($intent->state === CardPaymentIntent::STATE_CAPTURED) {
+            // The charge or the release is done: record the count on the sale too, or the row shows
+            // no adjustment and the person has to adjust a second time. A count of nothing releases
+            // the hold, and that is an adjustment as much as a charge (50002, 2026-11-06: released at
+            // 0, nothing showed, adjusted again to 1 and the $3 was booked as owed).
+            if ($intent->state === CardPaymentIntent::STATE_CAPTURED
+                || ($intent->state === CardPaymentIntent::STATE_VOIDED && $cents === 0)) {
                 $this->write($sale->fresh(), $basket, $prices, $cents, $by);
             }
 
