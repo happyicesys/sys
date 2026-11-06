@@ -306,19 +306,18 @@ class SyncVendTransactionTotalsJson implements ShouldBeUnique, ShouldQueue
     }
 
     /**
-     * touch_usage / cashless_usage / happy_hour for the dashboard's trend graphs. Vending machines only: a
-     * freezer or chiller has no keypad, cash or Happy Hour line to compare with. Keys always present (null
-     * otherwise), so a machine that stops qualifying loses a stale graph.
+     * touch_usage / cashless_usage / happy_hour for the dashboard's trend graphs. Touch and cashless are vending
+     * machines only: a freezer or chiller has no keypad or cash to compare with. Happy Hour is any machine that
+     * ran a slot in 30 days, smart freezers included (Brian, 2026-11-05). Keys always present (null otherwise),
+     * so a machine that stops qualifying loses a stale graph.
      *
      * @return array{touch_usage: ?array, cashless_usage: ?array, happy_hour: ?array}
      */
     private function trends(Vend $vend, MachineHappyHourTrend $happyHourTrend): array
     {
-        if (($vend->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) !== Vend::MACHINE_TYPE_VENDING_MACHINE) {
-            return ['touch_usage' => null, 'cashless_usage' => null, 'happy_hour' => null];
-        }
+        $isVending = ($vend->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) === Vend::MACHINE_TYPE_VENDING_MACHINE;
 
-        return TransactionMix::forVend((int) $vend->id)
+        return ($isVending ? TransactionMix::forVend((int) $vend->id) : ['touch_usage' => null, 'cashless_usage' => null])
             + ['happy_hour' => $happyHourTrend->forVend((int) $vend->id)];
     }
 

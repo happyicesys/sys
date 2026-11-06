@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Models\Customer;
+use App\Models\HappyHourSlot;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Models\VendChannelError;
@@ -18,7 +19,7 @@ use Tests\TestCase;
  * Touch screen and cashless rates (Brian, 2026-10-22/23) by TRANSACTION count, not pieces — a touch screen basket
  * holds several. Pinned: TXN_SRC 1 is the touch screen but Grab Mart is not, every method but cash is cashless and a
  * sale with no method on record is left out of that share, a failed or refunded sale is no transaction, each window
- * has its own edges, and the totals job stores them for vending machines only.
+ * has its own edges, and the totals job stores them for vending machines only (Happy Hour's trend: any machine with a slot).
  */
 class TransactionMixTest extends TestCase
 {
@@ -112,6 +113,34 @@ class TransactionMixTest extends TestCase
         $freezerTotals = $freezer->fresh()->vend_transaction_totals_json;
         $this->assertNull($freezerTotals['touch_usage'], 'a freezer has no keypad to compare with');
         $this->assertNull($freezerTotals['cashless_usage']);
-        $this->assertNull($freezerTotals['happy_hour']);
+        $this->assertNull($freezerTotals['happy_hour'], 'no Happy Hour slot in 30 days');
+    }
+
+    /** 50001 showed the "★ HH" box with no L7d Non-HH line and no Daily HH graph, 2026-11-05. */
+    public function test_the_totals_job_stores_the_happy_hour_trend_for_a_smart_freezer(): void
+    {
+        $freezer = $this->vend(50010, Vend::MACHINE_TYPE_SMART_FREEZER);
+        $campaignId = DB::table('happy_hour_campaigns')->insertGetId([
+            'name' => 'Default 30%', 'window_start' => '00:00:00', 'window_end' => '23:59:00', 'discount_pct' => 30,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $slotId = DB::table('happy_hour_slots')->insertGetId([
+            'happy_hour_campaign_id' => $campaignId, 'vend_id' => $freezer->id, 'product_id' => 1,
+            'slot_date' => '2026-10-22', 'position' => 0, 'starts_at' => '2026-10-22 10:00:00',
+            'ends_at' => '2026-10-22 11:00:00', 'original_price' => 300, 'promo_price' => 200,
+            'discount_pct' => 30, 'rank' => 1, 'status' => HappyHourSlot::STATUS_ENDED, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->sale($freezer, '2026-10-22 10:10:00', 1, 'card');
+        DB::table('vend_transactions')->where('vend_id', $freezer->id)->update(['happy_hour_slot_id' => $slotId]);
+
+        app()->call([new SyncVendTransactionTotalsJson($freezer), 'handle']);
+
+        $totals = $freezer->fresh()->vend_transaction_totals_json;
+        $this->assertSame(1, $totals['happy_hour']['daily_units']['today']);
+        $this->assertSame(0.0, (float) $totals['happy_hour']['non_hh_pct_7d']);
+        $this->assertNull($totals['touch_usage'], 'still no keypad to compare with');
+        $this->assertNull($totals['cashless_usage']);
+        $siteTotals = json_decode((string) DB::table('customers')->where('id', $freezer->customer_id)->value('totals_json'), true);
+        $this->assertSame(1, $siteTotals['happy_hour']['daily_units']['today'] ?? null, 'the Site totals carry it too');
     }
 }
