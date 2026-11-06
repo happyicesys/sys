@@ -299,6 +299,45 @@
                         </div>
                       </div>
                     </div>
+                    <div class="sm:col-span-3">
+                      <FormInput v-model="form.power_socket_key_number" :error="form.errors.power_socket_key_number" :placeholderStr="$t('Power Socket Key Num')"> {{ $t('Power Socket Key Num') }} </FormInput>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                        {{ $t('Location Type') }}
+                      </label>
+                      <MultiSelect
+                        v-model="form.location_type_id"
+                        :options="locationTypeOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
+                        :placeholder="$t('Select')"
+                        open-direction="bottom"
+                        class="mt-1"
+                      ></MultiSelect>
+                      <div class="text-sm text-red-600" v-if="form.errors['customer.location_type_id']">
+                        {{ form.errors['customer.location_type_id'] }}
+                      </div>
+                    </div>
+                    <div class="sm:col-span-3">
+                      <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                        {{ $t('Is Restricted Access Location?') }}
+                      </label>
+                      <MultiSelect
+                        v-model="form.is_restricted_access"
+                        :options="booleanStrictOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
+                        :placeholder="$t('Select')"
+                        open-direction="bottom"
+                        class="mt-1"
+                      ></MultiSelect>
+                      <div class="text-sm text-red-600" v-if="form.errors['customer.is_restricted_access']">
+                        {{ form.errors['customer.is_restricted_access'] }}
+                      </div>
+                    </div>
                     <div class="sm:col-span-6">
                       <FormInput v-model="form.address.map_url" :error="form.errors['address.map_url']" :placeholderStr="$t('Google Map URL')">
                         <div class="flex space-x-1">
@@ -1287,46 +1326,6 @@
                     </div>
                   </div>
                   <!-- end Location Grading Section -->
-
-                  <div class="sm:col-span-3">
-                    <FormInput v-model="form.power_socket_key_number" :error="form.errors.power_socket_key_number" :placeholderStr="$t('Power Socket Key Num')"> {{ $t('Power Socket Key Num') }} </FormInput>
-                  </div>
-                  <div class="sm:col-span-3">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      {{ $t('Location Type') }}
-                    </label>
-                    <MultiSelect
-                      v-model="form.location_type_id"
-                      :options="locationTypeOptions"
-                      trackBy="id"
-                      valueProp="id"
-                      label="value"
-                      :placeholder="$t('Select')"
-                      open-direction="bottom"
-                      class="mt-1"
-                    ></MultiSelect>
-                    <div class="text-sm text-red-600" v-if="form.errors['customer.location_type_id']">
-                      {{ form.errors['customer.location_type_id'] }}
-                    </div>
-                  </div>
-                  <div class="sm:col-span-3">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      {{ $t('Is Restricted Access Location?') }}
-                    </label>
-                    <MultiSelect
-                      v-model="form.is_restricted_access"
-                      :options="booleanStrictOptions"
-                      trackBy="id"
-                      valueProp="id"
-                      label="value"
-                      :placeholder="$t('Select')"
-                      open-direction="bottom"
-                      class="mt-1"
-                    ></MultiSelect>
-                    <div class="text-sm text-red-600" v-if="form.errors['customer.is_restricted_access']">
-                      {{ form.errors['customer.is_restricted_access'] }}
-                    </div>
-                  </div>
                 </div>
 
                 <!-- Menu Section -->
