@@ -49,9 +49,9 @@ rebase or merge deliberately), `fetch.prune` , `merge.conflictStyle zdiff3`,
   Site's four `snap_*` columns ~30 KB. Heartbeat jobs select their columns; Ops Job edit selects every Site column but `snap_*`.
   When selecting columns on a model that is then saved, include what its hooks read (`Vend`: `machine_type`,
   `is_using_server_price`, `customer_id`, `is_testing`).
-- **Library code ships in its own `vendor` chunk** (`vite.config.js` `manualChunks`, JS only; CSS stays in `app.css`). Its hash
-  stays the same when page code changes, so a deploy re-sends ~20 KB gzipped instead of ~170 KB. Add a library to that list
-  only if the entry (`app.js`) already imports it; anything else stays lazy with its page.
+- **A Vite build is not deterministic**: identical source gives different minified names, so every rebuild rewrites
+  every asset hash (a separate `vendor` chunk was tried 2026-11-07 and reverted for that reason). Do not rebuild "to be
+  sure"; check the committed bundle for the new code instead.
 - **Log tables get a prune when they are created** (Grab Errors 30 days, `card_payment_events` status polls 30 days).
 
 ## File storage: everything goes to DO Spaces

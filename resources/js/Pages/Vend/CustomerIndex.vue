@@ -5530,7 +5530,8 @@ const nonHhTooltip = (hh) => '<div class="mb-1 font-semibold">' + t('Non-HH % (l
 	+ '<div class="mb-1 opacity-80">' + t('Related sales that were not Happy Hour units — every HH sale and every basket holding one, counted whole — the campaign page\'s formula, in $') + '</div>'
 	+ '<div>' + t('Related sales <b>:related</b>, of which Happy Hour <b>:hh</b>', { related: money(hh.related_revenue_7d), hh: money(hh.hh_revenue_7d) }) + '</div>'
 // Integer cents → the operator's currency, at display only.
-const money = (cents) => `${operatorCountry?.currency_symbol ?? '$'}${(Number(cents || 0) / Math.pow(10, operatorCountry?.currency_exponent ?? 2)).toFixed(2)}`
+// A currency shown without decimals (rupiah) prints none: IDN read "Rp20000.00" (audit 2026-11-07 UI2-07).
+const money = (cents) => `${operatorCountry?.currency_symbol ?? '$'}${(Number(cents || 0) / Math.pow(10, operatorCountry?.currency_exponent ?? 2)).toFixed(operatorCountry?.is_currency_exponent_hidden ? 0 : 2)}`
 
 // "Show Alert/Error" (Brian, 2026-10-19): a search with the page's other filters kept.
 const alertsOnly = computed(() => !!props.machineAlerts)

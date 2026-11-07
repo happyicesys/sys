@@ -95,7 +95,7 @@ Route::prefix('delivery')->group(function () {
         Route::post('/sync-menu-webhook', [DeliveryPlatformController::class, 'syncGrabMenuWebhook']);
     }
     );
-    Route::post('/order/search/{dispenseSearch?}', [DeliveryPlatformController::class, 'searchGrabOrder']);
+    Route::post('/order/search/{dispenseSearch?}', [DeliveryPlatformController::class, 'searchGrabOrder'])->middleware('throttle:grab-order-lookup');
     Route::post('/order/complaint', [DeliveryPlatformController::class, 'submitGrabOrderComplaint']);
 });
 

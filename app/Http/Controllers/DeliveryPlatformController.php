@@ -153,6 +153,16 @@ class DeliveryPlatformController extends Controller
             ], 404));
         }
 
+        // A cancelled or failed order is over: Grab refunded the customer, so the machine must not hand
+        // over the goods (audit 2026-11-07 GRAB-02). Checked on prod: no order was ever looked up after
+        // its cancel; the 4 cancelled-and-dispensed orders in 180 days were cancelled after the dispense.
+        if ($deliveryPlatformOrder->is_cancelled || in_array((int) $deliveryPlatformOrder->status, [DeliveryPlatformOrder::STATUS_CANCELLED, DeliveryPlatformOrder::STATUS_FAILED], true)) {
+            abort(response([
+                'error_code' => 404,
+                'error_message' => 'Order Cancelled',
+            ], 404));
+        }
+
         // if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
         if (!$deliveryPlatformOrder->is_verified) {
             if ($dispenseSearch) {

@@ -6203,7 +6203,7 @@ class VendController extends Controller
         $vend->fan_detected_at = null;
         $vend->save();
 
-        $message = 'Fan detection reset. It switches on again when the board reports a running fan for 60 minutes in a row.';
+        $message = __('Fan detection reset. It switches on again when the board reports a running fan for 60 minutes in a row.');
 
         return request()->expectsJson()
             ? response()->json(['message' => $message])

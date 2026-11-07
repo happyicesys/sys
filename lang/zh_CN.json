@@ -2453,6 +2453,7 @@
     "failed: :error": "失败：:error",
     "Fan": "风扇",
     "Fan control": "风扇控制",
+    "Fan detection reset. It switches on again when the board reports a running fan for 60 minutes in a row.": "风扇检测已重置。当主板连续 60 分钟报告风扇运转时，会重新开启。",
     "Fan mode": "风扇模式",
     "Fan RPM": "风扇转速",
     "Fan Speed": "风扇转速",

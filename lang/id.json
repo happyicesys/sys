@@ -2453,6 +2453,7 @@
     "failed: :error": "gagal: :error",
     "Fan": "Kipas",
     "Fan control": "Kontrol kipas",
+    "Fan detection reset. It switches on again when the board reports a running fan for 60 minutes in a row.": "Deteksi kipas direset. Akan aktif lagi saat papan melaporkan kipas berjalan selama 60 menit berturut-turut.",
     "Fan mode": "Mode kipas",
     "Fan RPM": "RPM Kipas",
     "Fan Speed": "Kecepatan Kipas",

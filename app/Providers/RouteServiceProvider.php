@@ -58,5 +58,12 @@ class RouteServiceProvider extends ServiceProvider
         RateLimiter::for('device-card', function (Request $request) {
             return Limit::perMinute(120)->by('device-card:'.$request->route('code'));
         });
+
+        // A driver keying a Grab order number in at the machine: per MACHINE (Vid), for the same NAT reason.
+        // A real driver tries a few times; 30 a minute stops someone working through order numbers at one
+        // machine to collect another customer's order (audit 2026-11-07 GRAB-01).
+        RateLimiter::for('grab-order-lookup', function (Request $request) {
+            return Limit::perMinute(30)->by('grab-order-lookup:'.(string) $request->input('Vid'));
+        });
     }
 }

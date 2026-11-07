@@ -188,6 +188,36 @@ class GrabOrderWebhookTest extends TestCase
         $this->assertSame(DeliveryPlatformOrder::STATUS_REQUESTED, DeliveryPlatformOrder::firstOrFail()->status);
     }
 
+    /** Audit 2026-11-07 GRAB-02: Grab refunded a cancelled order, so keying it in at the machine dispenses nothing. */
+    public function test_a_cancelled_or_failed_order_is_not_dispensed(): void
+    {
+        Queue::fake();
+        $this->bindGrabStore(4416, self::MERCHANT, [11 => ['qty' => 5, 'capacity' => 10], 12 => ['qty' => 3, 'capacity' => 10]]);
+        $this->submit($this->grabOrderPayload(self::MERCHANT, 4416, $this->itemIds()))->assertOk();
+        $search = fn () => $this->postJson('/api/delivery/order/search/1', ['Vid' => 4416, 'short_order_id' => 'GM604', 'driver_phone_number' => '+6511111111']);
+
+        DeliveryPlatformOrder::firstOrFail()->forceFill(['status' => DeliveryPlatformOrder::STATUS_CANCELLED])->save();
+        $search()->assertNotFound()->assertJson(['error_message' => 'Order Cancelled']);
+
+        DeliveryPlatformOrder::firstOrFail()->forceFill(['status' => DeliveryPlatformOrder::STATUS_ACCEPTED, 'is_cancelled' => true])->save();
+        $search()->assertNotFound();
+
+        DeliveryPlatformOrder::firstOrFail()->forceFill(['status' => DeliveryPlatformOrder::STATUS_FAILED, 'is_cancelled' => false])->save();
+        $search()->assertNotFound();
+
+        Queue::assertNotPushed(DispenseDeliveryPlatformOrder::class);
+    }
+
+    /** Audit 2026-11-07 GRAB-01: order numbers cannot be worked through at one machine; other machines are unaffected. */
+    public function test_the_order_lookup_is_limited_per_machine(): void
+    {
+        for ($i = 0; $i < 30; $i++) {
+            $this->postJson('/api/delivery/order/search/1', ['Vid' => 4416, 'short_order_id' => 'GM'.$i])->assertNotFound();
+        }
+        $this->postJson('/api/delivery/order/search/1', ['Vid' => 4416, 'short_order_id' => 'GM999'])->assertStatus(429);
+        $this->postJson('/api/delivery/order/search/1', ['Vid' => 4417, 'short_order_id' => 'GM999'])->assertNotFound();
+    }
+
     public function test_dispensing_builds_one_trade_line_per_unit_for_the_machine(): void
     {
         Queue::fake();
