@@ -12,6 +12,9 @@
           <span class="text-sm font-semibold text-gray-800">{{ m.title }}</span>
           <span class="text-xs text-gray-500 text-right">{{ m.total }}</span>
         </div>
+        <div v-if="m.lineLegend" class="mt-1 inline-flex items-center gap-1 text-xs text-gray-600">
+          <span class="inline-block h-0.5 w-4" :style="{ background: DISC_LINE }"></span>{{ m.lineLegend }}
+        </div>
         <div class="relative h-52 mt-2">
           <canvas :ref="el => (canvases[m.key] = el)" :aria-label="m.title" role="img"></canvas>
         </div>
@@ -27,7 +30,8 @@
 // HH is the bridge to the rest of the basket (Daniel, 2026-10-22): sales, units and units per machine are
 // STACKED — the Happy Hour part, then the rest of the transactions that held a Happy Hour unit ("Related
 // Total Sales", counted whole) — with the total on top and a line for the non-HH share on a 0–100% axis.
-// Discount stays a single bar.
+// Discount stays a single bar, with a line for the discount as a % of that day's Related Total Sales on its own
+// right axis (Brian, 2026-11-07: "% of Discount $ / Total Revenue $").
 import { Chart, registerables } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { computed, nextTick, onBeforeUnmount, reactive, watch } from 'vue';
@@ -47,8 +51,11 @@ const BAR_HOVER = '#2a55ad';
 const OTHER = '#a9c2f2';
 const OTHER_HOVER = '#8eaee9';
 const LINE = '#111827';
+const DISC_LINE = '#d97706';
 const dollars = (cents) => '$' + ((cents ?? 0) / 100).toFixed(2);
 const pctText = (v) => (v == null ? '—' : `${v}%`);
+// Discount as a % of a revenue figure (both cents), one decimal; null when there was no revenue.
+const discountPct = (discount, revenue) => (revenue > 0 ? Math.round((discount ?? 0) * 1000 / revenue) / 10 : null);
 
 // hh / related: the day's Happy Hour part and its related total, in the chart's unit. pct: the non-HH share.
 const measures = computed(() => {
@@ -64,8 +71,13 @@ const measures = computed(() => {
     {
       key: 'discount', title: t('Discount given'), money: true, stacked: false,
       hh: (d) => d.discount / 100,
-      tip: (d) => [t('Discount given: :value', { value: dollars(d.discount) })],
-      total: tot ? dollars(tot.discount) : '',
+      line: (d) => discountPct(d.discount, d.related_revenue),
+      lineLegend: t('% of Related Total Sales (right axis)'),
+      tip: (d) => [t('Discount given: :value', { value: dollars(d.discount) }),
+        t('Related Total Sales: :value', { value: dollars(d.related_revenue) }),
+        t('Discount % of Related Total Sales: :value', { value: pctText(discountPct(d.discount, d.related_revenue)) }),
+        t('Discount % of Happy Hour sales: :value', { value: pctText(discountPct(d.discount, d.revenue)) })],
+      total: tot ? t(':discount · :pct of related total', { discount: dollars(tot.discount), pct: pctText(discountPct(tot.discount, tot.related_revenue)) }) : '',
     },
     {
       key: 'units', title: t('Units sold + related total'), money: false, stacked: true,
@@ -116,8 +128,14 @@ function datasets(m) {
   const hh = props.days.map(d => (m.hh(d) == null ? null : m.hh(d)));
   const bar = { type: 'bar', borderRadius: 3, borderSkipped: 'bottom', maxBarThickness: 34, barPercentage: 0.92, yAxisID: 'y', order: 2 };
   if (!m.stacked) {
-    return [{ ...bar, label: m.title, data: hh, backgroundColor: BAR, hoverBackgroundColor: BAR_HOVER,
+    const out = [{ ...bar, label: m.title, data: hh, backgroundColor: BAR, hoverBackgroundColor: BAR_HOVER,
       datalabels: { formatter: (v) => barLabel(m, v) } }];
+    if (m.line) {
+      out.push({ type: 'line', label: m.lineLegend, data: props.days.map(d => m.line(d)), yAxisID: 'pct', order: 1,
+        borderColor: DISC_LINE, backgroundColor: DISC_LINE, borderWidth: 2, pointRadius: 3, tension: 0.25, spanGaps: true,
+        datalabels: { display: false } });
+    }
+    return out;
   }
   const total = props.days.map(d => m.related(d));
   const other = props.days.map((d, i) => (total[i] == null ? null : Math.max(0, round2(total[i] - (hh[i] ?? 0)))));
@@ -151,7 +169,15 @@ function draw() {
         ticks: { color: '#6b7280', precision: m.decimals ? undefined : 0, callback: (v) => (m.money ? '$' + v : v) },
       },
     };
-    if (m.stacked) {
+    if (m.line) {
+      // A discount share sits far below 100%, so this axis scales to the data (with headroom), not 0–100.
+      const top = Math.max(0, ...props.days.map(d => m.line(d) ?? 0));
+      scales.pct = {
+        position: 'right', min: 0, suggestedMax: top > 0 ? Math.ceil(top * 1.25) : 10,
+        grid: { display: false, drawBorder: false },
+        ticks: { color: '#6b7280', maxTicksLimit: 6, callback: (v) => v + '%' },
+      };
+    } else if (m.stacked) {
       scales.pct = {
         position: 'right', min: 0, max: 100,
         grid: { display: false, drawBorder: false },
