@@ -1096,12 +1096,13 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read'],
                 ['superadmin', 'admin', 'supervisor'],
             ],
-            // Key in the final charge of a T05 card hold the AI could not decide — takes money
-            // from a customer's card, so admin only.
+            // Key in the final charge of a T05 card hold the AI could not decide, and Adjust Qty —
+            // takes money from a customer's card. Admin, and supervisor since 2026-11-07 (Brian:
+            // LiangBao manages Adjust Qty and Refund like Admin; Refund is 'verify refunds').
             [
                 'ai-recognition',
                 ['charge'],
-                ['superadmin', 'admin'],
+                ['superadmin', 'admin', 'supervisor'],
             ],
 
             // Operator Groups (payout groups) module. Source of truth = migration
