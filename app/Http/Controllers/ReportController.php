@@ -42,6 +42,7 @@ use App\Support\ControllerLink;
 use App\Support\DispenseVerdict;
 use App\Support\ProductAccess;
 use App\Support\SiteSearch;
+use App\Support\TempProbe;
 use App\Support\TransactionAccess;
 use App\Support\VendAccess;
 use App\Support\VendCode;
@@ -575,7 +576,7 @@ class ReportController extends Controller
                 ->groupBy('vend_id');
 
             // Pre-fetch legacy inactive smart alerts as fallback (excluding real-time connectivity which uses temp_monitoring_state)
-            if (! in_array($type, ['connectivity', ControllerLink::ALERT_TYPE], true)) {
+            if (! in_array($type, ['connectivity', ControllerLink::ALERT_TYPE, TempProbe::ALERT_TYPE], true)) {
                 $legacySmartAlerts = \App\Models\VendSmartAlert::whereIn('vend_id', $vendIds)
                     ->where('alert_type', $type)
                     ->where('is_active', false)
@@ -625,7 +626,7 @@ class ReportController extends Controller
                 } elseif ($log->context['dismissed_at'] ?? null) {
                     // Secondary: use dismissed_at stored in the alert's own context
                     $res['dismissed_at'] = $log->context['dismissed_at'];
-                } elseif (! in_array($type, ['connectivity', ControllerLink::ALERT_TYPE], true)) {
+                } elseif (! in_array($type, ['connectivity', ControllerLink::ALERT_TYPE, TempProbe::ALERT_TYPE], true)) {
                     // Backward Compatibility: fall back to legacy inactive VendSmartAlerts
                     $smartAlert = ($legacySmartAlerts->get($log->vend_id) ?? collect())
                         ->filter(function ($a) use ($log) {
@@ -655,7 +656,7 @@ class ReportController extends Controller
                 //   4. null (hide the field in the frontend)
                 if ($dismissLog && isset($dismissLog->context['lapse_hours'])) {
                     $res['hours_offline'] = max(0, round((float) $dismissLog->context['lapse_hours'], 2));
-                } elseif (in_array($type, ['connectivity', ControllerLink::ALERT_TYPE], true)) {
+                } elseif (in_array($type, ['connectivity', ControllerLink::ALERT_TYPE, TempProbe::ALERT_TYPE], true)) {
                     if (isset($log->context['hours_offline'])) {
                         $res['hours_offline'] = max(0, round((float) $log->context['hours_offline'], 2));
                     } else {

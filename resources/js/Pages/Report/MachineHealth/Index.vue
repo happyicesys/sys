@@ -108,6 +108,7 @@ const errorBuckets = computed(() => {
 const temperature = computed(() => props.machineHealth?.temperature ?? {})
 const connectivity = computed(() => props.machineHealth?.connectivity ?? {})
 const controllerSilent = computed(() => props.machineHealth?.controller_silent ?? {})
+const tempProbeError = computed(() => props.machineHealth?.temp_probe_error ?? {})
 const noTransactions = computed(() => props.machineHealth?.no_transactions ?? {})
 const errorDefinitions = computed(() => props.machineHealth?.error_definitions ?? {})
 const operatorOptions = computed(() => normalizeCollection(props.operatorOptions))
@@ -1023,6 +1024,80 @@ const loadMoreHistory = () => {
                           </div>
                           <div v-if="row.state === 'no_data'" class="font-medium text-amber-700">
                             {{ $t('MQTT only: internet or controller, cannot tell which') }}
+                          </div>
+                        </div>
+                      </li>
+                      <li
+                        v-if="!bucket.rows.length"
+                        class="text-xs text-gray-400 italic text-center py-4"
+                      >
+                        {{ $t('No machines') }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bg-white shadow-sm sm:rounded-lg">
+          <div class="p-6">
+            <div class="mb-4">
+              <h3 class="text-lg font-semibold text-gray-900">{{ $t('(1C) Alert on Temperature Probe Error') }}</h3>
+              <p class="text-sm text-gray-500">{{ $t('A temperature probe that was reading normally now sends an error instead of a temperature. The machine is online, so no other alert fires, and the temperature alerts cannot see that probe.') }}</p>
+              <p class="text-sm text-gray-500">{{ $t('Handling methods:') }}</p>
+              <div class="mt-2 text-xs text-gray-500 space-y-1">
+                <div>{{ $t('i) Check the other probe on the temperature graph to see whether the machine is still cold') }}</div>
+                <div>{{ $t('ii) Arrange a technician to check the probe, its plug and its cable, and replace the probe if needed') }}</div>
+                <div>{{ $t('iii) If the freezer may have warmed, check the stock before it is sold') }}</div>
+              </div>
+              <p class="pt-2 text-sm text-gray-500">{{ $t('Hours in error') }}</p>
+            </div>
+
+            <div class="pb-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
+                <div
+                  v-for="bucket in tempProbeError.buckets"
+                  :key="bucket.label"
+                  class="flex flex-col rounded-lg border border-gray-200"
+                  :class="getBucketBgClass(bucket.label)"
+                >
+                  <div class="p-3 border-b border-gray-200 bg-opacity-50 rounded-t-lg">
+                    <h4 class="text-sm font-semibold text-gray-800 flex items-center justify-between">
+                      <span>
+                        {{ bucket.label }}
+                        <span class="ml-1 text-xs font-normal text-gray-500">
+                          ({{ bucket.rows.length }})
+                        </span>
+                      </span>
+                      <button @click="fetchHistory('temp_probe_error', bucket.label, $t('Probe Error History (:bucket)', { bucket: bucket.label }), null, bucket.rows)" class="text-gray-500 hover:text-indigo-600">
+                          <ClockIcon class="w-4 h-4" />
+                      </button>
+                    </h4>
+                  </div>
+                  <div class="p-3 overflow-y-auto max-h-[800px]">
+                    <ul class="space-y-3">
+                      <li
+                        v-for="row in bucket.rows"
+                        :key="row.vend_id"
+                        class="rounded border border-gray-200 bg-white p-3 shadow-sm"
+                      >
+                        <div class="font-medium text-gray-900">
+                          <MachineIdLink :code="row.vend_code" />
+                           · {{ (row.hours_offline).toFixed(2) }}
+                        </div>
+                        <div class="mt-1 text-xs text-gray-500 grid gap-0.5">
+                          <div>{{ row.vend_prefix_name ?? '—' }}</div>
+                          <div>{{ row.customer_name ?? '—' }}</div>
+                          <div class="font-medium text-red-700">
+                            {{ $t(':probes probe in error since :time', { probes: row.probes, time: formatDateTimeComma(row.error_since) }) }}
+                          </div>
+                          <div v-if="row.t2 !== null" class="text-gray-400">
+                            {{ $t('T2 now: :temp°C', { temp: row.t2 }) }}
+                          </div>
+                          <div v-if="row.temp !== null" class="text-gray-400">
+                            {{ $t('Last T1 reading: :temp°C', { temp: row.temp }) }}
                           </div>
                         </div>
                       </li>

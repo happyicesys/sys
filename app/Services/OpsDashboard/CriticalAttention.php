@@ -10,6 +10,7 @@ use App\Models\VendSmartAlert;
 use App\Services\MachineHealthDashboardService;
 use App\Services\SmartFreezer\Zijia\ZijiaSkuLinks;
 use App\Support\ControllerLink;
+use App\Support\TempProbe;
 use App\Support\VendCode;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -48,6 +49,8 @@ class CriticalAttention
     public const GROUP_OFFLINE = 'offline';
 
     public const GROUP_CONTROLLER_SILENT = 'controller_silent';
+
+    public const GROUP_TEMP_PROBE = TempProbe::ALERT_TYPE;
 
     public const GROUP_APK_RESTART = 'apk_restart';
 
@@ -90,6 +93,7 @@ class CriticalAttention
                 'vends.id', 'vends.code', 'vends.code_prefix', 'vends.machine_type',
                 'vends.is_online', 'vends.last_vend_transaction_at',
                 'vends.temp_updated_at', 'vends.last_updated_at', 'vends.mqtt_last_updated_at', 'vends.is_mqtt',
+                'vends.temp_probe_error_since', 'vends.temp_probe_ok_since', 'vends.temp_probe_error_probes',
                 'customers.name AS site_name',
                 DB::raw(MachineHealthDashboardService::lastContactSql().' AS last_contact_at'),
             ])
@@ -103,6 +107,7 @@ class CriticalAttention
         $groups = [
             $this->group(self::GROUP_OFFLINE, __('(1) Lost connectivity or electricity'), 'critical', $this->offline($vends, $vendingIds, $now)),
             $this->group(self::GROUP_CONTROLLER_SILENT, __('(1B) Controller not responding'), 'critical', $this->controllerSilent($vends, $vendingIds, $now)),
+            $this->group(self::GROUP_TEMP_PROBE, __('(1C) Temperature probe error'), 'critical', $this->tempProbe($vends, $vendingIds, $now)),
         ];
         $alerts = $this->temperatureAlerts($vendingIds, $now);
         foreach (self::TEMPERATURE_GROUPS as $type => $label) {
@@ -180,6 +185,27 @@ class CriticalAttention
                 $out[$id] = $state === ControllerLink::STATE_SILENT
                     ? __('silent :duration', ['duration' => $duration])
                     : __('no data :duration, MQTT only', ['duration' => $duration]);
+            }
+        }
+
+        return $out;
+    }
+
+    /** @return array<int, string> vend id => detail. Same rule as the 1C alert (SyncOnlineStatus). */
+    private function tempProbe(Collection $vends, array $vendingIds, Carbon $now): array
+    {
+        $out = [];
+        foreach ($vendingIds as $id) {
+            $vend = $vends->get($id);
+            if (! TempProbe::isErroring($vend) || ! ControllerLink::heardRecently($vend, $now)) {
+                continue;
+            }
+            $hours = (float) TempProbe::errorHours($vend, $now);
+            if ($hours * 60 >= TempProbe::errorMinutes()) {
+                $out[$id] = __(':probes probe error :duration', [
+                    'probes' => implode(' & ', TempProbe::probes($vend)),
+                    'duration' => $this->hours($hours),
+                ]);
             }
         }
 
@@ -351,6 +377,7 @@ class CriticalAttention
     private const SHORT = [
         self::GROUP_OFFLINE => 'Offline',
         self::GROUP_CONTROLLER_SILENT => '1B Controller',
+        self::GROUP_TEMP_PROBE => '1C Probe',
         VendSmartAlert::TYPE_COMP_FAN_OFF => '2A Fan OFF',
         VendSmartAlert::TYPE_TEMPS_ABOVE_0 => '2B >0°C',
         VendSmartAlert::TYPE_TEMPS_ABOVE_MINUS_8 => '2C >-8°C',

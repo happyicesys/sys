@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Vend;
 use App\Models\VendFan;
 use App\Models\VendTemp;
+use App\Support\TempProbe;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -45,6 +46,10 @@ class SyncAcbStatus implements ShouldQueue
         $input = $this->input;
         $vend = $this->vend;
         $this->createVendFan($input, $vend);
+        // Before saveParameter(): the previous frame tells a probe that broke from one never fitted.
+        if (is_array($input)) {
+            TempProbe::track($vend, $input, $vend->acb_status_json);
+        }
         $this->createVendTemp($input, $vend);
         $this->saveParameter($input, $vend);
 
@@ -69,32 +74,15 @@ class SyncAcbStatus implements ShouldQueue
             $temp = $input['t1'];
             if ($temp == VendTemp::TEMPERATURE_ERROR) {
                 $vend->is_temp_error = true;
+                // T1's probe failed, the others still read: keep them (2573, 3-6 Nov).
+                $this->createOtherProbeTemps($input, $vend);
             } else {
-                $createdTemp = $vend->vendTemps()->create([
+                $vend->vendTemps()->create([
                     'value' => $temp,
                     'type' => VendTemp::TYPE_CHAMBER,
                 ]);
 
-                if (isset($input['t2']) && $input['t2'] !== '') {
-                    $vend->vendTemps()->create([
-                        'value' => $input['t2'],
-                        'type' => VendTemp::TYPE_EVAPORATOR,
-                    ]);
-                }
-
-                if (isset($input['t3']) && $input['t3'] !== '') {
-                    $vend->vendTemps()->create([
-                        'value' => $input['t3'],
-                        'type' => VendTemp::TYPE_THREE,
-                    ]);
-                }
-
-                if (isset($input['t4']) && $input['t4'] !== '') {
-                    $vend->vendTemps()->create([
-                        'value' => $input['t4'],
-                        'type' => VendTemp::TYPE_FOUR,
-                    ]);
-                }
+                $this->createOtherProbeTemps($input, $vend);
 
                 $vend->temp = $temp;
                 $vend->is_temp_error = false;
@@ -103,6 +91,19 @@ class SyncAcbStatus implements ShouldQueue
         $now = Carbon::now();
         if (! $vend->temp_updated_at || $vend->temp_updated_at->diffInSeconds($now) >= 60) {
             $vend->temp_updated_at = $now;
+        }
+    }
+
+    /** T2-T4 as reported, whatever T1 read. */
+    private function createOtherProbeTemps($input, Vend $vend): void
+    {
+        foreach (['t2' => VendTemp::TYPE_EVAPORATOR, 't3' => VendTemp::TYPE_THREE, 't4' => VendTemp::TYPE_FOUR] as $key => $type) {
+            if (isset($input[$key]) && $input[$key] !== '') {
+                $vend->vendTemps()->create([
+                    'value' => $input[$key],
+                    'type' => $type,
+                ]);
+            }
         }
     }
 

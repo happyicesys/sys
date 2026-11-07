@@ -9,6 +9,8 @@ use App\Models\VendLog;
 use App\Services\AlertEmailService;
 use App\Services\MqttService;
 use App\Support\ControllerLink;
+use App\Support\ModemReset;
+use App\Support\TempProbe;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -17,6 +19,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use PhpMqtt\Client\MqttClient;
 
 class SyncOnlineStatus implements ShouldQueue
 {
@@ -143,37 +146,24 @@ class SyncOnlineStatus implements ShouldQueue
                             $vend->is_mqtt_offline_notified = false;
                         }
 
-                        // Modem reset if HTTP offline > 5 min
-                        if (
-                            $vend->last_updated_at &&
-                            $vend->last_updated_at->diffInMinutes($now) >= 5 &&
-                            $vend->modemType?->is_resetable &&
-                            $vend->modem_unit_id &&
-                            $vend->modem_unit_id != 65
-                        ) {
-                            try {
-                                $modemUnit = $vend->modemUnit;
-                                if ($modemUnit) {
-                                    $content = ['action' => 'RESET', 'time' => $now->timestamp];
-                                    $processed = $mqttService->publishModemParamMapping($modemUnit, 2, $content);
-                                    if ($processed) {
-                                        PublishMqtt::dispatch(
-                                            $processed['topic'],
-                                            $processed['message'],
-                                            $processed['qos'],
-                                            $processed['connection']
-                                        )->onQueue('high');
-                                    }
-                                }
-                            } catch (\Throwable $e) {
-                                Log::error('SyncVendOnlineStatus: Failed to reset modem for '.$vend->code, ['error' => $e->getMessage()]);
-                            }
+                        // Modem reset: only when the board is unreachable on both links and its modem is up
+                        // (App\Support\ModemReset; the old every-minute reset at 5 min made 20-30 min loops).
+                        try {
+                            $this->maybeResetModem($vend, $now, $mqttService);
+                        } catch (\Throwable $e) {
+                            Log::error('SyncVendOnlineStatus: Failed to reset modem for '.$vend->code, ['error' => $e->getMessage()]);
                         }
 
                         try {
                             $this->checkControllerLink($vend, $now, $alertEmailService);
                         } catch (\Throwable $e) {
                             Log::error('SyncVendOnlineStatus: Failed controller check for '.$vend->code, ['error' => $e->getMessage()]);
+                        }
+
+                        try {
+                            $this->checkTempProbe($vend, $now, $alertEmailService);
+                        } catch (\Throwable $e) {
+                            Log::error('SyncVendOnlineStatus: Failed probe check for '.$vend->code, ['error' => $e->getMessage()]);
                         }
 
                         if ($vend->isDirty()) {
@@ -304,5 +294,153 @@ class SyncOnlineStatus implements ShouldQueue
             'occurred_at' => $now,
         ]);
         MachineHealthHistory::log($vend->id, 'machine_health_alert_dismissed', ControllerLink::ALERT_TYPE, (string) $label, null, $context, $now);
+    }
+
+    /**
+     * (1C) Temperature probe error: a probe that read normally now sends the error value
+     * (App\Support\TempProbe keeps the episode per frame). The offline alert's rising buckets, counted
+     * from when the probe first failed. It rises only while the controller is still heard (otherwise
+     * 1B or the offline alert has the machine) and the probe is in error right now; it clears when
+     * the episode ends, i.e. every probe in it read normally for an hour.
+     */
+    private function checkTempProbe(Vend $vend, Carbon $now, AlertEmailService $alertEmailService): void
+    {
+        if (! TempProbe::isTracked($vend) || ! TempProbe::isVendingMachine($vend)) {
+            return;
+        }
+
+        $currentLevel = (int) $vend->temp_probe_error_level;
+
+        if (! $vend->temp_probe_error_since) {
+            if ($currentLevel > 0) {
+                $this->logTempProbeBack($vend, $currentLevel, $now);
+                $vend->temp_probe_error_level = 0;
+            }
+
+            return;
+        }
+
+        if (! TempProbe::isErroring($vend) || ! ControllerLink::heardRecently($vend, $now)) {
+            return;
+        }
+
+        $hours = (float) TempProbe::errorHours($vend, $now);
+        if ($hours * 60 < TempProbe::errorMinutes()) {
+            return;
+        }
+
+        [$level, $label] = ControllerLink::bucket($hours);
+        if ($level <= $currentLevel) {
+            return;
+        }
+
+        $this->logTempProbeError($vend, $label, $hours, $currentLevel, $now);
+
+        // A probe that keeps failing and recovering emails once per cooldown, not per episode.
+        $cooldown = (int) config('vend.attention.temp_probe_error_email_cooldown_minutes', 60);
+        $isRepeat = $currentLevel === 0 && $vend->temp_probe_error_alert_at
+            && $vend->temp_probe_error_alert_at->diffInMinutes($now) < $cooldown;
+
+        if (config('vend.attention.temp_probe_error_email', true) && ! $isRepeat) {
+            // Like the offline alert, the level moves on even if the send fails: no re-log every minute.
+            try {
+                $alertEmailService->sendVendTempProbeErrorNotificationMail($vend, $label);
+                $vend->temp_probe_error_alert_at = $now;
+            } catch (\Throwable $e) {
+                Log::error('SyncVendOnlineStatus: Failed to send probe mail for '.$vend->code, ['error' => $e->getMessage()]);
+            }
+        }
+
+        $vend->temp_probe_error_level = $level;
+    }
+
+    private function logTempProbeError(Vend $vend, string $label, float $hours, int $previousLevel, Carbon $now): void
+    {
+        // Only this episode's highest bucket stays, as with the offline alert.
+        if ($previousLevel > 0) {
+            VendLog::where('vend_id', $vend->id)
+                ->where('event', 'machine_health_alert')
+                ->where('context->alert_type', TempProbe::ALERT_TYPE)
+                ->where('occurred_at', '>=', $vend->temp_probe_error_since)
+                ->delete();
+            MachineHealthHistory::where('vend_id', $vend->id)
+                ->where('event', 'machine_health_alert')
+                ->where('alert_type', TempProbe::ALERT_TYPE)
+                ->where('occurred_at', '>=', $vend->temp_probe_error_since)
+                ->delete();
+        }
+
+        $probes = implode(' & ', TempProbe::probes($vend));
+        $context = [
+            'bucket' => $label,
+            'alert_type' => TempProbe::ALERT_TYPE,
+            'probes' => TempProbe::probes($vend),
+            'hours_offline' => $hours,
+            'triggered_at' => $vend->temp_probe_error_since?->copy()->addMinutes(TempProbe::errorMinutes())->toIso8601String(),
+        ];
+        VendLog::create([
+            'vend_id' => $vend->id,
+            'event' => 'machine_health_alert',
+            'subject' => "Temperature probe error: {$probes} ({$label})",
+            'context' => $context,
+            'occurred_at' => $now,
+        ]);
+        MachineHealthHistory::log($vend->id, 'machine_health_alert', TempProbe::ALERT_TYPE, $label, null, $context, $now);
+    }
+
+    private function logTempProbeBack(Vend $vend, int $level, Carbon $now): void
+    {
+        $label = array_values(ControllerLink::BUCKETS)[count(ControllerLink::BUCKETS) - $level] ?? null;
+        $trigger = MachineHealthHistory::where('vend_id', $vend->id)
+            ->where('event', 'machine_health_alert')
+            ->where('alert_type', TempProbe::ALERT_TYPE)
+            ->orderByDesc('occurred_at')
+            ->first();
+
+        $context = [
+            'bucket' => $label,
+            'alert_type' => TempProbe::ALERT_TYPE,
+            'lapse_hours' => $trigger ? max(0, round(Carbon::parse($trigger->occurred_at)->diffInMinutes($now) / 60, 2)) : null,
+        ];
+        VendLog::create([
+            'vend_id' => $vend->id,
+            'event' => 'machine_health_alert_dismissed',
+            'subject' => "Temperature probe reading again (was {$label})",
+            'context' => $context,
+            'occurred_at' => $now,
+        ]);
+        MachineHealthHistory::log($vend->id, 'machine_health_alert_dismissed', TempProbe::ALERT_TYPE, (string) $label, null, $context, $now);
+    }
+
+    private function maybeResetModem(Vend $vend, Carbon $now, MqttService $mqttService): void
+    {
+        if (! ModemReset::isResettable($vend)) {
+            return;
+        }
+        $modemUnit = $vend->modemUnit;
+        if (ModemReset::blockedBecause($vend, $modemUnit, $now) !== null || ! ModemReset::claim($vend)) {
+            return;
+        }
+
+        $processed = $mqttService->publishModemParamMapping($modemUnit, 2, ['action' => 'RESET', 'time' => $now->timestamp]);
+        if (! $processed) {
+            return;
+        }
+        // QoS 0: a RESET is "now or never"; a queued one replayed on reconnect would reset a working modem.
+        PublishMqtt::dispatch($processed['topic'], $processed['message'], MqttClient::QOS_AT_MOST_ONCE, $processed['connection'])
+            ->onQueue('high');
+
+        VendLog::create([
+            'vend_id' => $vend->id,
+            'event' => VendLog::EVENT_MODEM_RESET,
+            'subject' => 'Modem reset sent',
+            'context' => [
+                'modem_unit_id' => $modemUnit->id,
+                'http_quiet_minutes' => $vend->last_updated_at?->diffInMinutes($now),
+                'mqtt_quiet_minutes' => $vend->mqtt_last_updated_at?->diffInMinutes($now),
+                'modem_heard_at' => $modemUnit->last_updated_at?->toIso8601String(),
+            ],
+            'occurred_at' => $now,
+        ]);
     }
 }

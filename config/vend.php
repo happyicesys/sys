@@ -18,6 +18,16 @@ return [
     // Ops Dashboard "Needs attention" (App\Services\OpsDashboard\CriticalAttention, Brian 2026-10-17).
     // A board restarts now and then (power cut, watchdog) — on a normal day 89 of 240 did at least
     // once, 25 five times or more — so only a machine that keeps restarting is flagged.
+    // External 4G modem reset (App\Support\ModemReset, Brian 2026-11-07): only when the board has had no HTTP
+    // and no MQTT for offline_minutes, its modem was heard within modem_contact_minutes, at most once per
+    // cooldown_minutes. MODEM_RESET_ENABLED=false stops every reset.
+    'modem_reset' => [
+        'enabled' => (bool) env('MODEM_RESET_ENABLED', true),
+        'offline_minutes' => (int) env('MODEM_RESET_OFFLINE_MINUTES', 10),
+        'cooldown_minutes' => (int) env('MODEM_RESET_COOLDOWN_MINUTES', 30),
+        'modem_contact_minutes' => (int) env('MODEM_RESET_MODEM_CONTACT_MINUTES', 15),
+    ],
+
     'attention' => [
         'no_sales_hours' => (int) env('OPS_ATTENTION_NO_SALES_HOURS', 48),
         'apk_restarts_per_day' => (int) env('OPS_ATTENTION_APK_RESTARTS_PER_DAY', 5),
@@ -31,6 +41,13 @@ return [
         'controller_silent_email' => (bool) env('OPS_ATTENTION_CONTROLLER_SILENT_EMAIL', true),
         // A controller that keeps dropping out emails once per this many minutes, not per drop.
         'controller_silent_email_cooldown_minutes' => (int) env('OPS_ATTENTION_CONTROLLER_SILENT_EMAIL_COOLDOWN_MINUTES', 60),
+        // (1C) Temperature probe error: a probe that read normally now sends 32767 (App\Support\TempProbe,
+        // Brian 2026-11-07, machine 2573). Alerts after this long in error; the fault is over once every probe
+        // in it has read normally this long in a row. The switch stops the emails only.
+        'temp_probe_error_minutes' => (int) env('OPS_ATTENTION_TEMP_PROBE_ERROR_MINUTES', 30),
+        'temp_probe_recover_minutes' => (int) env('OPS_ATTENTION_TEMP_PROBE_RECOVER_MINUTES', 60),
+        'temp_probe_error_email' => (bool) env('OPS_ATTENTION_TEMP_PROBE_ERROR_EMAIL', true),
+        'temp_probe_error_email_cooldown_minutes' => (int) env('OPS_ATTENTION_TEMP_PROBE_ERROR_EMAIL_COOLDOWN_MINUTES', 60),
     ],
 
 ];

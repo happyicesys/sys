@@ -14,6 +14,7 @@ use App\Models\VendTemp;
 use App\Models\VendTempMetric;
 use App\Models\VendTransaction;
 use App\Support\ControllerLink;
+use App\Support\TempProbe;
 use App\Support\VendCode;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
@@ -76,6 +77,7 @@ class MachineHealthDashboardService
             'temperature' => $this->getTemperatureMetrics($filters),
             'connectivity' => $this->getConnectivityMetrics($filters),
             'controller_silent' => $this->getControllerSilentMetrics($filters),
+            'temp_probe_error' => $this->getTempProbeMetrics($filters),
             'no_transactions' => $this->getNoTransactionMetrics($filters),
             'stockouts' => $stockoutMetrics,
             'error_definitions' => VendChannelError::pluck('desc', 'code')->all(),
@@ -916,6 +918,49 @@ class MachineHealthDashboardService
                 'state' => $state,
                 'temp' => $vend->temp !== null ? round($vend->temp / 10, 1) : null,
                 'last_contact_at' => $vend->temp_updated_at?->toIso8601String(),
+            ]);
+        }
+
+        return [
+            'buckets' => array_map(fn ($label, $rows) => ['label' => $label, 'rows' => $rows], array_keys($buckets), array_values($buckets)),
+        ];
+    }
+
+    /** (1C) Machines whose temperature probe failed after reading normally; App\\Support\\TempProbe is the rule. */
+    private function getTempProbeMetrics(array $filters): array
+    {
+        $now = Carbon::now();
+
+        $vends = $this->baseVendQuery($filters)
+            ->where('is_active', true)
+            ->whereNotNull('customer_id')
+            ->whereNotNull('temp_probe_error_since')
+            ->whereNull('temp_probe_ok_since')
+            ->where('temp_probe_error_since', '<=', $now->copy()->subMinutes(TempProbe::errorMinutes()))
+            ->select([
+                'id', 'code', 'code_prefix', 'name', 'operator_id', 'vend_prefix_id', 'customer_id', 'card_terminal_id', 'machine_type', 'temp',
+                'temp_updated_at', 'parameter_json', 'temp_probe_error_since', 'temp_probe_ok_since', 'temp_probe_error_probes',
+            ])
+            ->orderBy('temp_probe_error_since', 'desc')
+            ->limit(500)
+            ->get();
+
+        $buckets = array_fill_keys(array_reverse(array_values(ControllerLink::BUCKETS)), []);
+
+        foreach ($vends as $vend) {
+            if (! TempProbe::isVendingMachine($vend) || ! ControllerLink::heardRecently($vend, $now)) {
+                continue;
+            }
+            $hours = (float) TempProbe::errorHours($vend, $now);
+            $t2 = is_array($vend->parameter_json) ? ($vend->parameter_json['t2'] ?? null) : null;
+            $buckets[ControllerLink::bucket($hours)[1]][] = array_merge($this->baseVendInfo($vend), [
+                'hours_offline' => $hours,
+                'probes' => implode(' & ', TempProbe::probes($vend)),
+                'error_since' => $vend->temp_probe_error_since?->toIso8601String(),
+                // The history popup's "Triggered at" for a live row (last_contact_at would also print "Last connect").
+                'updated_at' => $vend->temp_probe_error_since?->toIso8601String(),
+                'temp' => $vend->temp !== null ? round($vend->temp / 10, 1) : null,
+                't2' => is_numeric($t2) && ! TempProbe::isError($t2) ? round($t2 / 10, 1) : null,
             ]);
         }
 

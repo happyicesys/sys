@@ -339,6 +339,7 @@ const showMarkers = ref(true)
 const ALERT_TYPE_LABEL = {
   'connectivity':        '1',
   'controller_silent':   '1B',
+  'temp_probe_error':    '1C',
   'comp_fan_off':        '2A',
   'temps_above_0':       '2B',
   'temps_above_minus_8': '2C',
@@ -355,6 +356,7 @@ const ALERT_TYPE_LABEL = {
 const ALERT_TYPE_TITLE = {
   'connectivity':        t('Connectivity'),
   'controller_silent':   t('Controller not responding'),
+  'temp_probe_error':    t('Temperature probe error'),
   'comp_fan_off':        t('Compressor & or Fan, in OFF condition'),
   'temps_above_0':       t('T1 & or T2, above 0°C'),
   'temps_above_minus_8': t('T1 & or T2, above -8°C'),
@@ -728,6 +730,17 @@ function onVendSelected(option) {
   );
 }
 
+// A segment that crosses missing readings: one side was skipped (a NaN gap point), or the two
+// readings are further apart than two report intervals.
+const GAP_COLOR = 'rgba(107, 114, 128, 0.5)'
+const GAP_MS = 12 * 60 * 1000
+function isGapSegment(ctx) {
+  if (ctx.p0.skip || ctx.p1.skip) return true
+  const x0 = ctx.p0.parsed?.x
+  const x1 = ctx.p1.parsed?.x
+  return x0 != null && x1 != null && x1 - x0 > GAP_MS
+}
+
 function getVendTempsData() {
   const colors = ['#E6676B', '#36a2eb', '#cc65fe', '#ffce56']
   const vendTempsAllArr = props.vendTempsObj.data
@@ -864,6 +877,12 @@ function getVendTempsData() {
         backgroundColor: colors[vendTempIndex - 1],
         tension: 0.1,
         spanGaps: true,
+        // Where readings are missing the line still joins the two sides, but grey and dashed, so a
+        // gap never reads as real readings (2573, 3-6 Nov 2026: a probe error drew a straight line).
+        segment: {
+          borderColor: (ctx) => (isGapSegment(ctx) ? GAP_COLOR : undefined),
+          borderDash: (ctx) => (isGapSegment(ctx) ? [6, 6] : undefined),
+        },
         yAxisID: 'y',
         normalized: true,
       })

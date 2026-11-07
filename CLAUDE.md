@@ -2292,6 +2292,48 @@ attention group of the same name (so Show Alert/Error too) and marker 1B on the 
 controller that talks while its compressor is dead; that is the temperature alerts' job. Regression coverage:
 `tests/Feature/ControllerSilentAlertTest.php`.
 
+## Temperature probe error (1C): a probe that read normally now sends 32767
+
+Brian, 2026-11-07, machine 2573: its T1 probe sent the controller's error value (32767) from 3 Nov 08:08 for almost
+three days, with a good reading now and then. The machine stayed online, its sales, fan and T2 kept arriving, so no
+alert fired, and `SyncVendParameter` stored nothing for the frame (T2 included), so the graph went blank.
+`App\Support\TempProbe` is the one rule. Per frame (`SyncVendParameter`, `SyncAcbStatus`, before the frame is saved
+over the previous one), an error reading from a probe (T1 = `TEMP` / ACB `t1`, T2 = `t2`) whose previous reading was
+valid starts an EPISODE (`vends.temp_probe_error_since`, `temp_probe_error_probes`). A probe never fitted reads 32767
+from the start and never starts one; neither does one already in error before this shipped. The episode survives a
+single good reading (`temp_probe_ok_since` marks a good run) and ends once every probe in it has read normally for
+`vend.attention.temp_probe_recover_minutes` (60). Vending machines only (a freezer's Zijia host sends its own placeholder
+during a link hang).
+
+`SyncOnlineStatus` alerts with the offline alert's rising buckets (`temp_probe_error_level`), counted from the first
+error, once the probe has been in error `temp_probe_error_minutes` (30) and is in error right now, and only while the
+controller is heard (a silent controller is 1B's, a dead machine the offline alert's). Emails the offline list, a
+cooldown like 1B's (`temp_probe_error_email_cooldown_minutes`), `OPS_ATTENTION_TEMP_PROBE_ERROR_EMAIL=false` stops the
+emails only. Shown as Machine Health "(1C)" (alert type `temp_probe_error`, history popup), the Needs attention group of
+the same name and marker 1C on the temperature chart. While T1 is in error, T2-T4 rows are still stored and
+`vends.temp` keeps the last good T1. The chart draws any stretch with no readings as a grey dashed line, so a gap never
+reads as real data. Regression coverage: `tests/Feature/TempProbeErrorAlertTest.php`.
+
+## External modem reset: only when the board is cut off and its modem is up
+
+Brian, 2026-11-07 (`CONTROLLER_SILENCE_AUDIT_2026-11-07.md`). Machines with an Air724 "square module" 4G modem
+(`modem_types.is_resetable`) can be sent `RESET` over the modem's own MQTT topic (`CX<imei tail>`). The 2025 rule in
+`SyncOnlineStatus` sent it every minute once `vends.last_updated_at` was 5 minutes old. A board's HTTP itself comes
+about every 5 minutes, so one late packet started a loop: reset, link down, still no HTTP, reset again each minute,
+the app's 6-minute offline reboot. Each loop was a 20–30 minute gap, which 1B reported as "Controller not responding".
+52 of the 55 such machines did it every day.
+`App\Support\ModemReset` is the rule now:
+- the board must have had no HTTP **and** no MQTT for `vend.modem_reset.offline_minutes` (10). An MQTT session that
+  is up runs through the same modem, so the modem works;
+- the modem itself must have been heard (`modem_units.last_updated_at`) within `modem_contact_minutes` (15), since
+  the RESET can only reach it over its own link;
+- at most one reset per `cooldown_minutes` (30) per machine (`Cache::add`);
+- QoS 0, so a broker never queues RESETs and replays them on reconnect;
+- each reset is a `vend_logs` row, event `modem_reset`.
+
+`MODEM_RESET_ENABLED=false` stops every reset. Unit 65 stays excluded. Regression coverage:
+`tests/Feature/ModemResetTest.php`.
+
 ## Fan detection: the board decides, a person can only reset
 
 Brian, 2026-10-19. `vends.is_fan_enabled` ("Fan speed signal") is no longer chosen on Setting/Edit:

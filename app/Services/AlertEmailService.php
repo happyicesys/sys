@@ -6,6 +6,7 @@ use App\Mail\VendChannelErrorLogsMail;
 use App\Mail\VendControllerSilentNotificationMail;
 use App\Mail\VendOfflineNotificationMail;
 use App\Mail\VendPowerRestoredNotificationMail;
+use App\Mail\VendTempProbeErrorNotificationMail;
 use App\Mail\VendTransactionNoEntryNotificationMail;
 use App\Models\AlertEmailItem;
 use App\Models\Operator;
@@ -134,6 +135,21 @@ class AlertEmailService
                 'label' => $label,
                 'state' => $state,
             ]
+        );
+    }
+
+    /**
+     * (1C) TEMPERATURE PROBE ERROR: per-vend email to the offline list, like 1B: with a probe gone the
+     * machine's temperature is unknown.
+     */
+    public function sendVendTempProbeErrorNotificationMail(Vend $vend, string $label): int
+    {
+        return $this->queueVendNotification(
+            $vend,
+            'is_send_offline_notification',
+            fn () => new VendTempProbeErrorNotificationMail((int) $vend->getKey(), $label),
+            'VendTempProbeErrorNotificationMail',
+            ['label' => $label]
         );
     }
 
