@@ -213,14 +213,19 @@ async function poll() {
     // A missed check is retried on the next tick.
   }
   const waiting = machines.value.some((m) => m.instant && m.state !== 'current')
-  if (waiting && Date.now() < pollUntil) {
+  // A check still in flight when the page closed must not start the next one.
+  if (!unmounted && waiting && Date.now() < pollUntil) {
     pollTimer = setTimeout(poll, POLL_EVERY_MS)
   } else {
     polling.value = false
   }
 }
 
-onBeforeUnmount(stopPolling)
+let unmounted = false
+onBeforeUnmount(() => {
+  unmounted = true
+  stopPolling()
+})
 
 const pushing = ref(false)
 

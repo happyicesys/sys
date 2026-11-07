@@ -328,7 +328,7 @@ class CriticalAttention
             return [];
         }
         $out = [];
-        foreach (app(ZijiaSkuLinks::class)->coverage($freezers) as $vendId => $coverage) {
+        foreach (app(ZijiaSkuLinks::class)->coverage($freezers, withSuggestions: false) as $vendId => $coverage) {
             if ($coverage['missing'] !== []) {
                 $out[$vendId] = __(':on_list of :total: missing :codes', [
                     'on_list' => $coverage['on_list'], 'total' => $coverage['total'],

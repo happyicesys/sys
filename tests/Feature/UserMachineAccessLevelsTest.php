@@ -85,6 +85,32 @@ class UserMachineAccessLevelsTest extends TestCase
         $this->assertFalse($access->allows($b));
     }
 
+    /** Audit CORE2-01: whole-machine money nested in a trend block (happy_hour) is masked like the top level. */
+    public function test_nested_whole_machine_money_is_masked_for_a_product_limited_viewer(): void
+    {
+        $totals = [
+            'today_amount' => 1200,
+            'today_count' => 4,
+            'touch_usage' => ['today' => ['touch' => 3, 'total' => 4]],
+            'happy_hour' => ['units' => ['today' => 2], 'hh_revenue_7d' => 900, 'related_revenue_7d' => 3000, 'non_hh_pct_7d' => 70.0],
+        ];
+
+        $this->actingAs(User::factory()->create(['operator_id' => 1]));
+        $this->assertSame($totals, ProductAccess::maskWholeMachineJson($totals), 'an unrestricted viewer sees it all');
+
+        $this->actingAs($this->productOwner());
+        $masked = ProductAccess::maskWholeMachineJson($totals);
+        $this->assertSame([
+            'today_count' => 4,
+            'touch_usage' => ['today' => ['touch' => 3, 'total' => 4]],
+            'happy_hour' => ['units' => ['today' => 2]],
+        ], $masked);
+
+        $object = ProductAccess::maskWholeMachineJson(json_decode(json_encode($totals)));
+        $this->assertFalse(property_exists($object->happy_hour, 'hh_revenue_7d'));
+        $this->assertSame(3, $object->touch_usage->today->touch);
+    }
+
     public function test_a_no_show_machine_leaves_the_owners_sales_and_dashboard(): void
     {
         [$shown, $shownSite] = $this->machine(7001);

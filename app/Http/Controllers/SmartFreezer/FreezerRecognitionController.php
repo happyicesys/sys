@@ -140,7 +140,8 @@ class FreezerRecognitionController extends Controller
             $query->whereIn('vend_id', Vend::withoutGlobalScopes()->select('id')->where('operator_id', $operatorId));
         }
 
-        $dashboard = $this->dashboard(clone $query);
+        // Props are closures: the page's 30 s refresh names only some of them, and Inertia then skips the rest (audit SF2-06).
+        $dashboardQuery = clone $query;
         $page = $query->paginate($numberPerPage === 'All' ? 10000 : (int) $numberPerPage)->withQueryString();
         $names = $this->productNames($page->getCollection());
         $failedSessions = $this->failedSessions($page->getCollection());
@@ -169,9 +170,9 @@ class FreezerRecognitionController extends Controller
         return Inertia::render('AiRecognition/Index', [
             // Resource-collection shape (data / links / meta) — what Components/Paginator.vue reads.
             'recognitions' => JsonResource::collection($page),
-            'dashboard' => $dashboard,
+            'dashboard' => fn () => $this->dashboard($dashboardQuery),
             // Per freezer, how many of its products the AI is asked about today (SKU Links).
-            'aiCoverage' => array_values(app(ZijiaSkuLinks::class)->coverage(ZijiaSkuLinks::viewerVendIds())),
+            'aiCoverage' => fn () => array_values(app(ZijiaSkuLinks::class)->coverage(ZijiaSkuLinks::viewerVendIds())),
             'statuses' => [
                 SmartFreezerRecognition::STATUS_PENDING,
                 SmartFreezerRecognition::STATUS_SUBMITTING,
@@ -185,8 +186,8 @@ class FreezerRecognitionController extends Controller
             ],
             'canCharge' => (bool) $request->user()?->can('charge ai-recognition'),
             'canRefund' => (bool) $request->user()?->can('verify refunds'),
-            'sessionlessHolds' => $this->sessionlessHolds($payments, $operatorId),
-            'waitingForVideo' => $this->waitingForVideo($request, $dateFrom, $dateTo, $operatorId),
+            'sessionlessHolds' => fn () => $this->sessionlessHolds($payments, $operatorId),
+            'waitingForVideo' => fn () => $this->waitingForVideo($request, $dateFrom, $dateTo, $operatorId),
             // Zijia's orderStatus codes (§6.2) with ops' plain words — the legend above the table.
             'orderStatusLegend' => array_map(fn (array $l) => $l + [
                 'plain' => RecognitionBadges::PLAIN_REASONS[$l['code']] ?? 'the AI answered on its own',
@@ -368,6 +369,9 @@ class FreezerRecognitionController extends Controller
             $intent = $payments->chargeByPerson($intent, (int) $data['amount_cents'], $request->user());
         } catch (DomainException $e) {
             return back()->withErrors(['amount_cents' => ucfirst($e->getMessage()).'.']);
+        } catch (LockTimeoutException) {
+            // A busy hold (another charge in flight) is a retry, not a 500 — as correct() answers (audit SF2-05).
+            return back()->withErrors(['amount_cents' => __('This charge is busy. Try again in a moment.')]);
         }
 
         $amount = number_format($data['amount_cents'] / 100, 2);

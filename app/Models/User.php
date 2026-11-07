@@ -85,6 +85,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        // A Passport personal token kept for the command that made it; every page got it back in auth.user (audit 2026-11-07).
+        'access_token',
     ];
 
     /**

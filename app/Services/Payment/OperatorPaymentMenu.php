@@ -171,7 +171,7 @@ class OperatorPaymentMenu
      * older menu since), `unknown` (no fetch recorded yet — tracking began 2026-10-30). Compared on the path it last
      * fetched, so a machine on another gateway or a variant URL is judged against its own menu.
      */
-    public function deliveryState(Vend $vend): string
+    public function deliveryState(Vend $vend, ?array &$expected = null): string
     {
         if (! $vend->payment_menu_hash || ! $vend->payment_menu_path) {
             return 'unknown';
@@ -182,9 +182,20 @@ class OperatorPaymentMenu
             return 'unknown';
         }
         $variant = $parts[2] ?? null;
-        $expected = $this->menu($parts[0], $parts[1], $variant, $variant === null ? (int) $vend->operator_id : null);
+        $operatorId = $variant === null ? (int) $vend->operator_id : null;
+        // Every machine of one operator on one path is served the same menu, so a caller listing many machines
+        // passes $expected and each fingerprint is worked out once, not per machine (audit ACC-02).
+        $key = $vend->payment_menu_path.'|'.$operatorId;
+        if ($expected === null || ! array_key_exists($key, $expected)) {
+            $fingerprint = self::fingerprint($this->menu($parts[0], $parts[1], $variant, $operatorId));
+            if ($expected !== null) {
+                $expected[$key] = $fingerprint;
+            }
+        } else {
+            $fingerprint = $expected[$key];
+        }
 
-        return self::fingerprint($expected) === $vend->payment_menu_hash ? 'current' : 'stale';
+        return $fingerprint === $vend->payment_menu_hash ? 'current' : 'stale';
     }
 
     /**
@@ -193,6 +204,8 @@ class OperatorPaymentMenu
      */
     public function machinesFor(Operator $operator): array
     {
+        $expected = [];
+
         return Vend::withoutGlobalScopes()
             ->with('customer:id,name')
             ->where('operator_id', $operator->id)
@@ -200,16 +213,18 @@ class OperatorPaymentMenu
             ->where(fn ($q) => $q->where('is_active', true)->orWhere('is_testing', true))
             ->orderBy('code')
             ->get()
-            ->map(fn (Vend $vend) => [
-                'id' => $vend->id,
-                'code' => $vend->code,
-                'site' => $vend->customer?->name,
-                'apk_version' => $vend->reportedApkVersion() ?: null,
-                'instant' => PushPaymentMenu::supports($vend),
-                'state' => $this->deliveryState($vend),
-                'fetched_at' => $vend->payment_menu_fetched_at ? Carbon::parse($vend->payment_menu_fetched_at)->toIso8601String() : null,
-                'pushed_at' => $vend->payment_menu_pushed_at ? Carbon::parse($vend->payment_menu_pushed_at)->toIso8601String() : null,
-            ])
+            ->map(function (Vend $vend) use (&$expected) {
+                return [
+                    'id' => $vend->id,
+                    'code' => $vend->code,
+                    'site' => $vend->customer?->name,
+                    'apk_version' => $vend->reportedApkVersion() ?: null,
+                    'instant' => PushPaymentMenu::supports($vend),
+                    'state' => $this->deliveryState($vend, $expected),
+                    'fetched_at' => $vend->payment_menu_fetched_at ? Carbon::parse($vend->payment_menu_fetched_at)->toIso8601String() : null,
+                    'pushed_at' => $vend->payment_menu_pushed_at ? Carbon::parse($vend->payment_menu_pushed_at)->toIso8601String() : null,
+                ];
+            })
             ->values()
             ->all();
     }

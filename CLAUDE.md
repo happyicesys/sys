@@ -36,6 +36,24 @@ Config this repo also sets: `pull.ff only` (no surprise merge commits — decide
 rebase or merge deliberately), `fetch.prune` , `merge.conflictStyle zdiff3`,
 `rerere.enabled`.
 
+## Page and API speed: rules from the 2026-11-07 audit
+
+`AUDIT_2026-11-07.md` has the evidence. Keep these when adding to a page or an endpoint:
+
+- **A prop that queries is a closure** whenever the page reloads part of itself (`router.reload({ only: [...] })`, a poll,
+  a deferred prop). Inertia evaluates every plain value on a partial reload and then throws it away: Ops Job edit rebuilt
+  ~880 machines' options on each channel click, AI Recognition its coverage and holds every 30 s. A full load is identical.
+- **No `ziggy` shared prop.** `route()` reads the global Ziggy that `@routes` writes into the HTML once; the prop was ~60 KB in
+  every Inertia response and nothing read it.
+- **Never load a whole `vends` or `customers` row where a few columns do**: a vends row averages ~28 KB (channel JSON) and a
+  Site's four `snap_*` columns ~30 KB. Heartbeat jobs select their columns; Ops Job edit selects every Site column but `snap_*`.
+  When selecting columns on a model that is then saved, include what its hooks read (`Vend`: `machine_type`,
+  `is_using_server_price`, `customer_id`, `is_testing`).
+- **Library code ships in its own `vendor` chunk** (`vite.config.js` `manualChunks`, JS only; CSS stays in `app.css`). Its hash
+  stays the same when page code changes, so a deploy re-sends ~20 KB gzipped instead of ~170 KB. Add a library to that list
+  only if the entry (`app.js`) already imports it; anything else stays lazy with its page.
+- **Log tables get a prune when they are created** (Grab Errors 30 days, `card_payment_events` status polls 30 days).
+
 ## File storage: everything goes to DO Spaces
 
 Prod's default disk is `digitaloceanspaces` (bucket `happyice-space`, sgp1), so

@@ -97,6 +97,23 @@ class I18nTest extends TestCase
         $this->assertSame(1, UiTranslation::count());
     }
 
+    /** Audit UI2-01: tooltips render wording as HTML, so a wording may only reuse its English text's markup. */
+    public function test_wording_cannot_bring_markup_its_english_text_lacks(): void
+    {
+        $admin = $this->user(['read translations', 'update translations']);
+
+        $this->actingAs($admin)->putJson('/translations', ['locale' => 'zh_CN', 'key' => 'Save', 'value' => '<img src=x onerror=alert(1)>'])
+            ->assertUnprocessable()->assertJsonValidationErrors('value');
+        $this->actingAs($admin)->putJson('/translations', ['locale' => 'en', 'key' => 'Related sales <b>:related</b>', 'value' => 'Sales <b>:related</b><script>x</script>'])
+            ->assertUnprocessable();
+        $this->assertSame(0, UiTranslation::count());
+
+        // The English text's own tags, and plain text with a "<", still save.
+        $this->actingAs($admin)->putJson('/translations', ['locale' => 'zh_CN', 'key' => 'Related sales <b>:related</b>', 'value' => '相关销售 <b>:related</b>'])->assertOk();
+        $this->actingAs($admin)->putJson('/translations', ['locale' => 'zh_CN', 'key' => 'Save', 'value' => '保存 < 1'])->assertOk();
+        $this->assertSame(2, UiTranslation::count());
+    }
+
     public function test_only_those_allowed_may_open_or_change_wording(): void
     {
         $viewer = $this->user();

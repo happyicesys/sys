@@ -222,8 +222,10 @@ class FreezerSaleAudit
     public function applyCorrection(VendTransaction $sale, array $basket, array $prices, array $entry): void
     {
         DB::transaction(function () use ($sale, $basket, $prices, $entry) {
-            $sale->refresh();
+            // Lock first, then read: two people adjusting the same sale would otherwise both read the
+            // stock already moved before either held the lock, and the stock would move twice (audit SF2-01).
             VendTransaction::withoutGlobalScopes()->whereKey($sale->id)->lockForUpdate()->first(['id']);
+            $sale->refresh();
             $vend = $sale->vend ?? Vend::withoutGlobalScopes()->find($sale->vend_id);
             $moved = $vend ? $this->ledger->followCorrection($vend, $sale, $basket) : [];
 

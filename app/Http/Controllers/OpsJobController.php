@@ -39,9 +39,11 @@ use App\Support\VendCode;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -1503,6 +1505,9 @@ class OpsJobController extends Controller
                 'opsJobItems.vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
                 'opsJobItems.vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name',
                 'opsJobItems.cmsTransactionBy',
+                // Every Site column except the four snap_* JSON copies (~30 KB a Site, ~420 KB a job): nothing on this
+                // page reads them (audit PERF-03, 2026-11-07).
+                'opsJobItems.customer' => fn ($q) => $q->select(self::customerColumnsWithoutSnapshots()),
                 'opsJobItems.customer.deliveryAddress',
                 'opsJobItems.customer.zone:id,name',
                 'opsJobItems.remarksUpdatedBy:id,name',
@@ -1577,7 +1582,9 @@ class OpsJobController extends Controller
         // We now emit only the two fields the dropdown needs. cust_full_name uses
         // the SAME eager-loaded fields (customer:id,name) and the SAME branch logic
         // as VendResource so the rendered label is byte-identical to before.
-        $unbindedVendOptions = Vend::query()
+        // A closure, like the other option lists below: the page reloads only `opsJob` on every channel click, and
+        // Inertia then skips these ~880 machines and the user list (audit PERF-03, 2026-11-07).
+        $unbindedVendOptions = fn () => Vend::query()
             ->select(['id', 'customer_id', 'operator_id', 'code', 'code_prefix'])
             ->with(['customer:id,name'])
             ->whereNotNull('customer_id')
@@ -1605,13 +1612,13 @@ class OpsJobController extends Controller
 
         return Inertia::render('OpsJob/Edit', [
             'cmsBaseUrl' => env('CMS_URL'),
-            'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
+            'mapApiKey' => fn () => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'opsJob' => new OpsJobResource($opsJob),
             // Wrapped in { data: [...] } to preserve the envelope the frontend
             // expects (props.unbindedVendOptions.data.map(...)) now that we no
             // longer go through VendResource::collection.
-            'unbindedVendOptions' => ['data' => $unbindedVendOptions->values()],
-            'userOptions' => UserResource::collection(
+            'unbindedVendOptions' => fn () => ['data' => $unbindedVendOptions()->values()],
+            'userOptions' => fn () => UserResource::collection(
                 User::with('roles')->when(auth()->user()->isDriver(), function ($q) {
                     $q->where('id', auth()->id());
                 })
@@ -1875,10 +1882,7 @@ class OpsJobController extends Controller
             ->first();
 
         if (! $opsJob) {
-            $code = $this->generateUniqueOpsJobCode();
-
-            $opsJob = OpsJob::create([
-                'code' => $code,
+            $opsJob = $this->createWithUniqueCode([
                 'created_by' => auth()->id(),
                 'date' => $date,
                 'delivered_by' => $driverID,
@@ -2130,11 +2134,8 @@ class OpsJobController extends Controller
             'delivered_by' => 'required',
         ]);
 
-        $code = $this->generateUniqueOpsJobCode();
-
         try {
-            $opsJob = OpsJob::create([
-                'code' => $code,
+            $opsJob = $this->createWithUniqueCode([
                 'created_by' => auth()->id(),
                 'date' => $request->date,
                 'delivered_by' => $request->delivered_by,
@@ -3058,6 +3059,36 @@ class OpsJobController extends Controller
      * so a smaller operator's next number is often already held by a bigger one. It then takes the
      * number after the highest code anyone holds.
      */
+    /**
+     * Two people creating a job at the same moment are handed the same next code, and the unique key
+     * refuses the second. That one takes the number after the highest again, up to three tries, instead
+     * of a 500 on Assign Job(s) (audit CORE2-03).
+     */
+    private function createWithUniqueCode(array $attributes): OpsJob
+    {
+        $code = $this->generateUniqueOpsJobCode();
+        for ($try = 1; ; $try++) {
+            try {
+                return OpsJob::create(['code' => $code] + $attributes);
+            } catch (UniqueConstraintViolationException $e) {
+                if ($try >= 3) {
+                    throw $e;
+                }
+                $code = (string) ((int) OpsJob::max('code') + 1);
+            }
+        }
+    }
+
+    /** @return list<string> customers.* minus the snap_* JSON snapshots, qualified for the eager load */
+    private static function customerColumnsWithoutSnapshots(): array
+    {
+        return collect(Schema::getColumnListing('customers'))
+            ->reject(fn (string $column) => str_starts_with($column, 'snap_'))
+            ->map(fn (string $column) => 'customers.'.$column)
+            ->values()
+            ->all();
+    }
+
     private function generateUniqueOpsJobCode(): string
     {
         $operatorId = auth()->user()->operator_id;

@@ -97,7 +97,12 @@ async function open() {
   }
 }
 
+let unmounted = false
+
 function poll(cmdId, attempt) {
+  if (unmounted) {
+    return
+  }
   timer = setTimeout(async () => {
     try {
       const { data } = await axios.get(`/ops-jobs/items/${props.itemId}/freezer-open-door/${cmdId}`)
@@ -118,5 +123,8 @@ function poll(cmdId, attempt) {
   }, POLL_MS)
 }
 
-onBeforeUnmount(() => clearTimeout(timer))
+onBeforeUnmount(() => {
+  unmounted = true
+  clearTimeout(timer)
+})
 </script>

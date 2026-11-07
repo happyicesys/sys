@@ -120,6 +120,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('customer-summary:compute')->dailyAt('01:00');
         $schedule->command('vend:retry-jobs')->everyMinute();
         $schedule->command('freezer-logs:prune --hours=72')->hourly();
+        // T05 readiness-poll HTTP lines older than 30 days (rows tied to a payment are kept). Audit SF2-02.
+        $schedule->command('card-payments:prune-events')->dailyAt('03:50')->withoutOverlapping(30);
         $schedule->command('freezer:run-setpoint-schedules')->everyMinute()->withoutOverlapping();
         // Happy Hour: pick each day's lineup before its window, swap/end slots, record results. In the
         // background, so it starts on the minute instead of after every command listed before it (at

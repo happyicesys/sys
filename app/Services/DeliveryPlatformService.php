@@ -795,18 +795,16 @@ class DeliveryPlatformService
         // dd($deliveryPlatformOperator->toArray());
         $scope = $deliveryPlatformOperator->externalOauthToken->scopes;
         if ($scope === 'mart.partner_api') {
-          $response = $this->model->listMartCategories();
+          // A 401 renews the token and retries once, like notify and status. The old path queued the
+          // renewal and retried at once with the same, still expired token (audit GRAB-10).
+          $response = app(GrabTokenKeeper::class)->retryOnUnauthorized(
+            $deliveryPlatformOperator,
+            fn ($account) => (new Grab($account))->listMartCategories(),
+          );
           if ($response['success']) {
             return $response['data'];
-          } else {
-            if ($response['code'] === 401 && !$isRetry) {
-              SyncDeliveryPlatformOauthByOperator::dispatch($deliveryPlatformOperator);
-
-              return $this->getCategories($deliveryPlatformOperator->fresh(), true);
-            } else {
-              throw new \Exception('Get Categories Failed, Other than 401, ' . $response['code']);
-            }
           }
+          throw new \Exception('Get Categories Failed, ' . $response['code']);
         } else if ($scope === 'food.partner_api') {
           return $this->model->getDefaultCategories();
         }

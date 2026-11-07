@@ -40,7 +40,9 @@ class UpdateHttpLastUpdated implements ShouldQueue
      */
     public function handle(): void
     {
-        $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)->find($this->vendID);
+        // Only what this job and Vend's save hooks read (machine_type for the freezer price rule; the observers'
+        // wasChanged columns): a whole vends row is ~28 KB and this runs up to twice a minute per machine (audit PERF-06).
+        $vend = Vend::withoutGlobalScope(OperatorVendFilterScope::class)->select(['id', 'machine_type', 'is_using_server_price', 'customer_id', 'is_testing', 'last_updated_at', 'is_online'])->find($this->vendID);
         if (! $vend) {
             return;
         }

@@ -34,6 +34,11 @@ class PaymentMethod extends Model
      */
     public static function menuCacheKey(string $countryCode, string $gatewayName, ?string $menuVariant = null, ?int $operatorId = null): string
     {
+        // Lower-cased: the DB lookup ignores case, so "/SG/Omise" and "/sg/omise" serve the same menu and must
+        // share one key, or the casing a board was given gets a copy no save ever clears (audit ACC-07).
+        $countryCode = strtolower($countryCode);
+        $gatewayName = strtolower($gatewayName);
+
         return "payment_merchants:{$countryCode}:{$gatewayName}"
             .($menuVariant !== null ? ":{$menuVariant}" : '')
             .($operatorId !== null ? ":op{$operatorId}" : '');

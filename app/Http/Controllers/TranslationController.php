@@ -99,7 +99,14 @@ class TranslationController extends Controller
         $data = $request->validate([
             'locale' => ['required', Rule::in(array_keys(TranslationCatalog::LOCALES))],
             'key' => ['required', 'string', 'max:5000'],
-            'value' => ['nullable', 'string', 'max:5000'],
+            'value' => ['nullable', 'string', 'max:5000', function (string $attribute, $value, \Closure $fail) use ($request) {
+                // Several tooltips render their text as HTML, so wording may only reuse markup its English
+                // text already has: a saved "<img onerror=…>" would run for every viewer of that language
+                // (audit UI2-01).
+                if (is_string($value) && self::foreignMarkup((string) $request->input('key'), $value) !== []) {
+                    $fail(__('Keep the HTML of the English text as it is. Other markup cannot be saved.'));
+                }
+            }],
         ]);
 
         $catalog->setOverride($data['locale'], $data['key'], $data['value'] ?? null, $request->user());
@@ -114,6 +121,24 @@ class TranslationController extends Controller
         }
 
         return back();
+    }
+
+    /**
+     * Markup in a wording that its English key does not carry: each tag, attributes included, compared
+     * whitespace-insensitively. Plain text (no markup) always passes.
+     *
+     * @return list<string>
+     */
+    public static function foreignMarkup(string $key, string $value): array
+    {
+        $tags = function (string $text): array {
+            preg_match_all('/<\s*\/?\s*[a-z!][^>]*>/i', $text, $m);
+
+            return array_map(fn (string $t) => strtolower((string) preg_replace('/\s+/', ' ', trim($t))), $m[0]);
+        };
+        $allowed = array_flip($tags($key));
+
+        return array_values(array_filter($tags($value), fn (string $t) => ! isset($allowed[$t])));
     }
 
     /** @return string[] */

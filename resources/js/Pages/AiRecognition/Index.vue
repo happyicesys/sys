@@ -937,12 +937,26 @@ function toggleSubmitted(id) {
   openSubmitted.value = open
 }
 
+// Asked twice per listed product on every render: built once per row (rows are new objects after each reload).
+const barcodeSets = new WeakMap()
+function barcodesOf(row) {
+  let sets = barcodeSets.get(row)
+  if (!sets) {
+    sets = {
+      paid: new Set(row.purchased.map((line) => line.barcode).filter(Boolean)),
+      seen: new Set(row.items.map((item) => item.code)),
+    }
+    barcodeSets.set(row, sets)
+  }
+  return sets
+}
+
 function paidBarcodes(row) {
-  return new Set(row.purchased.map((line) => line.barcode).filter(Boolean))
+  return barcodesOf(row).paid
 }
 
 function seenBarcodes(row) {
-  return new Set(row.items.map((item) => item.code))
+  return barcodesOf(row).seen
 }
 
 const showLegend = ref(false)

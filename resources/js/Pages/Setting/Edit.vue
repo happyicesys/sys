@@ -2265,6 +2265,9 @@ function stopScreenshotPoll() {
 // Chained, not setInterval: a slow answer never stacks a second request behind it.
 function scheduleScreenshotPoll() {
   stopScreenshotPoll()
+  if (pageUnmounted) {
+    return
+  }
   screenshotPoll = setTimeout(pollScreenshot, SCREENSHOT_POLL_MS)
 }
 
@@ -2386,7 +2389,10 @@ function openScreenshot() {
 
 // A modal left open while the operator navigates away would otherwise leave
 // the poll timer running against a dead component.
+// A poll still in flight when the page closes must not schedule the next one.
+let pageUnmounted = false
 onUnmounted(() => {
+  pageUnmounted = true
   stopScreenshotPoll()
 })
 

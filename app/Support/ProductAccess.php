@@ -225,7 +225,7 @@ class ProductAccess
             return ' AND 1 = 0';
         }
 
-        return ' AND ' . $table . '.product_id IN (' . self::idList($ids) . ')';
+        return ' AND '.$table.'.product_id IN ('.self::idList($ids).')';
     }
 
     /**
@@ -263,10 +263,10 @@ class ProductAccess
 
         return 'EXISTS (
             SELECT 1 FROM vend_channels vc_own
-            WHERE vc_own.vend_id = ' . $vendIdColumn . '
+            WHERE vc_own.vend_id = '.$vendIdColumn.'
               AND vc_own.is_active = 1
               AND vc_own.capacity > 0
-              AND vc_own.product_id IN (' . self::idList($ids) . ')
+              AND vc_own.product_id IN ('.self::idList($ids).')
         )';
     }
 
@@ -402,30 +402,49 @@ class ProductAccess
             return $totals;
         }
 
-        if (is_object($totals)) {
+        if (! is_object($totals) && ! is_array($totals)) {
+            return null;
+        }
+
+        return self::withoutMoneyKeys($totals);
+    }
+
+    /**
+     * Drops money keys at EVERY depth: the trend blocks (`happy_hour` since 2026-10-23) nest whole-machine
+     * revenue under a key with no money word in it, which the top-level-only pass let through to
+     * product-limited viewers (audit CORE2-01). A share worked out from that money goes too.
+     *
+     * @param  array<mixed>|object  $node
+     * @return array<mixed>|object
+     */
+    private static function withoutMoneyKeys($node)
+    {
+        $keep = fn (string $key) => ! self::isMoneyKey($key) && ! in_array($key, self::MONEY_DERIVED_KEYS, true);
+        $walk = fn ($value) => is_array($value) || is_object($value) ? self::withoutMoneyKeys($value) : $value;
+
+        if (is_object($node)) {
             $clone = new \stdClass;
-            foreach (get_object_vars($totals) as $key => $value) {
-                if (! self::isMoneyKey($key)) {
-                    $clone->{$key} = $value;
+            foreach (get_object_vars($node) as $key => $value) {
+                if ($keep((string) $key)) {
+                    $clone->{$key} = $walk($value);
                 }
             }
 
             return $clone;
         }
 
-        if (! is_array($totals)) {
-            return null;
-        }
-
         $kept = [];
-        foreach ($totals as $key => $value) {
-            if (! self::isMoneyKey((string) $key)) {
-                $kept[$key] = $value;
+        foreach ($node as $key => $value) {
+            if ($keep((string) $key)) {
+                $kept[$key] = $walk($value);
             }
         }
 
         return $kept;
     }
+
+    /** Keys with no money word that are still computed from whole-machine money. */
+    private const MONEY_DERIVED_KEYS = ['non_hh_pct_7d'];
 
     /**
      * Does this rollup key hold currency?

@@ -786,7 +786,8 @@ function closeLeftover(store, other) {
   if (!window.confirm(t('Close the leftover binding on machine :code? The store keeps selling from :live.', { code: other.vend_code, live: store.binding?.vend_code }))) {
     return
   }
-  router.post(`/grab-stores/bindings/${other.id}/unbind`, { reason: 'correction', remarks: t('Leftover open binding closed') }, { preserveScroll: true })
+  // Stored data: always English, never the viewer's language (or edit-mode markers).
+  router.post(`/grab-stores/bindings/${other.id}/unbind`, { reason: 'correction', remarks: 'Leftover open binding closed' }, { preserveScroll: true })
 }
 
 function toggleOff(store) {

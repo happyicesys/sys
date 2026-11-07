@@ -9,7 +9,9 @@ use App\Models\Vend;
 use App\Models\ZijiaLibrarySku;
 use Carbon\CarbonInterface;
 use DomainException;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -40,7 +42,7 @@ class ZijiaSkuLinks
      * @param  list<int>|null  $vendIds  null = every smart freezer
      * @return array<int, array{vend_id: int, code_label: string, total: int, on_list: int, missing: list<array<string, mixed>>}>
      */
-    public function coverage(?array $vendIds = null): array
+    public function coverage(?array $vendIds = null, bool $withSuggestions = true): array
     {
         $rows = DB::table('vend_channels')
             ->join('vends', 'vends.id', '=', 'vend_channels.vend_id')
@@ -67,8 +69,13 @@ class ZijiaSkuLinks
                     continue;
                 }
                 if (! isset($missingByProduct[$p->product_id])) {
-                    $library ??= $this->unlinkedEntries();
-                    $suggestions = $hasBarcode ? [] : $this->suggestionsFor((string) $p->name, $library);
+                    // The fuzzy match against the library is skipped where only the codes are shown (audit CORE2-06).
+                    if ($withSuggestions && ! $hasBarcode) {
+                        $library ??= $this->unlinkedEntries();
+                        $suggestions = $this->suggestionsFor((string) $p->name, $library);
+                    } else {
+                        $suggestions = [];
+                    }
                     $missingByProduct[$p->product_id] = [
                         'product_id' => (int) $p->product_id,
                         'code' => $p->product_code,
@@ -131,6 +138,20 @@ class ZijiaSkuLinks
      * @throws DomainException with the sentence to show
      */
     public function link(Product $product, ZijiaLibrarySku $entry): void
+    {
+        // One link per code at a time: two people linking the same code to two products would both
+        // pass the "no product holds it" check across the HTTP call below (audit SF2-09).
+        try {
+            Cache::lock('zijia-sku-link:'.$entry->product_code, 30)->block(10, function () use ($product, $entry) {
+                $product->refresh();
+                $this->linkUnlocked($product, $entry);
+            });
+        } catch (LockTimeoutException) {
+            throw new DomainException(__('Someone else is linking this code right now. Try again in a moment.'));
+        }
+    }
+
+    private function linkUnlocked(Product $product, ZijiaLibrarySku $entry): void
     {
         if (filled($product->barcode)) {
             throw new DomainException(__(':product already has barcode :barcode.', ['product' => $product->code, 'barcode' => $product->barcode]));

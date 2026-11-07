@@ -15,6 +15,7 @@ use App\Services\SmartFreezer\FreezerSaleLocator;
 use Carbon\Carbon;
 use DomainException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -220,13 +221,17 @@ class CardRefundService
     /** The money went back. */
     private function confirmed(CardPaymentIntent $intent, ?VendTransaction $sale, CardRefund $refund, ?TerminalTransaction $answer): CardRefund
     {
-        $refund->update([
-            'state' => CardRefund::STATE_REFUNDED,
-            'error' => null,
-            'provider_refund_id' => $answer?->providerTxnId,
-            'response' => $answer?->raw ?? $refund->response,
-        ]);
-        $intent->increment('refunded_cents', $refund->amount_cents);
+        // One unit: a run dying between the two writes would leave the refund done but the intent's
+        // refundable amount too high (audit SF2-03).
+        DB::transaction(function () use ($intent, $refund, $answer) {
+            $refund->update([
+                'state' => CardRefund::STATE_REFUNDED,
+                'error' => null,
+                'provider_refund_id' => $answer?->providerTxnId,
+                'response' => $answer?->raw ?? $refund->response,
+            ]);
+            $intent->increment('refunded_cents', $refund->amount_cents);
+        });
         $this->events->record('refund.done', [
             'refund_id' => $refund->id, 'amount_cents' => $refund->amount_cents, 'kind' => $refund->kind, 'by' => $refund->requested_by_name,
         ], $intent->terminal, $intent->custom_order_id);
