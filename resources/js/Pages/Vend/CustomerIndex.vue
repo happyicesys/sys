@@ -1633,22 +1633,6 @@
 								<span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
 									{{ vend.customer_name }}
 								</span>
-
-								<a target="_blank" :href="cmsEndpoint + '/person/' + vend.person_id + '/edit'" class="" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="$t('Open this customer in CMS')">
-									<div
-											class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
-									>
-											{{ $t('CMS') }}
-									</div>
-								</a>
-								<span v-if="vend && vend.vend" v-for="(deliveryProductMappingVend, index) in vend.vend.deliveryProductMappingVends">
-									<div
-											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
-											v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
-									>
-										{{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
-									</div>
-								</span>
 							</span>
 							<span v-else-if="!vend.person_id">
 								<span v-if="permissions.includes('admin-access vend-customers')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
@@ -1662,17 +1646,61 @@
 									</a>
 								</span>
 							</span>
-							<div
-								class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-gray-100 text-gray-800 border-gray-300"
-								v-if="vend.postcode"
-							>
-								{{ vend.postcode }}
-							</div>
-							<div
-								class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
-								v-if="vend.selling_price_type"
-							>
-								RP{{ vend.selling_price_type }}
+							<!-- CMS, delivery platform, postcode, RP, map pin and GPS share one wrapping row
+							     (Brian, 2026-11-07: one line per pill made every row tall). 8rem holds
+							     "CMS Grab 518239" on one line and "RP2 pin GPS" on the next. -->
+							<div class="flex flex-wrap items-center gap-1 min-w-[8rem]">
+								<a
+									v-if="vend.customer_id && vend.person_id && permissions.includes('admin-access vend-customers')"
+									target="_blank"
+									:href="cmsEndpoint + '/person/' + vend.person_id + '/edit'"
+									class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] border border-blue-300 bg-blue-200 text-gray-800 hover:bg-blue-300"
+									v-tooltip="$t('Open this customer in CMS')"
+								>
+									{{ $t('CMS') }}
+								</a>
+								<template v-if="vend.customer_id && vend.person_id && vend.vend">
+									<template v-for="(deliveryProductMappingVend, index) in vend.vend.deliveryProductMappingVends" :key="'dpm-' + index">
+										<span
+											class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border text-gray-800 bg-green-400"
+											v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
+										>
+											{{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
+										</span>
+									</template>
+								</template>
+								<span
+									class="inline-flex items-center rounded px-0.5 py-0.5 text-xs border bg-gray-100 text-gray-800 border-gray-300"
+									v-if="vend.postcode"
+								>
+									{{ vend.postcode }}
+								</span>
+								<span
+									class="inline-flex items-center rounded px-0.5 py-0.5 text-xs border bg-indigo-100 text-indigo-800 border-indigo-300"
+									v-if="vend.selling_price_type"
+								>
+									RP{{ vend.selling_price_type }}
+								</span>
+								<Button
+									type="button" class="bg-sky-300 hover:bg-sky-400 px-1.5 py-1 text-xs text-sky-800 flex w-fit"
+									@click="onMapMarkerClicked(vend)"
+									v-if="vend.deliveryAddress && vend.deliveryAddress.latitude && vend.deliveryAddress.longitude"
+								>
+									<MapPinIcon class="h-3 w-3" aria-hidden="true"/>
+								</Button>
+								<a
+									:href="vend.deliveryAddress && vend.deliveryAddress.map_url
+										? vend.deliveryAddress.map_url
+										: (vend.deliveryAddress && vend.deliveryAddress.latitude && vend.deliveryAddress.longitude
+											? 'https://www.google.com/maps/search/?api=1&query=' + vend.deliveryAddress.latitude + ',' + vend.deliveryAddress.longitude
+											: '')"
+									target="_blank"
+									rel="noopener noreferrer"
+									class="bg-green-300 hover:bg-green-400 px-1.5 py-0.5 text-xs w-fit rounded shadow font-bold"
+									v-tooltip="$t('Open this location in Google Maps')"
+								>
+									<span class="text-blue-800 underline">GPS</span>
+								</a>
 							</div>
 							<div
 								v-for="campaign in (vend.vend && vend.vend.campaigns) ? vend.vend.campaigns : []"
@@ -1726,43 +1754,6 @@
 								:hint="$t('Happy Hour pieces sold per day; L30d and L7d are the average over the days it ran Happy Hour')"
 								:points="happyHourQtyPoints(happyHourTrend(vend))"
 							/>
-							<span class="flex space-x-1 items-center">
-								<span>
-									<Button
-									type="button" class="bg-sky-300 hover:bg-sky-400 px-3 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
-									@click="onMapMarkerClicked(vend)"
-									v-if="vend.deliveryAddress && vend.deliveryAddress.latitude && vend.deliveryAddress.longitude"
-									>
-										<MapPinIcon class="h-3 w-3" aria-hidden="true"/>
-									</Button>
-								</span>
-								<a
-									:href="vend.deliveryAddress && vend.deliveryAddress.map_url
-										? vend.deliveryAddress.map_url
-										: (vend.deliveryAddress && vend.deliveryAddress.latitude && vend.deliveryAddress.longitude
-											? 'https://www.google.com/maps/search/?api=1&query=' + vend.deliveryAddress.latitude + ',' + vend.deliveryAddress.longitude
-											: '')"
-									target="_blank"
-									rel="noopener noreferrer"
-									type="button"
-									class="bg-green-300 hover:bg-green-400 px-3 py-2 text-xs flex space-x-1 w-fit rounded shadow font-bold"
-									v-tooltip="$t('Open this location in Google Maps')"
-								>
-									<span class="text-blue-800 underline">GPS</span>
-								</a>
-							</span>
-
-
-              <Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')" v-tooltip="$t('Open the full machine record')">
-                <Button
-                type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-                >
-                <EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
-                <span class="text-blue-800 underline">
-                    {{ $t('more') }}
-                </span>
-                </Button>
-              </Link>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -1924,6 +1915,17 @@
 									</span>
 								</div>
 							</template>
+							<!-- "more" sits here, under the SIM, since 2026-11-07 (Brian), to keep the Machine ID cell short. -->
+							<Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')" class="pt-1" v-tooltip="$t('Open the full machine record')">
+								<Button
+									type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+								>
+									<EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
+									<span class="text-blue-800 underline">
+										{{ $t('more') }}
+									</span>
+								</Button>
+							</Link>
 						</div>
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
