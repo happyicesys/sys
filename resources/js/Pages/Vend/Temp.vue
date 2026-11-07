@@ -797,8 +797,10 @@ function getVendTempsData() {
         }
       }
 
-      // Add trailing NaNs if needed
-      const lastPoint = resultArr[resultArr.length - 1];
+      // Add trailing NaNs if needed, after the last REAL reading. resultArr is not sorted yet, so its last entry
+      // is the last gap point pushed above: starting there put a NaN between every reading from that gap on,
+      // and the grey dashed gap style then covered the rest of the chart (2516, 7 Nov 2026).
+      const lastPoint = vendTempsDataByType[vendTempsDataByType.length - 1];
       const endTs = moment(filters.value.datetime_to).valueOf();
       if (endTs > lastPoint.ts) {
         let gapTs = lastPoint.ts + FIVE_MINS_MS;
@@ -846,7 +848,8 @@ function getVendTempsData() {
         }
       }
 
-      const lastPoint = resultArr[resultArr.length - 1];
+      // After the last REAL reading (see the temperature block above).
+      const lastPoint = vendFansDataByType[vendFansDataByType.length - 1];
       const endTs = moment(filters.value.datetime_to).valueOf();
       if (endTs > lastPoint.ts) {
         let gapTs = lastPoint.ts + FIVE_MINS_MS;

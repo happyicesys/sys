@@ -1,0 +1,1 @@
+import{d as s,e as n,y as r,n as a}from"./app.98ebebf1.js";const o=["type"],p={__name:"Button",props:{type:{type:String,default:"submit"},class:{type:String}},setup(e){return(t,l)=>(s(),n("button",{type:e.type,class:a(["inline-flex items-center px-2 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm",e.class])},[r(t.$slots,"default")],10,o))}};export{p as _};
