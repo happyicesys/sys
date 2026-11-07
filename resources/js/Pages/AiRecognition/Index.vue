@@ -341,7 +341,7 @@
                     {{ $t('Settlement') }}
                   </TableHead>
                   <TableHead>
-                    {{ $t('Invoice QR') }}
+                    {{ $t("Customer's copy") }}
                   </TableHead>
                 </tr>
               </thead>
