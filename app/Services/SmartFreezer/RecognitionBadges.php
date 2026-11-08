@@ -38,7 +38,9 @@ class RecognitionBadges
             'callback_payload', 'verdict', 'verdict_lines', 'created_at', 'submitted_at', 'completed_at'];
         $byId = SmartFreezerRecognition::query()->whereIn('vend_transaction_id', $ids)->orderBy('id')->get($columns)
             ->keyBy('vend_transaction_id');
+        // A door try that never opened (app 54+) is never the sale's check.
         $byRef = $refs->isEmpty() ? collect() : SmartFreezerRecognition::query()->whereIn('session_ref', $refs->values()->unique())
+            ->where('status', '!=', SmartFreezerRecognition::STATUS_SKIPPED)
             ->orderBy('id')->get($columns)->keyBy('session_ref');
 
         $matched = [];

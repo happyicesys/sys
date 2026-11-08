@@ -12,6 +12,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Lifecycle: `pending` (waiting — `status_reason` says for what) → `submitting` (claimed, so a
  * metered call is never made twice) → `submitted` (their `request_id`) → `completed` with a
  * `verdict`, or `failed` with the reason. Written only by FreezerRecognitionService.
+ *
+ * `skipped`: a door try whose door never opened (freezer app 54+ retries a lock that will not open, each try a
+ * host order of its own). Its video is kept but never sent to the AI and never judged against the sale, so its
+ * "nothing taken" can never release or charge the sale's card hold (Brian, 2026-11-08).
  */
 class SmartFreezerRecognition extends Model
 {
@@ -24,6 +28,8 @@ class SmartFreezerRecognition extends Model
     public const STATUS_COMPLETED = 'completed';
 
     public const STATUS_FAILED = 'failed';
+
+    public const STATUS_SKIPPED = 'skipped';
 
     protected $fillable = [
         'vend_id', 'trade_id', 'session_ref', 'device_id', 'vend_transaction_id',

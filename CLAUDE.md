@@ -1176,6 +1176,17 @@ unrecognised). Rules:
   their videos. A camera arriving after the send is kept and logged, not sent. On
   the sync queue driver the job cannot wait and submits at once (re-queueing
   there would recurse).
+- **Door tries (freezer app 54+, Brian 2026-11-08): only the try that opened reaches the AI.** When the host answers a
+  paid open with a lock timeout, the app tries again, up to five times, each a NEW host order `<SFREF>R<n>` (try 1 is
+  the plain ref), and names the one that opened as `SFORD` on the TRADE. Every try still gets a Zijia video push.
+  `ZijiaVideoPush` reads `R<n>`: `sessionRef` stays the sale's ref, `tradeId` / `orderRef` is the try's order, `doorTry`
+  its number. `FreezerRecognitionService::doorTryNotOpened` keeps a try's row but marks it `skipped` ("Not sent to AI")
+  when the sale's `SFORD` names another try, when the freezer reported the session failed with a never-opened reason
+  (`unfulfilled_refund.reasons`), or when a later try of the same sale is already in; asked at push time and again at
+  send time. A try sent anyway (its push beat everything) is skipped in `evaluate()` and never judges the sale: its
+  "nothing taken" would release the sale's card hold. `CardPaymentService` and `RecognitionBadges` ignore skipped rows;
+  AI Recognition lists a sale's tries once (the opened try, badged "Door opened on try n", else try 1). Their own trade
+  ids (not our pattern) are never skipped. Regression coverage: `tests/Feature/FreezerDoorTryTest.php`.
 - **The sale is found by the TRADE's `SFREF`** (freezer APK v20: our txnRef, the
   same string the door-open hands Zijia as `orderNo`) inside
   `vend_transaction_json`, narrowed by the ref's own epoch on the

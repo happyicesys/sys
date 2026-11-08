@@ -67,7 +67,7 @@ class ZijiaVideoWebhookController extends Controller
         $video = SmartFreezerVideo::create([
             'supplier' => 'zijia',
             'vend_id' => $vend?->id,
-            'order_no' => $push->sessionRef ?? $push->tradeId,
+            'order_no' => $push->orderRef ?? $push->tradeId,
             'device_id' => $push->deviceIdentifier(),
             'video_urls' => $push->videoUrls,
             'payload' => $payload,

@@ -732,6 +732,8 @@ class CardPaymentService
         $answers = $intent->session_ref === null ? collect() : SmartFreezerRecognition::query()
             ->where('vend_id', $intent->vend_id)
             ->where('session_ref', $intent->session_ref)
+            // A door try that never opened (app 54+) answered about a shut lid, not this sale.
+            ->where('status', '!=', SmartFreezerRecognition::STATUS_SKIPPED)
             ->where(fn ($q) => $q->whereNotNull('order_status')->orWhereNotNull('verdict'))
             ->get(['id', 'verdict']);
         if ($answers->contains(fn (SmartFreezerRecognition $r) => $r->verdict !== null)) {
@@ -848,6 +850,7 @@ class CardPaymentService
         $recognitions = $intent->session_ref === null ? collect() : SmartFreezerRecognition::query()
             ->where('vend_id', $intent->vend_id)
             ->where('session_ref', $intent->session_ref)
+            ->where('status', '!=', SmartFreezerRecognition::STATUS_SKIPPED)
             ->whereNotNull('verdict')
             ->orderBy('id')
             ->get();

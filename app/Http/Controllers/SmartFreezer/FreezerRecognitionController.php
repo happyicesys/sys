@@ -19,6 +19,7 @@ use App\Services\HappyHour\HappyHourPricing;
 use App\Services\NoteNotificationService;
 use App\Services\SmartFreezer\DoorFault;
 use App\Services\SmartFreezer\FreezerClipLinks;
+use App\Services\SmartFreezer\FreezerRecognitionService;
 use App\Services\SmartFreezer\RecognitionBadges;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
@@ -103,6 +104,15 @@ class FreezerRecognitionController extends Controller
                 'videos:id,smart_freezer_recognition_id,video_urls,created_at',
             ])
             ->when($request->input('status'), fn ($q, $s) => $s !== 'all' ? $q->where('status', $s) : $q)
+            // A door try that never opened (app 54+, Brian 2026-11-08) is one door session with the try
+            // that did: listed only when no try of that sale opened, and then once, as its first try.
+            ->when($request->input('status') !== SmartFreezerRecognition::STATUS_SKIPPED, fn ($q) => $q->where(fn ($q) => $q
+                ->where('status', '!=', SmartFreezerRecognition::STATUS_SKIPPED)
+                ->orWhere(fn ($q) => $q->whereColumn('trade_id', 'session_ref')
+                    ->whereNotExists(fn ($e) => $e->selectRaw('1')->from('smart_freezer_recognitions as door_try')
+                        ->whereColumn('door_try.vend_id', 'smart_freezer_recognitions.vend_id')
+                        ->whereColumn('door_try.session_ref', 'smart_freezer_recognitions.session_ref')
+                        ->where('door_try.status', '!=', SmartFreezerRecognition::STATUS_SKIPPED)))))
             ->when($request->input('verdict'), fn ($q, $v) => match ($v) {
                 'all' => $q,
                 'none' => $q->whereNull('verdict'),
@@ -179,6 +189,7 @@ class FreezerRecognitionController extends Controller
                 SmartFreezerRecognition::STATUS_SUBMITTED,
                 SmartFreezerRecognition::STATUS_COMPLETED,
                 SmartFreezerRecognition::STATUS_FAILED,
+                SmartFreezerRecognition::STATUS_SKIPPED,
             ],
             'verdicts' => [
                 RecognitionVerdict::MATCH, RecognitionVerdict::TOOK_MORE, RecognitionVerdict::TOOK_LESS,
@@ -468,6 +479,8 @@ class FreezerRecognitionController extends Controller
             'vend_label' => $r->vend?->codeLabel(),
             'device_id' => $r->device_id,
             'trade_id' => $r->trade_id,
+            // The door try this row is (freezer app 54+ retries a lock that will not open): 1 for the plain ref.
+            'door_try' => FreezerRecognitionService::doorTryOf($r->trade_id),
             'session_ref' => $r->session_ref,
             'status' => $r->status,
             // "sale not found yet" would promise a sale that is not coming.
@@ -774,7 +787,8 @@ class FreezerRecognitionController extends Controller
 
             return ((array) $frame)['SFREF'] ?? null;
         };
-        $known = SmartFreezerRecognition::query()->whereIn('session_ref', $sales->map($refOf)->filter()->values())->pluck('session_ref')->flip();
+        $known = SmartFreezerRecognition::query()->whereIn('session_ref', $sales->map($refOf)->filter()->values())
+            ->where('status', '!=', SmartFreezerRecognition::STATUS_SKIPPED)->pluck('session_ref')->flip();
         $waiting = $sales->filter(fn (VendTransaction $sale) => $refOf($sale) !== null && ! $known->has($refOf($sale)));
         $ids = $waiting->flatMap(fn (VendTransaction $sale) => array_map(fn ($u) => (int) ($u['goods_id'] ?? 0), $this->tradeUnits($sale)))->filter()->unique();
         $products = Product::withoutGlobalScopes()->whereIn('id', $ids)->get(['id', 'code', 'name', 'barcode'])->keyBy('id')->all();

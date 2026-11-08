@@ -19,6 +19,10 @@ namespace App\Services\SmartFreezer\Zijia;
  *               they send neither.
  *  - sessionRef: OUR txnRef "SF-<vendCode>-<epoch>-<seq>", which the APK hands their
  *               orderOpenDoor as `orderNo`; found under any key, or inside any string.
+ *  - orderRef / doorTry: from app 54 a door the lock refuses is tried again, up to five times, each
+ *               try a new order on the host named "<sessionRef>R<n>" (Brian, 2026-11-08). The push
+ *               of a try carries that name: orderRef is it whole, doorTry its n (1 for the plain ref),
+ *               and sessionRef is still the SALE's ref, so every try of one sale finds the same sale.
  *
  * Each field is chosen by KEY PRIORITY (the order of its key list), never by where it happens to
  * sit in the payload — a body listing `orderNo` before `tradeId` must still yield their tradeId.
@@ -27,6 +31,9 @@ namespace App\Services\SmartFreezer\Zijia;
 final class ZijiaVideoPush
 {
     public const SESSION_REF_PATTERN = '/\bSF-(\d+)-\d+-\d+\b/';
+
+    /** Our ref with the door try a retry adds (app 54+): group 1 the sale's ref, 2 its vend code, 3 the try. */
+    public const ORDER_REF_PATTERN = '/\b(SF-(\d+)-\d+-\d+)(?:R(\d+))?\b/';
 
     private const IMEI_KEYS = ['imei', 'deviceimei', 'device_imei', 'modemimei'];
 
@@ -52,6 +59,8 @@ final class ZijiaVideoPush
         public readonly array $videoUrls,
         public readonly int $videoDuration,
         public readonly int $doorId,
+        public readonly ?string $orderRef = null,
+        public readonly int $doorTry = 1,
     ) {}
 
     /** @param  array<string, mixed>  $payload */
@@ -85,9 +94,12 @@ final class ZijiaVideoPush
         }
 
         $sessionRef = null;
+        $orderRef = null;
+        $doorTry = 1;
         foreach ($strings as $s) {
-            if (preg_match(self::SESSION_REF_PATTERN, $s, $m)) {
-                $sessionRef = $m[0];
+            if (preg_match(self::ORDER_REF_PATTERN, $s, $m)) {
+                [$orderRef, $sessionRef] = [$m[0], $m[1]];
+                $doorTry = isset($m[3]) && $m[3] !== '' ? max(1, (int) $m[3]) : 1;
                 break;
             }
         }
@@ -100,18 +112,21 @@ final class ZijiaVideoPush
         return new self(
             imei: $found['imei'] ?? null,
             deviceNo: $found['deviceNo'] ?? null,
-            tradeId: $found['tradeId'] ?? self::theirOrderNo($found['orderNo'] ?? null) ?? $sessionRef,
+            // Our full order ref, not the sale's: two tries of one sale are two door sessions.
+            tradeId: $found['tradeId'] ?? self::theirOrderNo($found['orderNo'] ?? null) ?? $orderRef,
             sessionRef: $sessionRef,
             videoUrls: $videos !== [] ? $videos : $urls,
             videoDuration: isset($found['duration']) && is_numeric($found['duration']) ? max(0, (int) round((float) $found['duration'])) : 0,
             doorId: isset($found['door']) && ctype_digit($found['door']) ? max(1, (int) $found['door']) : 1,
+            orderRef: $orderRef,
+            doorTry: $doorTry,
         );
     }
 
     /** An `orderNo` is their door-session id unless it is our own SF- ref. */
     private static function theirOrderNo(?string $orderNo): ?string
     {
-        return $orderNo === null || preg_match(self::SESSION_REF_PATTERN, $orderNo) === 1 ? null : $orderNo;
+        return $orderNo === null || preg_match(self::ORDER_REF_PATTERN, $orderNo) === 1 ? null : $orderNo;
     }
 
     /** The vend code inside our own session ref, when there is one. */

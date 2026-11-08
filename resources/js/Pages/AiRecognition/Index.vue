@@ -389,6 +389,10 @@
                       <span v-if="row.session_ref" class="whitespace-nowrap" :title="$t('Our txnRef (SFREF on the TRADE)')">
                         <span class="text-gray-500">{{ $t('Ours:') }}</span> <span class="font-mono">{{ row.session_ref }}</span>
                       </span>
+                      <span v-if="row.door_try > 1 && row.status !== 'skipped'"
+                        class="inline-flex w-fit items-center whitespace-nowrap rounded border border-amber-300 bg-amber-50 px-1 text-[10px] font-bold text-amber-800 hover:cursor-help"
+                        :title="$t('The lock did not open at first; the freezer tried again and the door opened on this try. Only this try was sent to the AI.')">{{ $t('Door opened on try :n', { n: row.door_try }) }}</span>
+                      <span v-if="row.status === 'skipped' && row.door_try" class="whitespace-nowrap text-[10px] text-gray-600">{{ $t('Door never opened on this try') }}</span>
                       <span v-if="row.request_id" class="whitespace-nowrap" :title="$t('The AI service\'s request id')">
                         <span class="text-gray-500">{{ $t('AI req:') }}</span> <span class="font-mono">{{ row.request_id }}</span>
                       </span>
@@ -725,6 +729,7 @@ const statusLabels = {
   submitted: tk('Sent to AI'),
   completed: tk('Result in'),
   failed: tk('Failed'),
+  skipped: tk('Not sent to AI'),
 }
 
 const verdictLabels = {
@@ -785,6 +790,7 @@ function statusBadgeClass(status) {
     submitted: 'bg-blue-100 text-blue-800 border-blue-300',
     completed: 'bg-green-100 text-green-800 border-green-300',
     failed: 'bg-red-100 text-red-800 border-red-300',
+    skipped: 'bg-gray-100 text-gray-500 border-gray-300',
   }[status] || 'bg-gray-100 text-gray-700 border-gray-300'
 }
 

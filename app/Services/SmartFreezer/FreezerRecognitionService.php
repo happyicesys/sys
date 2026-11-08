@@ -3,6 +3,7 @@
 namespace App\Services\SmartFreezer;
 
 use App\Jobs\SubmitFreezerRecognition;
+use App\Models\FreezerFailedSession;
 use App\Models\Product;
 use App\Models\SmartFreezerRecognition;
 use App\Models\SmartFreezerVideo;
@@ -83,6 +84,14 @@ class FreezerRecognitionService
             return $recognition;
         }
 
+        if (($skip = $this->doorTryNotOpened($recognition)) !== null) {
+            $recognition->status = SmartFreezerRecognition::STATUS_SKIPPED;
+            $recognition->status_reason = $skip;
+            $recognition->save();
+
+            return $recognition;
+        }
+
         $recognition->status_reason = $this->blocker($recognition);
         $recognition->save();
 
@@ -132,6 +141,14 @@ class FreezerRecognitionService
     {
         if ($recognition->status !== SmartFreezerRecognition::STATUS_PENDING) {
             return $recognition;
+        }
+        // Asked again at send time: the TRADE naming the try that opened usually lands after the push.
+        if (($skip = $this->doorTryNotOpened($recognition)) !== null) {
+            SmartFreezerRecognition::whereKey($recognition->id)
+                ->where('status', SmartFreezerRecognition::STATUS_PENDING)
+                ->update(['status' => SmartFreezerRecognition::STATUS_SKIPPED, 'status_reason' => $skip]);
+
+            return $recognition->refresh();
         }
         if (($reason = $this->blocker($recognition)) !== null) {
             $recognition->update(['status_reason' => $reason]);
@@ -265,6 +282,14 @@ class FreezerRecognitionService
 
             return $recognition;
         }
+        // A try whose door did not open was sent anyway (its push came before anything said so): its
+        // answer is about a shut lid, never about this sale, so it must not judge it — a "nothing
+        // taken" here would release the sale's card hold.
+        if (($other = $this->notTheOpenedTry($recognition, $sale)) !== null) {
+            $recognition->update(['status' => SmartFreezerRecognition::STATUS_SKIPPED, 'status_reason' => $other]);
+
+            return $recognition;
+        }
 
         $verdict = RecognitionVerdict::compare(
             $this->sales->paidUnits($sale),
@@ -282,6 +307,86 @@ class FreezerRecognitionService
         ]);
 
         return $recognition;
+    }
+
+    /**
+     * Why this recognition is a door try whose door never opened, so it is kept but never sent to the
+     * AI (Brian, 2026-11-08), or null when it may be sent. Freezer app 54+ tries a lock that will not
+     * open up to five times, each a new host order "<SFREF>R<n>" with a video of a shut lid:
+     *
+     *  - the sale's TRADE names the try that opened (`SFORD`), and this is another one;
+     *  - there is no sale and the freezer reported the session as failed before the door opened;
+     *  - a later try of the same sale is already here (each try is made only after the one before failed).
+     *
+     * Only our own refs are judged; a trade id of theirs cannot be told apart, so it is sent as before.
+     */
+    public function doorTryNotOpened(SmartFreezerRecognition $recognition): ?string
+    {
+        $try = self::doorTryOf($recognition->trade_id);
+        if ($try === null || $recognition->vend === null || $recognition->session_ref === null) {
+            return null;
+        }
+
+        $sale = $this->sales->find($recognition->vend, $recognition->session_ref, $recognition->created_at);
+        if ($sale !== null) {
+            return $this->notTheOpenedTry($recognition, $sale);
+        }
+
+        $failed = FreezerFailedSession::query()
+            ->where('vend_id', $recognition->vend_id)
+            ->where('session_ref', $recognition->session_ref)
+            ->whereIn('reason', (array) config('smart_freezer.unfulfilled_refund.reasons'))
+            ->exists();
+        if ($failed) {
+            return "door try {$try}: the door never opened (the freezer reported the session failed) — not sent to the AI";
+        }
+
+        $later = SmartFreezerRecognition::query()
+            ->where('vend_id', $recognition->vend_id)
+            ->where('session_ref', $recognition->session_ref)
+            ->whereKeyNot($recognition->id)
+            ->pluck('trade_id')
+            ->map(fn ($id) => self::doorTryOf($id))
+            ->filter(fn ($n) => $n !== null && $n > $try)
+            ->max();
+
+        return $later !== null
+            ? "door try {$try}: the door did not open, try {$later} followed — not sent to the AI"
+            : null;
+    }
+
+    /**
+     * Why $recognition is not the door try that opened for $sale, or null when it is (or cannot be
+     * told). The TRADE names the opened try's host order as `SFORD` (app 54+); before that every
+     * sale had one try, its own ref.
+     */
+    private function notTheOpenedTry(SmartFreezerRecognition $recognition, $sale): ?string
+    {
+        $try = self::doorTryOf($recognition->trade_id);
+        if ($try === null) {
+            return null;
+        }
+        $frame = $sale->vend_transaction_json;
+        if (is_string($frame)) {
+            $frame = json_decode($frame, true);
+        }
+        $opened = (string) (((array) $frame)['SFORD'] ?? ((array) $frame)['SFREF'] ?? '');
+        if ($opened === '' || $opened === $recognition->trade_id) {
+            return null;
+        }
+        $openedTry = self::doorTryOf($opened) ?? 1;
+
+        return "door try {$try}: the door did not open, it opened on try {$openedTry} — not sent to the AI";
+    }
+
+    /** The door try an order ref of ours names (1 for the plain ref), or null when it is not ours. */
+    public static function doorTryOf(?string $orderRef): ?int
+    {
+        if ($orderRef === null || preg_match('/^SF-\d+-\d+-\d+(?:R(\d+))?$/', $orderRef, $m) !== 1) {
+            return null;
+        }
+
+        return isset($m[1]) && $m[1] !== '' ? max(1, (int) $m[1]) : 1;
     }
 
     /**
