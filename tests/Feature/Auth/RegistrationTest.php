@@ -2,31 +2,35 @@
 
 namespace Tests\Feature\Auth;
 
-use App\Providers\RouteServiceProvider;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * Nobody signs themselves up (security check 2026-11-08): a self-made account landed in operator 1,
+ * which sees the whole fleet. Staff accounts are made by an admin under Users.
+ */
 class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_screen_can_be_rendered()
+    public function test_there_is_no_registration_screen()
     {
-        $response = $this->get('/register');
-
-        $response->assertStatus(200);
+        $this->get('/register')->assertNotFound();
     }
 
-    public function test_new_users_can_register()
+    public function test_nobody_can_sign_themselves_up()
     {
-        $response = $this->post('/register', [
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $before = User::count();
+
+        $this->post('/register', [
+            'name' => 'Stranger',
+            'email' => 'stranger@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
-        ]);
+        ])->assertStatus(404);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(RouteServiceProvider::HOME);
+        $this->assertGuest();
+        $this->assertSame($before, User::count());
     }
 }
