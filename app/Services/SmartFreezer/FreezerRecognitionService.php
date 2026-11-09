@@ -14,6 +14,7 @@ use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use App\Services\SmartFreezer\Zijia\ZijiaAlgorithmClient;
 use App\Services\SmartFreezer\Zijia\ZijiaVideoPush;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -78,7 +79,7 @@ class FreezerRecognitionService
 
         if ($recognition->status !== SmartFreezerRecognition::STATUS_PENDING) {
             // Already sent: a late camera cannot join a call that is in flight. Kept, and said.
-            Log::info('zijia video push after its recognition was sent', ['video' => $video->id, 'recognition' => $recognition->id]);
+            $this->noteLatePush($video, $recognition);
             $recognition->save();
 
             return $recognition;
@@ -420,7 +421,49 @@ class FreezerRecognitionService
      */
     public function videoUrls(SmartFreezerRecognition $recognition): array
     {
-        return $recognition->videos->flatMap(fn (SmartFreezerVideo $v) => (array) $v->video_urls)->unique()->values()->all();
+        return self::sendableVideos($recognition->videos)->flatMap(fn (SmartFreezerVideo $v) => (array) $v->video_urls)->unique()->values()->all();
+    }
+
+    /**
+     * The videos a recognition is sent with: Zijia's own pushes once any has arrived, else the ones
+     * mark1 found early on their storage (EarlyOrderVideo). The push is their word on which files
+     * belong to the session, so it wins whenever it is in before the send.
+     *
+     * @param  Collection<int, SmartFreezerVideo>  $videos
+     * @return Collection<int, SmartFreezerVideo>
+     */
+    public static function sendableVideos(Collection $videos): Collection
+    {
+        $pushed = $videos->reject(fn (SmartFreezerVideo $v) => $v->isEarlyFetch())->values();
+
+        return $pushed->isNotEmpty() ? $pushed : $videos->values();
+    }
+
+    /**
+     * A push for a session already sent. When mark1 sent it early, the push is the check that the
+     * early links were the right ones: a video it names that was not sent means their naming moved
+     * (a plugin or camera change), and is logged as a warning.
+     */
+    private function noteLatePush(SmartFreezerVideo $video, SmartFreezerRecognition $recognition): void
+    {
+        $early = $recognition->videos()->get()->filter(fn (SmartFreezerVideo $v) => $v->isEarlyFetch());
+        if ($video->isEarlyFetch() || $early->isEmpty()) {
+            Log::info('zijia video push after its recognition was sent', ['video' => $video->id, 'recognition' => $recognition->id]);
+
+            return;
+        }
+
+        $bare = fn ($url) => strtok((string) $url, '?');
+        $sent = $early->flatMap(fn (SmartFreezerVideo $v) => (array) $v->video_urls)->map($bare)->unique()->all();
+        $missed = collect((array) $video->video_urls)->map($bare)->unique()->diff($sent)->values()->all();
+        if ($missed !== []) {
+            Log::warning('zijia push names videos the early fetch did not send', [
+                'video' => $video->id, 'recognition' => $recognition->id, 'missed' => $missed, 'sent' => array_values($sent),
+            ]);
+
+            return;
+        }
+        Log::info('zijia push confirmed an early-fetched session', ['video' => $video->id, 'recognition' => $recognition->id]);
     }
 
     /**
@@ -456,7 +499,7 @@ class FreezerRecognitionService
      */
     private function buildRequest(SmartFreezerRecognition $recognition): RecognitionRequest
     {
-        $pushes = $recognition->videos->map(fn (SmartFreezerVideo $v) => ZijiaVideoPush::fromPayload((array) $v->payload));
+        $pushes = self::sendableVideos($recognition->videos)->map(fn (SmartFreezerVideo $v) => ZijiaVideoPush::fromPayload((array) $v->payload));
         $identity = FreezerDeviceResolver::identityOf($recognition->vend);
 
         return new RecognitionRequest(

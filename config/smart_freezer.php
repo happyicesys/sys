@@ -153,5 +153,31 @@ return [
             // Their timestamps are China time; the freezers run in Singapore — both UTC+8.
             'timezone' => env('ZIJIA_ALGO_TIMEZONE', 'Asia/Shanghai'),
         ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Early order video (Brian, 2026-11-09)
+        |----------------------------------------------------------------------
+        | The order mp4 is on Zijia's OSS ~1 s after the door closes, but their push
+        | reaches us ~5 min 50 s later. On the TRADE, mark1 looks for the file itself
+        | (EarlyOrderVideo: the machine's last push with this order number) and opens
+        | the AI check as soon as it is there; the push stays the fallback.
+        | FREEZER_EARLY_VIDEO_VENDS: empty = off everywhere; "50001,50002" or "*".
+        */
+        'early_video' => [
+            'vends' => array_values(array_filter(array_map('trim', explode(',', (string) env('FREEZER_EARLY_VIDEO_VENDS', ''))))),
+            // The TRADE arrives at door close; the mp4 is on OSS about a second after it.
+            'first_check_seconds' => (int) env('FREEZER_EARLY_VIDEO_FIRST_CHECK', 3),
+            'retry_seconds' => (int) env('FREEZER_EARLY_VIDEO_RETRY', 5),
+            // After this, nothing is recorded and Zijia's push is waited for as before.
+            'give_up_seconds' => (int) env('FREEZER_EARLY_VIDEO_GIVE_UP', 90),
+            'head_timeout' => (int) env('FREEZER_EARLY_VIDEO_HEAD_TIMEOUT', 5),
+            // A TRADE further than this from now is an outbox replay: not looked for.
+            'max_trade_age_seconds' => (int) env('FREEZER_EARLY_VIDEO_MAX_TRADE_AGE', 900),
+            // The machine's last push is the link pattern; one older than this is not trusted.
+            'template_max_age_days' => (int) env('FREEZER_EARLY_VIDEO_TEMPLATE_DAYS', 14),
+            // Only links on these hosts are ever built.
+            'hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env('FREEZER_EARLY_VIDEO_HOSTS', 'jishi1.oss-cn-hangzhou.aliyuncs.com'))))),
+        ],
     ],
 ];

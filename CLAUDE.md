@@ -1187,6 +1187,22 @@ unrecognised). Rules:
   "nothing taken" would release the sale's card hold. `CardPaymentService` and `RecognitionBadges` ignore skipped rows;
   AI Recognition lists a sale's tries once (the opened try, badged "Door opened on try n", else try 1). Their own trade
   ids (not our pattern) are never skipped. Regression coverage: `tests/Feature/FreezerDoorTryTest.php`.
+- **Early order video: mark1 does not wait for the push (Brian, 2026-11-09).** The order mp4 is on Zijia's OSS
+  ~1 s after the door closes, but their push reaches us ~5 min 50 s later (26/26 sales on 50001, 333–358 s;
+  `apk/smart-freezer/ZIJIA_VIDEO_PUSH_DELAY_2026-11-07.md`). On a freezer TRADE (it lands at door close ±3 s)
+  `EarlyOrderVideo::afterTrade` queues `FetchEarlyFreezerVideo` (`default` queue): every 5 s for 90 s it HEADs the
+  links the machine's own LAST REAL push had, with the order number swapped for the TRADE's `SFORD` (the try that
+  opened), else `SFREF`, and the query (`?door=unopened`) dropped. Once every camera that push carried is there
+  (plus the other of cameras 3/4 if it exists), it stores a `smart_freezer_videos` row (`payload.source =
+  mark1_early_fetch`, no `raw_body` — `isEarlyFetch()`) and calls `FreezerRecognitionService::open` like a push, so
+  the AI result comes ~30–40 s after the door closes instead of ~6 min. The later push lands on the same
+  recognition (same trade id): sent already → logged "zijia push confirmed an early-fetched session", or a WARNING
+  "zijia push names videos the early fetch did not send" (their naming moved); not sent yet → the push's videos
+  are the ones sent (`sendableVideos`). Nothing is guessed: no recent push (14 days) to copy, a link off
+  `early_video.hosts`, or files not there in 90 s → nothing stored, the push works exactly as before. Off unless
+  `FREEZER_EARLY_VIDEO_VENDS` lists the machine ("50001,50002" or "*") and `auto_submit` is on; an outbox replay
+  (TRADE > 15 min from now) is not looked for. A door that never opened sends no TRADE, so it always waits for
+  the push. Regression coverage: `tests/Feature/FreezerEarlyVideoTest.php`.
 - **The sale is found by the TRADE's `SFREF`** (freezer APK v20: our txnRef, the
   same string the door-open hands Zijia as `orderNo`) inside
   `vend_transaction_json`, narrowed by the ref's own epoch on the

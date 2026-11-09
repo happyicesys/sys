@@ -231,6 +231,10 @@ class VendTransactionService
             return; // Prevent further execution if duplicate order ID
         }
 
+        // A smart freezer's TRADE lands at door close: look for the session's order video on Zijia's
+        // storage now, instead of waiting ~6 min for their push. Off unless the machine is listed; never throws.
+        \App\Services\SmartFreezer\Zijia\EarlyOrderVideo::afterTrade($vend, $vendTransaction);
+
         // Delivery-platform + PG-log linking only apply to the fresh-create
         // path. A pre-created gateway row was already linked at paid-time, and
         // its nofound_txn counter was never incremented (the row existed), so

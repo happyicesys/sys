@@ -489,7 +489,8 @@ class FreezerRecognitionController extends Controller
             'processed_by' => RecognitionResult::processedBy($r->order_status === null ? null : (int) $r->order_status),
             'callback_verified' => $r->callback_verified,
             'request_id' => $r->request_id,
-            'videos' => $r->videos->flatMap(fn ($v) => (array) $v->video_urls)->unique()->values()->all(),
+            // What was (or will be) sent: Zijia's push once it is in, else the files mark1 found early.
+            'videos' => FreezerRecognitionService::sendableVideos($r->videos)->flatMap(fn ($v) => (array) $v->video_urls)->unique()->values()->all(),
             'pushes' => $r->videos->count(),
             // What the algorithm saw: barcode => units, named where the barcode is on one of our products.
             'items' => collect((array) $r->items)->map(fn ($n, $code) => [
