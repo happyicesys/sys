@@ -6513,6 +6513,7 @@
     "Zijia's library no longer lists :barcode. Nothing was changed.": "Zijia 商品库已不再列出 :barcode，未作任何更改。",
     "Zijia's order no for the door session (tradeId sent to the AI)": "Zijia 的开门订单号（发送给 AI 的 tradeId）",
     "Zijia's video (no copy of ours yet)": "智佳的视频（我们尚未保存副本）",
+    "Zijia's video, sent to the AI": "智佳的视频，已发送给 AI",
     "Zijia's video; our own copy is kept and plays if their link stops working": "智佳的视频；我们已保存副本，若对方链接失效则播放我们的副本",
     "ZIJIA_SKU_CALLBACK_TOKEN is not set on this server, so Zijia's answer would be refused. Ask an admin to set it, then submit.": "此服务器未设置 ZIJIA_SKU_CALLBACK_TOKEN，Zijia 的答复会被拒绝。请管理员设置后再提交。",
     "· qty on hand now": "· 当前库存数量",

@@ -180,7 +180,56 @@ class ZijiaVideoCopyTest extends TestCase
         Http::assertSent(fn (Request $request) => $request->url() === self::URL);
     }
 
-    public function test_the_ai_recognition_row_links_through_mark1_and_says_a_copy_is_kept(): void
+    private function useRealVideo(): void
+    {
+        $bin = trim((string) shell_exec('command -v ffprobe'));
+        if ($bin === '') {
+            $this->markTestSkipped('ffprobe is not installed here');
+        }
+        config(['smart_freezer.clips.ffprobe_bin' => $bin]);
+        Http::fake(['jishi1.oss-cn-hangzhou.aliyuncs.com/*' => fn () => Http::response(
+            file_get_contents(base_path('tests/Fixtures/door-2_5s.mp4')), 200, ['Content-Type' => 'video/mp4'],
+        )]);
+    }
+
+    public function test_the_copy_records_how_long_the_video_runs_and_the_row_shows_it(): void
+    {
+        $this->useRealVideo();
+        $this->push();
+
+        $ms = SmartFreezerVideoCopy::sole()->duration_ms;
+        $this->assertNotNull($ms);
+        $this->assertEqualsWithDelta(2500, $ms, 200);
+
+        $row = $this->actingAs($this->viewer())->get('/ai-recognition?date_from=&date_to=')->assertOk()
+            ->viewData('page')['props']['recognitions']['data'][0];
+        $this->assertSame(3, $row['video_links'][self::URL]['seconds']);
+        $this->assertArrayNotHasKey('pushes', $row);
+    }
+
+    public function test_a_file_ffprobe_cannot_read_is_copied_with_no_length(): void
+    {
+        $this->fakeTheirs();
+        $this->push();
+
+        $this->assertSame(SmartFreezerVideoCopy::STATUS_COPIED, SmartFreezerVideoCopy::sole()->status);
+        $this->assertNull(SmartFreezerVideoCopy::sole()->duration_ms);
+    }
+
+    public function test_the_backfill_measures_copies_made_before_lengths_were_kept(): void
+    {
+        $this->useRealVideo();
+        $this->push();
+        SmartFreezerVideoCopy::query()->update(['duration_ms' => null]);
+
+        $this->artisan('smart-freezer:copy-zijia-videos')->expectsOutputToContain('1 copied file(s) with no length yet')->assertSuccessful();
+        $this->assertNull(SmartFreezerVideoCopy::sole()->duration_ms);
+
+        $this->artisan('smart-freezer:copy-zijia-videos', ['--apply' => true])->expectsOutputToContain('measured 1')->assertSuccessful();
+        $this->assertEqualsWithDelta(2500, SmartFreezerVideoCopy::sole()->duration_ms, 200);
+    }
+
+    public function test_the_ai_recognition_row_links_through_mark1_with_no_length_until_measured(): void
     {
         $this->fakeTheirs();
         $this->push();
@@ -192,6 +241,6 @@ class ZijiaVideoCopyTest extends TestCase
         $this->assertSame($recognition->id, $row['id']);
         $this->assertSame([self::URL], $row['videos']);
         $this->assertSame(route('freezer-zijia-videos.show', ['video' => $video->id, 'index' => 0]), $row['video_links'][self::URL]['href']);
-        $this->assertTrue($row['video_links'][self::URL]['kept']);
+        $this->assertNull($row['video_links'][self::URL]['seconds']);
     }
 }

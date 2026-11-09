@@ -102,7 +102,7 @@ class FreezerRecognitionController extends Controller
                 'vendTransaction:id,order_id,amount,transaction_datetime,vend_transaction_json,meta_json,customer_id,is_multiple,happy_hour_slot_id',
                 'vendTransaction.vendTransactionItems:id,vend_transaction_id,product_id,happy_hour_slot_id',
                 'videos:id,smart_freezer_recognition_id,video_urls,created_at',
-                'videos.copies:id,smart_freezer_video_id,url_hash,status',
+                'videos.copies:id,smart_freezer_video_id,url_hash,status,duration_ms',
             ])
             ->when($request->input('status'), fn ($q, $s) => $s !== 'all' ? $q->where('status', $s) : $q)
             // A door try that never opened (app 54+, Brian 2026-11-08) is one door session with the try
@@ -492,9 +492,8 @@ class FreezerRecognitionController extends Controller
             'request_id' => $r->request_id,
             // What was (or will be) sent: Zijia's push once it is in, else the files mark1 found early.
             'videos' => FreezerRecognitionService::sendableVideos($r->videos)->flatMap(fn ($v) => (array) $v->video_urls)->unique()->values()->all(),
-            // Each video through mark1 (their link, else our copy) and whether we hold a copy (2026-11-09).
+            // Each video through mark1 (their link, else our copy) and its length (2026-11-09).
             'video_links' => $this->videoLinks($r),
-            'pushes' => $r->videos->count(),
             // What the algorithm saw: barcode => units, named where the barcode is on one of our products.
             'items' => collect((array) $r->items)->map(fn ($n, $code) => [
                 'code' => (string) $code,
@@ -956,17 +955,18 @@ class FreezerRecognitionController extends Controller
      * @return array<string, CardPaymentIntent> "vend_id|session_ref" => the hold
      */
     /**
-     * url => [href, kept] for the row's Zijia videos: `href` plays through ZijiaVideoController (their
-     * link, else our Spaces copy), `kept` says our copy exists. First push naming a URL wins.
+     * url => [href, seconds] for the row's Zijia videos: `href` plays through ZijiaVideoController (their
+     * link, else our Spaces copy), `seconds` is the length measured on our copy (null until copied).
+     * First push naming a URL wins.
      *
-     * @return array<string, array{href: string, kept: bool}>
+     * @return array<string, array{href: string, seconds: int|null}>
      */
     private function videoLinks(SmartFreezerRecognition $r): array
     {
         $links = [];
         foreach ($r->videos as $video) {
             $kept = $video->relationLoaded('copies')
-                ? $video->copies->where('status', \App\Models\SmartFreezerVideoCopy::STATUS_COPIED)->pluck('url_hash')->flip()
+                ? $video->copies->where('status', \App\Models\SmartFreezerVideoCopy::STATUS_COPIED)->keyBy('url_hash')
                 : collect();
             foreach (array_values((array) $video->video_urls) as $index => $url) {
                 if (! is_string($url) || isset($links[$url])) {
@@ -974,7 +974,7 @@ class FreezerRecognitionController extends Controller
                 }
                 $links[$url] = [
                     'href' => route('freezer-zijia-videos.show', ['video' => $video->id, 'index' => $index]),
-                    'kept' => $kept->has(\App\Models\SmartFreezerVideoCopy::hashOf($url)),
+                    'seconds' => ($ms = $kept->get(\App\Models\SmartFreezerVideoCopy::hashOf($url))?->duration_ms) !== null ? (int) round($ms / 1000) : null,
                 ];
             }
         }

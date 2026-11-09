@@ -420,9 +420,9 @@
                     <div class="mt-2 flex flex-col space-y-1 text-xs">
                       <a v-for="(url, urlIndex) in row.videos" :key="url" :href="row.video_links?.[url]?.href ?? url" target="_blank" rel="noopener noreferrer"
                         class="text-blue-600 hover:underline whitespace-nowrap"
-                        :title="row.video_links?.[url]?.kept ? $t('Zijia\'s video; our own copy is kept and plays if their link stops working') : $t('Zijia\'s video (no copy of ours yet)')"
+                        :title="$t('Zijia\'s video, sent to the AI')"
                       >
-                        ▶ {{ videoLabel(url, urlIndex) }}<span v-if="row.video_links?.[url]?.kept" class="ml-0.5 text-emerald-600">✓</span>
+                        ▶ {{ videoLabel(url, urlIndex) }}<span v-if="row.video_links?.[url]?.seconds != null"> · {{ row.video_links[url].seconds }}s</span>
                       </a>
                       <a v-for="clip in row.clips" :key="'clip-' + clip.id" :href="clip.url" target="_blank" rel="noopener noreferrer"
                         class="text-emerald-700 hover:underline whitespace-nowrap"
@@ -431,7 +431,6 @@
                         ▶ {{ $t('Ours · Cam :camera', { camera: clip.camera_id }) }}<span v-if="clip.seconds !== null"> · {{ clip.seconds }}s</span>
                       </a>
                       <span v-if="!row.videos.length && !row.clips.length" class="text-gray-400">—</span>
-                      <span v-if="row.pushes > 1" class="text-gray-400" :title="$t('Zijia pushed this session more than once')">{{ $t(':count pushes', { count: row.pushes }) }}</span>
                     </div>
                   </TableData>
                   <!-- Kept narrow: the long AI reason lives in a hover popup, Verification gets the room. An open "Sent to AI" list widens it. -->

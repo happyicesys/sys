@@ -1211,8 +1211,11 @@ unrecognised). Rules:
   — https on `ZIJIA_VIDEO_COPY_HOSTS` only (default `.aliyuncs.com` = any subdomain), no redirects, video content type,
   ≤ `ZIJIA_VIDEO_COPY_MAX_BYTES` (100 MB). The AI is still sent THEIR link. AI Recognition's "▶ Door n · Cam n" links go
   through `/freezer-zijia-videos/{video}/{index}` (`read ai-recognition` + operator boundary): their link while a HEAD
-  answers 200 (cached `probe_cache_minutes`), else a 30-min signed link to our copy, else 404; a ✓ beside the label means
-  our copy exists. Missed or failed files: `smart-freezer:copy-zijia-videos [--days=90] [--apply]`. `ZIJIA_VIDEO_COPY=false`
+  answers 200 (cached `probe_cache_minutes`), else a 30-min signed link to our copy, else 404. The copy also records the
+  file's length (`duration_ms`, ffprobe at copy time, `smart_freezer.clips.ffprobe_bin`), shown as "▶ Door 1 · Cam 3 · 10s"
+  like our camera-5 clips; the page does not say whether a copy exists (Brian, 2026-11-09: staff need not know), and it no
+  longer shows "n pushes" (an early fetch + their push made every 50001 sale read "2 pushes"). Missed or failed files, and
+  copies made before lengths were kept: `smart-freezer:copy-zijia-videos [--days=90] [--apply]`. `ZIJIA_VIDEO_COPY=false`
   stops copying. No prune: these are the evidence behind AI-judged charges. Regression coverage:
   `tests/Feature/ZijiaVideoCopyTest.php`.
 - **The sale is found by the TRADE's `SFREF`** (freezer APK v20: our txnRef, the

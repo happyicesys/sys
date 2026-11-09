@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
+use Symfony\Component\Process\Process;
 use Throwable;
 
 /**
@@ -96,6 +97,7 @@ class ZijiaVideoCopier
                 'path' => $path,
                 'bytes' => $bytes,
                 'sha256' => hash_file('sha256', $tmp),
+                'duration_ms' => $this->durationMs($tmp),
                 'error' => null,
                 'copied_at' => Carbon::now(),
             ]);
@@ -107,6 +109,58 @@ class ZijiaVideoCopier
             throw $e;
         } finally {
             @unlink($tmp);
+        }
+    }
+
+    /**
+     * Fills in the length of a copy made before lengths were measured, from our stored file.
+     * True when it now has one.
+     */
+    public function measure(SmartFreezerVideoCopy $copy): bool
+    {
+        if (! $copy->isCopied()) {
+            return false;
+        }
+        $tmp = tempnam(sys_get_temp_dir(), 'zjv');
+        try {
+            $in = Storage::readStream($copy->path);
+            if (! is_resource($in)) {
+                return false;
+            }
+            $out = fopen($tmp, 'wb');
+            stream_copy_to_stream($in, $out);
+            fclose($out);
+            fclose($in);
+            $ms = $this->durationMs($tmp);
+            if ($ms === null) {
+                return false;
+            }
+            $copy->forceFill(['duration_ms' => $ms])->save();
+
+            return true;
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
+    /** ffprobe's reading of the file's length, or null when ffprobe is missing or cannot read it. */
+    public function durationMs(string $file): ?int
+    {
+        $bin = (string) config('smart_freezer.clips.ffprobe_bin');
+        if ($bin === '' || ! is_executable($bin)) {
+            return null;
+        }
+        try {
+            $process = new Process([$bin, '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', $file]);
+            $process->setTimeout(20);
+            $process->run();
+            $seconds = trim($process->getOutput());
+
+            return $process->isSuccessful() && is_numeric($seconds) ? (int) round((float) $seconds * 1000) : null;
+        } catch (Throwable $e) {
+            Log::warning('zijia video ffprobe failed', ['error' => $e->getMessage()]);
+
+            return null;
         }
     }
 
