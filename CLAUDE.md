@@ -1203,6 +1203,18 @@ unrecognised). Rules:
   `FREEZER_EARLY_VIDEO_VENDS` lists the machine ("50001,50002" or "*") and `auto_submit` is on; an outbox replay
   (TRADE > 15 min from now) is not looked for. A door that never opened sends no TRADE, so it always waits for
   the push. Regression coverage: `tests/Feature/FreezerEarlyVideoTest.php`.
+- **We keep our own copy of every Zijia video** (Brian, 2026-11-09). Their files sit on Zijia's Alibaba OSS (Hangzhou,
+  `jishi1.oss-cn-hangzhou.aliyuncs.com`) behind OPEN links with no agreed lifetime. Each push queues `CopyZijiaVideo`
+  (`low`, 30 s after the row is stored — a push or an early fetch alike, from `SmartFreezerVideo`'s `created` hook — 4
+  tries) and `ZijiaVideoCopier` (only writer of `smart_freezer_video_copies`, one row per
+  URL by `url_hash`) downloads each file and stores it PRIVATE on our default disk under `freezer-videos/{vend}/zijia/`
+  — https on `ZIJIA_VIDEO_COPY_HOSTS` only (default `.aliyuncs.com` = any subdomain), no redirects, video content type,
+  ≤ `ZIJIA_VIDEO_COPY_MAX_BYTES` (100 MB). The AI is still sent THEIR link. AI Recognition's "▶ Door n · Cam n" links go
+  through `/freezer-zijia-videos/{video}/{index}` (`read ai-recognition` + operator boundary): their link while a HEAD
+  answers 200 (cached `probe_cache_minutes`), else a 30-min signed link to our copy, else 404; a ✓ beside the label means
+  our copy exists. Missed or failed files: `smart-freezer:copy-zijia-videos [--days=90] [--apply]`. `ZIJIA_VIDEO_COPY=false`
+  stops copying. No prune: these are the evidence behind AI-judged charges. Regression coverage:
+  `tests/Feature/ZijiaVideoCopyTest.php`.
 - **The sale is found by the TRADE's `SFREF`** (freezer APK v20: our txnRef, the
   same string the door-open hands Zijia as `orderNo`) inside
   `vend_transaction_json`, narrowed by the ref's own epoch on the

@@ -1446,6 +1446,9 @@ Route::middleware(['auth', 'cors'])->get('/ai-recognition', [\App\Http\Controlle
 // Our own camera-5 door-session recording (smart_freezer_clips): a signed Spaces link, same gate.
 Route::middleware(['auth', 'cors'])->get('/freezer-clips/{clip}', [\App\Http\Controllers\SmartFreezer\FreezerClipController::class, 'show'])
     ->name('freezer-clips.show');
+// A Zijia door-session video: their link while it answers, else our own Spaces copy, same gate.
+Route::middleware(['auth', 'cors'])->get('/freezer-zijia-videos/{video}/{index}', [\App\Http\Controllers\SmartFreezer\ZijiaVideoController::class, 'show'])
+    ->whereNumber('index')->name('freezer-zijia-videos.show');
 // Refund a captured T05 charge, per SKU or whole (AI Recognition + Refund Request pages).
 Route::middleware(['auth', 'cors', 'can:verify refunds'])->prefix('card-refunds')->group(function () {
     Route::get('/intents/{intent}', [\App\Http\Controllers\CardRefundController::class, 'panel'])->name('card-refunds.panel');

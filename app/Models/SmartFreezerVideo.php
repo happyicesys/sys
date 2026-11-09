@@ -14,6 +14,25 @@ class SmartFreezerVideo extends Model
 {
     public const SOURCE_EARLY_FETCH = 'mark1_early_fetch';
 
+    /**
+     * Every stored video, pushed by Zijia or found early by mark1, gets our own private copy
+     * (ZijiaVideoCopier, Brian 2026-11-09). Queued, so a slow download never holds up the push;
+     * never allowed to fail the write (the sync driver runs it inline).
+     */
+    protected static function booted(): void
+    {
+        static::created(function (self $video) {
+            if (! config('smart_freezer.zijia.video_copy.enabled') || array_filter((array) $video->video_urls) === []) {
+                return;
+            }
+            try {
+                \App\Jobs\CopyZijiaVideo::dispatch($video->id)->delay(now()->addSeconds(30));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
+    }
+
     protected $fillable = [
         'supplier',
         'vend_id',
@@ -41,6 +60,12 @@ class SmartFreezerVideo extends Model
     public function vend()
     {
         return $this->belongsTo(Vend::class)->withoutGlobalScopes();
+    }
+
+    /** Our own copies of this push's video files (ZijiaVideoCopier). */
+    public function copies()
+    {
+        return $this->hasMany(SmartFreezerVideoCopy::class);
     }
 
     /** The door session's AI recognition this push belongs to. */

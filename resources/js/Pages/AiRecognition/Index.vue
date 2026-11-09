@@ -418,10 +418,11 @@
                       <span v-if="row.result_seconds !== null" class="text-xs text-gray-500 whitespace-nowrap" tabindex="0" v-tooltip="$t('How long the AI result took, from when the videos reached us')">Δ {{ durationText(row.result_seconds) }}</span>
                     </div>
                     <div class="mt-2 flex flex-col space-y-1 text-xs">
-                      <a v-for="(url, urlIndex) in row.videos" :key="url" :href="url" target="_blank" rel="noopener noreferrer"
-                        class="text-blue-600 hover:underline whitespace-nowrap" :title="url"
+                      <a v-for="(url, urlIndex) in row.videos" :key="url" :href="row.video_links?.[url]?.href ?? url" target="_blank" rel="noopener noreferrer"
+                        class="text-blue-600 hover:underline whitespace-nowrap"
+                        :title="row.video_links?.[url]?.kept ? $t('Zijia\'s video; our own copy is kept and plays if their link stops working') : $t('Zijia\'s video (no copy of ours yet)')"
                       >
-                        ▶ {{ videoLabel(url, urlIndex) }}
+                        ▶ {{ videoLabel(url, urlIndex) }}<span v-if="row.video_links?.[url]?.kept" class="ml-0.5 text-emerald-600">✓</span>
                       </a>
                       <a v-for="clip in row.clips" :key="'clip-' + clip.id" :href="clip.url" target="_blank" rel="noopener noreferrer"
                         class="text-emerald-700 hover:underline whitespace-nowrap"

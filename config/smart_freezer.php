@@ -102,6 +102,20 @@ return [
 
     'zijia' => [
         'video_webhook_token' => env('ZIJIA_VIDEO_WEBHOOK_TOKEN'),
+        /*
+        | Our own copy of every door-session video Zijia pushes (Brian, 2026-11-09): kept private on our
+        | default disk (Spaces) under freezer-videos/{vend}/zijia/, played on AI Recognition when their
+        | link no longer answers. The AI is still sent THEIR link. Only https URLs on these hosts (or a
+        | subdomain of an entry starting with ".") are fetched, redirects are not followed.
+        */
+        'video_copy' => [
+            'enabled' => (bool) env('ZIJIA_VIDEO_COPY', true),
+            'hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env('ZIJIA_VIDEO_COPY_HOSTS', '.aliyuncs.com'))))),
+            'max_bytes' => (int) env('ZIJIA_VIDEO_COPY_MAX_BYTES', 100 * 1024 * 1024),
+            'timeout' => (int) env('ZIJIA_VIDEO_COPY_TIMEOUT', 180),
+            // How long a "their link still answers" check is trusted before asking again.
+            'probe_cache_minutes' => (int) env('ZIJIA_VIDEO_PROBE_CACHE_MINUTES', 10),
+        ],
         // Product approval callback (算法服务接口文档 §7) is unsigned plain JSON: once set, its URL
         // must carry ?token= (we choose the callbackUrl). Unset: the library check alone guards it.
         'sku_callback_token' => env('ZIJIA_SKU_CALLBACK_TOKEN'),
