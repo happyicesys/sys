@@ -87,6 +87,17 @@ class ZijiaVideoCopyTest extends TestCase
         $this->assertSame('private', Storage::getVisibility($copy->path));
     }
 
+    public function test_a_video_mark1_found_early_is_copied_too(): void
+    {
+        $this->fakeTheirs();
+        SmartFreezerVideo::create([
+            'supplier' => 'zijia', 'vend_id' => $this->vend->id, 'order_no' => 'SF-50001-1794196595-2',
+            'video_urls' => [self::URL], 'payload' => ['source' => SmartFreezerVideo::SOURCE_EARLY_FETCH],
+        ]);
+
+        $this->assertSame(SmartFreezerVideoCopy::STATUS_COPIED, SmartFreezerVideoCopy::sole()->status);
+    }
+
     public function test_the_same_file_pushed_twice_is_copied_once(): void
     {
         $this->fakeTheirs();
