@@ -396,6 +396,36 @@ class FreezerControlController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Advance Control (Vend/Edit) > "Restart APK" on a freezer. Same audience as the vending
+     * board's Restart APK (see the route), so it may send only the `restart` op, never the rest of
+     * the panel. Answers the command id; the page then reads {@see restartAppStatus()}.
+     */
+    public function restartApp(Request $request, Vend $vend): JsonResponse
+    {
+        abort_unless($vend->isSmartFreezer(), 404);
+
+        $command = $this->service->requestAppRestart($vend, $request->user(), $request->ip());
+
+        return response()->json([
+            'id' => $command->id,
+            'status' => $command->status,
+            'expires_at' => $command->expires_at->toIso8601String(),
+        ], 202);
+    }
+
+    /** The machine's answer to one Advance Control restart: pending, ok, busy, timeout, … */
+    public function restartAppStatus(Vend $vend, FreezerControlCommand $command): JsonResponse
+    {
+        abort_unless($command->vend_id === $vend->id && $command->op === 'restart', 404);
+
+        return response()->json([
+            'id' => $command->id,
+            'status' => $command->displayStatus(),
+            'message' => $command->response_msg,
+        ]);
+    }
+
     public function store(Request $request, Vend $vend): JsonResponse
     {
         abort_unless($vend->isSmartFreezer(), 404);
@@ -420,14 +450,7 @@ class FreezerControlController extends Controller
             return response()->json(['message' => __('This machine\'s app is too old for this control (needs versionCode :version).', ['version' => $minApk])], 422);
         }
 
-        // One command at a time per machine: the device executes them serially anyway, and a
-        // queue of taps behind a slow host is how a technician ends up double-actuating.
-        $now = Carbon::now();
-        $busy = FreezerControlCommand::where('vend_id', $vend->id)
-            ->where('status', FreezerControlCommand::STATUS_PENDING)
-            ->where('expires_at', '>', $now)
-            ->exists();
-        if ($busy) {
+        if ($this->service->hasPendingCommand($vend)) {
             return response()->json(['message' => __('Waiting for the machine to answer the previous command.')], 429);
         }
 

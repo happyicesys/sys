@@ -1246,6 +1246,15 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/stock-qty/{channelId}', [\App\Http\Controllers\VendStockQtyController::class, 'update'])
             ->middleware('can:update machine-settings');
         Route::post('/{id}/restart-apk', [VendController::class, 'restartAPK']);
+        // A freezer's Restart APK on Advance Control: the freezer app's own `restart` op, JSON so the
+        // page can show the machine's answer. Same audience as the vending Restart APK above
+        // (VendController's middleware for restartAPK).
+        Route::post('/{vend}/freezer-restart-app', [FreezerControlController::class, 'restartApp'])
+            ->name('vends.freezer-restart-app')
+            ->middleware('permission:update machine-settings|update vends|read machine-view|admin-access vend-customers');
+        Route::get('/{vend}/freezer-restart-app/{command}', [FreezerControlController::class, 'restartAppStatus'])
+            ->name('vends.freezer-restart-app.status')
+            ->middleware('permission:update machine-settings|update vends|read machine-view|admin-access vend-customers');
         Route::post('/{id}/restart-vmc', [VendController::class, 'restartVMC']);
         Route::post('/{id}/sync-apk-settings', [VendController::class, 'syncApkSettings']);
         Route::post('/{id}/sync-vend-channels', [VendController::class, 'syncVendChannels']);

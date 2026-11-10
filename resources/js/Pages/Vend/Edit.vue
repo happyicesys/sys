@@ -125,10 +125,19 @@
                   <p class="font-bold text-blue-800 mb-1">
                     {{ $t('Remote Restart Instructions') }}
                   </p>
-                  <p>
+                  <!-- A smart freezer has no VMC and no remote modem: one restart, the app's own (Brian, 2026-11-10). -->
+                  <template v-if="isSmartFreezer">
+                    <p>
+                      {{ $t('Remotely restart the freezer app when the screen is stuck or not responding, or a payment cannot start.') }}
+                    </p>
+                    <p class="mt-2">
+                      {{ $t('The app relaunches in a few seconds. The machine refuses while a sale is in progress.') }}
+                    </p>
+                  </template>
+                  <p v-else>
                     {{ $t('Remotely restart VMC and APK to address issues of Card Terminal not responding and Alert on Lost of Transaction/Sales from Cash Sales/ Card Terminal /via QR / No Digital Screen Activity.') }}
                   </p>
-                  <div class="mt-3 text-blue-800">
+                  <div class="mt-3 text-blue-800" v-if="!isSmartFreezer">
                     <p class="font-semibold">{{ $t('Steps:') }}</p>
                     <ol class="list-decimal list-inside ml-1 mt-1 font-medium">
                       <li>{{ $t('Restart VMC. Wait for 1 min, then') }}</li>
@@ -163,6 +172,7 @@
                 <Button
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
                     @click.prevent="restartVMC(vend.id)"
+                    v-if="!isSmartFreezer"
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <span>
@@ -170,10 +180,11 @@
                     </span>
                 </Button>
                 <Button
-                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    @click.prevent="restartAPK(vend.id)"
+                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1 disabled:opacity-60 disabled:cursor-wait"
+                    :disabled="freezerRestart.busy"
+                    @click.prevent="isSmartFreezer ? restartFreezerApp(vend.id) : restartAPK(vend.id)"
                   >
-                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                    <ArrowPathIcon class="w-4 h-4" :class="{ 'animate-spin': freezerRestart.busy }"></ArrowPathIcon>
                     <span>
                       {{ $t('Restart APK') }}
                     </span>
@@ -209,6 +220,7 @@
                 -->
                 <Button
                     type="button"
+                    v-if="!isSmartFreezer"
                     :class="canResetModem
                       ? 'bg-yellow-300 hover:bg-yellow-400 text-gray-800 flex space-x-1 items-center'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed flex space-x-1 items-center'"
@@ -221,6 +233,13 @@
                     </span>
                 </Button>
               </span>
+              <p
+                v-if="isSmartFreezer && freezerRestart.text"
+                class="mt-2 text-sm"
+                :class="freezerRestart.tone === 'ok' ? 'text-green-700' : (freezerRestart.tone === 'bad' ? 'text-red-600' : 'text-gray-600')"
+              >
+                {{ freezerRestart.text }}
+              </p>
             </div>
             </div>
             <!-- <div class=" pb-5"> -->
@@ -564,7 +583,18 @@
                 </div>
               </div>
             </div>
-            <div class="sm:col-span-6 flex justify-between">
+            <!-- The freezer app ignores UPDATELOG and has never filled this table: point to where its logs come from. -->
+            <div v-if="isSmartFreezer" class="sm:col-span-6 text-sm text-gray-700">
+              {{ $t('A smart freezer sends its logs from Machine Settings, Remote controls, Logs.') }}
+              <Link
+                v-if="permissions.includes('read machine-settings')"
+                :href="'/settings/vend/' + vend.id + '/update'"
+                class="ml-1 font-medium text-indigo-600 hover:text-indigo-500"
+              >
+                {{ $t('Open Machine Settings') }}
+              </Link>
+            </div>
+            <div class="sm:col-span-6 flex justify-between" v-if="!isSmartFreezer">
               <div class="flex space-x-2 items-center">
                 <div>
                   <DatePicker
@@ -584,7 +614,7 @@
                 </Button>
               </div>
             </div>
-            <div class="sm:col-span-6 flex flex-col mt-3">
+            <div class="sm:col-span-6 flex flex-col mt-3" v-if="!isSmartFreezer">
             <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
               <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                 <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -711,7 +741,7 @@ import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import { ArrowPathIcon, ArrowUpCircleIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, ClockIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
-import { defineAsyncComponent, ref, onMounted, computed } from 'vue';
+import { defineAsyncComponent, ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 
 const VendLogModal = defineAsyncComponent(() => import('@/Components/VendLogModal.vue'));
@@ -864,6 +894,76 @@ function syncVendChannels(vendID) {
 function formatDatetime(datetime) {
   return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : ''
 }
+
+// A smart freezer has no VMC and ignores the vending REBOOTANDROID frame, so Restart APK sends the
+// freezer app's own `restart` op and shows its answer (Brian, 2026-11-10).
+const isSmartFreezer = computed(() => props.vend?.machine_type === 'smart_freezer')
+const freezerRestart = ref({ busy: false, text: '', tone: '' })
+let freezerRestartTimer = null
+
+function stopFreezerRestartPoll() {
+  if (freezerRestartTimer) {
+    clearTimeout(freezerRestartTimer)
+    freezerRestartTimer = null
+  }
+}
+
+function showFreezerRestartAnswer(status, message) {
+  freezerRestart.value.busy = false
+  if (status === 'ok') {
+    freezerRestart.value.tone = 'ok'
+    freezerRestart.value.text = t('The machine is restarting the app. It is back in about a minute.')
+    toast.success(freezerRestart.value.text, { timeout: 5000 })
+    return
+  }
+  freezerRestart.value.tone = 'bad'
+  if (status === 'busy') {
+    freezerRestart.value.text = t('A sale is in progress, so the machine did not restart. Try again when the sale ends.')
+  } else if (status === 'timeout') {
+    freezerRestart.value.text = t('The machine did not answer. It may be offline.')
+  } else {
+    freezerRestart.value.text = t('The machine did not restart: :status', { status: message || status })
+  }
+  toast.error(freezerRestart.value.text, { timeout: 6000 })
+}
+
+function pollFreezerRestart(vendID, commandID, startedAt) {
+  freezerRestartTimer = setTimeout(async () => {
+    freezerRestartTimer = null
+    try {
+      const { data } = await window.axios.get('/vends/' + vendID + '/freezer-restart-app/' + commandID)
+      if (data.status !== 'pending') {
+        showFreezerRestartAnswer(data.status, data.message)
+        return
+      }
+    } catch (e) {
+      // A dropped poll is retried; the command itself was sent.
+    }
+    if (Date.now() - startedAt > 120000) {
+      showFreezerRestartAnswer('timeout')
+      return
+    }
+    pollFreezerRestart(vendID, commandID, startedAt)
+  }, 2000)
+}
+
+async function restartFreezerApp(vendID) {
+  if (freezerRestart.value.busy) return
+  if (!confirm(t('Restart the freezer app? The machine refuses while a sale is in progress.'))) return
+  stopFreezerRestartPoll()
+  freezerRestart.value = { busy: true, text: t('Restart sent. Waiting for the machine to answer...'), tone: '' }
+  try {
+    const { data } = await window.axios.post('/vends/' + vendID + '/freezer-restart-app')
+    pollFreezerRestart(vendID, data.id, Date.now())
+  } catch (e) {
+    const errors = e?.response?.data?.errors
+    const text = (errors && errors.restart && errors.restart[0]) || e?.response?.data?.message || t('Failed to restart APK')
+    freezerRestart.value = { busy: false, text, tone: 'bad' }
+    toast.error(text, { timeout: 6000 })
+  }
+}
+
+onBeforeUnmount(stopFreezerRestartPoll)
 
 function restartAPK(vendID) {
   router.post('/vends/' + vendID + '/restart-apk', {}, {

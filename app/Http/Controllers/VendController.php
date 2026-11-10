@@ -91,6 +91,7 @@ use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CardSettlement\Payout\SettlementPayoutResolver;
 use App\Services\CmsService;
 use App\Services\CustomerSummaryAggregator;
+use App\Services\Freezer\FreezerControlService;
 use App\Services\HappyHour\HappyHourWelcomeFallback;
 use App\Services\HistoryService;
 use App\Services\MapService;
@@ -124,6 +125,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Intervention\Image\Laravel\Facades\Image;
 use Maatwebsite\Excel\Facades\Excel;
@@ -2875,9 +2877,16 @@ class VendController extends Controller
         return $vends;
     }
 
-    public function restartAPK($id)
+    public function restartAPK(Request $request, $id)
     {
         $vend = Vend::findOrFail($id);
+        if ($vend->isSmartFreezer()) {
+            // The freezer app ignores REBOOTANDROID; send its own restart op (Advance Control
+            // calls vends.freezer-restart-app directly, this covers a page opened before that).
+            app(FreezerControlService::class)->requestAppRestart($vend, $request->user(), $request->ip());
+
+            return redirect()->back();
+        }
         $fid = 1;
         $content = base64_encode(json_encode([
             'Type' => 'REBOOTANDROID',
@@ -2898,6 +2907,9 @@ class VendController extends Controller
     public function restartVMC($id)
     {
         $vend = Vend::findOrFail($id);
+        if ($vend->isSmartFreezer()) {
+            throw ValidationException::withMessages(['restart' => __('A smart freezer has no VMC to restart. Use Restart APK.')]);
+        }
         $fid = 1;
         $content = base64_encode(json_encode([
             'Type' => 'RESET',
@@ -2941,6 +2953,10 @@ class VendController extends Controller
         ]);
 
         $vend = Vend::findOrFail($id);
+        if ($vend->isSmartFreezer()) {
+            // The freezer app ignores UPDATELOG; its logs come through Remote controls > Logs.
+            throw ValidationException::withMessages(['trigger_log_date' => __('A smart freezer sends its logs from Machine Settings, Remote controls, Logs.')]);
+        }
         $fid = 1;
         $content = base64_encode(json_encode([
             'Type' => 'UPDATELOG',
@@ -6415,6 +6431,9 @@ class VendController extends Controller
                 // FK required by the eager-loaded `modemUnit` belongsTo
                 // relationship — omitting it would leave modemUnit null.
                 'vends.modem_unit_id',
+                // Advance Control shows a smart freezer its own buttons (no VMC, no modem).
+                'vends.machine_type',
+                'vends.apk_version_code',
                 'customers.id AS customer_id',
                 DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(IFNULL(customers.virtual_customer_code, \'\')," (",IFNULL(customers.virtual_customer_prefix, \'\'),")") ELSE customers.code END AS customer_code'),
                 'customers.name AS customer_name',

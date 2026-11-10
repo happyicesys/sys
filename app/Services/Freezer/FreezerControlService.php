@@ -230,6 +230,42 @@ class FreezerControlService
         return $command;
     }
 
+    /**
+     * True while an earlier command still waits for the machine's answer. One command at a time per
+     * machine: the device executes them serially anyway, and a queue of taps behind a slow host is how
+     * a technician ends up double-actuating.
+     */
+    public function hasPendingCommand(Vend $vend): bool
+    {
+        return FreezerControlCommand::where('vend_id', $vend->id)
+            ->where('status', FreezerControlCommand::STATUS_PENDING)
+            ->where('expires_at', '>', Carbon::now())
+            ->exists();
+    }
+
+    /**
+     * The Advance Control page's "Restart APK" on a freezer (Brian, 2026-11-10). The vending boards'
+     * `REBOOTANDROID` frame means nothing to the freezer app (it logs "unhandled command" and carries
+     * on), so the button sends the panel's own `restart` op instead: the app answers first, then
+     * relaunches, and answers `busy` while a sale owns the cabinet.
+     *
+     * @throws ValidationException when the machine cannot take it now (`restart` key)
+     */
+    public function requestAppRestart(Vend $vend, ?User $user, ?string $ip): FreezerControlCommand
+    {
+        if (empty($vend->code)) {
+            throw ValidationException::withMessages(['restart' => __('This machine has no code.')]);
+        }
+        if ((int) $vend->apk_version_code < self::MIN_APK_VERSION_CODE_BATCH2) {
+            throw ValidationException::withMessages(['restart' => __('This machine\'s app is too old for this control (needs versionCode :version).', ['version' => self::MIN_APK_VERSION_CODE_BATCH2])]);
+        }
+        if ($this->hasPendingCommand($vend)) {
+            throw ValidationException::withMessages(['restart' => __('Waiting for the machine to answer the previous command.')]);
+        }
+
+        return $this->dispatch($vend, 'restart', [], $user, $ip);
+    }
+
     /** Signed downlink frame, same envelope as SCREENSHOT / OTA_CHECK. */
     public function frame(Vend $vend, FreezerControlCommand $command, Carbon $now): string
     {

@@ -1646,6 +1646,15 @@ host is down, because they are read through it. **Test lock** is three ordinary 
 stuck_locked / stuck_open / busy / no_answer / unclear). A lock is sent even after a failed unlock. No new op, no app change;
 the three rows show on the command timeline under the user's name.
 
+**Advance Control (Vend/Edit) on a freezer** (Brian, 2026-11-10). The freezer app ignores the vending frames `RESET`,
+`REBOOTANDROID` and `UPDATELOG` (it logs "unhandled command"), so for a freezer the page hides Restart VMC, Remote Modem and
+the APK Logs table, and its Restart APK sends the panel's `restart` op through `FreezerControlService::requestAppRestart`
+(`vends.freezer-restart-app`, app 14+, one pending command at a time) and shows the machine's answer: ok, busy (a sale is in
+progress) or timeout. The endpoint takes only `restart`, because Advance Control's audience (`read machine-view` and the other
+roles on `restartAPK`) is wider than the panel's `update machine-settings`. The old `restart-apk` route sends the same op for
+a freezer; `restart-vmc` and `trigger-log-upload` refuse one. Push Products (`TYPESYNCAPICHANNELSLOTLIST`) and the Log
+modal (machine events) work on a freezer and stay. Regression coverage: `tests/Feature/FreezerAdvanceControlTest.php`.
+
 **Our own door recordings — camera 5** (Brian, 2026-10-13: "for our own records"). Zijia's push only
 ever carries cameras 3 and 4, so the freezer app (v33+, `data/clip/`) records camera 5 itself through
 the host's `takeVideo`: from the door unlocking until it closes + 3 s (max 5 min) — not from payment:
