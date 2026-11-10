@@ -1636,6 +1636,16 @@ Which sales a slot priced (Brian, 2026-10-11): `happy_hour_slot_id` on `vend_tra
 A save never errors on a planning hiccup; the minute run catches up. Regression coverage:
 `tests/Feature/HappyHourCampaignTest.php`.
 
+**Remote controls: part bulbs and Test lock** (Brian, 2026-11-10; Setting/Edit → Remote controls). Each status tile for a
+part that can drop off carries a bulb (`LinkBulb.vue`, `FreezerStatus::link`): green online, red offline, grey "not known
+now". Cameras are one tile EACH (Inner / Planar / Customer View), never "2/3 online". Grey is never "offline": every bulb but
+the App's goes grey while the machine is off MQTT (`vends.is_online`), and the thermostat and cameras go grey while the Zijia
+host is down, because they are read through it. **Test lock** is three ordinary commands run by the page
+(`useFreezerControls::runLockTest`): unlock, 3 s, lock, status. The verdict comes from the host's own replies (开锁成功 /
+关锁成功, or refused 开锁超时(损坏,锁舌卡住) for a jammed latch) plus the lock state read back (`lockTestVerdict`: ok /
+stuck_locked / stuck_open / busy / no_answer / unclear). A lock is sent even after a failed unlock. No new op, no app change;
+the three rows show on the command timeline under the user's name.
+
 **Our own door recordings — camera 5** (Brian, 2026-10-13: "for our own records"). Zijia's push only
 ever carries cameras 3 and 4, so the freezer app (v33+, `data/clip/`) records camera 5 itself through
 the host's `takeVideo`: from the door unlocking until it closes + 3 s (max 5 min) — not from payment:

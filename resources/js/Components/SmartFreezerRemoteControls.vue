@@ -54,12 +54,25 @@
             <div v-if="status.known" class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               <!-- The one number the cold chain is judged on gets the space, and the colour band. -->
               <div class="col-span-2 rounded-lg border px-4 py-3 ring-1 ring-inset" :class="chamberClasses">
-                <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ $t('Chamber') }}</div>
+                <div class="flex items-center justify-between gap-2">
+                  <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ $t('Chamber') }}</div>
+                  <LinkBulb :link="status.link(status.thermostatLink)" />
+                </div>
                 <div class="mt-0.5 text-3xl font-semibold tracking-tight text-gray-900">{{ status.chamber.text }}</div>
                 <div class="mt-0.5 text-xs text-gray-500">{{ status.chamber.detail }}</div>
               </div>
               <StatusTile v-for="tile in status.tiles" :key="tile.label" v-bind="tile" />
             </div>
+
+            <!-- The bulbs (Brian, 2026-11-10): is each part talking to the app, as at the machine's last report. -->
+            <p v-if="status.known" class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+              <span class="inline-flex items-center gap-1"><LinkBulb :link="LINK.UP" /> {{ $t('online') }}</span>
+              <span class="inline-flex items-center gap-1"><LinkBulb :link="LINK.DOWN" /> {{ $t('offline') }}</span>
+              <span class="inline-flex items-center gap-1"><LinkBulb :link="LINK.UNKNOWN" /> {{ $t('not known now') }}</span>
+              <span>{{ data.is_online
+                ? $t('Each part as the machine last reported it. Parts read through the Zijia host show grey while the host is down.')
+                : $t('The machine is offline, so no part can be confirmed now.') }}</span>
+            </p>
 
             <p v-if="status.identity" class="mt-2 text-xs text-gray-500">
               {{ $t('Zijia device no.') }} <span class="font-mono text-gray-700">{{ status.identity.deviceNo || '—' }}</span>
@@ -103,16 +116,39 @@
                 (Brian, 2026-11-05): door, fan, light, volume, temperature, cooling mode, compressor. The
                 cameras, log and machine cards have no place on that Control page and follow it.
               -->
-              <ControlRow v-if="data.can_door" :label="$t('Door')" :busy="['lock', 'unlock'].includes(busyOp)" :state="status.doorText" :tone="status.doorTone" danger :reason="blockedReason"
+              <ControlRow v-if="data.can_door" :label="$t('Door')" :busy="['lock', 'unlock'].includes(busyOp) || lockTest.running" :state="status.doorText" :tone="status.doorTone" danger :reason="blockedReason"
                           :hint="$t('Unlocking here opens the lock with no order, no video and no AI check.')" class="md:col-span-2">
-                <ControlButton :disabled="!canSend" @click="send('lock')">
+                <ControlButton :disabled="!canSend || lockTest.running" @click="send('lock')">
                   <LockClosedIcon class="mr-1 h-4 w-4" /> {{ $t('Lock') }}
                 </ControlButton>
-                <ControlButton tone="danger" :disabled="!canSend"
+                <ControlButton :disabled="!canSend || lockTest.running"
+                               @click="ask('locktest', {}, $t('Test the lock?'), $t('The machine unlocks the door, waits 3 seconds and locks it again, then reports whether the lock really moved. The lid can be lifted during those seconds, so make sure nobody is at the machine or tell whoever is there. The machine refuses while a customer sale is in progress.'), true)">
+                  <ArrowPathIcon v-if="lockTest.running" class="mr-1 h-4 w-4 animate-spin" />
+                  <WrenchScrewdriverIcon v-else class="mr-1 h-4 w-4" />
+                  {{ lockTest.running ? $t('Testing…') : $t('Test lock') }}
+                </ControlButton>
+                <ControlButton tone="danger" :disabled="!canSend || lockTest.running"
                                @click="ask('unlock', {}, $t('Unlock the door remotely?'), $t('This opens the lock with no order, no video and no AI check — stock taken is not recorded. It is logged with your name. The machine refuses while a customer sale is in progress.'), true)">
                   <LockOpenIcon class="mr-1 h-4 w-4" /> {{ $t('Unlock') }}
                 </ControlButton>
               </ControlRow>
+
+              <!-- Test lock's answer (Brian, 2026-11-10): the verdict first, then each step as the host replied. -->
+              <div v-if="data.can_door && (lockTest.running || lockTest.verdict)"
+                   class="rounded-lg px-3 py-2 text-xs ring-1 ring-inset md:col-span-2" :class="lockTestClasses">
+                <p class="flex items-center gap-2 text-sm font-semibold">
+                  <ArrowPathIcon v-if="lockTest.running" class="h-4 w-4 animate-spin" />
+                  {{ lockTest.running ? $t('Testing the lock… :step', { step: lockTestStepText }) : lockTestTitle }}
+                </p>
+                <p v-if="!lockTest.running && lockTestDetail" class="mt-0.5">{{ lockTestDetail }}</p>
+                <ul v-if="lockTest.steps.length" class="mt-1 space-y-0.5">
+                  <li v-for="(step, i) in lockTest.steps" :key="i">
+                    {{ lockTestStepName(step.op) }}: <span class="font-semibold">{{ resultLabel(step.status) }}</span>
+                    <span v-if="step.message" class="text-gray-600"> — {{ step.message }}</span>
+                  </li>
+                </ul>
+                <p v-if="!lockTest.running && lockTest.at" class="mt-1 text-gray-500">{{ $t('Tested :ago', { ago: ago(new Date(lockTest.at).toISOString()) }) }}</p>
+              </div>
 
               <!--
                 How the fan runs, the panel's two Fan buttons. App 36+ reports the mode; choosing it from
@@ -316,7 +352,10 @@
                     <div v-else class="flex h-16 w-28 items-center justify-center rounded-md border border-dashed border-gray-300 text-[11px] text-gray-400">
                       {{ $t('No photo yet') }}
                     </div>
-                    <p class="mt-1 truncate text-[11px] text-gray-600" :title="tile.label">{{ tile.label }}</p>
+                    <p class="mt-1 flex items-center gap-1 text-[11px] text-gray-600" :title="tile.label">
+                      <LinkBulb v-if="tile.link" :link="tile.link" />
+                      <span class="truncate">{{ tile.label }}</span>
+                    </p>
                     <p v-if="tile.photo" class="text-[11px] text-gray-400">{{ ago(tile.photo.taken_at) }}</p>
                     <ControlButton
                       class="mt-1 w-full justify-center rounded-md !px-2 !py-1 !text-[11px]"
@@ -477,18 +516,19 @@ import ControlButton from '@/Components/SmartFreezer/ControlButton.vue'
 import ControlRow from '@/Components/SmartFreezer/ControlRow.vue'
 import StateChip from '@/Components/SmartFreezer/StateChip.vue'
 import StatusTile from '@/Components/SmartFreezer/StatusTile.vue'
-import { ArrowPathIcon, DocumentArrowDownIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/vue/20/solid'
+import LinkBulb from '@/Components/SmartFreezer/LinkBulb.vue'
+import { ArrowPathIcon, DocumentArrowDownIcon, LockClosedIcon, LockOpenIcon, WrenchScrewdriverIcon } from '@heroicons/vue/20/solid'
 import { computed, ref } from 'vue'
 import moment from 'moment'
 import { t, tk } from '@/i18n'
 import { resultLabel, useFreezerControls } from '@/composables/useFreezerControls'
-import { boolTone, cameraLabel, cameraOnline, everySeconds, modeText, modeTone, onOff, TONE } from '@/support/freezerStatus'
+import { boolTone, CAMERA_VIEW_NAMES, cameraLabel, cameraOnline, everySeconds, LINK, modeText, modeTone, onOff, TONE } from '@/support/freezerStatus'
 
 const props = defineProps({
   vendId: { type: Number, required: true },
 })
 
-const { data, status, loaded, busyOp, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, load, send, setLimit, whenLoaded } =
+const { data, status, loaded, busyOp, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, load, send, setLimit, whenLoaded, lockTest, runLockTest } =
   useFreezerControls(props.vendId)
 
 const confirm = ref(null)
@@ -520,6 +560,7 @@ const cameraTiles = computed(() => {
   const tiles = cameraChoices.value.map((cam) => ({
     id: cam.id,
     label: cam.label,
+    link: cam.link,
     photo: photos.find((p) => p.camera_id === cam.id) || null,
   }))
   const known = new Set(tiles.map((t) => t.id))
@@ -549,10 +590,10 @@ function takePhoto(cameraId) {
   send('photo', { cameraId })
 }
 
+/** Which camera is down, by name — "2/3 online" never said which (Brian, 2026-11-10). */
 const cameraSummary = computed(() => {
-  const cams = status.value.cameras
-  const online = cams.filter(cameraOnline).length
-  return t(':online/:total online', { online, total: cams.length })
+  const down = status.value.cameras.map((c, i) => (cameraOnline(c) ? null : CAMERA_VIEW_NAMES[i] ? t(CAMERA_VIEW_NAMES[i]) : t('Camera :id', { id: c.id }))).filter(Boolean)
+  return down.length ? t(':cameras offline', { cameras: down.join(', ') }) : t('all online')
 })
 const cameraTone = computed(() => {
   const cams = status.value.cameras
@@ -686,7 +727,7 @@ const batch2Blocked = computed(() => (blockedReason.value ? blockedReason.value 
 /** Cameras as the machine listed them in its last status, else the ids Zijia's boards usually carry. */
 const cameraChoices = computed(() => {
   const listed = status.value.cameras
-  if (listed.length) return listed.map((c, i) => ({ id: c.id, label: cameraOnline(c) ? cameraLabel(c, i) : t(':camera — offline', { camera: cameraLabel(c, i) }) }))
+  if (listed.length) return listed.map((c, i) => ({ id: c.id, label: cameraOnline(c) ? cameraLabel(c, i) : t(':camera — offline', { camera: cameraLabel(c, i) }), link: status.value.link(status.value.throughHost(status.value.cameraLink(c))) }))
   // Nothing reported yet: offer the ids these boards use, named by the same order.
   return [3, 4, 5].map((id, i) => ({ id, label: cameraLabel({ id }, i) }))
 })
@@ -719,8 +760,36 @@ function ask(op, args, title, detail, danger = false) {
 function confirmSend() {
   const pending = confirm.value
   confirm.value = null
-  if (pending) send(pending.op, pending.args)
+  if (!pending) return
+  // Test lock is three commands run by the page, not one op the machine knows.
+  if (pending.op === 'locktest') runLockTest()
+  else send(pending.op, pending.args)
 }
+
+const LOCK_TEST_STEPS = {
+  unlock: tk('Unlock'),
+  pause: tk('Waiting 3 s'),
+  lock: tk('Lock'),
+  status: tk('Reading the lock back'),
+}
+function lockTestStepName(op) {
+  return LOCK_TEST_STEPS[op] ? t(LOCK_TEST_STEPS[op]) : op
+}
+const lockTestStepText = computed(() => (lockTest.value.step ? lockTestStepName(lockTest.value.step) + '…' : ''))
+
+const LOCK_TEST_RESULTS = {
+  ok: { title: tk('Lock OK — it opened and locked again.'), classes: 'bg-emerald-50 text-emerald-800 ring-emerald-200' },
+  stuck_locked: { title: tk('Lock STUCK — it would not open.'), detail: tk('The host could not pull the latch. Customers who pay will not get the door open. Check the lock and its cable.'), classes: 'bg-red-50 text-red-800 ring-red-200' },
+  stuck_open: { title: tk('Lock STUCK OPEN — it did not lock again.'), detail: tk('The door may be unlocked now. Send Lock again, and send someone to the machine if it still reads unlocked.'), classes: 'bg-red-50 text-red-800 ring-red-200' },
+  busy: { title: tk('Not tested — a customer sale is in progress.'), detail: tk('Try again once the sale has finished.'), classes: 'bg-amber-50 text-amber-800 ring-amber-200' },
+  no_answer: { title: tk('No answer from the machine.'), detail: tk('Nothing is known about the lock. Check that the machine is online and try again.'), classes: 'bg-amber-50 text-amber-800 ring-amber-200' },
+  unclear: { title: tk('Result unclear.'), detail: tk('The host gave an answer that does not prove either way. Read the steps below, or test again.'), classes: 'bg-amber-50 text-amber-800 ring-amber-200' },
+  error: { title: tk('The test could not run.'), classes: 'bg-amber-50 text-amber-800 ring-amber-200' },
+}
+const lockTestResult = computed(() => LOCK_TEST_RESULTS[lockTest.value.verdict?.result] || LOCK_TEST_RESULTS.unclear)
+const lockTestTitle = computed(() => t(lockTestResult.value.title))
+const lockTestDetail = computed(() => lockTest.value.verdict?.text || (lockTestResult.value.detail ? t(lockTestResult.value.detail) : ''))
+const lockTestClasses = computed(() => (lockTest.value.running ? 'bg-sky-50 text-sky-800 ring-sky-200' : lockTestResult.value.classes))
 
 function formatTime(iso) {
   return iso ? moment(iso).format('DD MMM HH:mm:ss') : ''

@@ -1,12 +1,16 @@
 <template>
   <div class="rounded-lg border border-gray-200 bg-white px-3 py-2">
-    <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ label }}</div>
+    <div class="flex items-center justify-between gap-2">
+      <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ label }}</div>
+      <LinkBulb v-if="link" :link="link" />
+    </div>
     <div class="mt-0.5 text-sm font-semibold" :class="textTone">{{ value ?? '—' }}</div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import LinkBulb from '@/Components/SmartFreezer/LinkBulb.vue'
 import { TONE } from '@/support/freezerStatus'
 
 /** One fact the machine reported. Text-coloured, not filled: a wall of filled chips reads as alarm. */
@@ -14,6 +18,8 @@ const props = defineProps({
   label: { type: String, required: true },
   value: { type: [String, Number], default: null },
   tone: { type: String, default: TONE.UNKNOWN },
+  /** A part that can be online or offline gets a bulb (LINK); facts like Volume do not. */
+  link: { type: String, default: null },
 })
 
 const TONES = {

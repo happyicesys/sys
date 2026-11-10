@@ -25,7 +25,8 @@ export function useFreezerControls(vendId) {
     const now = ref(Date.now());
     const data = ref({ commands: [], setpoint: { min: -30, max: -5 }, delta: { min: 1, max: 25 }, pending: false, supported: false });
 
-    const status = computed(() => FreezerStatus.from(data.value.status));
+    // Whether the machine is on MQTT now decides whether any part's bulb can be green.
+    const status = computed(() => FreezerStatus.from(data.value.status, { machineOnline: !!data.value.is_online }));
     /**
      * Sending anything at all: permission, a new enough app, and no command already outstanding.
      * `canSend` adds "the machine is online" on top, because a command to an offline freezer is
@@ -83,8 +84,9 @@ export function useFreezerControls(vendId) {
                 firstLoad = false;
                 onFirstLoad.forEach((fn) => fn(res.data));
             }
-            // The command finished while we were polling: say how it went, once.
-            if (wasPending && !res.data.pending) {
+            // The command finished while we were polling: say how it went, once. The lock test
+            // reports its own steps, so its unlock / lock / status rows raise no toast.
+            if (wasPending && !res.data.pending && !lockTest.value.running) {
                 const last = res.data.commands.find((c) => c.source === 'mark1');
                 if (last && last.op !== 'status') {
                     last.status === 'ok'
@@ -113,6 +115,67 @@ export function useFreezerControls(vendId) {
         }
     }
 
+    /**
+     * Test lock (Brian, 2026-11-10): unlock, lock again, then read the lock back. The host itself
+     * says whether the latch moved — 开锁成功 / 关锁成功, or refused with 开锁超时(损坏,锁舌卡住) when it
+     * is jammed (50001, 2026-10-31) — so the verdict is its answers plus the lock state it reports
+     * after. A lock is sent even when the unlock failed: the safe direction, whatever happened.
+     */
+    const lockTest = ref({ running: false, step: null, steps: [], verdict: null, at: null });
+    const LOCK_TEST_PAUSE_MS = 3000;
+
+    /** POST one op and wait for the machine's answer to THAT command (by id), polling every 2 s. */
+    async function runAndWait(op) {
+        const res = await axios.post(`/vends/${id()}/freezer-controls`, { op, args: {} });
+        const commandId = res.data.id;
+        const deadline = Date.now() + 100 * 1000; // TTL 60 s + the 30 s the server waits before "timeout"
+        while (Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 2000));
+            const poll = await axios.get(`/vends/${id()}/freezer-controls`, { params: { limit: limit.value } });
+            data.value = poll.data;
+            now.value = Date.now();
+            const command = poll.data.commands.find((c) => c.id === commandId);
+            if (command && command.status !== 'pending') return command;
+        }
+        return { op, status: 'timeout', message: null };
+    }
+
+    async function runLockTest() {
+        if (!canSend.value || !data.value.can_door || lockTest.value.running) return;
+        clearTimeout(timer);
+        const steps = [];
+        lockTest.value = { running: true, step: 'unlock', steps, verdict: null, at: null };
+        const record = (op, command) => steps.push({ op, status: command.status, message: command.message || null });
+        try {
+            const unlock = await runAndWait('unlock');
+            record('unlock', unlock);
+            if (unlock.status === 'busy') {
+                // A customer sale: the machine refuses every door command, so there is nothing to test.
+                lockTest.value.verdict = lockTestVerdict(unlock, null, null);
+                return;
+            }
+            if (unlock.status === 'ok') {
+                lockTest.value.step = 'pause';
+                await new Promise((r) => setTimeout(r, LOCK_TEST_PAUSE_MS));
+            }
+            lockTest.value.step = 'lock';
+            const lock = await runAndWait('lock');
+            record('lock', lock);
+            lockTest.value.step = 'status';
+            const sync = await runAndWait('status');
+            record('status', sync);
+            const lockState = FreezerStatus.from(data.value.status).door.lockState ?? null;
+            lockTest.value.verdict = lockTestVerdict(unlock, lock, lockState);
+        } catch (e) {
+            lockTest.value.verdict = { result: 'error', lockState: null, text: e.response?.data?.message || t('Could not send the command.') };
+        } finally {
+            lockTest.value.running = false;
+            lockTest.value.step = null;
+            lockTest.value.at = Date.now();
+            schedule();
+        }
+    }
+
     function setLimit(value) {
         limit.value = value;
         load();
@@ -136,7 +199,7 @@ export function useFreezerControls(vendId) {
         document.removeEventListener('visibilitychange', onVisibility);
     });
 
-    return { data, status, loaded, sending, busyOp, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, load, send, setLimit, whenLoaded };
+    return { data, status, loaded, sending, busyOp, canSend, canSync, blockedReason, statusStale, lastSetpoint, limit, now, load, send, setLimit, whenLoaded, lockTest, runLockTest };
 }
 
 /** Sources that are commands mark1 sent (a person, or the setpoint schedule), as opposed to machine reports. */
@@ -218,4 +281,27 @@ export function resultBadge(status) {
     if (['timeout', 'indeterminate', 'busy'].includes(status)) return 'bg-amber-100 text-amber-800';
     if (status === 'duplicate') return 'bg-gray-100 text-gray-700';
     return 'bg-red-100 text-red-800';
+}
+
+/**
+ * The lock test's answer, from the host's own replies and the lock state it reports afterwards:
+ * - `ok`: it opened, locked again, and reads locked (or does not say).
+ * - `stuck_locked`: the latch would not open (the jam the host reports as 开锁超时).
+ * - `stuck_open`: it opened and will not lock again, or reads unlocked afterwards. Someone must go.
+ * - `busy`: a customer sale was running, so the machine refused; nothing was tested.
+ * - `no_answer`: the machine never answered, so nothing is known about the lock.
+ * - `unclear`: any other mix (an indeterminate host reply, an app that does not know the op).
+ *
+ * @returns {{result: string, lockState: string|null}}
+ */
+export function lockTestVerdict(unlock, lock, lockState) {
+    const verdict = (result) => ({ result, lockState });
+    const silent = (c) => !c || ['timeout', 'expired', 'pending'].includes(c.status);
+    if (unlock?.status === 'busy') return verdict('busy');
+    if (lockState === 'unlocked') return verdict('stuck_open');
+    if (silent(unlock) && silent(lock)) return verdict('no_answer');
+    if (unlock?.status === 'ok' && lock?.status === 'ok') return verdict(lockState === 'locked' || lockState === null ? 'ok' : 'unclear');
+    if (unlock?.status === 'ok' && lock?.status === 'refused') return verdict('stuck_open');
+    if (unlock?.status === 'refused') return verdict('stuck_locked');
+    return verdict('unclear');
 }

@@ -23,6 +23,17 @@ export const TONE = {
     UNKNOWN: 'unknown',
 };
 
+/**
+ * Is a part of the freezer talking to the app right now: the bulb on a status tile (Brian, 2026-11-10).
+ * Grey means "cannot tell", never "offline": a part read through the Zijia host is unknown while the
+ * host itself is down, and every part is unknown while the machine is off MQTT.
+ */
+export const LINK = {
+    UP: 'up',
+    DOWN: 'down',
+    UNKNOWN: 'unknown',
+};
+
 /** on / off / — for a tri-state flag. */
 export function onOff(value) {
     return value === true ? t('on') : value === false ? t('off') : '—';
@@ -98,7 +109,7 @@ class ChamberReading {
  */
 export function cameraOnline(camera) {
     const state = String(camera?.state ?? '').trim().toLowerCase();
-    return state === '在线' || state === 'online' || state === 'connected';
+    return state === '在线' || state === 'online' || state === 'connected' || (state === '' && camera?.online === true);
 }
 
 /**
@@ -121,12 +132,57 @@ export function cameraLabel(camera, index) {
 }
 
 export class FreezerStatus {
-    static from(raw) {
-        return new FreezerStatus(raw);
+    /**
+     * @param {object|null} raw the machine's last snapshot
+     * @param {{machineOnline?: boolean}} options whether the machine is on MQTT now (vends.is_online)
+     */
+    static from(raw, options = {}) {
+        return new FreezerStatus(raw, options);
     }
 
-    constructor(raw) {
+    constructor(raw, { machineOnline = true } = {}) {
         this.raw = raw || null;
+        this.machineOnline = machineOnline;
+    }
+
+    /**
+     * A part's link as the bulb shows it. While the machine is off MQTT nothing it last said is
+     * known to be true now, so every part's bulb goes grey rather than keep a green it cannot vouch for.
+     */
+    link(state) {
+        return this.machineOnline ? state : LINK.UNKNOWN;
+    }
+
+    /** The app's link to the Zijia host, which every part below is read through. */
+    get hostLink() {
+        const bridge = this.raw?.bridge;
+        if (!bridge) return LINK.UNKNOWN;
+        return bridge.bound && bridge.hostReady ? LINK.UP : LINK.DOWN;
+    }
+
+    /** A part read through the host: unknown (not offline) while the host itself is down. */
+    throughHost(state) {
+        return this.hostLink === LINK.UP ? state : LINK.UNKNOWN;
+    }
+
+    /** The temperature controller (AG-325) on its serial port. */
+    get thermostatLink() {
+        const th = this.thermostat;
+        if (!th.available) return this.throughHost(LINK.DOWN);
+        return th.connected && th.communicating ? LINK.UP : LINK.DOWN;
+    }
+
+    /** The lock board, as the host reports it: online / offline. */
+    get lockLink() {
+        const state = String(this.door.lockOnlineState ?? '').trim().toLowerCase();
+        if (state === 'online' || state === '在线') return LINK.UP;
+        if (state === 'offline' || state === '离线') return LINK.DOWN;
+        return LINK.UNKNOWN;
+    }
+
+    /** One camera: online, or listed by the host and not online. */
+    cameraLink(camera) {
+        return cameraOnline(camera) ? LINK.UP : LINK.DOWN;
     }
 
     get known() {
@@ -317,7 +373,7 @@ export class FreezerStatus {
             { label: t('Alarm'), value: this.alarmText, tone: this.alarmTone },
             { label: t('Lock'), value: this.door.lockState ?? '—', tone: this.door.lockState === 'locked' ? TONE.OK : this.door.lockState === 'unlocked' ? TONE.WARN : TONE.UNKNOWN },
             { label: t('Door'), value: this.door.doorState ?? '—', tone: this.door.doorState === 'closed' ? TONE.OK : this.door.doorState === 'opened' ? TONE.WARN : TONE.UNKNOWN },
-            { label: t('Lock link'), value: this.door.lockOnlineState ?? '—', tone: this.door.lockOnlineState === 'online' ? TONE.OK : TONE.UNKNOWN },
+            { label: t('Lock link'), value: this.door.lockOnlineState ?? '—', tone: this.door.lockOnlineState === 'online' ? TONE.OK : this.lockLink === LINK.DOWN ? TONE.BAD : TONE.UNKNOWN, link: this.link(this.lockLink) },
             this.demistManaged
                 ? { label: t('Demist fan'), value: onOff(this.fanOn), tone: this.fanOn === false ? TONE.WARN : boolTone(this.fanOn) }
                 : { label: t('Cabinet fan'), value: onOff(this.fanOn), tone: boolTone(this.fanOn) },
@@ -328,20 +384,38 @@ export class FreezerStatus {
                 label: t('Host bridge'),
                 value: bridge ? (bridge.bound ? (bridge.hostReady ? t('ready') : t('bound, not ready')) : t('not bound')) : '—',
                 tone: bridge?.hostReady ? TONE.OK : bridge ? TONE.BAD : TONE.UNKNOWN,
+                link: this.link(this.hostLink),
             },
             { label: t('Sale in progress'), value: this.raw?.saleInProgress ? t('yes') : t('no'), tone: this.raw?.saleInProgress ? TONE.WARN : TONE.OFF },
-            { label: t('App'), value: apk ? `v${apk.versionName} (${apk.versionCode})` : '—', tone: apk ? TONE.INFO : TONE.UNKNOWN },
+            // The bulb here is the machine itself (the app on MQTT), not the build.
+            { label: t('App'), value: apk ? `v${apk.versionName} (${apk.versionCode})` : '—', tone: apk ? TONE.INFO : TONE.UNKNOWN, link: this.machineOnline ? LINK.UP : LINK.DOWN },
             ...this.batch2Tiles,
         ];
+    }
+
+    /**
+     * One tile per camera, named by what it sees, instead of "2/3 online" that never said which one
+     * was down (Brian, 2026-11-10). No list at all (host down, or an app before v14) keeps a single
+     * "Cameras" tile with a grey bulb.
+     */
+    get cameraTiles() {
+        const cams = this.cameras;
+        if (!cams.length) return [{ label: t('Cameras'), value: '—', tone: TONE.UNKNOWN, link: LINK.UNKNOWN }];
+        return cams.map((camera, i) => {
+            const up = cameraOnline(camera);
+            return {
+                label: cameraLabel(camera, i),
+                value: (up ? t('online') : t('offline')) + (camera.open === true ? ' · ' + t('streaming') : ''),
+                tone: up ? TONE.OK : TONE.BAD,
+                link: this.link(this.throughHost(this.cameraLink(camera))),
+            };
+        });
     }
 
     /** Tiles that only a v14+ app fills; omitted entirely on older builds so the grid does not show a row of dashes. */
     get batch2Tiles() {
         if (!this.raw?.identity && !this.raw?.power && !this.cameras.length && !this.compressorDuty && !this.radar) return [];
         const duty = this.compressorDuty;
-        const cams = this.cameras;
-        const online = cams.filter(cameraOnline).length;
-        const streaming = cams.filter((c) => c.open === true).length;
         return [
             { label: t('Mains'), value: this.mains === 'present' ? t('present') : this.mains === 'cut' ? t('CUT — on battery') : '—', tone: this.mains === 'present' ? TONE.OK : this.mains === 'cut' ? TONE.BAD : TONE.UNKNOWN },
             {
@@ -349,11 +423,7 @@ export class FreezerStatus {
                 value: duty ? tc(':pct% · :count cycle|:pct% · :count cycles', duty.cycles1h, { pct: duty.dutyPercent1h }) : '—',
                 tone: this.dutyTone,
             },
-            {
-                label: t('Cameras'),
-                value: cams.length ? t(':online/:total online', { online, total: cams.length }) + (streaming ? ' · ' + t(':count streaming', { count: streaming }) : '') : '—',
-                tone: !cams.length ? TONE.UNKNOWN : online === cams.length ? TONE.OK : TONE.BAD,
-            },
+            ...this.cameraTiles,
             { label: t('Watchdog'), value: this.watchdog ?? '—', tone: this.watchdog ? TONE.INFO : TONE.UNKNOWN },
             ...(this.radar
                 ? [{ label: t('Footfall (radar)'), value: t(':hour in 1 h · :day in 24 h', { hour: this.radar.enters1h, day: this.radar.enters24h }), tone: TONE.INFO }]
