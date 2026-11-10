@@ -104,6 +104,15 @@
               >{{ chip.name }} <span class="text-gray-500">{{ chip.count }}</span></button>
             </div>
           </div>
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <input
+              v-model="productSearch"
+              type="search"
+              :placeholder="$t('Search product code or name')"
+              class="w-full sm:w-72 rounded-md border-gray-300 text-sm"
+            />
+            <span v-if="productSearch.trim()" class="text-xs text-gray-500">{{ $t(':shown of :total shown', { shown: shownProducts.length, total: chipProducts.length }) }}</span>
+          </div>
           <p v-if="problemCount" class="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
             {{ $tc(':count product is on a machine but not on Grab yet: it needs a price or a sub-category.|:count products are on machines but not on Grab yet: they need a price or a sub-category.', problemCount, { count: problemCount }) }}
           </p>
@@ -201,6 +210,20 @@
           <p class="mt-1 text-sm text-gray-600">
             {{ $t('Switching changes the store\'s menu on Grab within a few minutes: it then lists its machine\'s products at the prices above. Preview first; you can switch a store back.') }}
           </p>
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <input
+              v-model="storeSearch"
+              type="search"
+              :placeholder="$t('Search machine, Site or Grab merchant ID')"
+              class="w-full sm:w-80 rounded-md border-gray-300 text-sm"
+            />
+            <select v-model="storeMenuFilter" class="rounded-md border-gray-300 text-sm">
+              <option value="all">{{ $t('All menus') }}</option>
+              <option value="machine">{{ $t('Machine menu') }}</option>
+              <option value="old">{{ $t('Old Grab menu') }}</option>
+            </select>
+            <span v-if="storeFiltered" class="text-xs text-gray-500">{{ $t(':shown of :total shown', { shown: shownStores.length, total: stores.length }) }}</span>
+          </div>
           <div class="mt-2 overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 text-sm">
               <thead class="bg-gray-50">
@@ -213,7 +236,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
-                <tr v-for="store in stores" :key="store.ref_id">
+                <tr v-for="store in shownStores" :key="store.ref_id">
                   <td class="px-2 py-2"><MachineIdLink v-if="store.vend_code" :code="store.vend_code" /></td>
                   <td class="px-2 py-2">{{ store.site ?? '—' }}</td>
                   <td class="px-2 py-2 font-mono text-xs">{{ store.merchant_id }}</td>
@@ -232,6 +255,9 @@
                 </tr>
                 <tr v-if="!stores.length">
                   <td colspan="5" class="px-2 py-4 text-center text-gray-500">{{ $t('This operator has no Grab store on a machine.') }}</td>
+                </tr>
+                <tr v-else-if="!shownStores.length">
+                  <td colspan="5" class="px-2 py-4 text-center text-gray-500">{{ $t('No store matches the search.') }}</td>
                 </tr>
               </tbody>
             </table>
@@ -414,12 +440,26 @@ const productChips = computed(() => [
   { key: 'listed', name: t('On Grab'), count: props.products.filter(p => !p.problem && p.machines).length },
   { key: 'off', name: t('On no machine'), count: props.products.filter(p => !p.machines).length },
 ])
-const shownProducts = computed(() => props.products.filter(product => {
+const chipProducts = computed(() => props.products.filter(product => {
   if (productFilter.value === 'problem') return product.problem && product.machines
   if (productFilter.value === 'listed') return !product.problem && product.machines
   if (productFilter.value === 'off') return !product.machines
   return product.machines > 0
 }))
+// Search narrows the chip's list: every word must appear in the code or the name.
+const productSearch = ref('')
+const shownProducts = computed(() => {
+  const words = searchWords(productSearch.value)
+  if (!words.length) return chipProducts.value
+  return chipProducts.value.filter(product => matchesAll(`${product.code} ${product.name}`, words))
+})
+function searchWords(text) {
+  return String(text ?? '').toLowerCase().split(/\s+/).filter(Boolean)
+}
+function matchesAll(haystack, words) {
+  const text = String(haystack ?? '').toLowerCase()
+  return words.every(word => text.includes(word))
+}
 const picked = ref([])
 const bulkSubCategory = ref(null)
 watch(() => props.products, () => { picked.value = picked.value.filter(id => props.products.some(p => p.product_id === id)) })
@@ -441,6 +481,18 @@ function applyBulkSubCategory() {
 
 // Stores
 const oldMenuStores = computed(() => props.stores.filter(store => !store.machine_menu_since))
+// Search + menu filter only narrow the table; "Switch all" still counts every store on the old menu.
+const storeSearch = ref('')
+const storeMenuFilter = ref('all')
+const storeFiltered = computed(() => !!storeSearch.value.trim() || storeMenuFilter.value !== 'all')
+const shownStores = computed(() => {
+  const words = searchWords(storeSearch.value)
+  return props.stores.filter(store => {
+    if (storeMenuFilter.value === 'machine' && !store.machine_menu_since) return false
+    if (storeMenuFilter.value === 'old' && store.machine_menu_since) return false
+    return !words.length || matchesAll(`${store.vend_code ?? ''} ${store.site ?? ''} ${store.merchant_id ?? ''}`, words)
+  })
+})
 function switchStores(stores, machineMenu) {
   const message = machineMenu
     ? t('Switch :count store(s) to the machine menu? Grab shows the new menu within a few minutes.', { count: stores.length })
