@@ -14,7 +14,7 @@ use App\Models\VendChannel;
 use App\Services\DeliveryPlatformService;
 use App\Services\Grab\Menu\GrabMenuItemId;
 use App\Services\Grab\Menu\GrabMenuService;
-use App\Services\Grab\Menu\GrabPriceList;
+use App\Services\Grab\Menu\GrabPriceRule;
 use App\Services\GrabPromotionService;
 use App\Services\GrabStoreService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,11 +112,11 @@ class GrabMachineMenuTest extends TestCase
 
     public function test_the_multiplier_always_rounds_up_to_the_step_in_integer_cents(): void
     {
-        $this->assertSame(310, GrabPriceList::multiply(275, 11000, 10));   // 302.5 → 310
-        $this->assertSame(400, GrabPriceList::multiply(275, 11000, 100));  // → $4
-        $this->assertSame(280, GrabPriceList::multiply(275, 10000, 10));   // ×1.00 still rounds up to 10¢
-        $this->assertSame(300, GrabPriceList::multiply(300, 10000, 10));   // already on the step
-        $this->assertSame(303, GrabPriceList::multiply(275, 11000, 1));    // to the cent
+        $this->assertSame(310, GrabPriceRule::multiply(275, 11000, 10));   // 302.5 → 310
+        $this->assertSame(400, GrabPriceRule::multiply(275, 11000, 100));  // → $4
+        $this->assertSame(280, GrabPriceRule::multiply(275, 10000, 10));   // ×1.00 still rounds up to 10¢
+        $this->assertSame(300, GrabPriceRule::multiply(300, 10000, 10));   // already on the step
+        $this->assertSame(303, GrabPriceRule::multiply(275, 11000, 1));    // to the cent
     }
 
     public function test_a_store_on_the_machine_menu_lists_each_product_on_its_machine_once_with_stock_summed(): void
@@ -284,10 +284,12 @@ class GrabMachineMenuTest extends TestCase
 
         $this->actingAs($user)->getJson("/grab-menu/stores/{$this->binding->delivery_platform_ref_number_id}/preview")
             ->assertOk()
-            ->assertJsonCount(2, 'lines')
-            ->assertJsonPath('lines.1.code', 'U-49')
-            ->assertJsonPath('lines.1.price', 310)
-            ->assertJsonPath('lines.1.slots', ['13', '11']);
+            ->assertJsonPath('rule.scope', 'company')
+            ->assertJsonPath('summary.listed', 2)
+            ->assertJsonPath('rows.0.code', 'U-26')
+            ->assertJsonPath('rows.0.after', 500)
+            ->assertJsonPath('rows.1.code', 'U-49')
+            ->assertJsonPath('rows.1.after', 310);
 
         // A reader may look but not change.
         $reader = User::factory()->create(['operator_id' => $this->operatorId]);

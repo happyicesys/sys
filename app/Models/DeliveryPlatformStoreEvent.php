@@ -33,6 +33,9 @@ class DeliveryPlatformStoreEvent extends Model
     // Grab Menu & Prices: data.machine_menu true = the store lists its machine's slots.
     const EVENT_MENU_SOURCE = 'menu_source';
 
+    // Grab Menu & Prices: data.own false = back on the company rule; true = the store's own rule (its values).
+    const EVENT_PRICE_RULE = 'price_rule';
+
     protected $fillable = [
         'data',
         'delivery_platform_ref_number_id',

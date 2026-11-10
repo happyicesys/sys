@@ -592,6 +592,7 @@ const eventNames = {
   renamed: t('Merchant ID changed'),
   edited: t('Store details changed'),
   menu_source: t('Menu changed'),
+  price_rule: t('Price rule changed'),
 }
 const menuReasons = {
   no_rp: t('No RP price (Grab Menu & Prices)'),
@@ -842,6 +843,13 @@ function eventText(event) {
   }
   if (event.event === 'menu_source') {
     return `${name}: ${event.data?.machine_menu ? t('lists its machine') : t('back on the old Grab menu')}`
+  }
+  if (event.event === 'price_rule') {
+    if (!event.data?.own) {
+      return `${name}: ${t('back on the company rule')}`
+    }
+    const note = event.data?.note ? ` (“${event.data.note}”)` : ''
+    return `${name}: ${t('own rule')}${note}`
   }
   if (event.event === 'renamed') {
     return `${name}: ${event.data?.from ?? ''} → ${event.data?.to ?? ''}`

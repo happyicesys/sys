@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Grab\CompanyPriceRuleRequest;
+use App\Http\Requests\Grab\GrabPriceRuleRequest;
+use App\Http\Requests\Grab\StorePriceRuleRequest;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryProductMapping;
 use App\Models\GrabMenuSetting;
@@ -10,18 +13,22 @@ use App\Models\SellingPrice;
 use App\Services\DeliveryPlatformService;
 use App\Services\Grab\Menu\GrabMenuOverview;
 use App\Services\Grab\Menu\GrabMenuService;
-use App\Services\Grab\Menu\GrabPricingMode;
+use App\Services\Grab\Menu\GrabPriceRule;
+use App\Services\Grab\Menu\GrabPriceRuleResolver;
+use App\Services\Grab\Menu\GrabStorePreview;
+use App\Services\Grab\Menu\GrabStorePriceRuleService;
 use App\Services\GrabStoreService;
 use App\Support\Grab\GrabStoreVisibility;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 /**
- * Grab Menu & Prices (Brian, 2026-11-01), one operator at a time: its pricing rule, each
- * product's Grab sub-category (and price, in custom mode), and which of its stores list
- * their machine's slots. HIPL staff see and set every operator; others only their own.
+ * Grab Menu & Prices (Brian, 2026-11-01), one operator at a time: its company price rule, each
+ * store's own rule where it has one (2026-11-10), each product's Grab sub-category (and price,
+ * in custom mode), and which of its stores list their machine's slots. HIPL staff see and set
+ * every operator; others only their own.
  */
 class GrabMenuController extends Controller
 {
@@ -58,29 +65,49 @@ class GrabMenuController extends Controller
         ]);
     }
 
-    public function updateSetting(Request $request, int $operatorId)
+    public function updateSetting(CompanyPriceRuleRequest $request, int $operatorId)
     {
         $this->allow($operatorId);
-        $request->validate([
-            'pricing_mode' => ['required', Rule::enum(GrabPricingMode::class)],
-            'rp_type' => ['required', 'integer', Rule::in(array_keys(SellingPrice::TYPE_MAPPINGS))],
-            'multiplier' => ['required_if:pricing_mode,rp_multiplier', 'nullable', 'numeric', 'min:0.5', 'max:5'],
-            'round_up_cents' => ['required', 'integer', Rule::in(GrabMenuSetting::ROUND_UP_STEPS)],
-            'category' => ['nullable', 'array'],
-            'category.id' => ['required_with:category', 'string', 'max:64'],
-            'category.name' => ['nullable', 'string', 'max:255'],
-        ]);
 
         $this->menus->saveSetting($operatorId, [
-            'pricing_mode' => $request->pricing_mode,
-            'rp_type' => (int) $request->rp_type,
-            // ×1.10 → 11000; integer so the price stays integer cents.
-            'multiplier_bp' => $request->filled('multiplier') ? (int) round(((float) $request->multiplier) * 10000) : 10000,
-            'round_up_cents' => (int) $request->round_up_cents,
+            ...$request->ruleValues(),
             'category_json' => $request->category ? ['id' => $request->input('category.id'), 'name' => $request->input('category.name') ?: $request->input('category.id')] : GrabMenuSetting::forOperator($operatorId)->category_json,
         ], $request->user()->id);
 
-        return back()->with('success', __('Grab pricing saved. Stores on the machine menu update on Grab within a few minutes.'));
+        return back()->with('success', __('Company price rule saved. Stores that follow it update on Grab within a few minutes.'));
+    }
+
+    /**
+     * One or more stores' price rule: their own (with a note why), or back to the company rule. Stores still on
+     * the old Grab menu keep it until they switch; the rule is ready for them.
+     */
+    public function updateStorePriceRule(StorePriceRuleRequest $request, int $operatorId, GrabStorePriceRuleService $storeRules)
+    {
+        $this->allow($operatorId);
+        $refs = $this->storesOf($operatorId, $request->ref_ids);
+
+        $useCompany = $request->boolean('use_company_rule');
+        $values = $useCompany ? null : $request->ruleValues();
+        DB::transaction(fn () => $refs->each(fn ($ref) => $useCompany
+            ? $storeRules->useCompanyRule($ref, $request->user()->id)
+            : $storeRules->useOwnRule($ref, $values, $request->note, $request->user()->id)));
+
+        return back()->with('success', $useCompany
+            ? trans_choice(':count store now follows the company rule.|:count stores now follow the company rule.', $refs->count(), ['count' => $refs->count()])
+            : trans_choice(':count store now has its own price rule.|:count stores now have their own price rule.', $refs->count(), ['count' => $refs->count()]));
+    }
+
+    // One product's typed Grab price at a store whose own rule is custom (dollars in, integer cents stored; empty removes it).
+    public function updateStoreCustomPrice(Request $request, int $refId, int $productId, GrabStorePriceRuleService $storeRules)
+    {
+        $ref = DeliveryPlatformRefNumber::query()->findOrFail($refId);
+        $this->allow((int) $ref->operator_id);
+        $request->validate(['price' => ['present', 'nullable', 'numeric', 'min:0.01', 'max:10000']]);
+        abort_unless(DB::table('products')->where('id', $productId)->exists(), 404);
+
+        $storeRules->saveCustomPrice($ref, $productId, $request->filled('price') ? (int) round(((float) $request->price) * 100) : null, $request->user()->id);
+
+        return response()->json(['ok' => true]);
     }
 
     // One product: its Grab sub-category and / or custom price (dollars in, integer cents stored).
@@ -153,12 +180,24 @@ class GrabMenuController extends Controller
         ])->filter(fn ($category) => $category['id'] !== '')->values());
     }
 
-    public function preview(int $refId)
+    /**
+     * One store's panel: the rule it follows and what its Grab customers would see change. With a rule in the
+     * query (or use_company_rule), that draft is tried instead — nothing is saved.
+     */
+    public function preview(Request $request, int $refId, GrabStorePreview $preview)
     {
         $ref = DeliveryPlatformRefNumber::query()->findOrFail($refId);
         $this->allow((int) $ref->operator_id, false);
 
-        return response()->json(['lines' => GrabMenuOverview::preview($ref)]);
+        $draft = null;
+        if ($request->boolean('use_company_rule')) {
+            $draft = app(GrabPriceRuleResolver::class)->forCompany((int) $ref->operator_id);
+        } elseif ($request->filled('pricing_mode')) {
+            $request->validate(GrabPriceRuleRequest::ruleFields());
+            $draft = GrabPriceRule::draftForStore(GrabPriceRuleRequest::valuesFrom($request->all()), (int) $ref->operator_id, $ref->id);
+        }
+
+        return response()->json($preview->for($ref, $draft));
     }
 
     // Switch stores to (or back from) the machine menu: one store, or all of an operator's.
@@ -171,10 +210,7 @@ class GrabMenuController extends Controller
             'ref_ids.*' => ['integer'],
         ]);
 
-        $refs = DeliveryPlatformRefNumber::query()->where('operator_id', $operatorId)->whereIn('id', $request->ref_ids)->get();
-        if ($refs->count() !== count(array_unique($request->ref_ids))) {
-            throw ValidationException::withMessages(['ref_ids' => __('Pick stores of this operator.')]);
-        }
+        $refs = $this->storesOf($operatorId, $request->ref_ids);
 
         $changed = $refs->filter(fn ($ref) => $stores->setMenuSource($ref, $request->boolean('machine_menu'), $request->user()->id))->count();
 
@@ -196,6 +232,17 @@ class GrabMenuController extends Controller
             ->orderBy('code')
             ->get(['id', 'code', 'name'])
             ->map(fn ($operator) => ['id' => $operator->id, 'code' => $operator->code, 'name' => $operator->name]);
+    }
+
+    // The picked stores, all of this operator, or the request is refused.
+    private function storesOf(int $operatorId, array $refIds)
+    {
+        $refs = DeliveryPlatformRefNumber::query()->where('operator_id', $operatorId)->whereIn('id', $refIds)->get();
+        if ($refs->count() !== count(array_unique($refIds))) {
+            throw ValidationException::withMessages(['ref_ids' => __('Pick stores of this operator.')]);
+        }
+
+        return $refs;
     }
 
     private function allow(int $operatorId, bool $write = true): void

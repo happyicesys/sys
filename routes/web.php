@@ -467,6 +467,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/{operatorId}/grab-categories', [GrabMenuController::class, 'grabCategories'])->name('grab-menu.grab-categories');
         Route::post('/{operatorId}/menu-source', [GrabMenuController::class, 'setMenuSource'])->name('grab-menu.menu-source');
         Route::get('/stores/{refId}/preview', [GrabMenuController::class, 'preview'])->name('grab-menu.preview');
+        Route::post('/{operatorId}/store-price-rule', [GrabMenuController::class, 'updateStorePriceRule'])->name('grab-menu.store-price-rule');
+        Route::post('/stores/{refId}/custom-prices/{productId}', [GrabMenuController::class, 'updateStoreCustomPrice'])->name('grab-menu.store-custom-price');
     });
 
     Route::prefix('grab-promotions')->group(function () {

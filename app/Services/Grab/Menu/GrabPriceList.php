@@ -3,13 +3,14 @@
 namespace App\Services\Grab\Menu;
 
 use App\Models\GrabMenuProduct;
-use App\Models\GrabMenuSetting;
+use App\Models\GrabStoreCustomPrice;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The Grab price of each product under one operator's rule, in integer cents. A product
- * with no price under the rule (no RP on the tier, no custom price) has none and is not
- * sold on Grab — never at $0.
+ * The Grab price of each product under one price rule (GrabPriceRule), in integer cents. It loads only what
+ * the rule reads: the RP tier for an RP rule, the typed prices for a custom one — the company's typed prices
+ * (grab_menu_products) for the company rule, the store's own (grab_store_custom_prices) for a store rule. A
+ * product with no price under the rule has none and is not sold on Grab — never at $0.
  */
 class GrabPriceList
 {
@@ -21,34 +22,20 @@ class GrabPriceList
     /** @var array<int, int> product id => RP cents on the rule's tier */
     private array $rp;
 
-    /** @var array<int, int> product id => custom cents */
+    /** @var array<int, int> product id => typed cents */
     private array $custom;
 
     /** @param  int[]  $productIds */
-    public function __construct(private GrabMenuSetting $setting, array $productIds)
+    public function __construct(public readonly GrabPriceRule $rule, array $productIds)
     {
         $productIds = array_values(array_unique(array_map('intval', $productIds)));
-        $this->rp = $setting->pricing_mode->readsRp() ? self::rpPrices($productIds, $setting->rp_type) : [];
-        $this->custom = $setting->pricing_mode === GrabPricingMode::Custom
-            ? GrabMenuProduct::query()
-                ->where('operator_id', $setting->operator_id)
-                ->whereIn('product_id', $productIds)
-                ->whereNotNull('custom_amount')
-                ->pluck('custom_amount', 'product_id')
-                ->map(fn ($cents) => (int) $cents)
-                ->all()
-            : [];
+        $this->rp = $rule->readsRp() ? self::rpPrices($productIds, $rule->rpType) : [];
+        $this->custom = $rule->mode === GrabPricingMode::Custom ? self::customPrices($rule, $productIds) : [];
     }
 
     public function price(int $productId): ?int
     {
-        return match ($this->setting->pricing_mode) {
-            GrabPricingMode::Rp => $this->rp[$productId] ?? null,
-            GrabPricingMode::RpMultiplier => isset($this->rp[$productId])
-                ? self::multiply($this->rp[$productId], $this->setting->multiplier_bp, $this->setting->round_up_cents)
-                : null,
-            GrabPricingMode::Custom => $this->custom[$productId] ?? null,
-        };
+        return $this->rule->priceFrom($this->rp[$productId] ?? null, $this->custom[$productId] ?? null);
     }
 
     // The RP on the rule's tier, shown beside the Grab price as "normal".
@@ -57,25 +44,15 @@ class GrabPriceList
         return $this->rp[$productId] ?? null;
     }
 
-    public function missingReason(int $productId): ?string
+    // The typed price, in a custom rule.
+    public function custom(int $productId): ?int
     {
-        if ($this->price($productId) !== null) {
-            return null;
-        }
-
-        return $this->setting->pricing_mode === GrabPricingMode::Custom ? self::NO_CUSTOM_PRICE : self::NO_RP;
+        return $this->custom[$productId] ?? null;
     }
 
-    /**
-     * cents × multiplier, rounded UP to the step, in integers: 275 × 1.1 to 10¢ → 310.
-     * $multiplierBp is basis points (×1.10 = 11000).
-     */
-    public static function multiply(int $cents, int $multiplierBp, int $stepCents): int
+    public function missingReason(int $productId): ?string
     {
-        $step = max(1, $stepCents);
-        $divisor = $step * 10000;
-
-        return intdiv($cents * $multiplierBp + $divisor - 1, $divisor) * $step;
+        return $this->price($productId) === null ? $this->rule->missingReason() : null;
     }
 
     /**
@@ -98,5 +75,22 @@ class GrabPriceList
             ->pluck('amount', 'product_id')
             ->map(fn ($cents) => (int) $cents)
             ->all();
+    }
+
+    /**
+     * @param  int[]  $productIds
+     * @return array<int, int>
+     */
+    private static function customPrices(GrabPriceRule $rule, array $productIds): array
+    {
+        if (! $productIds) {
+            return [];
+        }
+
+        $query = $rule->isStoreRule()
+            ? GrabStoreCustomPrice::query()->where('delivery_platform_ref_number_id', $rule->refId)->whereIn('product_id', $productIds)->select(['product_id', 'amount'])
+            : GrabMenuProduct::query()->where('operator_id', $rule->operatorId)->whereIn('product_id', $productIds)->whereNotNull('custom_amount')->select(['product_id', 'custom_amount as amount']);
+
+        return $query->pluck('amount', 'product_id')->map(fn ($cents) => (int) $cents)->all();
     }
 }

@@ -2695,13 +2695,23 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   **"P" + products.id** (`GrabMenuItemId`), stock summed over its slots less units on open orders
   (`GrabMachineMenu::heldQtyByVendChannel`, by `vend_channel_id`). No SKU is added or removed by hand and there are no
   per-store exclusions; a planogram change reaches Grab with the machine's next channel report.
-  - **Price = the operator's rule** (`grab_menu_settings`, one per operator; HIPL staff set any operator's):
-    `rp` = the chosen RP tier's `selling_prices` amount; `rp_multiplier` = that × `multiplier_bp`/10000, ALWAYS
-    rounded UP to `round_up_cents` (10¢ or $1) in integers (`GrabPriceList::multiply`); `custom` =
-    `grab_menu_products.custom_amount`. A product with no price under the rule, or no Grab sub-category
+  - **Price = the store's rule** (Brian, 2026-11-10: "the user able to set the different price rule for some
+    stores"): its own (`grab_store_price_rules`, with a note why) else its operator's company rule
+    (`grab_menu_settings`, one per operator; HIPL staff set any operator's). `GrabPriceRuleResolver` is the ONE
+    place that decides it; every price goes through a `GrabPriceRule` value object (mode, tier, multiplier, step,
+    scope) and `GrabPriceList`, all from `GrabMachineMenu::lines()` — so the menu Grab pulls, order intake,
+    promotions and the page's preview agree. `rp` = the chosen RP tier's `selling_prices` amount; `rp_multiplier` =
+    that × `multiplier_bp`/10000, ALWAYS rounded UP to `round_up_cents` (10¢ or $1) in integers
+    (`GrabPriceRule::multiply`); `custom` = typed prices: the company's in `grab_menu_products.custom_amount`, a
+    store's own in `grab_store_custom_prices`. Store rules are written only by `GrabStorePriceRuleService` (store
+    event `price_rule`; notifies only that store, and only once it is on the machine menu). The page's store panel
+    shows Grab-today vs after for a saved or draft rule (`GrabStorePreview` + `GrabMenuChange`, matched by product
+    from `last_menu_json`); nothing switches without a review modal (no `window.confirm`). Coverage:
+    `tests/Feature/GrabStorePriceRuleTest.php`. A product with no price under the rule, or no Grab sub-category
     (`grab_menu_products.sub_category_json`), is not listed — never sold at $0. The Grab category is the operator's
     `category_json`, always AVAILABLE.
-  - **Writers:** `GrabMenuService` (settings, products; notifies the operator's machine-menu stores) and
+  - **Writers:** `GrabMenuService` (company rule, products; notifies the operator's machine-menu stores),
+    `GrabStorePriceRuleService` (store rules) and
     `GrabStoreService::setMenuSource` (switch a store, event `menu_source`). Product → Edit RP / name changes call
     `GrabMenuService::productChanged`.
   - **Orders** for "P" items are allocated to the slots holding the product, most stock first, only when they hold

@@ -5,7 +5,6 @@ namespace App\Services\Grab\Menu;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\GrabMenuProduct;
-use App\Models\GrabMenuSetting;
 use App\Models\Product;
 use App\Models\VendChannel;
 use App\Services\DeliveryProductMappingService;
@@ -18,14 +17,22 @@ use Illuminate\Support\Facades\DB;
  * product mapping from the machine"): every product on the machine's active slots, one
  * Grab item per product, its stock summed over the slots that hold it. Nothing is picked
  * or removed by hand; a planogram change reaches Grab with the machine's next channel
- * report. Read by the menu Grab pulls, order intake, Grab Promotions and the preview.
+ * report. Read by the menu Grab pulls, order intake, Grab Promotions and the preview. Prices follow the
+ * store's rule (GrabPriceRuleResolver: its own, else its operator's).
  */
 class GrabMachineMenu
 {
-    public function __construct(private DeliveryProductMappingService $mappingService) {}
+    public function __construct(
+        private DeliveryProductMappingService $mappingService,
+        private GrabPriceRuleResolver $rules,
+    ) {}
 
-    /** @return Collection<int, MachineMenuLine> keyed by product id, by product code */
-    public function lines(DeliveryProductMappingVend $binding): Collection
+    /**
+     * $rule prices the lines instead of the store's saved rule — a draft the page previews before saving.
+     *
+     * @return Collection<int, MachineMenuLine> keyed by product id, by product code
+     */
+    public function lines(DeliveryProductMappingVend $binding, ?GrabPriceRule $rule = null): Collection
     {
         $operatorId = (int) ($binding->deliveryPlatformRefNumber?->operator_id ?? $binding->deliveryProductMapping?->operator_id);
         $channels = VendChannel::query()
@@ -40,7 +47,7 @@ class GrabMachineMenu
 
         $productIds = $channels->pluck('product_id')->unique()->values()->all();
         $held = self::heldQtyByVendChannel($channels->pluck('id')->all());
-        $prices = new GrabPriceList(GrabMenuSetting::forOperator($operatorId), $productIds);
+        $prices = new GrabPriceList($rule ?? $this->rules->forBinding($binding), $productIds);
         $subCategories = GrabMenuProduct::query()
             ->where('operator_id', $operatorId)
             ->whereIn('product_id', $productIds)
