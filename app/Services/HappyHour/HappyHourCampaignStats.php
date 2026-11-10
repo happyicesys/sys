@@ -3,6 +3,8 @@
 namespace App\Services\HappyHour;
 
 use App\Models\HappyHourSlot;
+use App\Models\VendTransaction;
+use App\Support\DispenseVerdict;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -23,6 +25,10 @@ use Illuminate\Support\Facades\DB;
  * transaction holding a Happy Hour unit, counted whole: each single HH sale (already a whole transaction in
  * dailyTotals) plus each tagged basket (HappyHourSales::dailyBasketTotals). `non_hh_*_pct` is the share of
  * those transactions that is NOT the Happy Hour units — what Happy Hour pulled along.
+ *
+ * `machine_revenue` (Brian, 2026-11-10: the discount line is "discount $ ÷ machines total revenue", not ÷ the related
+ * total) is EVERY sale of the machines that ran the campaign, on each day they ran it — the whole day, Happy Hour or
+ * not, by the related total's rules (settled, not refunded, a single sale with a sale code, a basket's header amount).
  *
  * A window or a graph range costs ~2 s on prod (2026-10-22: the sales queries walk every sale of the
  * campaign's ~220 machines, since `happy_hour_slot_id` has no index), so both are kept CACHE_SECONDS per
@@ -51,7 +57,7 @@ final class HappyHourCampaignStats
             $machines = $ran->pluck('vend_id')->unique()->count();
             $machineDays = $oneDay ? $machines : $ran->count();
 
-            return $this->figures($rows, $related, $machineDays) + [
+            return $this->figures($rows, $related, $machineDays, (int) $this->machineRevenue($ran, $from, $to)->sum()) + [
                 'machines' => $machines,
                 'machine_days' => $machineDays,
             ];
@@ -74,13 +80,15 @@ final class HappyHourCampaignStats
             [$rows, $related] = $this->rowsAndRelated($campaignId, $ran, $from, $to);
             $byDay = $rows->groupBy('day');
             $relatedByDay = $related->groupBy('day');
+            $machineRevenue = $this->machineRevenue($ran, $from, $to);
 
             $out = [];
             for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
                 $date = $d->toDateString();
                 $machines = (int) ($machinesByDay[$date] ?? 0);
                 $out[] = ['date' => $date, 'machines' => $machines]
-                    + $this->figures($byDay->get($date, collect()), $relatedByDay->get($date, collect()), $machines);
+                    + $this->figures($byDay->get($date, collect()), $relatedByDay->get($date, collect()), $machines,
+                        (int) ($machineRevenue[$date] ?? 0));
             }
 
             return $out;
@@ -95,7 +103,7 @@ final class HappyHourCampaignStats
      */
     private function remember(array $parts, \Closure $compute): array
     {
-        $key = 'hh-campaign-stats:v1:'.implode(':', array_map(fn ($p) => $p instanceof CarbonInterface
+        $key = 'hh-campaign-stats:v2:'.implode(':', array_map(fn ($p) => $p instanceof CarbonInterface
             ? intdiv($p->getTimestamp(), self::CACHE_SECONDS)
             : (string) ($p ?? 'all'), $parts));
 
@@ -108,7 +116,7 @@ final class HappyHourCampaignStats
      *
      * @return array<string, int|float|null>
      */
-    private function figures(Collection $rows, Collection $related, int $machineDays): array
+    private function figures(Collection $rows, Collection $related, int $machineDays, int $machineRevenue): array
     {
         $units = (int) $rows->sum('units');
         $revenue = (int) $rows->sum('revenue');
@@ -128,6 +136,7 @@ final class HappyHourCampaignStats
             'related_units_per_machine' => $machineDays > 0 ? round($relatedUnits / $machineDays, 2) : null,
             'non_hh_revenue_pct' => $pct($revenue, $relatedRevenue),
             'non_hh_units_pct' => $pct($units, $relatedUnits),
+            'machine_revenue' => max($relatedRevenue, $machineRevenue),
         ];
     }
 
@@ -150,6 +159,37 @@ final class HappyHourCampaignStats
             ->distinct()
             ->get(['s.vend_id', DB::raw('DATE(s.starts_at) AS day')])
             ->map(fn ($r) => (object) ['vend_id' => (int) $r->vend_id, 'day' => (string) $r->day]);
+    }
+
+    /**
+     * Every sale of the machines that ran the campaign, summed per date, counting a (machine, date) only when the
+     * campaign ran on that machine that day. One grouped query on (vend_id, transaction_datetime). Same rules as
+     * the related total: settled, not refunded, a single sale with a sale code, a basket's header amount.
+     *
+     * @return Collection<string, int> date => cents
+     */
+    private function machineRevenue(Collection $ran, CarbonInterface $from, CarbonInterface $to): Collection
+    {
+        $vendIds = $ran->pluck('vend_id')->unique()->values()->all();
+        if ($vendIds === []) {
+            return collect();
+        }
+        $ranOn = $ran->mapWithKeys(fn ($r) => [$r->vend_id.'|'.$r->day => true]);
+
+        return DB::table('vend_transactions as t')
+            ->leftJoin('vend_channel_errors as e', 'e.id', '=', 't.vend_channel_error_id')
+            ->whereIn('t.vend_id', $vendIds)
+            ->whereBetween('t.transaction_datetime', [$from, $to])
+            ->where('t.settlement_status', VendTransaction::SETTLEMENT_SETTLED)
+            ->where('t.is_refunded', 0)
+            ->where(fn ($q) => $q->where('t.is_multiple', 1)
+                ->orWhereNull('e.code')->orWhereIn('e.code', DispenseVerdict::SALE_CODES))
+            ->groupBy('t.vend_id', DB::raw('DATE(t.transaction_datetime)'))
+            ->selectRaw('t.vend_id, DATE(t.transaction_datetime) AS day, SUM(t.amount) AS revenue')
+            ->get()
+            ->filter(fn ($r) => isset($ranOn[$r->vend_id.'|'.$r->day]))
+            ->groupBy('day')
+            ->map(fn ($g) => (int) $g->sum('revenue'));
     }
 
     /**

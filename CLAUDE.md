@@ -1419,6 +1419,10 @@ What a campaign is:
   ~2 s each on prod, as `happy_hour_slot_id` has no index). The graph stacks
   HH + the rest on sales, units and units per machine, with a `non_hh_*_pct` line (0–100%); the Campaign column shows
   "Related sales" and "Non-HH %". The related total is clamped to never read below the HH part.
+- **Discount given line = discount ÷ the machines' total sales** (Brian, 2026-11-10, replacing 2026-11-07's ÷ Related
+  Total Sales): `machine_revenue` = every sale of the machines that ran the campaign, on each date they ran a slot, the
+  WHOLE day (Happy Hour or not), by the related total's rules; never below the related total. Daily and window figures
+  carry it; the chart's right axis, tooltip and header read it.
 
 `HappyHourPlanner` is the only writer of `happy_hour_slots`. It runs as `happy-hour:run` every minute (in the
 background, so it starts on the minute — at midnight it used to wait behind the daily jobs), and once after each

@@ -902,6 +902,7 @@ class HappyHourCampaignTest extends TestCase
         DB::table('vend_transactions')->where('id', $this->sale($a, 240, '2026-10-09 14:15:00')->id)->update(['is_refunded' => 1]);
         $this->basket([[$b, 300], [$b, 300]], '2026-10-09 14:20:00');                      // no HH unit: not related
         $this->sale($b, 300, '2026-10-09 14:25:00');                                        // full price: not related
+        $this->sale($b, 300, '2026-10-08 12:00:00');                                        // a day it ran no slot: not the machine's total
 
         Carbon::setTestNow('2026-10-09 14:40:00');
         $user = User::factory()->create(['operator_id' => 1]);
@@ -912,6 +913,8 @@ class HappyHourCampaignTest extends TestCase
             'revenue' => 480, 'units' => 2,
             'related_transactions' => 2, 'related_multiple' => 1, 'related_revenue' => 1680, 'related_units' => 5,
             'related_units_per_machine' => 5, 'non_hh_revenue_pct' => 71.4, 'non_hh_units_pct' => 60,
+            // The machine's whole day (Brian, 2026-11-10): $2.40 + $14.40 + the non-HH basket $6.00 + $3.00; the refund is out.
+            'machine_revenue' => 2580,
         ];
         $stats = $this->deferredCampaignStats($user)[$campaign->id];
         foreach ($expect as $key => $value) {
@@ -924,6 +927,7 @@ class HappyHourCampaignTest extends TestCase
         }
         $this->assertNull($json['days'][0]['non_hh_revenue_pct'], 'a day with no sales has no share');
         $this->assertSame(0, $json['days'][0]['related_revenue']);
+        $this->assertSame(0, $json['days'][5]['machine_revenue'], 'a day the campaign did not run on that machine');
     }
 
     public function test_the_trade_ingest_tags_a_freezer_sale_made_at_the_promo_price(): void

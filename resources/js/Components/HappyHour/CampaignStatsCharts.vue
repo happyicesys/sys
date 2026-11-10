@@ -30,8 +30,9 @@
 // HH is the bridge to the rest of the basket (Daniel, 2026-10-22): sales, units and units per machine are
 // STACKED — the Happy Hour part, then the rest of the transactions that held a Happy Hour unit ("Related
 // Total Sales", counted whole) — with the total on top and a line for the non-HH share on a 0–100% axis.
-// Discount stays a single bar, with a line for the discount as a % of that day's Related Total Sales on its own
-// right axis (Brian, 2026-11-07: "% of Discount $ / Total Revenue $").
+// Discount stays a single bar, with a line for the discount as a % of that day's total sales of the machines that ran
+// Happy Hour (all their sales that day) on its own right axis (Brian, 2026-11-10: "discount $ ÷ machines total
+// revenue", replacing 2026-11-07's ÷ Related Total Sales).
 import { Chart, registerables } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { computed, nextTick, onBeforeUnmount, reactive, watch } from 'vue';
@@ -41,7 +42,8 @@ Chart.register(...registerables);
 
 const props = defineProps({
   // [{ date, machines, revenue, discount, units, avg_daily_units_per_machine, related_transactions,
-  //    related_multiple, related_revenue, related_units, related_units_per_machine, non_hh_revenue_pct, non_hh_units_pct }]
+  //    related_multiple, related_revenue, related_units, related_units_per_machine, non_hh_revenue_pct, non_hh_units_pct,
+  //    machine_revenue }]
   days: { type: Array, default: () => [] },
   total: { type: Object, default: null },
 });
@@ -71,13 +73,13 @@ const measures = computed(() => {
     {
       key: 'discount', title: t('Discount given'), money: true, stacked: false,
       hh: (d) => d.discount / 100,
-      line: (d) => discountPct(d.discount, d.related_revenue),
-      lineLegend: t('% of Related Total Sales (right axis)'),
+      line: (d) => discountPct(d.discount, d.machine_revenue),
+      lineLegend: t("% of the machines' total sales (right axis)"),
       tip: (d) => [t('Discount given: :value', { value: dollars(d.discount) }),
-        t('Related Total Sales: :value', { value: dollars(d.related_revenue) }),
-        t('Discount % of Related Total Sales: :value', { value: pctText(discountPct(d.discount, d.related_revenue)) }),
+        t("Machines' total sales: :value", { value: dollars(d.machine_revenue) }),
+        t("Discount % of the machines' total sales: :value", { value: pctText(discountPct(d.discount, d.machine_revenue)) }),
         t('Discount % of Happy Hour sales: :value', { value: pctText(discountPct(d.discount, d.revenue)) })],
-      total: tot ? t(':discount · :pct of related total', { discount: dollars(tot.discount), pct: pctText(discountPct(tot.discount, tot.related_revenue)) }) : '',
+      total: tot ? t(":discount · :pct of the machines' total sales (:total)", { discount: dollars(tot.discount), pct: pctText(discountPct(tot.discount, tot.machine_revenue)), total: dollars(tot.machine_revenue) }) : '',
     },
     {
       key: 'units', title: t('Units sold + related total'), money: false, stacked: true,
