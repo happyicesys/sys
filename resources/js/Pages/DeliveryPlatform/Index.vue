@@ -1,15 +1,19 @@
 <template>
 
-  <Head :title="$t('Delivery Platform')" />
+  <Head :title="$t('Grab Product Mapping (old menus)')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ $t('Delivery Platform Product Mapping') }}
+        {{ $t('Grab Product Mapping (old menus)') }}
       </h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 rounded-md border border-sky-200 bg-sky-50 my-3 px-3 py-2 text-sm text-sky-900">
+        {{ $t('These are the OLD Grab menus (templates). A store switched to the machine menu does not use them: its menu and prices come from Grab Menu & Prices. A store still on its old menu uses the template it is on here.') }}
+        <a href="/grab-menu" class="underline font-medium">{{ $t('Go to Grab Menu & Prices') }}</a>
+      </div>
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end">
           <Link href="/delivery-product-mappings/create">
@@ -32,7 +36,7 @@
           </SearchInput>
           <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              {{ $t('Platform ID') }}
+              {{ $t('Grab merchant ID') }}
             </label>
             <MultiSelect
               v-model="selectedPlatformRefNumber"
@@ -110,7 +114,7 @@
                       {{ $t('Channel - Product') }}
                     </TableHead>
                     <TableHead>
-                      {{ $t('Binded Vending Machines') }}
+                      {{ $t('Machines on this menu') }}
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -200,7 +204,7 @@
                               </span>
                             </span>
                             <span v-if="deliveryProductMapping.deliveryProductMappingVends && deliveryProductMapping.deliveryProductMappingVends.length > 0">
-                              {{ $t('(Binded)') }}
+                              {{ $t('(in use)') }}
                             </span>
                           </Button>
                         </div>

@@ -9,6 +9,7 @@ use App\Models\DeliveryProductMappingVend;
 use App\Models\Operator;
 use App\Models\User;
 use App\Models\Vend;
+use App\Services\GrabPromotionService;
 use App\Services\GrabStoreService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -159,8 +160,9 @@ class GrabStoresTest extends TestCase
         $this->assertSame(2, DeliveryProductMappingVend::query()->withoutGlobalScopes()->where('delivery_platform_ref_number_id', $ref->id)->count());
     }
 
-    public function test_closing_a_leftover_second_binding_does_not_pause_the_live_store(): void
+    public function test_closing_a_leftover_second_binding_does_not_pause_the_live_store_or_end_its_promotions(): void
     {
+        $promotions = $this->spy(GrabPromotionService::class);
         // Prod 4-C7CDNZDXKEBJPE: selling on 2873, still open (paused) on 2658.
         $live = $this->bindGrabStore(2873, self::MERCHANT, [11 => ['qty' => 5, 'capacity' => 10]]);
         $leftover = DeliveryProductMappingVend::forceCreate([
@@ -176,6 +178,11 @@ class GrabStoresTest extends TestCase
 
         $this->assertSame(0, $this->pauseCalls(true));
         $this->assertTrue($live->fresh()->isSelling());
+        $promotions->shouldNotHaveReceived('endForStore');
+
+        // Taking the live one off too: the store stops selling, so its promotions end.
+        $this->service()->unbind($live->fresh(), $this->user->id);
+        $promotions->shouldHaveReceived('endForStore')->once();
     }
 
     public function test_pause_and_resume_are_recorded_and_sent_to_grab(): void

@@ -15,6 +15,10 @@
         {{ $t('Every store on this Grab menu lists its machine now, so its items no longer reach Grab and cannot be changed here.') }}
         <a href="/grab-menu" class="underline font-medium">{{ $t('Go to Grab Menu & Prices') }}</a>
       </div>
+      <div v-else-if="type == 'update'" class="mb-3 rounded-md bg-sky-50 border border-sky-200 px-3 py-2 text-sm text-sky-900">
+        {{ $t('This is an old Grab menu (template). Only stores still on their old menu use it; a store switched to the machine menu takes its menu and prices from Grab Menu & Prices.') }}
+        <a href="/grab-menu" class="underline font-medium">{{ $t('Go to Grab Menu & Prices') }}</a>
+      </div>
       <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5">
@@ -53,7 +57,7 @@
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  {{ $t('Platform Category') }}
+                  {{ $t('Grab category') }}
                 </label>
                 <div class="mt-1">
                   <input
@@ -514,7 +518,7 @@
 
               <div class="sm:col-span-2" v-if="form.product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  {{ $t('Platform ID (Store ID)') }}
+                  {{ $t('Grab merchant ID') }}
                 </label>
                 <MultiSelect
                   v-model="form.platform_ref_number"
@@ -547,14 +551,14 @@
                 </Button>
               </div>
 
-              <div class="sm:col-span-6">
+              <div class="sm:col-span-6" v-if="!followsMachines">
                 <Button
                   class="flex space-x-1 bg-yellow-300 hover:bg-yellow-400 text-black"
                   @click.prevent="togglePauseAllVends()"
                 >
                   <PauseCircleIcon class="w-3 h-3"></PauseCircleIcon>
                   <span class="text-xs">
-                    {{ $t('Pause All VM') }}
+                    {{ $t('Pause every Grab store on this menu') }}
                   </span>
                 </Button>
               </div>
@@ -571,7 +575,7 @@
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             {{ $t('Machine ID') }} <br>
-                            {{ $t('(Platform Ref ID)') }}
+                            {{ $t('(Grab merchant ID)') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             {{ $t('Machine Name') }}
@@ -580,7 +584,7 @@
                             Channel Status
                           </th> -->
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            {{ $t('VM Status') }}
+                            {{ $t('Machine status') }}
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             {{ $t('Action') }}
@@ -1040,17 +1044,17 @@ function submit() {
 }
 
 function togglePauseAllVends() {
-  let approvalText =  'Are you sure to pause all vending machines?'
+  let approvalText = t('Pause every Grab store on this menu? Customers cannot order from them until each one is resumed (one by one, here or on Grab Stores).')
   const approval = confirm(approvalText);
   if (!approval) {
       return;
   }
   router.post('/delivery-product-mappings/' + form.value.id + '/toggle-pause-all-vends', {}, {
       onSuccess: () => {
-        toast.success(t('All vends paused/resumed successfully'), { timeout: 3000 })
+        toast.success(t('Every Grab store on this menu is paused.'), { timeout: 3000 })
       },
       onError: () => {
-        toast.error(t('Failed to pause/resume all vends'), { timeout: 3000 })
+        toast.error(t('The stores could not be paused.'), { timeout: 3000 })
       },
       preserveState: false,
       preserveScroll: true,
@@ -1059,7 +1063,7 @@ function togglePauseAllVends() {
 }
 
 function togglePauseVend(deliveryProductMappingVend) {
-  let approvalText = deliveryProductMappingVend.is_active ? 'Are you sure to pause this vending machine?' : 'Are you sure to resume this vending machine?'
+  let approvalText = deliveryProductMappingVend.is_active ? t('Pause this Grab store? Customers cannot order from it until it is resumed.') : t('Resume this Grab store? Customers can order from it again.')
   const approval = confirm(approvalText);
   if (!approval) {
       return;

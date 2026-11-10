@@ -11,6 +11,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class DeliveryPlatformOrderResource extends JsonResource
 {
     use GetUserTimezone;
+
     /**
      * Transform the resource into an array.
      *
@@ -31,14 +32,14 @@ class DeliveryPlatformOrderResource extends JsonResource
             'deliveryPlatformOrderItems' => DeliveryPlatformOrderItemResource::collection($this->whenLoaded('deliveryPlatformOrderItems')),
             'delivery_product_mapping_vend_id' => $this->delivery_product_mapping_vend_id,
             'deliveryProductMappingVend' => DeliveryProductMappingVendResource::make($this->whenLoaded('deliveryProductMappingVend')),
-            'dispensed_at' => $this->dispensed_at ?  Carbon::parse($this->dispensed_at)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,
+            'dispensed_at' => $this->dispensed_at ? Carbon::parse($this->dispensed_at)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,
             'driver_phone_number' => $this->driver_phone_number,
-            'final_status_at' => $this->final_status_at ?  Carbon::parse($this->final_status_at)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,
+            'final_status_at' => $this->final_status_at ? Carbon::parse($this->final_status_at)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,
             'is_cancelled' => $this->is_cancelled,
             'is_edited' => $this->is_edited,
             'is_verified' => $this->is_verified,
             'last_mile_timediff_mins' => $this->last_mile_timediff_mins,
-            'order_created_at' => $this->order_created_at ?  Carbon::parse($this->order_created_at)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,
+            'order_created_at' => $this->order_created_at ? Carbon::parse($this->order_created_at)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,
             'order_id' => $this->order_id,
             'order_json' => $this->order_json,
             'orderItemVendChannels' => OrderItemVendChannelResource::collection($this->whenLoaded('orderItemVendChannels')),
@@ -48,7 +49,7 @@ class DeliveryPlatformOrderResource extends JsonResource
             'response_history_json' => $this->response_history_json,
             'short_order_id' => $this->short_order_id,
             'status' => $this->status,
-            'status_name' => DeliveryPlatformOrder::STATUS_MAPPING[$this->status],
+            'status_name' => __(DeliveryPlatformOrder::STATUS_MAPPING[$this->status]),
             'status_json' => $this->status_json,
             'subtotal_amount' => $this->subtotal_amount - $this->promo_amount,
             'total_amount' => $this->total_amount,

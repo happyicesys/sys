@@ -576,6 +576,8 @@ class GrabStoreController extends Controller
                 'site' => $binding->siteName(),
                 'template_id' => $binding->delivery_product_mapping_id,
                 'template' => $binding->deliveryProductMapping?->name,
+                // Grab Menu & Prices: the store lists its machine's products, so the template is not its menu.
+                'machine_menu' => $ref->usesMachineMenu(),
                 'since' => $binding->start_date?->toIso8601String(),
                 'is_active' => (bool) $binding->is_active,
                 'paused_until' => $binding->paused_until?->toIso8601String(),

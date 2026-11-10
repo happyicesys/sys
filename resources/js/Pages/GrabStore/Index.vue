@@ -13,6 +13,11 @@
         {{ flashSuccess }}
       </div>
 
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 rounded-md border border-sky-200 bg-sky-50 my-3 px-3 py-2 text-sm text-sky-900">
+        <p>{{ $t('Each Grab store sells from one machine. Here you put a store on a machine, move it, pause it or switch it off. Prices and menus are set on Grab Menu & Prices.') }}</p>
+        <p class="mt-1">{{ $t('Pause = a short break; it comes back by itself at the time you set, or when you press Resume. Switch off = closed until someone switches it on. Remove from machine = no machine sells it now.') }}</p>
+      </div>
+
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 py-3">
         <!-- Totals: one click filters the list. -->
         <div class="flex flex-wrap gap-2 mb-4">
@@ -77,7 +82,7 @@
               <TableHead>{{ $t('Grab store') }}</TableHead>
               <TableHead>{{ $t('Machine') }}</TableHead>
               <TableHead>{{ $t('Status') }}</TableHead>
-              <TableHead>{{ $t('Grab\'s machine ID') }}</TableHead>
+              <TableHead>{{ $t('Machine ID on Grab') }}</TableHead>
               <TableHead>{{ $t('Orders') }}</TableHead>
               <TableHead v-for="column in salesColumns" :key="column.key">
                 <button type="button" class="inline-flex items-center gap-1 hover:text-indigo-700" :title="$t('Sort by this, highest first')" @click="sortBy(column.key)">
@@ -103,7 +108,8 @@
                   <MachineIdLink :vend="store.binding.vend" :code="store.binding.vend ? null : store.binding.vend_code" />
                   <div class="text-xs text-gray-600">{{ store.binding.site }}</div>
                   <div class="text-xs text-gray-500">{{ $t('Since :time', { time: formatDateTime(store.binding.since) }) }}</div>
-                  <div class="text-xs text-gray-400">{{ $t('Menu from :template', { template: store.binding.template }) }}</div>
+                  <div v-if="store.binding.machine_menu" class="text-xs text-gray-400">{{ $t('Menu: what is in this machine') }}</div>
+                  <div v-else class="text-xs text-gray-400">{{ $t('Old Grab menu: :template', { template: store.binding.template }) }}</div>
                 </template>
                 <span v-else class="text-gray-400">{{ $t('No machine') }}</span>
                 <div
@@ -117,7 +123,7 @@
                     type="button"
                     class="ml-1 underline font-medium"
                     @click="closeLeftover(store, other)"
-                  >{{ $t('Close that one') }}</button>
+                  >{{ $t('Take it off :code', { code: other.vend_code }) }}</button>
                 </div>
               </TableData>
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
@@ -224,7 +230,7 @@
           <InputError :message="addForm.errors.vend_code" />
         </div>
         <div v-if="addForm.vend_code">
-          <label class="block font-medium text-gray-700">{{ $t('Grab template (menu)') }}</label>
+          <label class="block font-medium text-gray-700">{{ $t('Old Grab menu (template)') }}</label>
           <select v-model="addForm.delivery_product_mapping_id" :class="inputClass">
             <option v-for="template in templatesFor(addForm.operator_id)" :key="template.id" :value="template.id">{{ template.name }}</option>
           </select>
@@ -236,8 +242,8 @@
         </div>
         <label class="flex items-center gap-2 text-gray-700">
           <input v-model="addForm.skip_grab_check" type="checkbox" class="rounded border-gray-300" />
-          {{ $t('Save without Grab check') }}
-          <span class="text-xs text-gray-500">({{ $t('a store Grab has not integrated yet') }})</span>
+          {{ $t('Save without checking with Grab') }}
+          <span class="text-xs text-gray-500">({{ $t('the store is not live on Grab yet') }})</span>
         </label>
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" :class="actionClass" @click="closeModal">{{ $t('Cancel') }}</button>
@@ -255,13 +261,17 @@
         <p v-if="modal === 'move'" class="text-gray-600">
           {{ $t('Machine :code stops selling this store and the new machine starts at the same moment. The store stays open on Grab.', { code: current?.binding?.vend_code }) }}
         </p>
+        <p v-if="modal === 'move' && current?.promotions_live" class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+          {{ $t('Promotions made in ConnectVend on this store end on Grab (ones made in the Grab app stay). Add them again afterwards if you still want them.') }}
+        </p>
         <div>
           <label class="block font-medium text-gray-700">{{ $t('Machine ID') }}</label>
           <input v-model="moveForm.vend_code" type="text" :class="inputClass" />
           <InputError :message="moveForm.errors.vend_code" />
         </div>
         <div>
-          <label class="block font-medium text-gray-700">{{ $t('Grab template (menu)') }}</label>
+          <label class="block font-medium text-gray-700">{{ $t('Old Grab menu (template)') }}</label>
+          <p v-if="current?.binding?.machine_menu" class="text-xs text-gray-500">{{ $t('This store lists what is in its machine, so this is only used if it goes back to its old menu.') }}</p>
           <select v-model="moveForm.delivery_product_mapping_id" :class="inputClass">
             <option v-for="template in templatesFor(current?.operator_id, current?.binding?.template_id)" :key="template.id" :value="template.id">{{ template.name }}</option>
           </select>
@@ -315,6 +325,9 @@
       <template #header>{{ $t('Remove :ref from machine :code', { ref: current?.ref_number, code: current?.binding?.vend_code }) }}</template>
       <div class="space-y-3 text-sm">
         <p class="text-gray-600">{{ $t('No machine will sell this store, so it is paused on Grab. Its history is kept.') }}</p>
+        <p v-if="current?.promotions_live" class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+          {{ $t('Promotions made in ConnectVend on this store end on Grab (ones made in the Grab app stay).') }}
+        </p>
         <div>
           <label class="block font-medium text-gray-700">{{ $t('Why') }}</label>
           <select v-model="unbindForm.reason" :class="inputClass">
@@ -386,7 +399,7 @@
               <span v-else-if="menu.data.grab_has_it === true" class="rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">{{ $t('Grab has this menu') }}</span>
               <span v-else-if="menu.data.grab_has_it === false" class="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{{ $t('Grab has not pulled this version yet') }}</span>
             </div>
-            <p class="text-xs text-gray-500">{{ $t('The menu exactly as Grab pulls it, built now from the Grab template and the machine\'s stock. Read only.') }}</p>
+            <p class="text-xs text-gray-500">{{ menu.data.machine_menu ? $t('The menu exactly as Grab pulls it, built now from what is in the machine and its stock. Read only.') : $t('The menu exactly as Grab pulls it, built now from the old Grab menu (template) and the machine\'s stock. Read only.') }}</p>
             <div class="overflow-x-auto">
               <table class="min-w-full text-xs border">
                 <thead class="bg-gray-100">
@@ -559,7 +572,7 @@ const primaryClass = 'rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium tex
 const statusNames = {
   selling: t('Selling'),
   paused: t('Paused'),
-  off: t('Off (Inactive)'),
+  off: t('Switched off'),
   no_machine: t('No machine'),
 }
 const statusClass = {
@@ -572,7 +585,7 @@ const statusChips = [
   { key: 'all', name: t('All') },
   { key: 'selling', name: t('Selling') },
   { key: 'paused', name: t('Paused') },
-  { key: 'off', name: t('Off (Inactive)') },
+  { key: 'off', name: t('Switched off') },
   { key: 'no_machine', name: t('No machine') },
 ]
 const moveReasons = ['moved', 'replaced', 'template', 'correction']
@@ -784,7 +797,7 @@ function submitUnbind() {
 }
 
 function closeLeftover(store, other) {
-  if (!window.confirm(t('Close the leftover binding on machine :code? The store keeps selling from :live.', { code: other.vend_code, live: store.binding?.vend_code }))) {
+  if (!window.confirm(t('Take the store off machine :code too? It keeps selling from machine :live, and its promotions stay.', { code: other.vend_code, live: store.binding?.vend_code }))) {
     return
   }
   // Stored data: always English, never the viewer's language (or edit-mode markers).

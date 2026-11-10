@@ -1,11 +1,11 @@
 <template>
 
-  <Head :title="$t('Delivery Platform')" />
+  <Head :title="$t('Grab Orders')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ $t('Delivery Platform Orders') }}
+        {{ $t('Grab Orders') }}
       </h2>
     </template>
 
@@ -13,10 +13,10 @@
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput :placeholderStr="$t('Name')" v-model="filters.order_id">
+          <SearchInput :placeholderStr="$t('Grab order ID')" v-model="filters.order_id">
             {{ $t('Order ID') }}
           </SearchInput>
-          <SearchInput :placeholderStr="$t('Name')" v-model="filters.short_order_id">
+          <SearchInput :placeholderStr="$t('e.g. GF-123')" v-model="filters.short_order_id">
             {{ $t('Short Order ID') }}
           </SearchInput>
           <SearchInput :placeholderStr="$t('Machine ID')" v-model="filters.vend_code">
@@ -24,7 +24,7 @@
           </SearchInput>
           <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              {{ $t('Platform ID') }}
+              {{ $t('Grab merchant ID') }}
             </label>
             <MultiSelect
               v-model="selectedPlatformRefNumber"
@@ -92,7 +92,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              {{ $t('Date Filter Type') }}
+              {{ $t('Date is') }}
             </label>
             <MultiSelect
               v-model="filters.date_filter_type"
@@ -219,7 +219,7 @@
                           {{ $t('Platform') }}
                         </span>
                         <span>
-                          {{ $t('Platform ID') }}
+                          {{ $t('Grab merchant ID') }}
                         </span>
                       </div>
                     </TableHead>
@@ -233,14 +233,14 @@
                       {{ $t('Status') }}
                     </TableHead>
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
-                      {{ $t('Vend') }}
+                      {{ $t('Machine') }}
                     </TableHeadSort>
                     <TableHead>
                       {{ $t('Transaction') }} <br>
                       {{ $t('Order ID') }}
                     </TableHead>
                     <TableHead>
-                      {{ $t('(Channel) Item x Qt2') }}
+                      {{ $t('Items (slot) × qty') }}
                     </TableHead>
                     <TableHeadSort modelName="subtotal_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('subtotal_amount', true)">
                       {{ $t('Subtotal') }}
@@ -252,7 +252,7 @@
                       {{ $t('Channel Error(s)') }}
                     </TableHead>
                     <TableHead>
-                      {{ $t('Driver Phone Number') }}
+                      {{ $t('Driver phone · Complaint') }}
                     </TableHead>
                   </tr>
                 </thead>
@@ -311,7 +311,7 @@
                         </span>
                         <span class="text-xs" v-if="deliveryPlatformOrder.last_mile_timediff_mins && deliveryPlatformOrder.last_mile_timediff_mins >= 0">
                           <br>
-                          {{ $t('CD (:mins m)', { mins: deliveryPlatformOrder.last_mile_timediff_mins }) }}
+                          <span :title="$t('How long after the order was ready the driver collected it')">{{ $t('Driver came :mins min after ready', { mins: deliveryPlatformOrder.last_mile_timediff_mins }) }}</span>
                         </span>
                       </div>
                     </TableData>
@@ -550,7 +550,7 @@ onMounted(() => {
   //   return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
   // ]
   dateFilterTypeOptions.value = Object.keys(props.dateFilterTypeOptions).map((dateFilterType, index) => {
-    return {id: dateFilterType, value: props.dateFilterTypeOptions[dateFilterType]}
+    return {id: dateFilterType, value: t(props.dateFilterTypeOptions[dateFilterType])}
   })
   deliveryPlatformTypeOptions.value = [
     {id: 'all', name: t('All')},
@@ -561,7 +561,7 @@ onMounted(() => {
       ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   platformRefNumberSelectOptions.value = [
-    { id: 'all', ref_number: 'All' },
+    { id: 'all', ref_number: t('All') },
     ...(props.platformRefNumberOptions?.data || []).map((data) => ({ id: data.id, ref_number: data.ref_number })),
   ]
   filters.value.date_filter_type = dateFilterTypeOptions.value[0]

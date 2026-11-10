@@ -20,7 +20,7 @@
         <div class="flex flex-wrap items-start gap-3">
           <div class="flex-1 min-w-[16rem]">
             <p class="text-sm text-gray-600">
-              {{ $t('What Grab runs on each store, read from Grab every 10 minutes and after every change made here. Grab is the only source: a new promotion, a change or an end is sent to Grab store by store, and the list shows what Grab answers.') }}
+              {{ $t('Promotions running on Grab, read from Grab every 10 minutes. New, Edit and End are sent straight to Grab, store by store; the list shows what Grab has.') }}
             </p>
             <p class="text-sm text-gray-600 mt-1">
               <span v-if="reads.last_read_at">{{ $t('Last read :time, :count stores.', { time: formatDateTime(reads.last_read_at), count: reads.stores }) }}</span>
@@ -71,7 +71,7 @@
             <li v-for="read in reads.failing" :key="read.merchant_id" class="text-sm text-amber-900 flex flex-wrap items-center gap-2">
               <span class="font-mono">{{ read.merchant_id }}</span>
               <MachineIdLink v-if="read.vend_code" :code="read.vend_code" />
-              <span>{{ read.status ? 'HTTP ' + read.status : $t('No answer') }}</span>
+              <span>{{ read.status ? $t('Grab answered with error :status', { status: read.status }) : $t('No answer') }}</span>
               <span v-if="read.message" class="text-amber-800">{{ read.message }}</span>
               <span v-if="read.last_ok_at" class="text-amber-800">{{ $t('last good read :time', { time: formatDateTime(read.last_ok_at) }) }}</span>
               <button type="button" class="text-indigo-700 underline" @click="refresh(read.ref_id)">{{ $t('Read again') }}</button>
@@ -204,7 +204,7 @@
                         <th class="pr-4 py-1 font-medium">{{ $t('Grab store') }}</th>
                         <th class="pr-4 py-1 font-medium">{{ $t('Machine') }}</th>
                         <th class="pr-4 py-1 font-medium">{{ $t('Status') }}</th>
-                        <th class="pr-4 py-1 font-medium">{{ $t('Grab campaign ID') }}</th>
+                        <th class="pr-4 py-1 font-medium">{{ $t('Grab promotion ID') }}</th>
                         <th class="pr-4 py-1 font-medium">{{ $t('Last seen on Grab') }}</th>
                         <th class="py-1"></th>
                       </tr>
@@ -253,7 +253,7 @@
             <label class="block font-medium text-gray-700">{{ $t('Grab stores') }}</label>
             <span class="text-xs">
               <span class="text-gray-500 mr-2">{{ $tc(':count of :total picked|:count of :total picked', form.ref_ids.length, { count: form.ref_ids.length, total: storeOptions.filter(option => !option.disabled).length }) }}</span>
-              <button type="button" class="text-indigo-700 underline mr-2" @click="pickStores(true)">{{ $t('All') }}</button>
+              <button type="button" class="text-indigo-700 underline mr-2" @click="pickStores(true)">{{ $tc('All :count store (every operator listed)|All :count stores (every operator listed)', storeOptions.length, { count: storeOptions.length }) }}</button>
               <button type="button" class="text-indigo-700 underline" @click="pickStores(false)">{{ $t('None') }}</button>
             </span>
           </div>
@@ -437,7 +437,7 @@ const stateChips = [
 ]
 const sourceName = {
   connectvend: t('Made in ConnectVend'),
-  leftover: t('Leftover'),
+  leftover: t('Still on Grab after its store moved'),
   merchant_app: t('Grab merchant app'),
   grab_team: t('Grab team'),
   unknown: t('Not made in ConnectVend'),
@@ -628,7 +628,7 @@ const storeOptions = computed(() => (props.formStores ?? []).map(store => {
   const note = !store.has_account ? t('no Grab account') : (!store.items ? t('nothing on its Grab menu') : null)
   return {
     id: store.ref_id,
-    label: [store.vend_code, store.site, store.merchant_id].filter(Boolean).join(' · ') + (note ? ' (' + note + ')' : ''),
+    label: [store.operator_code, store.vend_code, store.site, store.merchant_id].filter(Boolean).join(' · ') + (note ? ' (' + note + ')' : ''),
     disabled: !store.has_account,
   }
 }))

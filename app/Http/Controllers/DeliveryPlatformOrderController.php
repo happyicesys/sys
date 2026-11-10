@@ -88,12 +88,13 @@ class DeliveryPlatformOrderController extends Controller
             'deliveryPlatformOrderStatusOptions' => [
                 [
                     'id' => 'all',
-                    'name' => 'All',
+                    'name' => __('All'),
                 ],
                 ...collect(DeliveryPlatformOrder::STATUS_MAPPING)->map(function ($status, $index) {
                     return [
                         'id' => $index,
-                        'name' => $status,
+                        // Status words are wrapped here: lang/*.json carries them although i18n:scan cannot see a constant.
+                        'name' => __($status),
                     ];
                 }),
             ],

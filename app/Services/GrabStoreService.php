@@ -207,7 +207,8 @@ class GrabStoreService
             return [$closed, $binding];
         });
 
-        $this->afterClose($closed, pauseOnGrab: false);
+        // A move keeps selling, but its promotions end as before (their items may not exist on the new machine).
+        $this->afterClose($closed, pauseOnGrab: false, endPromotions: true);
         $this->afterOpen($binding, resumeOnGrab: false);
 
         return $binding;
@@ -231,9 +232,10 @@ class GrabStoreService
         });
 
         // Another open binding of the same store (the 2658 leftover) still sells:
-        // closing the leftover must not pause the live one.
+        // closing the leftover must neither pause the live one nor end its promotions
+        // (they are found by merchant ID, so they are the live store's too).
         $stillOpen = $ref && $ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->exists();
-        $this->afterClose($closed, pauseOnGrab: ! $stillOpen);
+        $this->afterClose($closed, pauseOnGrab: ! $stillOpen, endPromotions: ! $stillOpen);
 
         return $closed;
     }
@@ -492,10 +494,10 @@ class GrabStoreService
 
     // The promotions ConnectVend made on this store end on Grab (as unbindVend did
     // before Grab Stores), found in Grab's own list, not in records of ours.
-    private function afterClose(DeliveryProductMappingVend $binding, bool $pauseOnGrab): void
+    private function afterClose(DeliveryProductMappingVend $binding, bool $pauseOnGrab, bool $endPromotions): void
     {
         $ref = $binding->deliveryPlatformRefNumber;
-        if ($ref) {
+        if ($ref && $endPromotions) {
             $this->safely(fn () => app(GrabPromotionService::class)->endForStore($ref, auth()->id()), 'end promotions');
         }
 
