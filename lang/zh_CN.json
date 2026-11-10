@@ -6204,6 +6204,7 @@
     "Unread Cust Note": "未读客户备注",
     "Unrecognised": "无法识别",
     "Unsaved changes — save the draft, then submit.": "有未保存的修改 — 请先保存草稿，再提交。",
+    "You have unsaved changes on this machine. Leave without saving?": "此机器有未保存的修改。不保存就离开吗？",
     "Unsent Sales": "未上传销售",
     "Unsuccessful": "不成功",
     "Unticked = count every stocked channel": "不勾选 = 盘点所有有库存的货道",

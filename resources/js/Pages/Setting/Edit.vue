@@ -9,6 +9,24 @@
     </template>
 
      <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
+      <div class="w-full md:w-2/3 xl:w-1/2">
+        <label class="block text-sm font-medium text-gray-700">
+          {{ $t('Machine') }}
+        </label>
+        <MultiSelect
+          :key="machineJumpKey"
+          :modelValue="currentMachineOption"
+          :options="machineJumpOptions"
+          valueProp="id"
+          label="label"
+          :placeholder="$t('Search by code, customer, or ref ID')"
+          open-direction="bottom"
+          class="mt-1"
+          :can-clear="false"
+          @selected="onMachineJump"
+        >
+        </MultiSelect>
+      </div>
       <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5 mb-3">
@@ -1249,12 +1267,14 @@
                   </span>
                 </Button>
               </template>
-              <Link :href="'/settings'">
-                <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1">
-                  <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                  <span> {{ $t('Back') }} </span>
-                </Button>
-              </Link>
+              <Button
+                type="button"
+                class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                @click.prevent="goBack"
+              >
+                <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                <span> {{ $t('Back') }} </span>
+              </Button>
               <Button
                 type="button"
                 class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
@@ -1414,16 +1434,16 @@
                         {{ $t('Save Site') }}
                       </span>
                     </Button>
-                    <Link :href="'/settings'">
-                      <Button
-                        class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                      >
-                        <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                        <span>
-                          {{ $t('Back') }}
-                        </span>
-                      </Button>
-                    </Link>
+                    <Button
+                      type="button"
+                      class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                      @click.prevent="goBack"
+                    >
+                      <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                      <span>
+                        {{ $t('Back') }}
+                      </span>
+                    </Button>
                   </span>
                   <Button
                     type="button"
@@ -1970,7 +1990,7 @@ import SmartFreezerRemoteControls from '@/Components/SmartFreezerRemoteControls.
 import RemoteCardTerminalPanel from '@/Components/RemoteCardTerminalPanel.vue';
 import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
 import moment from 'moment';
 import { useToast } from "vue-toastification";
@@ -1982,6 +2002,7 @@ const props = defineProps({
     cardTerminalUnitOptions: Object,
     cardTerminalBinding: Object,
     cashlessTerminalOptions: Object,
+    machineJumpOptions: Array,
     clawMachineBoardOptions: [Array, Object],
     clawMachineBodyOptions: [Array, Object],
     countries: Object,
@@ -2049,6 +2070,37 @@ const openDoorBlockedReason = computed(() => {
 const form = ref(
   useForm(getDefaultForm())
 )
+
+const machineJumpKey = ref(0)
+const currentMachineOption = computed(() => props.machineJumpOptions?.find(option => option.id === props.vend?.id) ?? null)
+
+function onMachineJump(option) {
+  if (!option || option.id === props.vend?.id) {
+    return
+  }
+  if (form.value.isDirty && !confirm(t('You have unsaved changes on this machine. Leave without saving?'))) {
+    // Remount: the dropdown keeps showing the machine just picked otherwise.
+    machineJumpKey.value++
+    return
+  }
+  router.visit(route('settings.edit', option.id))
+}
+
+// Back to wherever this page was opened from. A new tab has nowhere to go back
+// to, so it falls back to the Machine Settings list.
+function goBack() {
+  const canGoBack = window.navigation?.canGoBack ?? window.history.length > 1
+  if (!canGoBack) {
+    router.visit('/settings')
+    return
+  }
+  // History restores the page as it was; reload so it shows what was just saved.
+  const stopListening = router.on('navigate', () => {
+    stopListening()
+    router.reload()
+  })
+  window.history.back()
+}
 
 const page = usePage();
 const adminCustomerOptions = ref([])

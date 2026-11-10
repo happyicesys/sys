@@ -54,6 +54,7 @@ use App\Models\VendSticker;
 use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\VendParameterService;
 use App\Support\ScreenshotEligibility;
+use App\Support\VendCode;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DB;
@@ -271,6 +272,36 @@ class SettingController extends Controller
         ]);
     }
 
+    /**
+     * Every machine this viewer may see, for the jump dropdown on Setting/Edit.
+     * Not Vend/Temp's cached list: that one is shared and unfiltered, and this
+     * one must follow the viewer's operator and machine access.
+     */
+    private function machineJumpOptions()
+    {
+        $query = DB::table('vends')
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->select(
+                'vends.id',
+                'vends.code',
+                'vends.code_prefix',
+                'customers.name as customer_name',
+                DB::raw('CASE WHEN customers.id IS NOT NULL THEN customers.id + '.Customer::RUNNING_NUMBER_INIT.' END AS customer_ref_id')
+            )
+            ->orderBy('vends.code');
+
+        return $this->filterOperatorDB($query)
+            ->get()
+            ->map(fn ($option) => [
+                'id' => $option->id,
+                'label' => collect([
+                    VendCode::label($option->code_prefix, $option->code),
+                    $option->customer_name,
+                    $option->customer_ref_id ? '#'.$option->customer_ref_id : null,
+                ])->filter()->implode(' • '),
+            ]);
+    }
+
     public function edit(Request $request, $id)
     {
         $vendInit = Vend::withoutGlobalScopes()
@@ -476,6 +507,8 @@ class SettingController extends Controller
         // back), so an empty list would null hidden columns on save — and crash on
         // vend_config_version for a chiller that still carries a config chart.
         return Inertia::render('Setting/Edit', [
+            // The "Machine" dropdown at the top: jump to another machine's settings.
+            'machineJumpOptions' => $this->machineJumpOptions(),
             // "View Screen": null when this machine answers a SCREENSHOT frame, else why not —
             // the button is disabled with this text (ScreenshotEligibility, the one rule).
             'screenshotUnavailableReason' => $vendInit ? ScreenshotEligibility::reason($vendInit) : 'Machine not found.',
