@@ -1638,7 +1638,7 @@ A save never errors on a planning hiccup; the minute run catches up. Regression 
 
 **Remote controls: part bulbs and Test lock** (Brian, 2026-11-10; Setting/Edit → Remote controls). Each status tile for a
 part that can drop off carries a bulb (`LinkBulb.vue`, `FreezerStatus::link`): green online, red offline, grey "not known
-now". Cameras are one tile EACH (Inner / Planar / Customer View), never "2/3 online". Grey is never "offline": every bulb but
+now". Cameras are one tile EACH (Real-Front / Top / Customer View — renamed from Inner / Planar, Brian 2026-11-10), never "2/3 online". Grey is never "offline": every bulb but
 the App's goes grey while the machine is off MQTT (`vends.is_online`), and the thermostat and cameras go grey while the Zijia
 host is down, because they are read through it. **Test lock** is three ordinary commands run by the page
 (`useFreezerControls::runLockTest`): unlock, 3 s, lock, status. The verdict comes from the host's own replies (开锁成功 /

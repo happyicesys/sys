@@ -118,12 +118,13 @@ export function cameraOnline(camera) {
  * The host reports ids (3, 4, 5 on the BKX10) and its own labels (主摄 / 辅摄 / 5号摄像头), which say
  * nothing about what a camera sees. On both units we have, list order matches the board's MIPI
  * connectors 0, 1, 2 (confirmed from the self-check lines on 2009 and 50001, 2026-09-18), and Brian
- * named those views: MIPI 0 inner, MIPI 1 planar (top-down over the baskets), MIPI 2 customer.
- * A machine that ever lists more cameras falls back to its own label.
+ * named those views: MIPI 0 real-front, MIPI 1 top (down over the baskets), MIPI 2 customer
+ * (renamed from Inner / Planar on 2026-11-10, Brian). A machine that ever lists more cameras
+ * falls back to its own label.
  */
-export const CAMERA_VIEW_NAMES = [tk('Inner View'), tk('Planar View'), tk('Customer View')];
+export const CAMERA_VIEW_NAMES = [tk('Real-Front View'), tk('Top View'), tk('Customer View')];
 
-/** @returns {string} e.g. "Planar View (cam 4)". */
+/** @returns {string} e.g. "Top View (cam 4)". */
 export function cameraLabel(camera, index) {
     const view = CAMERA_VIEW_NAMES[index];
     const id = camera?.id ?? '?';

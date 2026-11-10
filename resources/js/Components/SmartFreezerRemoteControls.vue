@@ -551,7 +551,7 @@ function openPhoto(photo) {
 
 /**
  * One tile per camera the machine lists — its newest shot, or an empty frame — so every view has
- * its own Take photo underneath and the card always reads Inner / Planar / Customer. A camera that
+ * its own Take photo underneath and the card always reads Real-Front / Top / Customer. A camera that
  * only appears in stored photos (the machine no longer lists it) keeps a tile of its own rather
  * than losing its history silently.
  */
