@@ -9,6 +9,7 @@ use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Services\SmartFreezer\FreezerRecognitionService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -21,15 +22,18 @@ use Throwable;
  * about 1 s after the door closes, but their cloud waits ~5 min 50 s before it pushes the link to us
  * (26 of 26 sales on 50001, 333–358 s). The link is predictable: the machine's own last push with the
  * order number swapped for this one. The freezer's TRADE reaches mark1 at door close (±3 s), so it
- * starts the search: a few seconds later mark1 asks OSS for the file (HEAD), and once every camera
- * the machine's last push carried is there, it records the session as if pushed and opens the AI
+ * starts the search: a few seconds later mark1 asks OSS (HEAD) for both cameras' files (3 and 4). When
+ * both are there it sends both. When only one is, it waits `camera_grace_seconds` for the other (the two
+ * land within ~1 s of each other when both cameras work) and then sends what is there, so a camera
+ * that is offline never holds the sale (2026-11-10: 50001's flapping camera 4 made it wait 90 s for a
+ * file that never came, then the full ~6 min). It records the session as if pushed and opens the AI
  * check through the one path a push takes (FreezerRecognitionService::open).
  *
  * Zijia's push stays the fallback and the check: it lands on the same recognition (same trade id),
  * and when it was not sent yet its videos are the ones sent (`sendableVideos`); when it carries
  * a video the early fetch did not send, that is logged, since it means their file naming moved.
  * The search never guesses beyond the machine's own last push: no push on record, a link not on an
- * allowed host or not naming its order, or files not there by `give_up_seconds` → nothing is
+ * allowed host or not naming its order, or no file there by `give_up_seconds` → nothing is
  * recorded and the push works exactly as before.
  *
  * Off unless the machine is listed (`smart_freezer.zijia.early_video.vends`).
@@ -128,24 +132,26 @@ class EarlyOrderVideo
             return 'no_template';
         }
 
-        foreach ($plan['required'] as $url) {
-            if (! $this->exists($url)) {
-                if (Carbon::now()->timestamp >= $giveUpAt) {
-                    Log::info('freezer early video not found in time; waiting for Zijia', ['vend_id' => $vendId, 'order' => $orderRef, 'missing' => $url]);
+        $now = Carbon::now()->timestamp;
+        $urls = array_values(array_filter($plan['cameras'], fn (string $url) => $this->exists($url)));
+        if ($urls === []) {
+            if ($now >= $giveUpAt) {
+                Log::info('freezer early video not found in time; waiting for Zijia', ['vend_id' => $vendId, 'order' => $orderRef, 'missing' => $plan['cameras']]);
 
-                    return 'gave_up';
-                }
+                return 'gave_up';
+            }
 
+            return 'waiting';
+        }
+        // One camera is there, the other not (yet): give it a short grace, then send what exists.
+        if (count($urls) < count($plan['cameras'])) {
+            $key = 'freezer-early-video:first-seen:'.$orderRef;
+            Cache::add($key, $now, 900);
+            $firstSeen = (int) Cache::get($key, $now);
+            if ($now - $firstSeen < max(0, (int) config('smart_freezer.zijia.early_video.camera_grace_seconds')) && $now < $giveUpAt) {
                 return 'waiting';
             }
         }
-        $urls = $plan['required'];
-        foreach ($plan['optional'] as $url) {
-            if ($this->exists($url)) {
-                $urls[] = $url;
-            }
-        }
-        usort($urls, fn (string $a, string $b) => self::cameraOf($a) <=> self::cameraOf($b));
 
         // The push may have landed while we looked.
         if (SmartFreezerRecognition::where('trade_id', $orderRef)->exists()) {
@@ -201,12 +207,13 @@ class EarlyOrderVideo
     }
 
     /**
-     * The links this order's videos will have: each video of the template push with its order number
+     * The links this order's videos may have: each video of the template push with its order number
      * swapped for this one and its query dropped (Zijia adds "?door=unopened" when the lid never
-     * lifted). `required` = the cameras the template carried; `optional` = the other of cameras 3/4,
-     * taken when it is there (a camera back online). Null when any template link cannot be trusted.
+     * lifted), plus the other of cameras 3/4 on the same door. None is required: which cameras the
+     * last push carried says nothing about which work now (2026-11-10, 50001's camera 4 came and went).
+     * In camera order. Null when any template link cannot be trusted.
      *
-     * @return array{required: list<string>, optional: list<string>, door: int}|null
+     * @return array{cameras: list<string>, door: int}|null
      */
     private function links(SmartFreezerVideo $template, string $orderRef): ?array
     {
@@ -229,15 +236,14 @@ class EarlyOrderVideo
             return null;
         }
 
-        $optional = [];
+        $cameras = $required;
         foreach ($required as $url) {
-            $sibling = preg_replace_callback(self::CAMERA, fn ($m) => '-d'.$m[1].'c'.($m[2] === '3' ? '4' : '3').'-', $url, 1);
-            if (! in_array($sibling, $required, true) && ! in_array($sibling, $optional, true)) {
-                $optional[] = $sibling;
-            }
+            $cameras[] = preg_replace_callback(self::CAMERA, fn ($m) => '-d'.$m[1].'c'.($m[2] === '3' ? '4' : '3').'-', $url, 1);
         }
+        $cameras = array_values(array_unique($cameras));
+        usort($cameras, fn (string $a, string $b) => self::cameraOf($a) <=> self::cameraOf($b));
 
-        return ['required' => array_values(array_unique($required)), 'optional' => $optional, 'door' => max(1, $door)];
+        return ['cameras' => $cameras, 'door' => max(1, $door)];
     }
 
     private function exists(string $url): bool

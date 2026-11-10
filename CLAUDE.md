@@ -1190,16 +1190,19 @@ unrecognised). Rules:
 - **Early order video: mark1 does not wait for the push (Brian, 2026-11-09).** The order mp4 is on Zijia's OSS
   ~1 s after the door closes, but their push reaches us ~5 min 50 s later (26/26 sales on 50001, 333–358 s;
   `apk/smart-freezer/ZIJIA_VIDEO_PUSH_DELAY_2026-11-07.md`). On a freezer TRADE (it lands at door close ±3 s)
-  `EarlyOrderVideo::afterTrade` queues `FetchEarlyFreezerVideo` (`default` queue): every 5 s for 90 s it HEADs the
-  links the machine's own LAST REAL push had, with the order number swapped for the TRADE's `SFORD` (the try that
-  opened), else `SFREF`, and the query (`?door=unopened`) dropped. Once every camera that push carried is there
-  (plus the other of cameras 3/4 if it exists), it stores a `smart_freezer_videos` row (`payload.source =
-  mark1_early_fetch`, no `raw_body` — `isEarlyFetch()`) and calls `FreezerRecognitionService::open` like a push, so
-  the AI result comes ~30–40 s after the door closes instead of ~6 min. The later push lands on the same
+  `EarlyOrderVideo::afterTrade` queues `FetchEarlyFreezerVideo` (`default` queue): every 5 s for 90 s it HEADs
+  cameras 3 AND 4, built from the machine's own LAST REAL push with the order number swapped for the TRADE's `SFORD`
+  (the try that opened), else `SFREF`, and the query (`?door=unopened`) dropped. Both there → both sent at once. One
+  there → the other gets `camera_grace_seconds` (10 s, `FREEZER_EARLY_VIDEO_CAMERA_GRACE`; both land within ~1 s when
+  both work), then what exists is sent. **No camera is required because the last push had it** — 2026-11-10 a push
+  with 50001's flapping camera 4 made the next sale wait 90 s for a file that never came, then the full ~6 min. It
+  stores a `smart_freezer_videos` row (`payload.source = mark1_early_fetch`, no `raw_body` — `isEarlyFetch()`) and
+  calls `FreezerRecognitionService::open` like a push. Zijia's algorithm accepts it at once, but on 3 of the first 4
+  sales (11-09) its RESULT still came only after Zijia's own push — the real cut needs Zijia. The later push lands on the same
   recognition (same trade id): sent already → logged "zijia push confirmed an early-fetched session", or a WARNING
   "zijia push names videos the early fetch did not send" (their naming moved); not sent yet → the push's videos
   are the ones sent (`sendableVideos`). Nothing is guessed: no recent push (14 days) to copy, a link off
-  `early_video.hosts`, or files not there in 90 s → nothing stored, the push works exactly as before. Off unless
+  `early_video.hosts`, or no file there in 90 s → nothing stored, the push works exactly as before. Off unless
   `FREEZER_EARLY_VIDEO_VENDS` lists the machine ("50001,50002" or "*") and `auto_submit` is on; an outbox replay
   (TRADE > 15 min from now) is not looked for. A door that never opened sends no TRADE, so it always waits for
   the push. Regression coverage: `tests/Feature/FreezerEarlyVideoTest.php`.

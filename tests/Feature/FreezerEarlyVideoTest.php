@@ -63,6 +63,8 @@ class FreezerEarlyVideoTest extends TestCase
                 'timeout' => 5, 'callback_verification' => 'log', 'timezone' => 'Asia/Shanghai',
             ],
             'smart_freezer.zijia.early_video.vends' => ['50001'],
+            // Most tests put only one camera on OSS; the grace for the other has its own tests.
+            'smart_freezer.zijia.early_video.camera_grace_seconds' => 0,
         ]);
         Http::fake(function (Request $request) {
             if (str_starts_with($request->url(), 'https://algo.test')) {
@@ -193,16 +195,69 @@ class FreezerEarlyVideoTest extends TestCase
         Http::assertNotSent(fn (Request $r) => $r->method() === 'HEAD');
     }
 
-    public function test_every_camera_the_machine_last_pushed_must_be_there_before_anything_is_sent(): void
+    public function test_both_cameras_there_are_sent_together_at_once(): void
     {
         $this->push(self::OLD, [3, 4]);
         $this->oss[self::path(self::REF, 3)] = true;
+        $this->oss[self::path(self::REF, 4)] = true;
+
+        $this->assertSame('found', $this->fetch());
+        $this->assertSame([self::OSS.self::path(self::REF, 3), self::OSS.self::path(self::REF, 4)],
+            SmartFreezerVideo::where('order_no', self::REF)->sole()->video_urls);
+        [$call] = $this->algoCallsFor(self::REF);
+        $this->assertSame([self::OSS.self::path(self::REF, 3), self::OSS.self::path(self::REF, 4)], $call['videoList']);
+    }
+
+    public function test_a_camera_that_lands_within_the_grace_is_waited_for(): void
+    {
+        config(['smart_freezer.zijia.early_video.camera_grace_seconds' => 10]);
+        $this->push(self::OLD, [3]);
+        $this->oss[self::path(self::REF, 3)] = true;
         $this->assertSame('waiting', $this->fetch());
 
+        Carbon::setTestNow(Carbon::now()->addSeconds(5));
         $this->oss[self::path(self::REF, 4)] = true;
         $this->assertSame('found', $this->fetch());
         $this->assertSame([self::OSS.self::path(self::REF, 3), self::OSS.self::path(self::REF, 4)],
             SmartFreezerVideo::where('order_no', self::REF)->sole()->video_urls);
+    }
+
+    /**
+     * 2026-11-10, 50001: the push before carried cameras 3 + 4 (camera 4 briefly back), so the next
+     * sale waited 90 s for a camera-4 file that never came, gave up, and waited ~6 min for Zijia.
+     */
+    public function test_a_camera_the_last_push_had_but_that_is_offline_now_does_not_hold_the_sale(): void
+    {
+        config(['smart_freezer.zijia.early_video.camera_grace_seconds' => 10]);
+        $this->push(self::OLD, [3, 4], '?door=unopened');
+        $this->oss[self::path(self::REF, 3)] = true;
+
+        $this->assertSame('waiting', $this->fetch());
+        Carbon::setTestNow(Carbon::now()->addSeconds(5));
+        $this->assertSame('waiting', $this->fetch());
+        $this->assertSame([], $this->algoCallsFor(self::REF));
+
+        Carbon::setTestNow(Carbon::now()->addSeconds(5));
+        $this->assertSame('found', $this->fetch());
+        $this->assertSame([self::OSS.self::path(self::REF, 3)], SmartFreezerVideo::where('order_no', self::REF)->sole()->video_urls);
+        [$call] = $this->algoCallsFor(self::REF);
+        $this->assertSame([self::OSS.self::path(self::REF, 3)], $call['videoList']);
+
+        // Zijia's push names camera 3 only, as on 11-10: it just confirms.
+        Log::spy();
+        $this->push(self::REF, [3]);
+        $this->assertCount(1, $this->algoCallsFor(self::REF));
+        Log::shouldHaveReceived('info')->withArgs(fn ($message) => $message === 'zijia push confirmed an early-fetched session')->once();
+    }
+
+    public function test_the_give_up_time_cuts_the_grace_short_and_sends_what_is_there(): void
+    {
+        config(['smart_freezer.zijia.early_video.camera_grace_seconds' => 30]);
+        $this->push(self::OLD, [3, 4]);
+        $this->oss[self::path(self::REF, 4)] = true;
+
+        $this->assertSame('found', $this->fetch(giveUpIn: 0));
+        $this->assertSame([self::OSS.self::path(self::REF, 4)], SmartFreezerVideo::where('order_no', self::REF)->sole()->video_urls);
     }
 
     public function test_a_camera_back_online_is_sent_too_in_camera_order(): void

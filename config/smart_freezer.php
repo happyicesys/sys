@@ -183,6 +183,9 @@ return [
             // The TRADE arrives at door close; the mp4 is on OSS about a second after it.
             'first_check_seconds' => (int) env('FREEZER_EARLY_VIDEO_FIRST_CHECK', 3),
             'retry_seconds' => (int) env('FREEZER_EARLY_VIDEO_RETRY', 5),
+            // Cameras 3 and 4 are both looked for. Once one is there, the other gets this long to show up
+            // (both land within ~1 s when both work); then what exists is sent. An offline camera never holds the sale.
+            'camera_grace_seconds' => (int) env('FREEZER_EARLY_VIDEO_CAMERA_GRACE', 10),
             // After this, nothing is recorded and Zijia's push is waited for as before.
             'give_up_seconds' => (int) env('FREEZER_EARLY_VIDEO_GIVE_UP', 90),
             'head_timeout' => (int) env('FREEZER_EARLY_VIDEO_HEAD_TIMEOUT', 5),
