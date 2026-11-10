@@ -304,4 +304,42 @@ class SkuStockIdentityTest extends TestCase
         $this->assertSame(0, (int) VendChannel::where('vend_id', $vend->id)->where('product_id', $b->id)->value('qty'), 'the leaving SKU was returned in full');
         $this->assertFalse((bool) VendChannel::where('vend_id', $vend->id)->where('product_id', $b->id)->value('is_active'));
     }
+
+    /**
+     * 50001, job 60255 (2026-11-10): the first Stock In of an "implement new mapping" visit swapped the
+     * machine to its new mapping; Undo Stock In leaves the swap in place, so every later Stock In of the
+     * same job found no upcoming mapping, and the empty "keep" list returned EVERY SKU to zero.
+     */
+    public function test_a_stock_in_with_no_mapping_left_to_move_to_returns_nothing(): void
+    {
+        Permission::findOrCreate('update operations', 'web');
+        [$vend, , $a, $b] = $this->freezer(['11' => 'A', '21' => 'B']);
+        app(FreezerChannelSync::class)->sync($vend);
+        $this->rows($vend)->firstWhere('product_id', $a->id)->update(['qty' => 7]);
+        $this->rows($vend)->firstWhere('product_id', $b->id)->update(['qty' => 3]);
+        $this->assertNull($vend->fresh()->upcoming_product_mapping_id);
+
+        $driver = User::factory()->create();
+        $driver->givePermissionTo('update operations');
+        $job = OpsJob::create(['code' => 900201, 'date' => now()->toDateString(), 'status' => 1, 'delivered_by' => $driver->id, 'operator_id' => 1]);
+        $item = OpsJobItem::create([
+            'ops_job_id' => $job->id, 'vend_id' => $vend->id, 'customer_id' => $vend->customer_id,
+            'status' => OpsJob::STATUS_PICKED, 'stock_action_type' => 'implement_new_mapping',
+        ]);
+        foreach ($vend->fresh()->vendChannels as $vc) {
+            OpsJobItemChannel::create(['ops_job_id' => $job->id, 'ops_job_item_id' => $item->id, 'vend_channel_id' => $vc->id, 'vend_channel_code' => $vc->code, 'vend_code' => $vend->code, 'product_id' => $vc->product_id, 'qty' => $vc->qty, 'capacity' => $vc->capacity, 'picked_qty' => 0]);
+        }
+
+        $payload = [];
+        foreach ($item->opsJobItemChannels()->get() as $ch) {
+            $payload[] = ['id' => $ch->id, 'qty' => (int) $ch->qty, 'refill' => (int) $ch->product_id === $a->id ? 2 : 0, 'capacity' => (int) $ch->capacity];
+        }
+        $this->actingAs($driver)->post("/ops-jobs/items/{$item->id}/confirm", ['channels' => $payload])->assertSessionHasNoErrors();
+
+        $final = $item->opsJobItemChannels()->get()->keyBy('product_id');
+        $this->assertSame(2, (int) $final[$a->id]->actual_qty, 'the refill the driver keyed stands');
+        $this->assertSame(0, (int) $final[$b->id]->actual_qty, 'nothing is forced back to the warehouse');
+        $this->assertSame(9, (int) $this->rows($vend)->firstWhere('product_id', $a->id)->qty);
+        $this->assertSame(3, (int) $this->rows($vend)->firstWhere('product_id', $b->id)->qty);
+    }
 }

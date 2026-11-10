@@ -2897,9 +2897,15 @@ class OpsJobController extends Controller
         // whatever code — stays in the machine; only a SKU that LEFT is returned.
         $vend = $opsJobItem->vend;
         if ($vend && $vend->isSkuStocked()) {
-            $keep = $targetMappingId
-                ? app(\App\Services\Stock\SkuPlanogram::class)->forMapping($targetMappingId, (string) $vend->machine_type)
-                : [];
+            // No mapping to move to = no swap, so nothing leaves. Undo Stock In does not undo the
+            // mapping swap, so a second Stock In of the same "implement new mapping" job finds the
+            // machine already on the new mapping with nothing upcoming: an empty "keep" here
+            // returned EVERY SKU (50001, job 60255, 2026-11-10: five Stock Ins, each zeroing the
+            // freezer). The vending branch below already does nothing without a staged row.
+            if (! $targetMappingId) {
+                return;
+            }
+            $keep = app(\App\Services\Stock\SkuPlanogram::class)->forMapping($targetMappingId, (string) $vend->machine_type);
             foreach ($channels as $ojic) {
                 if ($ojic->is_upcoming_product || isset($keep[(int) $ojic->product_id]) || $ojic->actual_qty < 0) {
                     continue;

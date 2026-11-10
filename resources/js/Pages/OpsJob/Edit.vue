@@ -388,6 +388,9 @@
                               <SingleSortItem modelName="acc_vend_transactions_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('acc_vend_transactions_cash_amount')">
                                 {{ $t('CashAmt$ (Trans)') }}
                               </SingleSortItem>
+                              <span class="text-blue-700">
+                                {{ $t('Cashless$ (Trans)') }}
+                              </span>
                             </div>
                           </TableHead>
                           <TableHead>
@@ -798,6 +801,13 @@
                               <span :class="[row.acc_vend_transactions_cash_amount == row.cash_amount ? 'text-green-600' : 'text-red-600']">
                                 <div class="flex space-x-2 px-6 justify-center">
                                   {{ operatorCountry.currency_symbol }}{{ row.acc_vend_transactions_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                </div>
+                              </span>
+                              <!-- Cashless sales since the last visit (Brian, 2026-11-10): a freezer or chiller takes
+                                   no cash, so the cash lines above read 0 there; this is its takings. -->
+                              <span class="text-gray-900">
+                                <div class="flex space-x-2 px-6 justify-center">
+                                  {{ operatorCountry.currency_symbol }}{{ (row.acc_vend_transactions_cashless_amount ?? 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                 </div>
                               </span>
                             </div>

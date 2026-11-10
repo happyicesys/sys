@@ -144,7 +144,8 @@
 
             <!-- Restock photos on a smart machine (2026-10-13): BEFORE unlocks Open Door, AFTER follows
                  Stock In. Kept on the item as the job's record; a chiller's also go to CityBox once
-                 it can take them, a freezer's stay in mark1. -->
+                 it can take them, a freezer's stay in mark1. No `capture` (Brian, 2026-11-10): the phone
+                 offers camera OR gallery, so a photo taken earlier can be picked. -->
             <div v-if="hasRestockPhotos" class="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="rounded-md border p-2" :class="restockPhotos.before.length ? 'border-green-200 bg-green-50' : 'border-amber-300 bg-amber-50'">
                 <div class="text-sm font-semibold text-gray-900">{{ $t('1. Before restock photo') }} <span class="text-xs font-normal text-gray-600">补货前照片</span></div>
@@ -156,7 +157,6 @@
                   :deleteUrl="file => restockPhotoUrl + '/' + file.id"
                   :editable="opsJobItem.status < 4"
                   accept="image/*"
-                  capture="environment"
                   @changed="applyRestockPhotos"
                 />
               </div>
@@ -172,7 +172,6 @@
                   :deleteUrl="file => restockPhotoUrl + '/' + file.id"
                   :editable="opsJobItem.status < 4"
                   accept="image/*"
-                  capture="environment"
                   @changed="applyRestockPhotos"
                 />
               </div>
@@ -198,7 +197,6 @@
                     :deleteUrl="file => restockPhotoUrl + '/' + file.id"
                     :editable="true"
                     accept="image/*"
-                    capture="environment"
                     @changed="data => { applyRestockPhotos(data); if (data?.after?.length) afterPhotoPrompt = false }"
                   />
                   <div class="mt-4 flex justify-end">
