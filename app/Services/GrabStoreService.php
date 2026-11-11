@@ -130,16 +130,71 @@ class GrabStoreService
                 'grab_check' => $grabCheck ? $grabCheck['message'] : 'skipped',
             ]);
 
+            // An operator already selling on the machine menu never starts a store on an old Grab menu.
+            if ($this->startsOnMachineMenu($operatorId)) {
+                $ref->update(['menu_from_machine_at' => now()]);
+                $this->event($ref, DeliveryPlatformStoreEvent::EVENT_MENU_SOURCE, $userId, null, null, ['machine_menu' => true, 'new_store' => true]);
+            }
+
             return $ref;
         });
+    }
+
+    /**
+     * New stores skip the old Grab menus (Brian, 2026-11-11: "don't use the old menu … skip it for the new store")
+     * once their operator sells on the machine menu — it has at least one store switched (HIPL since 2026-11-11).
+     * Such a store lists what is in its machine at the operator's price rule (Grab Menu & Prices) from the start.
+     */
+    public function startsOnMachineMenu(int $operatorId): bool
+    {
+        return DeliveryPlatformRefNumber::query()->where('operator_id', $operatorId)->whereNotNull('menu_from_machine_at')->exists();
+    }
+
+    /**
+     * A store that will list its machine when it is put on one: on the machine menu already, or never switched either
+     * way and of an operator that starts stores there. A store someone put back on its old menu stays there.
+     */
+    public function willUseMachineMenu(DeliveryPlatformRefNumber $ref): bool
+    {
+        if ($ref->usesMachineMenu()) {
+            return true;
+        }
+
+        return $this->startsOnMachineMenu((int) $ref->operator_id)
+            && ! DeliveryPlatformStoreEvent::query()->where('delivery_platform_ref_number_id', $ref->id)->where('event', DeliveryPlatformStoreEvent::EVENT_MENU_SOURCE)->exists();
+    }
+
+    /**
+     * The template a machine-menu store is linked to: the link still needs one, but it is not what Grab gets. The one
+     * most of the operator's open stores use, else its newest.
+     */
+    public function defaultTemplateFor(int $operatorId): ?DeliveryProductMapping
+    {
+        $mostUsed = DeliveryProductMappingVend::query()->withoutGlobalScopes()
+            ->whereNull('end_date')
+            ->whereHas('deliveryPlatformRefNumber', fn ($query) => $query->where('operator_id', $operatorId))
+            ->selectRaw('delivery_product_mapping_id, COUNT(*) AS n')
+            ->groupBy('delivery_product_mapping_id')
+            ->orderByDesc('n')
+            ->value('delivery_product_mapping_id');
+
+        return DeliveryProductMapping::query()->withoutGlobalScopes()
+            ->where('operator_id', $operatorId)
+            ->when($mostUsed, fn ($query) => $query->where('id', $mostUsed), fn ($query) => $query->orderByDesc('id'))
+            ->first();
     }
 
     /**
      * Put a store on a machine. Refuses a store already open on a machine (use move)
      * and a machine already carrying another store.
      */
-    public function bind(DeliveryPlatformRefNumber $ref, Vend $vend, DeliveryProductMapping $template, ?int $userId, ?string $remarks = null): DeliveryProductMappingVend
+    public function bind(DeliveryPlatformRefNumber $ref, Vend $vend, ?DeliveryProductMapping $template, ?int $userId, ?string $remarks = null): DeliveryProductMappingVend
     {
+        $machineMenu = $this->willUseMachineMenu($ref);
+        $template ??= $machineMenu ? $this->defaultTemplateFor((int) $ref->operator_id) : null;
+        if (! $template) {
+            throw ValidationException::withMessages(['delivery_product_mapping_id' => __('Pick a Grab template.')]);
+        }
         if ((int) $template->operator_id !== (int) $ref->operator_id) {
             throw ValidationException::withMessages([
                 'delivery_product_mapping_id' => __('The Grab template belongs to another operator than this store.'),
@@ -155,6 +210,10 @@ class GrabStoreService
         });
 
         $this->afterOpen($binding, resumeOnGrab: true);
+        // A new store of a machine-menu operator lists its machine from the start (setMenuSource notifies Grab).
+        if ($machineMenu && ! $ref->fresh()->usesMachineMenu()) {
+            $this->setMenuSource($ref->fresh(), true, $userId);
+        }
 
         return $binding;
     }

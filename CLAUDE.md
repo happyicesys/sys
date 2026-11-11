@@ -2741,6 +2741,11 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
     `GrabStorePriceRuleService` (store rules) and
     `GrabStoreService::setMenuSource` (switch a store, event `menu_source`). Product → Edit RP / name changes call
     `GrabMenuService::productChanged`.
+  - **New stores skip the old menus** (Brian, 2026-11-11): once an operator has any store on the machine menu
+    (`GrabStoreService::startsOnMachineMenu`; HIPL since 2026-11-11), a store it adds on Grab Stores starts there, and
+    Add store / Put on machine ask for no template — the link gets `defaultTemplateFor()` (the operator's most-used),
+    which Grab never sees. A store someone put back on its old menu stays there (`willUseMachineMenu`: never switched
+    either way). Coverage: `tests/Feature/GrabNewStoreMachineMenuTest.php`.
   - **Orders** for "P" items are allocated to the slots holding the product, most stock first, only when they hold
     enough together (`DeliveryPlatformService::createMachineMenuOrderItems`); the order line and slot lines carry no
     template ids (`order_item_vend_channels.delivery_product_mapping_vend_channel_id` is nullable), and the drop reads

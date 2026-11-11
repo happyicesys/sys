@@ -100,6 +100,13 @@ class GrabStoreController extends Controller
             $refs->getCollection()->flatMap(fn ($ref) => $ref->openDeliveryProductMappingVends->pluck('id'))->all()
         );
         $openChanges = $this->changeRequests->open($refs->getCollection()->pluck('id'));
+        // Which stores list their machine once put on one (GrabStoreService::willUseMachineMenu, in two queries).
+        $machineMenuOperatorIds = DeliveryPlatformRefNumber::query()->whereIn('operator_id', $operatorIds)
+            ->whereNotNull('menu_from_machine_at')->distinct()->pluck('operator_id')->map(fn ($id) => (int) $id)->all();
+        $switchedBefore = DeliveryPlatformStoreEvent::query()
+            ->whereIn('delivery_platform_ref_number_id', $refs->getCollection()->pluck('id'))
+            ->where('event', DeliveryPlatformStoreEvent::EVENT_MENU_SOURCE)
+            ->distinct()->pluck('delivery_platform_ref_number_id')->map(fn ($id) => (int) $id)->all();
 
         $totals = [];
         foreach (self::STATUSES as $key) {
@@ -127,6 +134,8 @@ class GrabStoreController extends Controller
                     // Asking Grab to change the store (HIPL only: the others do it in the GrabMerchant app themselves).
                     'grab_change' => $openChanges[$ref->id] ?? null,
                     'can_ask_grab' => $this->changeRequests->eligible($ref),
+                    'will_use_machine_menu' => $ref->usesMachineMenu()
+                        || (in_array((int) $ref->operator_id, $machineMenuOperatorIds, true) && ! in_array((int) $ref->id, $switchedBefore, true)),
                 ])->values(),
                 'links' => ['prev' => $refs->previousPageUrl(), 'next' => $refs->nextPageUrl()],
                 'meta' => ['from' => $refs->firstItem(), 'to' => $refs->lastItem(), 'total' => $refs->total()],
@@ -149,6 +158,8 @@ class GrabStoreController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'operator_id', 'product_mapping_id']),
             'unbindReasons' => DeliveryProductMappingVend::UNBIND_REASONS,
+            // A new store of these operators lists its machine: no old Grab menu to pick.
+            'machineMenuOperatorIds' => $machineMenuOperatorIds,
             'canUpdate' => (bool) auth()->user()?->can('update delivery-platform-vends'),
         ]);
     }
@@ -237,7 +248,8 @@ class GrabStoreController extends Controller
             'remarks' => ['nullable', 'string', 'max:1000'],
             'skip_grab_check' => ['nullable', 'boolean'],
             'vend_code' => ['nullable', 'string'],
-            'delivery_product_mapping_id' => ['required_with:vend_code', 'nullable', 'integer'],
+            // Not asked for an operator on the machine menu: its new stores list their machine (GrabStoreService::bind).
+            'delivery_product_mapping_id' => ['nullable', 'integer'],
         ]);
         if (! GrabStoreVisibility::allows((int) $validated['operator_id'])) {
             abort(403);
@@ -245,7 +257,7 @@ class GrabStoreController extends Controller
 
         // Resolve the machine before the store is saved, so a typo there saves nothing.
         $vend = ! empty($validated['vend_code']) ? $this->accessibleVend($validated['vend_code']) : null;
-        $template = $vend ? $this->accessibleTemplate($validated['delivery_product_mapping_id']) : null;
+        $template = $vend ? $this->optionalTemplate($validated['delivery_product_mapping_id'] ?? null, $this->grabStores->startsOnMachineMenu((int) $validated['operator_id'])) : null;
 
         // No outer transaction: bind() queues the menu sync, which must see a committed
         // row. A bind refused here leaves the store saved with no machine, as shown.
@@ -458,14 +470,14 @@ class GrabStoreController extends Controller
         $ref = $this->accessibleRef($id);
         $validated = $request->validate([
             'vend_code' => ['required', 'string'],
-            'delivery_product_mapping_id' => ['required', 'integer'],
+            'delivery_product_mapping_id' => ['nullable', 'integer'],
             'remarks' => ['nullable', 'string', 'max:255'],
         ]);
 
         $this->grabStores->bind(
             $ref,
             $this->accessibleVend($validated['vend_code']),
-            $this->accessibleTemplate($validated['delivery_product_mapping_id']),
+            $this->optionalTemplate($validated['delivery_product_mapping_id'] ?? null, $this->grabStores->willUseMachineMenu($ref)),
             auth()->id(),
             $validated['remarks'] ?? null,
         );
@@ -750,6 +762,19 @@ class GrabStoreController extends Controller
         }
 
         return $vend;
+    }
+
+    // A template is asked for only when the store will sell from one; a machine-menu store gets its operator's usual one.
+    private function optionalTemplate($id, bool $machineMenu): ?DeliveryProductMapping
+    {
+        if (! $id) {
+            if ($machineMenu) {
+                return null;
+            }
+            throw ValidationException::withMessages(['delivery_product_mapping_id' => __('Pick a Grab template.')]);
+        }
+
+        return $this->accessibleTemplate($id);
     }
 
     private function accessibleTemplate($id): DeliveryProductMapping

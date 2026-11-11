@@ -4,7 +4,7 @@
     <ol class="mt-2 list-decimal space-y-1 pl-5">
       <li>{{ $t('Each Grab store sells what is in its machine. When a machine\'s products change, its Grab menu follows by itself.') }}</li>
       <li>{{ $t('Grab prices come from a price rule. The company rule covers every store. A store can have its own rule instead, for example a lower price at a quiet store.') }}</li>
-      <li>{{ $t('A store uses its machine and its price rule only after it is switched to the machine menu. Until then Grab keeps showing its old menu.') }}</li>
+      <li>{{ $t('A store uses its machine and its price rule only after it is switched to the machine menu. Until then Grab keeps showing its old menu. A new store added on Grab Stores starts on the machine menu once its operator has switched any store.') }}</li>
       <li>{{ $t('A product with no price or no Grab sub-category is left off Grab, never sold at $0. Those are listed under Products to fix.') }}</li>
     </ol>
   </details>

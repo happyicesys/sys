@@ -239,7 +239,10 @@
           <input v-model="addForm.vend_code" type="text" :class="inputClass" />
           <InputError :message="addForm.errors.vend_code" />
         </div>
-        <div v-if="addForm.vend_code">
+        <p v-if="addForm.vend_code && addStartsOnMachineMenu" class="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-green-800">
+          {{ $t('This store will list what is in the machine, at the company price rule (Grab Menu & Prices). No old Grab menu is needed.') }}
+        </p>
+        <div v-else-if="addForm.vend_code">
           <label class="block font-medium text-gray-700">{{ $t('Old Grab menu (template)') }}</label>
           <select v-model="addForm.delivery_product_mapping_id" :class="inputClass">
             <option v-for="template in templatesFor(addForm.operator_id)" :key="template.id" :value="template.id">{{ template.name }}</option>
@@ -279,9 +282,11 @@
           <input v-model="moveForm.vend_code" type="text" :class="inputClass" />
           <InputError :message="moveForm.errors.vend_code" />
         </div>
-        <div>
+        <p v-if="moveSkipsTemplate" class="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-green-800">
+          {{ $t('This store lists what is in the machine, at its price rule (Grab Menu & Prices). No old Grab menu is needed.') }}
+        </p>
+        <div v-else>
           <label class="block font-medium text-gray-700">{{ $t('Old Grab menu (template)') }}</label>
-          <p v-if="current?.binding?.machine_menu" class="text-xs text-gray-500">{{ $t('This store lists what is in its machine, so this is only used if it goes back to its old menu.') }}</p>
           <select v-model="moveForm.delivery_product_mapping_id" :class="inputClass">
             <option v-for="template in templatesFor(current?.operator_id, current?.binding?.template_id)" :key="template.id" :value="template.id">{{ template.name }}</option>
           </select>
@@ -643,6 +648,8 @@ const props = defineProps({
   unbindReasons: Object,
   canUpdate: Boolean,
   salesTotals: Object,
+  // Operators already on the machine menu: their new stores list the machine, no old Grab menu to pick.
+  machineMenuOperatorIds: { type: Array, default: () => [] },
 })
 
 const page = usePage()
@@ -862,8 +869,11 @@ function openAdd() {
   modal.value = 'add'
 }
 
+const addStartsOnMachineMenu = computed(() => props.machineMenuOperatorIds.includes(Number(addForm.operator_id)))
 function submitAdd() {
-  addForm.post('/grab-stores', ok)
+  // A machine-menu store needs no template: the server links its operator's usual one.
+  addForm.transform((data) => ({ ...data, delivery_product_mapping_id: addStartsOnMachineMenu.value ? null : data.delivery_product_mapping_id }))
+    .post('/grab-stores', ok)
 }
 
 function openEdit(store) {
@@ -911,7 +921,13 @@ function openMove(store) {
   modal.value = 'move'
 }
 
+// Putting a store on a machine, or moving one, that lists its machine: no old Grab menu to pick.
+const moveSkipsTemplate = computed(() => modal.value === 'move' ? !!current.value?.binding?.machine_menu : !!current.value?.will_use_machine_menu)
 function submitMove() {
+  if (moveSkipsTemplate.value) {
+    // Move keeps the store's current template; bind links the operator's usual one.
+    moveForm.delivery_product_mapping_id = null
+  }
   if (modal.value === 'move') {
     moveForm.post(`/grab-stores/bindings/${current.value.binding.id}/move`, ok)
   } else {
