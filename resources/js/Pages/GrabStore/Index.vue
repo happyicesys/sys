@@ -501,19 +501,14 @@
         </div>
         <div>
           <label class="block font-medium text-gray-700">{{ $t('Grab merchant ID') }}</label>
-          <input v-model="editForm.ref_number" type="text" :class="inputClass" />
-          <p v-if="merchantIdChanged" class="text-xs text-gray-500 mt-1">{{ $t('ConnectVend asks Grab about the new merchant ID before saving.') }}</p>
-          <InputError :message="editForm.errors.ref_number" />
+          <div class="mt-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-gray-800 select-all">{{ current?.ref_number }}</div>
+          <p class="text-xs text-gray-500 mt-1">{{ $t('The merchant ID is the store on Grab, so it cannot be changed here.') }}</p>
         </div>
         <div>
           <label class="block font-medium text-gray-700">{{ $t('Remarks') }}</label>
           <textarea v-model="editForm.remarks" rows="2" :class="inputClass"></textarea>
           <InputError :message="editForm.errors.remarks" />
         </div>
-        <label v-if="merchantIdChanged" class="flex items-center gap-2 text-gray-700">
-          <input v-model="editForm.skip_grab_check" type="checkbox" class="rounded border-gray-300" />
-          {{ $t('Save without Grab check') }}
-        </label>
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" :class="actionClass" @click="closeModal">{{ $t('Cancel') }}</button>
           <button type="button" :class="primaryClass" :disabled="editForm.processing" @click="submitEdit">{{ $t('Save') }}</button>
@@ -871,8 +866,7 @@ const addForm = useForm({
 const moveForm = useForm({ vend_code: '', delivery_product_mapping_id: null, reason: 'moved', remarks: '', setup: null })
 const pauseForm = useForm({ reason: '', until: '' })
 const unbindForm = useForm({ reason: 'removed', remarks: '' })
-const editForm = useForm({ operator_id: null, ref_number: '', remarks: '', skip_grab_check: false })
-const merchantIdChanged = computed(() => (editForm.ref_number ?? '').trim().toUpperCase() !== (current.value?.ref_number ?? ''))
+const editForm = useForm({ operator_id: null, remarks: '' })
 
 const ok = { preserveScroll: true, onSuccess: () => closeAll() }
 
@@ -960,9 +954,7 @@ function openEdit(store) {
   current.value = store
   editForm.clearErrors()
   editForm.operator_id = store.operator_id
-  editForm.ref_number = store.ref_number
   editForm.remarks = store.remarks ?? ''
-  editForm.skip_grab_check = false
   modal.value = 'edit'
 }
 

@@ -282,15 +282,16 @@ class GrabStoreController extends Controller
             : __('Grab store :ref added.', ['ref' => $ref->ref_number]));
     }
 
-    /** Edit a store (Grab Platform ID's old Edit): merchantID, operator, remarks. */
+    /**
+     * Edit a store: operator and remarks. The merchant ID is the store on Grab and stays as added (Brian, 2026-11-11:
+     * "no need to be editable here"); a wrong one is switched off and the right one added.
+     */
     public function update(Request $request, $id)
     {
         $ref = $this->accessibleRef($id);
         $validated = $request->validate([
             'operator_id' => ['required', 'exists:operators,id'],
-            'ref_number' => ['required', 'string', 'max:255'],
             'remarks' => ['nullable', 'string', 'max:1000'],
-            'skip_grab_check' => ['nullable', 'boolean'],
         ]);
         if (! GrabStoreVisibility::allows((int) $validated['operator_id'])) {
             abort(403);
@@ -298,11 +299,10 @@ class GrabStoreController extends Controller
 
         $this->grabStores->editStore(
             $ref,
-            $validated['ref_number'],
+            $ref->ref_number,
             (int) $validated['operator_id'],
             $validated['remarks'] ?? null,
             auth()->id(),
-            (bool) ($validated['skip_grab_check'] ?? false),
         );
 
         return back()->with('success', __('Grab store :ref saved.', ['ref' => $ref->ref_number]));

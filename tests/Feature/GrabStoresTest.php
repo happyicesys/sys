@@ -368,44 +368,24 @@ class GrabStoresTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('stores.data.0.sales_30d', 0)->where('salesTotals.sales_30d', 0));
     }
 
-    public function test_edit_changes_merchant_id_and_remarks_and_records_both(): void
+    public function test_edit_saves_remarks_but_never_the_merchant_id(): void
     {
         $binding = $this->bindGrabStore(2867, 'C7CCRTEJJYUJR6', [11 => ['qty' => 5, 'capacity' => 10]]);
         $refId = $binding->delivery_platform_ref_number_id;
+        $before = DeliveryPlatformRefNumber::find($refId)->ref_number;
 
+        // Brian, 2026-11-11: the merchant ID is the store on Grab, not edited in Edit; a sent one is ignored.
         $this->actingAs($this->user)->post("/grab-stores/{$refId}/update", [
             'operator_id' => $this->grabMapping->operator_id,
-            'ref_number' => '4-c7ccrtejjyujr6 ',
-            'remarks' => 'Typo fixed',
+            'ref_number' => '4-SOMETHINGELSE',
+            'remarks' => 'Note',
         ])->assertSessionHasNoErrors()->assertRedirect();
 
         $ref = DeliveryPlatformRefNumber::find($refId);
-        $this->assertSame('4-C7CCRTEJJYUJR6', $ref->ref_number);
-        $this->assertSame('Typo fixed', $ref->remarks);
-        // The binding's copy follows, so the store keeps resolving.
-        $this->assertSame('4-C7CCRTEJJYUJR6', $binding->fresh()->platform_ref_id);
-        $this->assertSame(['renamed', 'edited'], DeliveryPlatformStoreEvent::query()->orderBy('id')->pluck('event')->all());
-    }
-
-    public function test_edit_asks_grab_about_a_new_merchant_id_unless_ticked(): void
-    {
-        $ref = $this->service()->addStore($this->grabMapping->operator_id, '4-FIRST', null, $this->user->id);
-        $this->grabKnowsStore = false;
-
-        $this->actingAs($this->user)->post("/grab-stores/{$ref->id}/update", [
-            'operator_id' => $ref->operator_id, 'ref_number' => '4-SECOND',
-        ])->assertSessionHasErrors('ref_number');
-        $this->assertSame('4-FIRST', $ref->fresh()->ref_number);
-
-        // Remarks alone never ask Grab.
-        $this->actingAs($this->user)->post("/grab-stores/{$ref->id}/update", [
-            'operator_id' => $ref->operator_id, 'ref_number' => '4-FIRST', 'remarks' => 'Note',
-        ])->assertSessionHasNoErrors();
-
-        $this->actingAs($this->user)->post("/grab-stores/{$ref->id}/update", [
-            'operator_id' => $ref->operator_id, 'ref_number' => '4-SECOND', 'skip_grab_check' => true,
-        ])->assertSessionHasNoErrors();
-        $this->assertSame('4-SECOND', $ref->fresh()->ref_number);
+        $this->assertSame($before, $ref->ref_number);
+        $this->assertSame('Note', $ref->remarks);
+        $this->assertSame($before, $binding->fresh()->platform_ref_id);
+        $this->assertSame(['edited'], DeliveryPlatformStoreEvent::query()->orderBy('id')->pluck('event')->all());
     }
 
     public function test_the_operator_changes_only_while_the_store_is_on_no_machine(): void
