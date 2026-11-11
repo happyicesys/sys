@@ -1240,6 +1240,10 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{id}/fan-detection/reset', [VendController::class, 'resetFanDetection'])->name('vends.fan-detection.reset');
         Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);
         Route::get('/{id}/smart-planogram', [VendController::class, 'smartPlanogram']);
+        // Machine page: live Ref Price and whether the machine has loaded it (MachinePriceDelivery).
+        Route::get('/{id}/price-delivery', [VendController::class, 'priceDelivery'])->name('vends.price-delivery');
+        Route::post('/{id}/price-delivery/push', [VendController::class, 'pushPriceDelivery'])
+            ->name('vends.price-delivery.push')->middleware('can:update machine-settings');
         Route::post('/{id}/dispense-product', [VendController::class, 'dispenseProduct']);
         // Smart Chiller (CityBox) only — ops door-open via zyy_ls_open_door.
         Route::post('/{id}/citybox-open-door', [\App\Http\Controllers\Citybox\CityboxVendActionController::class, 'openDoor']);

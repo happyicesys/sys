@@ -5,6 +5,7 @@ namespace App\Jobs\Vend;
 use App\Models\ProductMappingItem;
 use App\Models\Vend;
 use App\Services\HappyHour\HappyHourEligibility;
+use App\Services\Product\MachinePriceDelivery;
 use App\Services\VendJobService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -133,12 +134,16 @@ class PushMappingMenuSync implements ShouldQueue
 
         foreach ($vends as $vend) {
             try {
-                if ($this->textOnly && HappyHourEligibility::supportsVending($vend)) {
+                // A price is words-and-numbers too (2026-11-11): the light re-read carries `server_price` and the
+                // board applies it from the JSON alone, so an RP edit no longer re-downloads every photo over the SIM.
+                if (($this->textOnly || $this->serverPriceOnly) && HappyHourEligibility::supportsVending($vend)) {
                     $vendJobService->nudgeHappyHourToVend($vend);
-
-                    continue;
+                } else {
+                    $vendJobService->syncChannelSlotListToVend($vend);
                 }
-                $vendJobService->syncChannelSlotListToVend($vend);
+                if ($this->serverPriceOnly) {
+                    MachinePriceDelivery::recordPush($vend->id);
+                }
             } catch (\Throwable $e) {
                 // One unreachable machine must not stop the rest.
                 Log::warning('PushMappingMenuSync failed for vend', [
@@ -147,6 +152,18 @@ class PushMappingMenuSync implements ShouldQueue
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+
+        // A price changed: every machine page on this mapping shows it under Ref Price, which is a snapshot of the
+        // channels (vends.vend_channels_json), board-price machines included. Rebuild them now rather than at each
+        // machine's next CHANNEL frame, which left 10033's page on the old figures (2026-11-11).
+        if ($this->serverPriceOnly) {
+            Vend::withoutGlobalScopes()
+                ->where('product_mapping_id', $this->productMappingId)
+                ->where('machine_type', Vend::MACHINE_TYPE_VENDING_MACHINE)
+                ->where(fn ($q) => $q->where('is_active', true)->orWhere('is_testing', true))
+                ->pluck('id')
+                ->each(fn ($vendId) => SaveVendChannelsJson::dispatch((int) $vendId)->onQueue('low'));
         }
     }
 }

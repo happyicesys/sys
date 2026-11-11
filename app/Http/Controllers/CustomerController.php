@@ -6358,6 +6358,10 @@ class CustomerController extends Controller
             if ((int) $oldSellingPriceType !== (int) $customer->selling_price_type) {
                 $customer->vends()->where('is_using_server_price', true)->get()
                     ->each(fn (Vend $follower) => $this->vendPricingSourceService->nudge($follower));
+                // A machine on its board price is not told anything, but its page's Ref Price column (a snapshot of
+                // the channels) is the Site's tier too: rebuild it now (the followers' were rebuilt by nudge()).
+                $customer->vends()->where('is_using_server_price', false)->pluck('vends.id')
+                    ->each(fn ($vendId) => \App\Jobs\Vend\SaveVendChannelsJson::dispatch((int) $vendId)->onQueue('default'));
             }
 
             // Append a Status History row whenever the site status changed (date

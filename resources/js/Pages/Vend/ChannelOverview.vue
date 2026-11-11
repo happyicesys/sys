@@ -16,6 +16,39 @@
         </div>
       </template>
       <template #default>
+        <!--
+          Brian, 2026-11-11: show at once whether the machine has taken a Site RP / selling price change.
+          The machine's own menu fetch is the proof (MachinePriceDelivery); hover for the details.
+        -->
+        <div v-if="priceDelivery" class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+          <template v-if="priceDelivery.follows_site">
+            <span class="font-semibold text-gray-900">{{ $t('Prices on machine') }}</span>
+            <span v-if="priceDelivery.state === 'current'" class="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 cursor-help" v-tooltip="{ content: summaryTooltip(), html: true }">
+              <CheckCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t('Up to date') }}
+            </span>
+            <span v-else-if="priceDelivery.state === 'stale'" class="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 cursor-help" v-tooltip="{ content: summaryTooltip(), html: true }">
+              <ClockIcon class="h-4 w-4" aria-hidden="true" />{{ $t(':count waiting', { count: priceDelivery.stale_count }) }}
+            </span>
+            <span v-else class="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 cursor-help" v-tooltip="{ content: summaryTooltip(), html: true }">
+              {{ $t('Not checked yet') }}
+            </span>
+            <span class="text-xs text-gray-500" v-if="priceDelivery.fetched_at">{{ $t('Machine loaded its prices :time', { time: formatTime(priceDelivery.fetched_at) }) }}</span>
+            <span class="text-xs text-red-600" v-if="!priceDelivery.reachable">{{ $t('Machine is offline on MQTT') }}</span>
+            <span v-if="pricePolling" class="text-xs text-gray-500">{{ $t('Checking…') }}</span>
+            <button
+              v-if="permissions.includes('update machine-settings') && priceDelivery.state !== 'current'"
+              type="button"
+              class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              :disabled="pricePushing"
+              @click="pushPricesAgain"
+            >
+              {{ $t('Send to machine again') }}
+            </button>
+          </template>
+          <span v-else class="text-xs text-gray-500">
+            {{ $t('Machine Price: this machine sells at its own board prices, so Ref Price is for reference only.') }}
+          </span>
+        </div>
         <div class="flex flex-col">
           <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
             <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
@@ -58,7 +91,7 @@
                         </span>
                       </th> -->
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-blue-600">
-                        {{ $t('Ref Price(:type)', { type: vend.customer ? vend.customer.selling_price_type : vend.selling_price_type }) }}
+                        {{ $t('Ref Price(:type)', { type: priceDelivery && priceDelivery.tier ? priceDelivery.tier : (vend.customer ? vend.customer.selling_price_type : vend.selling_price_type) }) }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         {{ $t('Error') }}
@@ -150,6 +183,21 @@
 
                         <!-- {{ channel.product && channel.product.selling_prices[0] ? (channel.product.selling_prices[0].amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }} -->
                         {{ channel.ref_price ? (channel.ref_price).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
+                        <div v-if="channelDelivery(channel) && channelDelivery(channel).state" class="mt-1">
+                          <span
+                            class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-medium cursor-help"
+                            :class="{
+                              'bg-green-100 text-green-800': channelDelivery(channel).state === 'current',
+                              'bg-amber-100 text-amber-800': channelDelivery(channel).state === 'stale',
+                              'bg-gray-100 text-gray-600': channelDelivery(channel).state === 'unknown',
+                            }"
+                            v-tooltip="{ content: channelTooltip(channelDelivery(channel)), html: true }"
+                          >
+                            <CheckCircleIcon v-if="channelDelivery(channel).state === 'current'" class="h-3.5 w-3.5" aria-hidden="true" />
+                            <ClockIcon v-else-if="channelDelivery(channel).state === 'stale'" class="h-3.5 w-3.5" aria-hidden="true" />
+                            {{ channelDelivery(channel).state === 'current' ? $t('On machine') : (channelDelivery(channel).state === 'stale' ? $t('Waiting') : $t('Not checked yet')) }}
+                          </span>
+                        </div>
                       </td>
                       <td class="py-1 pl-1 pr-1 text-xs font-medium sm:pl-1 text-center">
                         <div class="flex flex-col space-y-2 w-full hover:cursor-pointer" @click="onChannelErrorClicked(channel)">
@@ -262,12 +310,15 @@
 </template>
 
 <script setup>
-import { ChevronDoubleDownIcon, ChevronDoubleUpIcon, CheckCircleIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
+import { ChevronDoubleDownIcon, ChevronDoubleUpIcon, CheckCircleIcon, ClockIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
 import Button from '@/Components/Button.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import ErrorList from '@/Pages/Vend/ErrorList.vue';
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import axios from 'axios';
+import moment from 'moment';
+import { t } from '@/i18n';
 import { router, usePage } from '@inertiajs/vue3';
 import { vendCodeLabel } from '@/utils/vendCode';
 import MachineIdLink from '@/Components/MachineIdLink.vue';
@@ -276,6 +327,8 @@ const props = defineProps({
   productOptions: Object,
   vend: Object,
   showModal: Boolean,
+  // A historical snapshot (Report → Snapshot) keeps its stored prices: no live check over it.
+  liveCheck: { type: Boolean, default: true },
 })
 
 const channel = ref()
@@ -288,6 +341,11 @@ const showErrorListModal = ref(false)
 
 
 onMounted(() => {
+  loadPriceDelivery().then(() => {
+    if (priceDelivery.value && priceDelivery.value.follows_site && priceDelivery.value.state === 'stale') {
+      startPricePolling()
+    }
+  })
   // loadChannelsErrorRate()
   productOptions.value = props.productOptions.data.map((data) => {return {id: data.id, full_name: data.full_name + (data.desc ?  ' ' + data.desc  : '')}})
 
@@ -306,6 +364,163 @@ onMounted(() => {
 })
 const profile = usePage().props.auth.profile
 const editable = ref(false)
+
+// --- Live Ref Price + "has the machine taken it?" (MachinePriceDelivery, Brian 2026-11-11) ---
+// The table's prices come from a snapshot of the channels; this check is live. Cents from the server, the table
+// shows amount / 100 like the snapshot does.
+const priceDelivery = ref(null)
+const pricePolling = ref(false)
+const pricePushing = ref(false)
+const PRICE_POLL_EVERY_MS = 5000
+const PRICE_POLL_FOR_MS = 2 * 60 * 1000
+let pricePollTimer = null
+let pricePollUntil = 0
+let priceUnmounted = false
+
+const machineId = () => props.vend.vend_id ?? props.vend.id
+
+function applyPriceDelivery(data) {
+  priceDelivery.value = data
+  if (!data || !data.channels) {
+    return
+  }
+  // The live Ref Price replaces the snapshot's, so the column and its red mismatch mark follow a change at once.
+  channels.value.forEach((channel) => {
+    const live = data.channels[String(channel.code)]
+    if (live && channel.product) {
+      channel.ref_price = live.ref_price !== null ? live.ref_price / 100 : null
+    }
+  })
+}
+
+async function loadPriceDelivery() {
+  if (!props.liveCheck || !machineId()) {
+    return
+  }
+  try {
+    const { data } = await axios.get(`/vends/${machineId()}/price-delivery`)
+    applyPriceDelivery(data)
+  } catch (e) {
+    // The table still shows the snapshot; the check is only an extra.
+  }
+}
+
+function startPricePolling() {
+  pricePollUntil = Date.now() + PRICE_POLL_FOR_MS
+  if (!pricePollTimer) {
+    pricePolling.value = true
+    pricePollTimer = setTimeout(pollPriceDelivery, PRICE_POLL_EVERY_MS)
+  }
+}
+
+async function pollPriceDelivery() {
+  pricePollTimer = null
+  await loadPriceDelivery()
+  const waiting = priceDelivery.value && priceDelivery.value.follows_site && priceDelivery.value.state !== 'current'
+  if (!priceUnmounted && waiting && Date.now() < pricePollUntil) {
+    pricePollTimer = setTimeout(pollPriceDelivery, PRICE_POLL_EVERY_MS)
+  } else {
+    pricePolling.value = false
+  }
+}
+
+async function pushPricesAgain() {
+  pricePushing.value = true
+  try {
+    const { data } = await axios.post(`/vends/${machineId()}/price-delivery/push`)
+    applyPriceDelivery(data)
+    startPricePolling()
+  } catch (e) {
+    // Shown as still waiting; the person can press again.
+  } finally {
+    pricePushing.value = false
+  }
+}
+
+onBeforeUnmount(() => {
+  priceUnmounted = true
+  if (pricePollTimer) {
+    clearTimeout(pricePollTimer)
+    pricePollTimer = null
+  }
+})
+
+function channelDelivery(channel) {
+  return priceDelivery.value && priceDelivery.value.channels ? priceDelivery.value.channels[String(channel.code)] : null
+}
+
+function formatTime(iso) {
+  return moment(iso).format('D MMM YYYY h:mm a')
+}
+
+function money(cents) {
+  if (cents === null || cents === undefined) {
+    return t('no price')
+  }
+  const digits = operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent
+  const symbol = operatorCountry.currency_symbol || ''
+  // "Rp 28,000" but "$3.20": a symbol made of letters gets a space.
+  return symbol + (/[A-Za-z]$/.test(symbol) ? ' ' : '') + (cents / 100).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
+}
+
+function escapeHtml(text) {
+  return String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+
+// Hover text for one channel: what the machine holds, what it should hold, who set the price and when.
+function channelTooltip(row) {
+  const d = priceDelivery.value
+  const lines = []
+  if (row.state === 'current') {
+    lines.push(t('The machine sells at :price.', { price: money(row.loaded) }))
+    if (d.fetched_at) {
+      lines.push(t('Loaded :time.', { time: formatTime(d.fetched_at) }))
+    }
+  } else if (row.state === 'stale') {
+    lines.push(t('The machine still sells at :old; the new price is :new.', { old: money(row.loaded), new: money(row.expected) }))
+    if (d.fetched_at) {
+      lines.push(t('It last loaded its prices :time.', { time: formatTime(d.fetched_at) }))
+    }
+    lines.push(d.reachable ? t('It takes the new price when it re-reads its menu (usually within a minute).') : t('It is offline on MQTT, so it takes the new price when it is back online.'))
+  } else {
+    lines.push(t('No price load recorded for this machine yet (checking began :date).', { date: d.tracking_since }))
+    lines.push(t('It is confirmed the next time the machine loads its menu.'))
+  }
+  if (row.price_set_at) {
+    lines.push(row.price_set_by
+      ? t('RP:tier price set :time by :name.', { tier: d.tier, time: formatTime(row.price_set_at), name: row.price_set_by })
+      : t('RP:tier price set :time.', { tier: d.tier, time: formatTime(row.price_set_at) }))
+  }
+  if (d.pushed_at) {
+    lines.push(t('Last told to re-read: :time.', { time: formatTime(d.pushed_at) }))
+  }
+  return lines.map(escapeHtml).join('<br>')
+}
+
+// Hover text for the summary badge above the table.
+function summaryTooltip() {
+  const d = priceDelivery.value
+  const lines = []
+  if (d.state === 'current') {
+    lines.push(t('Every channel on the machine holds its RP:tier price.', { tier: d.tier }))
+  } else if (d.state === 'stale') {
+    lines.push(t(':count channel(s) still hold an older price.', { count: d.stale_count }))
+    lines.push(d.reachable ? t('It takes the new price when it re-reads its menu (usually within a minute).') : t('It is offline on MQTT, so it takes the new price when it is back online.'))
+  } else {
+    lines.push(t('No price load recorded for this machine yet (checking began :date).', { date: d.tracking_since }))
+    lines.push(t('It is confirmed the next time the machine loads its menu.'))
+  }
+  if (d.fetched_at) {
+    lines.push(t('Loaded :time.', { time: formatTime(d.fetched_at) }))
+  }
+  if (d.pushed_at) {
+    lines.push(t('Last told to re-read: :time.', { time: formatTime(d.pushed_at) }))
+  }
+  if (d.mqtt_seen_at) {
+    lines.push(t('Last heard on MQTT: :time.', { time: formatTime(d.mqtt_seen_at) }))
+  }
+  return lines.map(escapeHtml).join('<br>')
+}
 const emit = defineEmits(['modalClose'])
 
 // function loadChannelsErrorRate() {

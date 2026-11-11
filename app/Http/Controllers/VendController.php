@@ -3394,6 +3394,7 @@ class VendController extends Controller
         }
 
         $dataArr = [];
+        $servedPrices = [];
 
         foreach ($sortedVendChannels as $vendChannel) {
             $product = $vendChannel->product;
@@ -3442,6 +3443,14 @@ class VendController extends Controller
             }
 
             $dataArr[] = $data;
+            $servedPrices[(string) $vendChannel->code] = $serverPrice === null ? null : (int) $serverPrice;
+        }
+
+        // The machine's own fetch is the proof it holds these prices (MachinePriceDelivery): the machine page compares
+        // them with today's. Recorded only after the payload is built, never allowed to fail the response, and only for
+        // the machine's app: this URL is public, and a person opening it must not mark prices as delivered.
+        if (\App\Services\Product\MachinePriceDelivery::isMachineClient(request()->userAgent())) {
+            \App\Services\Product\MachinePriceDelivery::recordFetch($vend->id, $servedPrices);
         }
 
         return response()->json($dataArr, 200);
@@ -3571,6 +3580,37 @@ class VendController extends Controller
         }
 
         return response()->json($dataArr, 200);
+    }
+
+    /**
+     * The machine page's live price check (Brian, 2026-11-11): each channel's Ref Price as it is NOW, the price the
+     * machine should hold, the price it last loaded, and when mark1 last told it to re-read. Read on opening the page
+     * and polled while a change is on its way. Vend::find carries the operator scope, so another operator's machine
+     * is a 404.
+     */
+    public function priceDelivery($id)
+    {
+        $vend = Vend::find($id);
+        if (! $vend || ! \App\Services\Product\MachinePriceDelivery::applies($vend)) {
+            abort(404);
+        }
+
+        return response()->json(app(\App\Services\Product\MachinePriceDelivery::class)->report($vend));
+    }
+
+    /**
+     * "Send to machine again": the same re-read a Site RP change sends (settings + menu), for a machine that missed it
+     * (offline at the time) or a person who wants to be sure.
+     */
+    public function pushPriceDelivery($id)
+    {
+        $vend = Vend::find($id);
+        if (! $vend || ! \App\Services\Product\MachinePriceDelivery::applies($vend)) {
+            abort(404);
+        }
+        app(\App\Services\VendPricingSourceService::class)->nudge($vend);
+
+        return response()->json(app(\App\Services\Product\MachinePriceDelivery::class)->report($vend->fresh()));
     }
 
     /**

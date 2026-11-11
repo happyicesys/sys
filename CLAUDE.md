@@ -330,6 +330,30 @@ repeated). The Machine Settings index and the Site index filter on it (request
 `is_server_price` = server / machine, in `Vend::scopeFilterIndex` and
 `Customer::scopeFilterIndex`). Regression coverage: `tests/Feature/VendServerPriceSourceTest.php`.
 
+**The machine page shows whether the machine has taken the price** (Brian, 2026-11-11, machine 10033 in Indonesia: the
+channel view said "Ref Price(3)" over RP2 figures, so staff could not tell what the machine charged and flipped the Site's
+RP back and forth). `App\Services\Product\MachinePriceDelivery` is the one rule, copied from the payment menu's tracking:
+- **Proof = the machine's own `/thumbnails` fetch.** It records `vends.price_menu_fetched_at` and
+  `price_menu_prices_json` ({channel code: `server_price` served}) — only for a request whose User-Agent is the app's
+  OkHttp (`isMachineClient`), because the URL is public and a person opening it must not mark prices as delivered. Plain
+  updates: neither `updated_at` nor the audit log moves, and a failure never costs the machine its menu.
+- **Push.** Every re-read mark1 asks for on a price change stamps `price_menu_pushed_at`: `VendPricingSourceService::nudge`
+  (Site RP change, switch flip, rebind) and `PushMappingMenuSync` with `serverPriceOnly` (a selling price added or
+  deleted). A price-only push sends a big board on 315+ the light `HAPPYHOUR` re-read (JSON only; the APK applies
+  `server_price` from it) instead of TYPESYNCAPICHANNELSLOTLIST, which re-downloads every photo; older apps keep the full one.
+- **The page's snapshot follows at once.** The channel view and the dashboard's price mismatch mark read
+  `vends.vend_channels_json`, refreshed until now only on the machine's next CHANNEL frame. Both pushes queue
+  `SaveVendChannelsJson` for every machine they touch (a price change: every vending machine on the mapping, board price
+  included, since Ref Price shows there too; a Site RP change: every machine of the Site).
+- **Page.** `GET /vends/{id}/price-delivery` (`report()`, operator scope via `Vend::find`) gives each channel the LIVE Ref
+  Price (Site tier, replacing the snapshot's on screen), the price the machine should hold (the `/thumbnails` rule), the
+  price it loaded, and who set the price and when. ChannelOverview shows a badge under Ref Price — green On machine /
+  amber Waiting / grey Not checked yet — with the details on hover, a summary above the table, and polls every 5 s for
+  2 min while anything is waiting. "Send to machine again" (`POST …/price-delivery/push`, `update machine-settings`) runs
+  `nudge()`. A machine on Machine Price gets no badge: its board prices are what it charges. Tracking began 2026-11-11, so
+  a machine reads Not checked yet until its next menu load.
+Regression coverage: `tests/Feature/MachinePriceDeliveryTest.php`.
+
 **A Smart Freezer has no choice: always Yes** (Brian, 2026-09-14). The freezer
 APK has no board price and drops every menu row without `server_price`, so No
 means an empty kiosk (50001 was created that way). `Vend::requiresServerPrice()`

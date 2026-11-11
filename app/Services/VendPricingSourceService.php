@@ -48,6 +48,10 @@ class VendPricingSourceService
     {
         $this->vendJobService->syncSettingsToVend($vend);
         $this->vendJobService->syncChannelSlotListToVend($vend);
+        // The machine page shows whether the machine has re-read since (MachinePriceDelivery), and its Ref Price
+        // column is a snapshot of the channels: rebuild it now, not at the machine's next CHANNEL frame.
+        \App\Services\Product\MachinePriceDelivery::recordPush($vend->id);
+        \App\Jobs\Vend\SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
 
         // A freezer's vend_channels carry the Site's RP as their amount, so the price the dashboard
         // and the stock value read has to follow the same change the machine is being told about.

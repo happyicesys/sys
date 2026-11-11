@@ -347,6 +347,7 @@
   <ChannelOverview
       v-if="showChannelOverviewModal"
       :vend="vendSnapshot"
+      :liveCheck="false"
       :showModal="showChannelOverviewModal"
       @modalClose="onChannelOverviewClosed"
   >
