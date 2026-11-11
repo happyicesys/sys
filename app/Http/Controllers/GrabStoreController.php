@@ -13,6 +13,7 @@ use App\Models\DeliveryProductMappingVendChannel;
 use App\Models\Vend;
 use App\Services\DeliveryPlatformService;
 use App\Services\DeliveryProductMappingService;
+use App\Services\Grab\GrabStoreChangeRequests;
 use App\Services\Grab\Menu\GrabMachineMenu;
 use App\Services\Grab\Menu\MachineMenuLine;
 use App\Services\GrabStoreService;
@@ -36,7 +37,10 @@ class GrabStoreController extends Controller
     // Grab sales columns, sortable (Brian, 2026-11-01: which machines to keep on Grab).
     public const SORTS = ['sales_7d', 'sales_30d'];
 
-    public function __construct(protected GrabStoreService $grabStores) {}
+    public function __construct(
+        protected GrabStoreService $grabStores,
+        protected GrabStoreChangeRequests $changeRequests,
+    ) {}
 
     public function index(Request $request)
     {
@@ -93,6 +97,7 @@ class GrabStoreController extends Controller
         $partnerCodes = $this->lastPartnerMerchantIds(
             $refs->getCollection()->flatMap(fn ($ref) => $ref->openDeliveryProductMappingVends->pluck('id'))->all()
         );
+        $openChanges = $this->changeRequests->open($refs->getCollection()->pluck('id'));
 
         $totals = [];
         foreach (self::STATUSES as $key) {
@@ -115,7 +120,12 @@ class GrabStoreController extends Controller
         return Inertia::render('GrabStore/Index', [
             // The shape Paginator.vue reads (a resource collection's links + meta).
             'stores' => [
-                'data' => $refs->getCollection()->map(fn ($ref) => $this->row($ref, $partnerCodes))->values(),
+                'data' => $refs->getCollection()->map(fn ($ref) => [
+                    ...$this->row($ref, $partnerCodes),
+                    // Asking Grab to change the store (HIPL only: the others do it in the GrabMerchant app themselves).
+                    'grab_change' => $openChanges[$ref->id] ?? null,
+                    'can_ask_grab' => $this->changeRequests->eligible($ref),
+                ])->values(),
                 'links' => ['prev' => $refs->previousPageUrl(), 'next' => $refs->nextPageUrl()],
                 'meta' => ['from' => $refs->firstItem(), 'to' => $refs->lastItem(), 'total' => $refs->total()],
             ],
@@ -480,7 +490,11 @@ class GrabStoreController extends Controller
             $validated['remarks'] ?? null,
         );
 
-        return back()->with('success', __('Grab store moved to machine :code.', ['code' => $moved->vend_code]));
+        $siteMoved = (int) $moved->customer_id !== (int) $binding->customer_id;
+
+        return back()->with('success', $siteMoved && $this->changeRequests->eligible($binding->deliveryPlatformRefNumber)
+            ? __('Grab store moved to machine :code. Grab still shows the old address: use Update on Grab to send the new one.', ['code' => $moved->vend_code])
+            : __('Grab store moved to machine :code.', ['code' => $moved->vend_code]));
     }
 
     public function unbind(Request $request, $bindingId)
@@ -663,6 +677,43 @@ class GrabStoreController extends Controller
             ->filter(fn ($row) => $row->partner !== null && $row->partner !== 'null' && $row->partner !== '')
             ->mapWithKeys(fn ($row) => [$row->delivery_product_mapping_vend_id => $row->partner])
             ->all();
+    }
+
+    /** What the "Update on Grab" window starts with. */
+    public function changeDraft($id)
+    {
+        $ref = $this->accessibleRef($id);
+        abort_unless($this->changeRequests->eligible($ref), 404);
+
+        return response()->json($this->changeRequests->draft($ref));
+    }
+
+    // A person sent the change to Grab (GrabMerchant app or Help Centre form): kept on the store's history.
+    public function changeRequested(Request $request, $id)
+    {
+        $ref = $this->accessibleRef($id);
+        abort_unless($this->changeRequests->eligible($ref), 404);
+        $validated = $request->validate([
+            'kind' => ['required', 'in:'.implode(',', GrabStoreChangeRequests::KINDS)],
+            'route' => ['required', 'in:'.implode(',', GrabStoreChangeRequests::ROUTES)],
+            'address' => ['nullable', 'required_if:kind,address', 'string', 'max:500'],
+            'postal_code' => ['nullable', 'string', 'max:12'],
+            'go_live_on' => ['nullable', 'date'],
+            'details' => ['nullable', 'required_unless:kind,address', 'string', 'max:1000'],
+        ]);
+
+        $this->changeRequests->requested($ref, $validated, auth()->id());
+
+        return back()->with('success', __('Saved: :ref waits for Grab. Press Done once Grab shows the change.', ['ref' => $ref->ref_number]));
+    }
+
+    public function changeDone(Request $request, $id)
+    {
+        $ref = $this->accessibleRef($id);
+        $request->validate(['note' => ['nullable', 'string', 'max:1000']]);
+        $this->changeRequests->done($ref, $request->note, auth()->id());
+
+        return back()->with('success', __(':ref: the change on Grab is marked done.', ['ref' => $ref->ref_number]));
     }
 
     private function accessibleRef($id): DeliveryPlatformRefNumber

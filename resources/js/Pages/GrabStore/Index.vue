@@ -125,6 +125,11 @@
                     @click="closeLeftover(store, other)"
                   >{{ $t('Take it off :code', { code: other.vend_code }) }}</button>
                 </div>
+                <div v-if="store.grab_change" class="mt-1 rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs text-sky-900">
+                  {{ $t('Waiting for Grab: :what, sent :when by :who', { what: changeKindNames[store.grab_change.kind] ?? store.grab_change.kind, when: formatDateTime(store.grab_change.requested_at), who: store.grab_change.requested_by ?? '—' }) }}
+                  <span v-if="store.grab_change.go_live_on">· {{ $t('goes live :date', { date: store.grab_change.go_live_on }) }}</span>
+                  <button v-if="canUpdate" type="button" class="ml-1 underline font-medium" @click="markChangeDone(store)">{{ $t('Done') }}</button>
+                </div>
               </TableData>
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
                 <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold" :class="statusClass[store.status]">
@@ -187,6 +192,7 @@
                   <button v-if="store.binding" type="button" :class="actionClass" @click="openMenu(store)">{{ $t('On Grab now') }}</button>
                   <template v-if="canUpdate">
                     <button type="button" :class="actionClass" @click="openEdit(store)">{{ $t('Edit') }}</button>
+                    <button v-if="store.can_ask_grab" type="button" :class="actionClass" @click="openChange(store)">{{ $t('Update on Grab…') }}</button>
                     <button v-if="store.binding" type="button" :class="actionClass" @click="openMove(store)">{{ $t('Move') }}</button>
                     <button v-else type="button" :class="actionClass" @click="openBind(store)">{{ $t('Put on machine') }}</button>
                     <button v-if="store.binding && store.binding.is_active" type="button" :class="actionClass" @click="openPause(store)">{{ $t('Pause') }}</button>
@@ -290,6 +296,78 @@
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" :class="actionClass" @click="closeModal">{{ $t('Cancel') }}</button>
           <button type="button" :class="primaryClass" :disabled="moveForm.processing" @click="submitMove">{{ modal === 'move' ? $t('Move') : $t('Save') }}</button>
+        </div>
+      </div>
+    </Modal>
+
+    <!-- Update on Grab: prepare the request for the GrabMerchant app or Grab's Help Centre form, then keep track of it. -->
+    <Modal :open="modal === 'change'" @modalClose="closeModal">
+      <template #header>{{ $t('Update :ref on Grab', { ref: current?.ref_number }) }}</template>
+      <div class="space-y-3 text-sm">
+        <p class="text-gray-600">{{ $t('Grab does not take new requests by email. Send the change in the GrabMerchant app or on Grab\'s Help Centre form, then press "I\'ve sent it" so ConnectVend keeps track of it.') }}</p>
+        <p v-if="change.loading" class="text-gray-500">{{ $t('Loading…') }}</p>
+        <template v-else>
+          <p v-if="change.draft?.open" class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+            {{ $t('A request is already waiting for Grab (:what, sent :when). Sending another adds a new one.', { what: changeKindNames[change.draft.open.kind] ?? change.draft.open.kind, when: formatDateTime(change.draft.open.requested_at) }) }}
+          </p>
+          <div>
+            <label class="block font-medium text-gray-700">{{ $t('What should Grab change?') }}</label>
+            <select v-model="changeForm.kind" :class="inputClass">
+              <option v-for="(name, key) in changeKindNames" :key="key" :value="key">{{ name }}</option>
+            </select>
+          </div>
+          <template v-if="changeForm.kind === 'address'">
+            <div>
+              <label class="block font-medium text-gray-700">{{ $t('New address') }}</label>
+              <input v-model="changeForm.address" type="text" :class="inputClass" />
+              <p class="text-xs text-gray-500 mt-1">{{ $t('From the Site of machine :code (:site). Check it, and say where the machine stands (e.g. lobby, level 1).', { code: change.draft?.vend_code ?? '—', site: change.draft?.site ?? '—' }) }}</p>
+              <InputError :message="changeForm.errors.address" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block font-medium text-gray-700">{{ $t('Postal code') }}</label>
+                <input v-model="changeForm.postal_code" type="text" :class="inputClass" />
+              </div>
+              <div>
+                <label class="block font-medium text-gray-700">{{ $t('Goes live on') }}</label>
+                <input v-model="changeForm.go_live_on" type="date" :class="inputClass" />
+              </div>
+            </div>
+          </template>
+          <div v-else>
+            <label class="block font-medium text-gray-700">{{ $t('What exactly should change?') }}</label>
+            <textarea v-model="changeForm.details" rows="2" :class="inputClass" :placeholder="$t('e.g. new name: Ice Cream Vending Machine (Unmanned Store) - Tampines St 92')"></textarea>
+            <InputError :message="changeForm.errors.details" />
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div class="rounded-md border px-3 py-2">
+              <div class="font-semibold text-gray-800">{{ $t('One store: GrabMerchant app (fastest)') }}</div>
+              <ol v-if="changeForm.kind === 'address'" class="mt-1 list-decimal pl-5 space-y-0.5 text-gray-700">
+                <li>{{ $t('Open the GrabMerchant app and pick this store (:ref).', { ref: current?.ref_number }) }}</li>
+                <li>{{ $t('Tap the Store tile, then Address.') }}</li>
+                <li>{{ $t('Enter the new address above and move the pin to the store entrance.') }}</li>
+                <li>{{ $t('Pick the go-live date (it changes at 9:00 that morning) and tap Submit.') }}</li>
+              </ol>
+              <p v-else class="mt-1 text-gray-700">{{ $t('Open the GrabMerchant app, pick this store, tap the Store tile and change it there. If the app does not offer it, use the Help Centre form.') }}</p>
+              <p class="mt-1 text-xs text-gray-500">{{ $t('Grab allows 2 address changes a month.') }}</p>
+              <button type="button" :class="primaryClass" class="mt-2" :disabled="changeForm.processing" @click="submitChange('app')">{{ $t('I\'ve sent it in the app') }}</button>
+            </div>
+            <div class="rounded-md border px-3 py-2">
+              <div class="font-semibold text-gray-800">{{ $t('Several stores, or not in the app: Help Centre form') }}</div>
+              <p class="mt-1 text-gray-700">{{ $t('Copy the text below, open Grab\'s form, choose what to update and paste it in. Log in first.') }}</p>
+              <textarea readonly rows="6" class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 font-mono text-xs" :value="changeText"></textarea>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <button type="button" :class="actionClass" @click="copyChangeText">{{ change.copied ? $t('Copied') : $t('Copy text') }}</button>
+                <a :href="change.draft?.help_centre_url" target="_blank" rel="noopener" :class="actionClass">{{ $t('Open Grab\'s form') }}</a>
+              </div>
+              <button type="button" :class="primaryClass" class="mt-2" :disabled="changeForm.processing" @click="submitChange('form')">{{ $t('I\'ve sent the form') }}</button>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500">{{ $t('Grab replies to grabcollection.sg@happyice.com.sg. For an address change they may send a relocation form to sign and stamp: reply on that same email.') }}</p>
+        </template>
+        <div class="flex justify-end">
+          <button type="button" :class="actionClass" @click="closeModal">{{ $t('Cancel') }}</button>
         </div>
       </div>
     </Modal>
@@ -606,6 +684,8 @@ const eventNames = {
   edited: t('Store details changed'),
   menu_source: t('Menu changed'),
   price_rule: t('Price rule changed'),
+  grab_change_requested: t('Asked Grab to update'),
+  grab_change_done: t('Grab update done'),
 }
 const menuReasons = {
   no_rp: t('No RP price (Grab Menu & Prices)'),
@@ -700,6 +780,69 @@ const editForm = useForm({ operator_id: null, ref_number: '', remarks: '', skip_
 const merchantIdChanged = computed(() => (editForm.ref_number ?? '').trim().toUpperCase() !== (current.value?.ref_number ?? ''))
 
 const ok = { preserveScroll: true, onSuccess: () => closeModal() }
+
+// Update on Grab (HIPL stores): what to change, prepared for the GrabMerchant app or Grab's Help Centre form.
+const changeKindNames = {
+  address: t('Address (machine moved to another site)'),
+  name: t('Store name'),
+  hours: t('Opening hours or phone'),
+  other: t('Something else'),
+}
+const change = ref({ loading: false, draft: null, copied: false })
+const changeForm = useForm({ kind: 'address', route: 'app', address: '', postal_code: '', go_live_on: '', details: '' })
+// Typed into Grab's form, so it stays in English whatever the screen language.
+const changeText = computed(() => {
+  const d = change.value.draft ?? {}
+  const lines = [
+    'Request to update store information',
+    `Store ID: ${d.merchant_id ?? current.value?.ref_number ?? ''}`,
+    `Store: ${d.site ?? ''} (vending machine ${d.vend_code ?? ''})`,
+  ]
+  if (changeForm.kind === 'address') {
+    lines.push('Change: new store address (the machine has moved)')
+    lines.push(`New address: ${changeForm.address}${changeForm.postal_code ? ', Singapore ' + changeForm.postal_code : ''}`)
+    if (changeForm.go_live_on) lines.push(`Please make it live on: ${changeForm.go_live_on}`)
+  } else {
+    lines.push(`Change: ${{ name: 'store name', hours: 'opening hours / phone', other: 'store information' }[changeForm.kind]}`)
+    lines.push(changeForm.details)
+  }
+  lines.push('Contact: grabcollection.sg@happyice.com.sg')
+  return lines.join('\n')
+})
+async function openChange(store) {
+  current.value = store
+  changeForm.reset()
+  changeForm.clearErrors()
+  change.value = { loading: true, draft: null, copied: false }
+  modal.value = 'change'
+  try {
+    const { data } = await axios.get(`/grab-stores/${store.id}/change-request`)
+    change.value.draft = data
+    changeForm.address = data.address ?? ''
+    changeForm.postal_code = data.postal_code ?? ''
+    changeForm.go_live_on = data.go_live_on ?? ''
+  } finally {
+    change.value.loading = false
+  }
+}
+async function copyChangeText() {
+  try {
+    await navigator.clipboard.writeText(changeText.value)
+    change.value.copied = true
+  } catch (e) {
+    change.value.copied = false
+  }
+}
+function submitChange(route) {
+  changeForm.route = route
+  changeForm.post(`/grab-stores/${current.value.id}/change-request`, ok)
+}
+function markChangeDone(store) {
+  if (!window.confirm(t('Does Grab now show the change for :ref? This closes the request.', { ref: store.ref_number }))) {
+    return
+  }
+  router.post(`/grab-stores/${store.id}/change-request/done`, {}, { preserveScroll: true })
+}
 
 function openAdd() {
   addForm.reset()
@@ -856,6 +999,12 @@ function eventText(event) {
   }
   if (event.event === 'menu_source') {
     return `${name}: ${event.data?.machine_menu ? t('lists its machine') : t('back on the old Grab menu')}`
+  }
+  if (event.event === 'grab_change_requested') {
+    const kind = changeKindNames[event.data?.kind] ?? event.data?.kind ?? ''
+    const route = event.data?.route === 'form' ? t('Help Centre form') : t('GrabMerchant app')
+    const what = event.data?.address ?? event.data?.details ?? ''
+    return `${name}: ${kind} · ${route}${what ? ' · ' + what : ''}${event.data?.go_live_on ? ' · ' + t('goes live :date', { date: event.data.go_live_on }) : ''}`
   }
   if (event.event === 'price_rule') {
     if (!event.data?.own) {

@@ -485,6 +485,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/{id}/history', [GrabStoreController::class, 'history'])->name('grab-stores.history')->middleware('can:read delivery-platform-vends');
         Route::post('/{id}/check-grab', [GrabStoreController::class, 'checkGrab'])->name('grab-stores.check-grab')->middleware('can:read delivery-platform-vends');
         Route::get('/{id}/menu', [GrabStoreController::class, 'menu'])->name('grab-stores.menu')->middleware('can:read delivery-platform-vends');
+        Route::get('/{id}/change-request', [GrabStoreController::class, 'changeDraft'])->name('grab-stores.change-draft')->middleware('can:update delivery-platform-vends');
         Route::middleware('can:update delivery-platform-vends')->group(function () {
             Route::post('/', [GrabStoreController::class, 'store'])->name('grab-stores.store');
             Route::post('/{id}/update', [GrabStoreController::class, 'update'])->name('grab-stores.update');
@@ -494,6 +495,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
             Route::post('/bindings/{bindingId}/unbind', [GrabStoreController::class, 'unbind'])->name('grab-stores.unbind');
             Route::post('/bindings/{bindingId}/pause', [GrabStoreController::class, 'pause'])->name('grab-stores.pause');
             Route::post('/bindings/{bindingId}/resume', [GrabStoreController::class, 'resume'])->name('grab-stores.resume');
+            Route::post('/{id}/change-request', [GrabStoreController::class, 'changeRequested'])->name('grab-stores.change-requested');
+            Route::post('/{id}/change-request/done', [GrabStoreController::class, 'changeDone'])->name('grab-stores.change-done');
         });
     });
 

@@ -2721,6 +2721,13 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   - A template whose open stores are all on the machine menu is read-only (`DeliveryProductMapping::followsMachines`);
     the bridge sync never switches a machine-menu store off for an empty template. Stores still on a template are
     untouched. Coverage: `tests/Feature/GrabMachineMenuTest.php`.
+- **Asking Grab to change a store (Update on Grab, Brian 2026-11-11): HIPL stores only.** Grab takes no NEW request by
+  email (help@grab.com answers only on a CRM thread; every past relocation went there, never to the Unilever AM), so
+  Grab Stores prepares it: one store = GrabMerchant app (Store → Address, a go-live date, 9:00 that day, 2 address
+  changes a month), several = Grab's Help Centre form (copy-ready English text + link, `GrabStoreChangeRequests::HELP_CENTRE_URL`).
+  "I've sent it" records store event `grab_change_requested` (kind, route, address, go-live), "Done" `grab_change_done`;
+  the row shows the open request. No table, no email sent. The other operators change their stores themselves in the
+  app. Coverage: `tests/Feature/GrabStoreChangeRequestTest.php`.
 - **Grab ends any pause after 24 h.** `delivery:sync-store-pause --apply --only-if-open` runs every 10 min
   (`GRAB_PAUSE_REASSERT`) over open rows that are paused or whose ref number is Inactive, asks Grab's store status
   and re-pauses only a store Grab reopened; a merchant selling on another row is never paused. Calls are spaced `GRAB_STORE_API_SPACING_MS` (300; Grab allows 5 a second for the

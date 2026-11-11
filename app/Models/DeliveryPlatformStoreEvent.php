@@ -36,6 +36,11 @@ class DeliveryPlatformStoreEvent extends Model
     // Grab Menu & Prices: data.own false = back on the company rule; true = the store's own rule (its values).
     const EVENT_PRICE_RULE = 'price_rule';
 
+    // A change asked of Grab (address / new site, name, hours) and its completion: GrabStoreChangeRequests.
+    const EVENT_GRAB_CHANGE_REQUESTED = 'grab_change_requested';
+
+    const EVENT_GRAB_CHANGE_DONE = 'grab_change_done';
+
     protected $fillable = [
         'data',
         'delivery_platform_ref_number_id',
