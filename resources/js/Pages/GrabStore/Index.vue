@@ -239,16 +239,14 @@
           <input v-model="addForm.vend_code" type="text" :class="inputClass" />
           <InputError :message="addForm.errors.vend_code" />
         </div>
-        <p v-if="addForm.vend_code && addStartsOnMachineMenu" class="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-green-800">
-          {{ $t('This store will list what is in the machine, at the company price rule (Grab Menu & Prices). No old Grab menu is needed.') }}
-        </p>
-        <div v-else-if="addForm.vend_code">
-          <label class="block font-medium text-gray-700">{{ $t('Old Grab menu (template)') }}</label>
-          <select v-model="addForm.delivery_product_mapping_id" :class="inputClass">
-            <option v-for="template in templatesFor(addForm.operator_id)" :key="template.id" :value="template.id">{{ template.name }}</option>
-          </select>
-          <InputError :message="addForm.errors.delivery_product_mapping_id" />
-        </div>
+        <MachineSetup
+          v-if="addForm.vend_code"
+          v-model="addForm.setup"
+          :operator-id="addForm.operator_id"
+          :vend-code="addForm.vend_code"
+          :rp-types="rpTypes"
+          :round-up-steps="roundUpSteps"
+        />
         <div>
           <label class="block font-medium text-gray-700">{{ $t('Remarks') }}</label>
           <textarea v-model="addForm.remarks" rows="2" :class="inputClass"></textarea>
@@ -282,10 +280,16 @@
           <input v-model="moveForm.vend_code" type="text" :class="inputClass" />
           <InputError :message="moveForm.errors.vend_code" />
         </div>
-        <p v-if="moveSkipsTemplate" class="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-green-800">
-          {{ $t('This store lists what is in the machine, at its price rule (Grab Menu & Prices). No old Grab menu is needed.') }}
-        </p>
-        <div v-else>
+        <MachineSetup
+          v-if="moveSkipsTemplate && moveForm.vend_code"
+          v-model="moveForm.setup"
+          :operator-id="current?.operator_id"
+          :vend-code="moveForm.vend_code"
+          :ref-id="current?.id"
+          :rp-types="rpTypes"
+          :round-up-steps="roundUpSteps"
+        />
+        <div v-else-if="!moveSkipsTemplate">
           <label class="block font-medium text-gray-700">{{ $t('Old Grab menu (template)') }}</label>
           <select v-model="moveForm.delivery_product_mapping_id" :class="inputClass">
             <option v-for="template in templatesFor(current?.operator_id, current?.binding?.template_id)" :key="template.id" :value="template.id">{{ template.name }}</option>
@@ -626,6 +630,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import InputError from '@/Components/InputError.vue';
+import MachineSetup from '@/Components/GrabStore/MachineSetup.vue';
 import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Modal from '@/Components/Modal.vue';
 import OperatorFilter from '@/Components/OperatorFilter.vue';
@@ -648,8 +653,8 @@ const props = defineProps({
   unbindReasons: Object,
   canUpdate: Boolean,
   salesTotals: Object,
-  // Operators already on the machine menu: their new stores list the machine, no old Grab menu to pick.
-  machineMenuOperatorIds: { type: Array, default: () => [] },
+  rpTypes: { type: Array, default: () => [] },
+  roundUpSteps: { type: Array, default: () => [10, 100] },
 })
 
 const page = usePage()
@@ -785,9 +790,9 @@ function closeModal() {
 }
 
 const addForm = useForm({
-  operator_id: null, ref_number: '', remarks: '', vend_code: '', delivery_product_mapping_id: null, skip_grab_check: false,
+  operator_id: null, ref_number: '', remarks: '', vend_code: '', delivery_product_mapping_id: null, skip_grab_check: false, setup: null,
 })
-const moveForm = useForm({ vend_code: '', delivery_product_mapping_id: null, reason: 'moved', remarks: '' })
+const moveForm = useForm({ vend_code: '', delivery_product_mapping_id: null, reason: 'moved', remarks: '', setup: null })
 const pauseForm = useForm({ reason: '', until: '' })
 const unbindForm = useForm({ reason: 'removed', remarks: '' })
 const editForm = useForm({ operator_id: null, ref_number: '', remarks: '', skip_grab_check: false })
@@ -869,10 +874,9 @@ function openAdd() {
   modal.value = 'add'
 }
 
-const addStartsOnMachineMenu = computed(() => props.machineMenuOperatorIds.includes(Number(addForm.operator_id)))
 function submitAdd() {
-  // A machine-menu store needs no template: the server links its operator's usual one.
-  addForm.transform((data) => ({ ...data, delivery_product_mapping_id: addStartsOnMachineMenu.value ? null : data.delivery_product_mapping_id }))
+  // A new store lists its machine: no old Grab menu (template); the server links the operator's usual one.
+  addForm.transform((data) => ({ ...data, delivery_product_mapping_id: null }))
     .post('/grab-stores', ok)
 }
 
@@ -922,7 +926,8 @@ function openMove(store) {
 }
 
 // Putting a store on a machine, or moving one, that lists its machine: no old Grab menu to pick.
-const moveSkipsTemplate = computed(() => modal.value === 'move' ? !!current.value?.binding?.machine_menu : !!current.value?.will_use_machine_menu)
+// A store that lists its machine after this (every store not deliberately put back on its old menu): no template.
+const moveSkipsTemplate = computed(() => !!current.value?.will_use_machine_menu)
 function submitMove() {
   if (moveSkipsTemplate.value) {
     // Move keeps the store's current template; bind links the operator's usual one.

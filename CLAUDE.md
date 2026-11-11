@@ -2741,11 +2741,16 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
     `GrabStorePriceRuleService` (store rules) and
     `GrabStoreService::setMenuSource` (switch a store, event `menu_source`). Product → Edit RP / name changes call
     `GrabMenuService::productChanged`.
-  - **New stores skip the old menus** (Brian, 2026-11-11): once an operator has any store on the machine menu
-    (`GrabStoreService::startsOnMachineMenu`; HIPL since 2026-11-11), a store it adds on Grab Stores starts there, and
-    Add store / Put on machine ask for no template — the link gets `defaultTemplateFor()` (the operator's most-used),
-    which Grab never sees. A store someone put back on its old menu stays there (`willUseMachineMenu`: never switched
-    either way). Coverage: `tests/Feature/GrabNewStoreMachineMenuTest.php`.
+  - **Putting a store on a machine = one window, no template** (Brian, 2026-11-11: "straight away … the product
+    mapping from that machine … prompt the user to finish … then save"; the old Product Mapping tab is to be retired).
+    Add store / Put on machine / Move on Grab Stores show `GrabStoreSetup::preview` (the machine's products priced
+    under the company rule or a draft own rule, `GrabMachineMenu::linesFor`) and ask there for what is missing — a
+    Grab sub-category, a typed price — and the price rule (company, or the store's own RP tier × multiplier). Save
+    applies it (`GrabStoreSetup::apply`) then binds; every new store starts on the machine menu and a store still on
+    a template switches when moved or put on a machine again (`GrabStoreService::willUseMachineMenu`: only a store
+    someone put back on its old menu stays). The link still carries a template (DB column NOT NULL):
+    `defaultTemplateFor()`, the operator's most-used, which Grab never sees. Coverage:
+    `tests/Feature/GrabStoreSetupTest.php`, `tests/Feature/GrabNewStoreMachineMenuTest.php`.
   - **Orders** for "P" items are allocated to the slots holding the product, most stock first, only when they hold
     enough together (`DeliveryPlatformService::createMachineMenuOrderItems`); the order line and slot lines carry no
     template ids (`order_item_vend_channels.delivery_product_mapping_vend_channel_id` is nullable), and the drop reads

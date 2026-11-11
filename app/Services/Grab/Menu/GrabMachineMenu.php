@@ -35,8 +35,20 @@ class GrabMachineMenu
     public function lines(DeliveryProductMappingVend $binding, ?GrabPriceRule $rule = null): Collection
     {
         $operatorId = (int) ($binding->deliveryPlatformRefNumber?->operator_id ?? $binding->deliveryProductMapping?->operator_id);
+
+        return $this->linesFor((int) $binding->vend_id, $operatorId, $rule ?? $this->rules->forBinding($binding));
+    }
+
+    /**
+     * The same menu for a machine no store is on yet: what Grab would list if the operator's store were put on it
+     * under $rule (Grab Stores' put-on-machine window reads it before anything is saved).
+     *
+     * @return Collection<int, MachineMenuLine> keyed by product id, by product code
+     */
+    public function linesFor(int $vendId, int $operatorId, GrabPriceRule $rule): Collection
+    {
         $channels = VendChannel::query()
-            ->where('vend_id', $binding->vend_id)
+            ->where('vend_id', $vendId)
             ->where('is_active', true)
             ->whereNotNull('product_id')
             ->with('vendChannelLatestError.vendChannelError')
@@ -47,7 +59,7 @@ class GrabMachineMenu
 
         $productIds = $channels->pluck('product_id')->unique()->values()->all();
         $held = self::heldQtyByVendChannel($channels->pluck('id')->all());
-        $prices = new GrabPriceList($rule ?? $this->rules->forBinding($binding), $productIds);
+        $prices = new GrabPriceList($rule, $productIds);
         $subCategories = GrabMenuProduct::query()
             ->where('operator_id', $operatorId)
             ->whereIn('product_id', $productIds)

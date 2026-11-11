@@ -485,6 +485,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/{id}/history', [GrabStoreController::class, 'history'])->name('grab-stores.history')->middleware('can:read delivery-platform-vends');
         Route::post('/{id}/check-grab', [GrabStoreController::class, 'checkGrab'])->name('grab-stores.check-grab')->middleware('can:read delivery-platform-vends');
         Route::get('/{id}/menu', [GrabStoreController::class, 'menu'])->name('grab-stores.menu')->middleware('can:read delivery-platform-vends');
+        Route::get('/machine-preview', [GrabStoreController::class, 'machinePreview'])->name('grab-stores.machine-preview')->middleware('can:update delivery-platform-vends');
         Route::get('/{id}/change-request', [GrabStoreController::class, 'changeDraft'])->name('grab-stores.change-draft')->middleware('can:update delivery-platform-vends');
         Route::middleware('can:update delivery-platform-vends')->group(function () {
             Route::post('/', [GrabStoreController::class, 'store'])->name('grab-stores.store');

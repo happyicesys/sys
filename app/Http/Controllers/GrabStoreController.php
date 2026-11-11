@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Grab\GrabPriceRuleRequest;
 use App\Models\DeliveryPlatformApiError;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryPlatformRefNumber;
@@ -10,10 +11,13 @@ use App\Models\DeliveryPlatformStoreEvent;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryProductMappingVendChannel;
+use App\Models\GrabMenuSetting;
+use App\Models\SellingPrice;
 use App\Models\Vend;
 use App\Services\DeliveryPlatformService;
 use App\Services\DeliveryProductMappingService;
 use App\Services\Grab\GrabStoreChangeRequests;
+use App\Services\Grab\GrabStoreSetup;
 use App\Services\Grab\Menu\GrabMachineMenu;
 use App\Services\Grab\Menu\MachineMenuLine;
 use App\Services\GrabStoreService;
@@ -40,6 +44,7 @@ class GrabStoreController extends Controller
     public function __construct(
         protected GrabStoreService $grabStores,
         protected GrabStoreChangeRequests $changeRequests,
+        protected GrabStoreSetup $setup,
     ) {}
 
     public function index(Request $request)
@@ -100,9 +105,7 @@ class GrabStoreController extends Controller
             $refs->getCollection()->flatMap(fn ($ref) => $ref->openDeliveryProductMappingVends->pluck('id'))->all()
         );
         $openChanges = $this->changeRequests->open($refs->getCollection()->pluck('id'));
-        // Which stores list their machine once put on one (GrabStoreService::willUseMachineMenu, in two queries).
-        $machineMenuOperatorIds = DeliveryPlatformRefNumber::query()->whereIn('operator_id', $operatorIds)
-            ->whereNotNull('menu_from_machine_at')->distinct()->pluck('operator_id')->map(fn ($id) => (int) $id)->all();
+        // Which stores list their machine once put on one or moved (GrabStoreService::willUseMachineMenu, one query).
         $switchedBefore = DeliveryPlatformStoreEvent::query()
             ->whereIn('delivery_platform_ref_number_id', $refs->getCollection()->pluck('id'))
             ->where('event', DeliveryPlatformStoreEvent::EVENT_MENU_SOURCE)
@@ -134,8 +137,7 @@ class GrabStoreController extends Controller
                     // Asking Grab to change the store (HIPL only: the others do it in the GrabMerchant app themselves).
                     'grab_change' => $openChanges[$ref->id] ?? null,
                     'can_ask_grab' => $this->changeRequests->eligible($ref),
-                    'will_use_machine_menu' => $ref->usesMachineMenu()
-                        || (in_array((int) $ref->operator_id, $machineMenuOperatorIds, true) && ! in_array((int) $ref->id, $switchedBefore, true)),
+                    'will_use_machine_menu' => $ref->usesMachineMenu() || ! in_array((int) $ref->id, $switchedBefore, true),
                 ])->values(),
                 'links' => ['prev' => $refs->previousPageUrl(), 'next' => $refs->nextPageUrl()],
                 'meta' => ['from' => $refs->firstItem(), 'to' => $refs->lastItem(), 'total' => $refs->total()],
@@ -158,8 +160,9 @@ class GrabStoreController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'operator_id', 'product_mapping_id']),
             'unbindReasons' => DeliveryProductMappingVend::UNBIND_REASONS,
-            // A new store of these operators lists its machine: no old Grab menu to pick.
-            'machineMenuOperatorIds' => $machineMenuOperatorIds,
+            // The put-on-machine window's price rule choice (the same tiers and steps as Grab Menu & Prices).
+            'rpTypes' => collect(SellingPrice::TYPE_MAPPINGS)->map(fn ($name, $id) => ['id' => $id, 'name' => $name])->values(),
+            'roundUpSteps' => GrabMenuSetting::ROUND_UP_STEPS,
             'canUpdate' => (bool) auth()->user()?->can('update delivery-platform-vends'),
         ]);
     }
@@ -257,7 +260,8 @@ class GrabStoreController extends Controller
 
         // Resolve the machine before the store is saved, so a typo there saves nothing.
         $vend = ! empty($validated['vend_code']) ? $this->accessibleVend($validated['vend_code']) : null;
-        $template = $vend ? $this->optionalTemplate($validated['delivery_product_mapping_id'] ?? null, $this->grabStores->startsOnMachineMenu((int) $validated['operator_id'])) : null;
+        $template = $vend && ! empty($validated['delivery_product_mapping_id']) ? $this->accessibleTemplate($validated['delivery_product_mapping_id']) : null;
+        $setup = $vend ? $this->validatedSetup($request) : null;
 
         // No outer transaction: bind() queues the menu sync, which must see a committed
         // row. A bind refused here leaves the store saved with no machine, as shown.
@@ -269,10 +273,13 @@ class GrabStoreController extends Controller
             (bool) ($validated['skip_grab_check'] ?? false),
         );
         if ($vend) {
+            $this->setup->apply($ref, $setup, auth()->id());
             $this->grabStores->bind($ref, $vend, $template, auth()->id());
         }
 
-        return back()->with('success', __('Grab store :ref added.', ['ref' => $ref->ref_number]));
+        return back()->with('success', $vend
+            ? __('Grab store :ref added on machine :code. Grab shows its menu within a few minutes.', ['ref' => $ref->ref_number, 'code' => $vend->code])
+            : __('Grab store :ref added.', ['ref' => $ref->ref_number]));
     }
 
     /** Edit a store (Grab Platform ID's old Edit): merchantID, operator, remarks. */
@@ -474,10 +481,16 @@ class GrabStoreController extends Controller
             'remarks' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $machineMenu = $this->grabStores->willUseMachineMenu($ref);
+        $vend = $this->accessibleVend($validated['vend_code']);
+        $template = $this->optionalTemplate($validated['delivery_product_mapping_id'] ?? null, $machineMenu);
+        if ($machineMenu) {
+            $this->setup->apply($ref, $this->validatedSetup($request), auth()->id());
+        }
         $this->grabStores->bind(
             $ref,
-            $this->accessibleVend($validated['vend_code']),
-            $this->optionalTemplate($validated['delivery_product_mapping_id'] ?? null, $this->grabStores->willUseMachineMenu($ref)),
+            $vend,
+            $template,
             auth()->id(),
             $validated['remarks'] ?? null,
         );
@@ -495,9 +508,14 @@ class GrabStoreController extends Controller
             'remarks' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $vend = $this->accessibleVend($validated['vend_code']);
+        $ref = $binding->deliveryPlatformRefNumber;
+        if ($this->grabStores->willUseMachineMenu($ref)) {
+            $this->setup->apply($ref, $this->validatedSetup($request), auth()->id());
+        }
         $moved = $this->grabStores->move(
             $binding,
-            $this->accessibleVend($validated['vend_code']),
+            $vend,
             ! empty($validated['delivery_product_mapping_id']) ? $this->accessibleTemplate($validated['delivery_product_mapping_id']) : null,
             auth()->id(),
             $validated['reason'],
@@ -762,6 +780,65 @@ class GrabStoreController extends Controller
         }
 
         return $vend;
+    }
+
+    /**
+     * The put-on-machine window: what Grab would list from this machine, at the price rule being chosen, and what is
+     * missing (GrabStoreSetup). Read only.
+     */
+    public function machinePreview(Request $request)
+    {
+        $validated = $request->validate([
+            'operator_id' => ['required', 'integer'],
+            'vend_code' => ['required', 'string'],
+            'ref_id' => ['nullable', 'integer'],
+            'use_company_rule' => ['nullable', 'boolean'],
+            ...GrabPriceRuleRequest::ruleFields(required: false),
+        ]);
+        abort_unless(GrabStoreVisibility::allows((int) $validated['operator_id']), 403);
+        $ref = ! empty($validated['ref_id']) ? $this->accessibleRef($validated['ref_id']) : null;
+        $vend = $this->accessibleVend($validated['vend_code']);
+        $vend->loadMissing(['customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'name')]);
+
+        $useCompany = $request->boolean('use_company_rule', true) || ! $request->filled('pricing_mode');
+
+        return response()->json($this->setup->preview((int) $validated['operator_id'], $vend, $ref, [
+            'use_company_rule' => $useCompany,
+            ...($useCompany ? [] : GrabPriceRuleRequest::valuesFrom($request->all())),
+        ]));
+    }
+
+    /**
+     * What the window chose: the store's price rule (company, or its own with a note), the sub-categories picked for
+     * products that had none, and typed prices. Missing = the company rule and nothing filled in.
+     *
+     * @return array{use_company_rule: bool, pricing_mode?: string, rp_type?: int, multiplier_bp?: int, round_up_cents?: int, note?: ?string, sub_categories: array, custom_prices: array}
+     */
+    private function validatedSetup(Request $request): array
+    {
+        $own = $request->has('setup') && ! $request->boolean('setup.use_company_rule', true);
+        $request->validate([
+            'setup' => ['nullable', 'array'],
+            'setup.use_company_rule' => ['nullable', 'boolean'],
+            'setup.note' => ['nullable', 'string', 'max:255'],
+            ...($own ? GrabPriceRuleRequest::ruleFields('setup.') : []),
+            'setup.sub_categories' => ['nullable', 'array'],
+            'setup.sub_categories.*.product_id' => ['required', 'integer'],
+            'setup.sub_categories.*.id' => ['required', 'string', 'max:64'],
+            'setup.sub_categories.*.name' => ['nullable', 'string', 'max:255'],
+            'setup.custom_prices' => ['nullable', 'array'],
+            'setup.custom_prices.*.product_id' => ['required', 'integer'],
+            'setup.custom_prices.*.price' => ['required', 'numeric', 'min:0.01', 'max:10000'],
+        ]);
+        $setup = (array) $request->input('setup', []);
+
+        return [
+            'use_company_rule' => ! $own,
+            ...($own ? GrabPriceRuleRequest::valuesFrom($setup) : []),
+            'note' => $setup['note'] ?? null,
+            'sub_categories' => $setup['sub_categories'] ?? [],
+            'custom_prices' => $setup['custom_prices'] ?? [],
+        ];
     }
 
     // A template is asked for only when the store will sell from one; a machine-menu store gets its operator's usual one.

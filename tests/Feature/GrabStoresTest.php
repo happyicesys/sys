@@ -96,7 +96,8 @@ class GrabStoresTest extends TestCase
         $this->assertSame(0, $this->pauseCalls());
 
         $events = DeliveryPlatformStoreEvent::query()->orderBy('id')->pluck('event')->all();
-        $this->assertSame(['unbound', 'bound'], $events);
+        // A store still on a template moves over to its machine with the move (2026-11-11).
+        $this->assertSame(['unbound', 'bound', 'menu_source'], $events);
     }
 
     public function test_a_paused_store_stays_paused_on_its_new_machine(): void

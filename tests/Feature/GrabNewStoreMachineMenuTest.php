@@ -74,23 +74,31 @@ class GrabNewStoreMachineMenuTest extends TestCase
             ->where('delivery_platform_ref_number_id', $ref->id)->where('event', DeliveryPlatformStoreEvent::EVENT_MENU_SOURCE)->sole()->data);
 
         $this->actingAs($this->user)->get('/grab-stores')->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('machineMenuOperatorIds', [$this->grabMapping->operator_id]));
+            ->where('stores.data.0.will_use_machine_menu', true));
     }
 
-    public function test_an_operator_still_on_the_old_menus_must_pick_a_template_as_before(): void
+    public function test_every_new_store_lists_its_machine_even_before_its_operator_has_switched_any(): void
     {
         $this->machine(4407);
 
         $this->actingAs($this->user)->post('/grab-stores', [
             'operator_id' => $this->grabMapping->operator_id, 'ref_number' => '4-C4MJKA6FRUL1RX', 'vend_code' => '4407', 'skip_grab_check' => true,
-        ])->assertSessionHasErrors('delivery_product_mapping_id');
-        $this->assertSame(0, DeliveryPlatformRefNumber::query()->where('ref_number', '4-C4MJKA6FRUL1RX')->count(), 'nothing saved');
-
-        $this->actingAs($this->user)->post('/grab-stores', [
-            'operator_id' => $this->grabMapping->operator_id, 'ref_number' => '4-C4MJKA6FRUL1RX', 'vend_code' => '4407',
-            'delivery_product_mapping_id' => $this->grabMapping->id, 'skip_grab_check' => true,
         ])->assertSessionHasNoErrors();
-        $this->assertFalse(DeliveryPlatformRefNumber::query()->where('ref_number', '4-C4MJKA6FRUL1RX')->sole()->usesMachineMenu());
+
+        $ref = DeliveryPlatformRefNumber::query()->where('ref_number', '4-C4MJKA6FRUL1RX')->sole();
+        $this->assertTrue($ref->usesMachineMenu());
+        $this->assertSame($this->grabMapping->id, (int) $ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->sole()->delivery_product_mapping_id);
+    }
+
+    public function test_a_store_still_on_a_template_moves_over_to_its_machine_when_moved(): void
+    {
+        $binding = $this->bindGrabStore(2502, '4-C6BUGNN3NEUAKE', [11 => ['qty' => 5, 'capacity' => 10]]);
+        $this->assertFalse($binding->deliveryPlatformRefNumber->usesMachineMenu());
+
+        $this->actingAs($this->user)->post("/grab-stores/bindings/{$binding->id}/move", ['vend_code' => (string) $this->machine(2503)->code, 'reason' => 'moved'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertTrue($binding->deliveryPlatformRefNumber->fresh()->usesMachineMenu());
     }
 
     public function test_putting_a_new_store_on_a_machine_later_needs_no_template_but_a_store_put_back_on_its_old_menu_stays_there(): void

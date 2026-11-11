@@ -130,29 +130,19 @@ class GrabStoreService
                 'grab_check' => $grabCheck ? $grabCheck['message'] : 'skipped',
             ]);
 
-            // An operator already selling on the machine menu never starts a store on an old Grab menu.
-            if ($this->startsOnMachineMenu($operatorId)) {
-                $ref->update(['menu_from_machine_at' => now()]);
-                $this->event($ref, DeliveryPlatformStoreEvent::EVENT_MENU_SOURCE, $userId, null, null, ['machine_menu' => true, 'new_store' => true]);
-            }
+            // A new store never starts on an old Grab menu (Brian, 2026-11-11): it lists its machine from the start.
+            $ref->update(['menu_from_machine_at' => now()]);
+            $this->event($ref, DeliveryPlatformStoreEvent::EVENT_MENU_SOURCE, $userId, null, null, ['machine_menu' => true, 'new_store' => true]);
 
             return $ref;
         });
     }
 
     /**
-     * New stores skip the old Grab menus (Brian, 2026-11-11: "don't use the old menu … skip it for the new store")
-     * once their operator sells on the machine menu — it has at least one store switched (HIPL since 2026-11-11).
-     * Such a store lists what is in its machine at the operator's price rule (Grab Menu & Prices) from the start.
-     */
-    public function startsOnMachineMenu(int $operatorId): bool
-    {
-        return DeliveryPlatformRefNumber::query()->where('operator_id', $operatorId)->whereNotNull('menu_from_machine_at')->exists();
-    }
-
-    /**
-     * A store that will list its machine when it is put on one: on the machine menu already, or never switched either
-     * way and of an operator that starts stores there. A store someone put back on its old menu stays there.
+     * A store that lists its machine once it is put on one or moved (Brian, 2026-11-11: "don't use the old menu … skip
+     * it", the old Product Mapping tab is to be retired): on the machine menu already, or never switched either way —
+     * every store still on a template moves over the next time it is put on a machine. Only a store someone put back
+     * on its old menu stays there.
      */
     public function willUseMachineMenu(DeliveryPlatformRefNumber $ref): bool
     {
@@ -160,8 +150,7 @@ class GrabStoreService
             return true;
         }
 
-        return $this->startsOnMachineMenu((int) $ref->operator_id)
-            && ! DeliveryPlatformStoreEvent::query()->where('delivery_platform_ref_number_id', $ref->id)->where('event', DeliveryPlatformStoreEvent::EVENT_MENU_SOURCE)->exists();
+        return ! DeliveryPlatformStoreEvent::query()->where('delivery_platform_ref_number_id', $ref->id)->where('event', DeliveryPlatformStoreEvent::EVENT_MENU_SOURCE)->exists();
     }
 
     /**
@@ -269,6 +258,10 @@ class GrabStoreService
         // A move keeps selling, but its promotions end as before (their items may not exist on the new machine).
         $this->afterClose($closed, pauseOnGrab: false, endPromotions: true);
         $this->afterOpen($binding, resumeOnGrab: false);
+        // A store still on an old Grab menu moves over to its machine with the move.
+        if ($this->willUseMachineMenu($ref) && ! $ref->fresh()->usesMachineMenu()) {
+            $this->setMenuSource($ref->fresh(), true, $userId);
+        }
 
         return $binding;
     }
