@@ -28,6 +28,8 @@ class GrabMenuOverview
             ->with([
                 'deliveryPlatformRefNumber',
                 'customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code'),
+                'vend:id,customer_id',
+                'vend.customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code'),
             ])
             ->orderByDesc('id')
             ->get()

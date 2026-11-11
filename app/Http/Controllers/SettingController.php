@@ -52,6 +52,7 @@ use App\Models\VendPrefix;
 use App\Models\VendSerialNumber;
 use App\Models\VendSticker;
 use App\Services\CardSettlement\CardTerminalBindingService;
+use App\Services\Grab\GrabStoreChangeRequests;
 use App\Services\VendParameterService;
 use App\Support\ScreenshotEligibility;
 use App\Support\VendCode;
@@ -507,6 +508,8 @@ class SettingController extends Controller
         // back), so an empty list would null hidden columns on save — and crash on
         // vend_config_version for a chiller that still carries a config chart.
         return Inertia::render('Setting/Edit', [
+            // The machine moved to another Site but its HIPL Grab store still has the old one: Grab may show the old address.
+            'grabSiteNotice' => fn () => app(GrabStoreChangeRequests::class)->siteNoticeFor($vendInit),
             // The "Machine" dropdown at the top: jump to another machine's settings.
             'machineJumpOptions' => $this->machineJumpOptions(),
             // "View Screen": null when this machine answers a SCREENSHOT frame, else why not —

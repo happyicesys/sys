@@ -72,10 +72,42 @@ class DeliveryProductMappingVend extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    // The site as Grab Stores and Grab Promotions show it: "code name".
+    /**
+     * The Site this link sells from. An OPEN link follows its machine: a machine moved to another Site in
+     * Setting/Edit (Unbind Machine & Site → Save Site) keeps its Grab store, and the store is now there (Brian,
+     * 2026-11-11 — 2338 sat at Ferraria Park Condo while the link still said Tampines SAFRA). An ENDED link keeps the
+     * Site it had, for history. A machine with no Site now has none.
+     */
+    public function currentSite(): ?Customer
+    {
+        if ($this->end_date === null && $this->vend) {
+            return $this->vend->customer;
+        }
+
+        return $this->customer;
+    }
+
+    // The site as Grab Stores, Grab Promotions and Grab Menu & Prices show it: "code name".
     public function siteName(): ?string
     {
-        $customer = $this->customer;
+        return self::siteLabel($this->currentSite());
+    }
+
+    /**
+     * The Site this link was set up at, when its machine has moved since: Grab may still show that address until
+     * someone sends the new one (Update on Grab), whose Done records the new Site here.
+     */
+    public function siteChangedFrom(): ?string
+    {
+        if ($this->end_date !== null || ! $this->vend || $this->customer_id === null) {
+            return null;
+        }
+
+        return (int) $this->vend->customer_id === (int) $this->customer_id ? null : self::siteLabel($this->customer);
+    }
+
+    public static function siteLabel(?Customer $customer): ?string
+    {
         if (! $customer) {
             return null;
         }

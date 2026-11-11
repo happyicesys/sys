@@ -2751,7 +2751,12 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   changes a month), several = Grab's Help Centre form (copy-ready English text + link, `GrabStoreChangeRequests::HELP_CENTRE_URL`).
   "I've sent it" records store event `grab_change_requested` (kind, route, address, go-live), "Done" `grab_change_done`;
   the row shows the open request. No table, no email sent. The other operators change their stores themselves in the
-  app. Coverage: `tests/Feature/GrabStoreChangeRequestTest.php`.
+  app. **An open Grab link's Site is its machine's CURRENT Site** (`DeliveryProductMappingVend::currentSite`; Brian
+  2026-11-11): a machine moved in Setting/Edit (Unbind Machine & Site → Save Site) keeps its Grab store, so Grab Stores,
+  Promotions and Menu & Prices show where it is now, the window fills in that address, and `siteChangedFrom()` flags the
+  Site the link was set up at ("Site changed (was …)", plus a banner in Setting/Edit) until an address request is marked
+  Done, which records the new Site on the link. Ended links keep their own Site for history. Coverage:
+  `tests/Feature/GrabStoreChangeRequestTest.php`.
 - **Grab ends any pause after 24 h.** `delivery:sync-store-pause --apply --only-if-open` runs every 10 min
   (`GRAB_PAUSE_REASSERT`) over open rows that are paused or whose ref number is Inactive, asks Grab's store status
   and re-pauses only a store Grab reopened; a merchant selling on another row is never paused. Calls are spaced `GRAB_STORE_API_SPACING_MS` (300; Grab allows 5 a second for the

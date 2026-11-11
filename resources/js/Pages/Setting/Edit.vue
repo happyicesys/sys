@@ -1420,6 +1420,13 @@
                   </span>
                 </div>
 
+            <div v-if="grabSiteNotice" class="sm:col-span-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {{ grabSiteNotice.waiting
+                  ? $t('Grab store :ref: the new address has been sent to Grab and is waiting for it.', { ref: grabSiteNotice.merchant_id })
+                  : $t('This machine sells Grab store :ref, which was set up at :site. Grab may still show that address.', { ref: grabSiteNotice.merchant_id, site: grabSiteNotice.old_site }) }}
+                <a :href="grabSiteNotice.url" target="_blank" class="underline font-medium">{{ $t('Open it on Grab Stores') }}</a>
+            </div>
+
             <div class="sm:col-span-6 pt-3">
                 <span class="flex space-x-1">
                   <span class="flex space-x-1">
@@ -1997,6 +2004,8 @@ import { useToast } from "vue-toastification";
 import { t, tc } from '@/i18n';
 
 const props = defineProps({
+    // The machine moved to another Site; its HIPL Grab store still has the old one (GrabStoreChangeRequests::siteNoticeFor).
+    grabSiteNotice: { type: Object, default: null },
     adminCustomerOptions: Object,
     cardTerminalOptions: Object,
     cardTerminalUnitOptions: Object,

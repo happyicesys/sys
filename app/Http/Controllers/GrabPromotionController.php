@@ -425,7 +425,11 @@ class GrabPromotionController extends Controller
             ->get()
             ->keyBy('id');
         $items = app(GrabPromotionService::class)->menuItemIds($bindings->pluck('delivery_platform_ref_number_id'));
-        $bindings->load(['customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code')]);
+        $bindings->load([
+            'customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code'),
+            'vend' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'customer_id'),
+            'vend.customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code'),
+        ]);
         $grabStores = app(GrabStoreService::class);
         $accounts = [];
 

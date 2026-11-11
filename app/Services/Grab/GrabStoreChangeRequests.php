@@ -5,7 +5,9 @@ namespace App\Services\Grab;
 use App\Models\Address;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatformStoreEvent;
+use App\Models\DeliveryProductMappingVend;
 use App\Models\Operator;
+use App\Models\Vend;
 use App\Services\GrabStoreService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -39,16 +41,22 @@ class GrabStoreChangeRequests
         return (int) $ref->operator_id === self::hiplId();
     }
 
-    /** What the request window starts with: the store, its machine, the machine's Site address, a go-live date. */
+    /**
+     * What the request window starts with: the store, its machine, the address of the Site the machine is at NOW
+     * (a machine moved in Setting/Edit keeps its Grab store), a go-live date.
+     */
     public function draft(DeliveryPlatformRefNumber $ref): array
     {
-        $binding = $ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->with('customer.deliveryAddress')->first();
-        $address = $binding?->customer?->deliveryAddress;
+        $binding = $ref->openDeliveryProductMappingVends()->withoutGlobalScopes()
+            ->with(['vend' => fn ($query) => $query->withoutGlobalScopes(), 'vend.customer' => fn ($query) => $query->withoutGlobalScopes()->with('deliveryAddress')])
+            ->first();
+        $address = $binding?->currentSite()?->deliveryAddress;
 
         return [
             'merchant_id' => $ref->ref_number,
             'vend_code' => $binding?->vend_code,
             'site' => $binding?->siteName(),
+            'site_changed_from' => $binding?->siteChangedFrom(),
             'address' => $address ? self::addressLine($address) : null,
             'postal_code' => $address?->postcode,
             'go_live_on' => Carbon::today()->addDays(self::LEAD_DAYS)->toDateString(),
@@ -77,7 +85,10 @@ class GrabStoreChangeRequests
         ]);
     }
 
-    // Grab shows the change: the open request is closed.
+    /**
+     * Grab shows the change: the open request is closed. For an address change the store's link now records the Site
+     * its machine is at, so Grab Stores stops flagging a changed Site.
+     */
     public function done(DeliveryPlatformRefNumber $ref, ?string $note, ?int $userId): ?DeliveryPlatformStoreEvent
     {
         $open = $this->open(collect([$ref->id]))[$ref->id] ?? null;
@@ -85,10 +96,18 @@ class GrabStoreChangeRequests
             return null;
         }
 
-        return $this->stores->event($ref, DeliveryPlatformStoreEvent::EVENT_GRAB_CHANGE_DONE, $userId, null, null, [
+        $site = null;
+        $binding = $ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->with(['vend' => fn ($query) => $query->withoutGlobalScopes()])->first();
+        if ($open['kind'] === 'address' && $binding?->vend?->customer_id && (int) $binding->customer_id !== (int) $binding->vend->customer_id) {
+            $site = ['from' => $binding->customer_id, 'to' => $binding->vend->customer_id];
+            $binding->forceFill(['customer_id' => $binding->vend->customer_id])->save();
+        }
+
+        return $this->stores->event($ref, DeliveryPlatformStoreEvent::EVENT_GRAB_CHANGE_DONE, $userId, $binding, null, [
             'request_id' => $open['id'],
             'kind' => $open['kind'],
             'note' => self::clean($note),
+            'site' => $site,
         ]);
     }
 
@@ -129,6 +148,35 @@ class GrabStoreChangeRequests
         }
 
         return $open;
+    }
+
+    /**
+     * For a machine's settings page: its HIPL Grab store still records the Site the machine was at when the store
+     * was put on it, so Grab may still show that address. Null when there is nothing to send.
+     */
+    public function siteNoticeFor(?Vend $vend): ?array
+    {
+        if (! $vend?->customer_id) {
+            return null;
+        }
+        $binding = DeliveryProductMappingVend::query()->withoutGlobalScopes()
+            ->where('vend_id', $vend->id)
+            ->whereNull('end_date')
+            ->whereNotNull('delivery_platform_ref_number_id')
+            ->with(['deliveryPlatformRefNumber', 'customer' => fn ($query) => $query->withoutGlobalScopes(), 'vend' => fn ($query) => $query->withoutGlobalScopes()])
+            ->first();
+        $ref = $binding?->deliveryPlatformRefNumber;
+        $from = $binding?->siteChangedFrom();
+        if (! $ref || ! $from || ! $this->eligible($ref)) {
+            return null;
+        }
+
+        return [
+            'merchant_id' => $ref->ref_number,
+            'old_site' => $from,
+            'waiting' => isset($this->open(collect([$ref->id]))[$ref->id]),
+            'url' => '/grab-stores?codes='.$vend->code.',',
+        ];
     }
 
     // "Blk 180C Rivervale Crescent #01-02 Rivervale Arc" — the Site's own full address when it has one.

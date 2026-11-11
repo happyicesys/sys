@@ -68,6 +68,8 @@ class GrabStoreController extends Controller
                 'operator' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name'),
                 'openDeliveryProductMappingVends' => fn ($query) => $query->withoutGlobalScopes()->with([
                     'vend:id,code,code_prefix,name,customer_id',
+                    // An open link's Site is its machine's current one (DeliveryProductMappingVend::currentSite).
+                    'vend.customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code'),
                     'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                     'deliveryProductMapping:id,name,product_mapping_id',
                 ]),
@@ -588,6 +590,8 @@ class GrabStoreController extends Controller
                 'vend_code' => $binding->vend_code,
                 'vend' => $binding->vend?->only(['id', 'code', 'code_prefix', 'name']),
                 'site' => $binding->siteName(),
+                // The machine moved to another Site since the store was put on it: Grab may still show the old address.
+                'site_changed_from' => $binding->siteChangedFrom(),
                 'template_id' => $binding->delivery_product_mapping_id,
                 'template' => $binding->deliveryProductMapping?->name,
                 // Grab Menu & Prices: the store lists its machine's products, so the template is not its menu.

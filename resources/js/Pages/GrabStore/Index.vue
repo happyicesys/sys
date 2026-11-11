@@ -125,6 +125,10 @@
                     @click="closeLeftover(store, other)"
                   >{{ $t('Take it off :code', { code: other.vend_code }) }}</button>
                 </div>
+                <div v-if="store.binding?.site_changed_from && !store.grab_change" class="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                  {{ $t('Site changed (was :site): Grab may still show the old address.', { site: store.binding.site_changed_from }) }}
+                  <button v-if="canUpdate && store.can_ask_grab" type="button" class="ml-1 underline font-medium" @click="openChange(store)">{{ $t('Update on Grab…') }}</button>
+                </div>
                 <div v-if="store.grab_change" class="mt-1 rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs text-sky-900">
                   {{ $t('Waiting for Grab: :what, sent :when by :who', { what: changeKindNames[store.grab_change.kind] ?? store.grab_change.kind, when: formatDateTime(store.grab_change.requested_at), who: store.grab_change.requested_by ?? '—' }) }}
                   <span v-if="store.grab_change.go_live_on">· {{ $t('goes live :date', { date: store.grab_change.go_live_on }) }}</span>
@@ -309,6 +313,9 @@
         <template v-else>
           <p v-if="change.draft?.open" class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
             {{ $t('A request is already waiting for Grab (:what, sent :when). Sending another adds a new one.', { what: changeKindNames[change.draft.open.kind] ?? change.draft.open.kind, when: formatDateTime(change.draft.open.requested_at) }) }}
+          </p>
+          <p v-if="change.draft?.site_changed_from" class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+            {{ $t('Machine :code moved from :from to :to. The address below is the new Site\'s.', { code: change.draft.vend_code, from: change.draft.site_changed_from, to: change.draft.site ?? '—' }) }}
           </p>
           <div>
             <label class="block font-medium text-gray-700">{{ $t('What should Grab change?') }}</label>

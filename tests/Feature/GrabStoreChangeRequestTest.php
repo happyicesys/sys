@@ -51,6 +51,7 @@ class GrabStoreChangeRequestTest extends TestCase
             'block_num' => '1A', 'street_name' => 'Tampines St 92', 'unit_num' => '01-01', 'building' => 'Tampines SAFRA', 'postcode' => '528882',
         ]);
         $binding->forceFill(['customer_id' => $customer->id])->save();
+        $binding->vend->forceFill(['customer_id' => $customer->id])->save();
         $this->ref = $binding->deliveryPlatformRefNumber;
 
         foreach (['read delivery-platform-vends', 'update delivery-platform-vends'] as $permission) {
@@ -119,5 +120,54 @@ class GrabStoreChangeRequestTest extends TestCase
         $reader->givePermissionTo('read delivery-platform-vends');
         $this->actingAs($reader)->getJson("/grab-stores/{$this->ref->id}/change-request")->assertForbidden();
         $this->actingAs($reader)->post("/grab-stores/{$this->ref->id}/change-request", ['kind' => 'name', 'route' => 'app', 'details' => 'x'])->assertForbidden();
+    }
+
+    public function test_a_machine_moved_to_another_site_is_flagged_prefills_the_new_address_and_done_records_the_new_site(): void
+    {
+        // Setting/Edit: Unbind Machine & Site, then Save Site at Ferraria Park — the Grab store stays on the machine.
+        $old = $this->ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->sole();
+        $ferraria = Customer::forceCreate(['name' => 'Ferraria Park Condo', 'code' => '15960', 'operator_id' => $this->grabMapping->operator_id]);
+        Address::forceCreate([
+            'modelable_type' => Customer::class, 'modelable_id' => $ferraria->id, 'type' => 2, 'country_id' => 1,
+            'full_address' => '20 Flora Drive, Ferraria Park Condo', 'postcode' => '506889',
+        ]);
+        $old->vend->forceFill(['customer_id' => $ferraria->id])->save();
+        $changes = app(GrabStoreChangeRequests::class);
+
+        $this->actingAs($this->user)->getJson("/grab-stores/{$this->ref->id}/change-request")
+            ->assertOk()
+            ->assertJsonPath('site', '15960 Ferraria Park Condo')
+            ->assertJsonPath('site_changed_from', '15895 Tampines SAFRA (Indoor)')
+            ->assertJsonPath('address', '20 Flora Drive, Ferraria Park Condo')
+            ->assertJsonPath('postal_code', '506889');
+        $this->actingAs($this->user)->get('/grab-stores')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('stores.data.0.binding.site', '15960 Ferraria Park Condo')
+            ->where('stores.data.0.binding.site_changed_from', '15895 Tampines SAFRA (Indoor)'));
+        $this->assertSame(['merchant_id' => self::STORE, 'old_site' => '15895 Tampines SAFRA (Indoor)', 'waiting' => false, 'url' => '/grab-stores?codes=2338,'], $changes->siteNoticeFor($old->vend->fresh()));
+
+        $changes->requested($this->ref, ['kind' => 'address', 'route' => 'app', 'address' => '20 Flora Drive'], $this->user->id);
+        $this->assertTrue($changes->siteNoticeFor($old->vend->fresh())['waiting']);
+        $changes->done($this->ref, null, $this->user->id);
+
+        $this->assertSame($ferraria->id, (int) $old->fresh()->customer_id, 'the link now records the new Site');
+        $this->assertNull($old->fresh()->siteChangedFrom());
+        $this->assertNull($changes->siteNoticeFor($old->vend->fresh()));
+        $done = DeliveryPlatformStoreEvent::query()->where('event', DeliveryPlatformStoreEvent::EVENT_GRAB_CHANGE_DONE)->sole();
+        $this->assertEquals(['from' => $old->customer_id, 'to' => $ferraria->id], $done->data['site']);
+    }
+
+    public function test_an_ended_link_keeps_the_site_it_had_and_a_name_change_never_touches_the_site(): void
+    {
+        $link = $this->ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->sole();
+        $other = Customer::forceCreate(['name' => 'Elsewhere', 'code' => '16000', 'operator_id' => $this->grabMapping->operator_id]);
+        $link->vend->forceFill(['customer_id' => $other->id])->save();
+
+        $changes = app(GrabStoreChangeRequests::class);
+        $changes->requested($this->ref, ['kind' => 'name', 'route' => 'form', 'details' => 'new name'], $this->user->id);
+        $changes->done($this->ref, null, $this->user->id);
+        $this->assertNotSame($other->id, (int) $link->fresh()->customer_id, 'only an address change moves the recorded Site');
+
+        $link->forceFill(['end_date' => now()])->save();
+        $this->assertSame('15895 Tampines SAFRA (Indoor)', $link->fresh()->siteName());
     }
 }
