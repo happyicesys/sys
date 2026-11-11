@@ -800,7 +800,10 @@ const changeText = computed(() => {
   ]
   if (changeForm.kind === 'address') {
     lines.push('Change: new store address (the machine has moved)')
-    lines.push(`New address: ${changeForm.address}${changeForm.postal_code ? ', Singapore ' + changeForm.postal_code : ''}`)
+    // A Site's saved address often ends "SINGAPORE 528882" already: add the postal code only when it is missing.
+    const postal = (changeForm.postal_code ?? '').trim()
+    const withPostal = postal && !changeForm.address.includes(postal) ? `${changeForm.address}, Singapore ${postal}` : changeForm.address
+    lines.push(`New address: ${withPostal}`)
     if (changeForm.go_live_on) lines.push(`Please make it live on: ${changeForm.go_live_on}`)
   } else {
     lines.push(`Change: ${{ name: 'store name', hours: 'opening hours / phone', other: 'store information' }[changeForm.kind]}`)
