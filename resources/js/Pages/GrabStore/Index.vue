@@ -191,11 +191,11 @@
                 <span v-else class="text-gray-400">—</span>
               </TableData>
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
-                <div class="flex flex-wrap gap-1">
-                  <button type="button" :class="actionClass" @click="openHistory(store)">{{ $t('History') }}</button>
-                  <button v-if="store.binding" type="button" :class="actionClass" @click="openMenu(store)">{{ $t('On Grab now') }}</button>
+                <div class="flex flex-col gap-1 w-32">
+                  <button type="button" :class="[iconButton, tone.gray]" @click="openHistory(store)"><ClockIcon class="h-4 w-4 shrink-0" />{{ $t('History') }}</button>
+                  <button v-if="store.binding" type="button" :class="[iconButton, tone.green]" @click="openMenu(store)"><EyeIcon class="h-4 w-4 shrink-0" />{{ $t('On Grab now') }}</button>
                   <!-- Every change to a store (machine, pause, switch off, Grab requests, details) is in its Edit window. -->
-                  <button v-if="canUpdate" type="button" :class="actionClass" @click="openEdit(store)">{{ $t('Edit') }}</button>
+                  <button v-if="canUpdate" type="button" :class="[iconButton, tone.indigo]" @click="openEdit(store)"><PencilSquareIcon class="h-4 w-4 shrink-0" />{{ $t('Edit') }}</button>
                 </div>
               </TableData>
             </tr>
@@ -462,9 +462,9 @@
             <span v-if="current.binding.pause_reason">{{ $t('Reason: :reason', { reason: current.binding.pause_reason }) }}</span>
           </p>
           <div class="flex flex-wrap gap-1">
-            <button v-if="current.binding" type="button" :class="actionClass" @click="fromEdit(openMove)">{{ $t('Move to another machine…') }}</button>
-            <button v-else type="button" :class="actionClass" @click="fromEdit(openBind)">{{ $t('Put on machine…') }}</button>
-            <button v-if="current.binding" type="button" :class="dangerClass" @click="fromEdit(openUnbind)">{{ $t('Remove from machine…') }}</button>
+            <button v-if="current.binding" type="button" :class="[iconButton, tone.indigo]" @click="fromEdit(openMove)"><ArrowsRightLeftIcon class="h-4 w-4 shrink-0" />{{ $t('Move to another machine…') }}</button>
+            <button v-else type="button" :class="[iconButton, tone.green]" @click="fromEdit(openBind)"><PlusCircleIcon class="h-4 w-4 shrink-0" />{{ $t('Put on machine…') }}</button>
+            <button v-if="current.binding" type="button" :class="[iconButton, tone.red]" @click="fromEdit(openUnbind)"><XCircleIcon class="h-4 w-4 shrink-0" />{{ $t('Remove from machine…') }}</button>
           </div>
         </div>
 
@@ -473,10 +473,10 @@
           <div class="font-semibold text-gray-800">{{ $t('Selling on Grab') }}</div>
           <p class="text-xs text-gray-500">{{ $t('Pause = a short break; it comes back by itself at the time you set, or when you press Resume. Switch off = closed until someone switches it on.') }}</p>
           <div class="flex flex-wrap gap-1">
-            <button v-if="current.binding && current.binding.is_active" type="button" :class="actionClass" @click="fromEdit(openPause)">{{ $t('Pause…') }}</button>
-            <button v-if="current.binding && !current.binding.is_active && !current.is_off" type="button" :class="actionClass" @click="fromEdit(openResume)">{{ $t('Resume…') }}</button>
-            <button type="button" :class="current.is_off ? actionClass : dangerClass" @click="fromEdit(openSwitch)">
-              {{ current.is_off ? $t('Switch on…') : $t('Switch off…') }}
+            <button v-if="current.binding && current.binding.is_active" type="button" :class="[iconButton, tone.amber]" @click="fromEdit(openPause)"><PauseIcon class="h-4 w-4 shrink-0" />{{ $t('Pause…') }}</button>
+            <button v-if="current.binding && !current.binding.is_active && !current.is_off" type="button" :class="[iconButton, tone.green]" @click="fromEdit(openResume)"><PlayIcon class="h-4 w-4 shrink-0" />{{ $t('Resume…') }}</button>
+            <button type="button" :class="[iconButton, current.is_off ? tone.green : tone.red]" @click="fromEdit(openSwitch)">
+              <PowerIcon class="h-4 w-4 shrink-0" />{{ current.is_off ? $t('Switch on…') : $t('Switch off…') }}
             </button>
           </div>
         </div>
@@ -485,7 +485,7 @@
         <div v-if="current.can_ask_grab" class="rounded-md border px-3 py-2 space-y-2">
           <div class="font-semibold text-gray-800">{{ $t('Store details on Grab') }}</div>
           <p class="text-xs text-gray-500">{{ $t('Address, name or opening hours that Grab keeps: ask Grab to change them.') }}</p>
-          <button type="button" :class="actionClass" @click="fromEdit(openChange)">{{ $t('Update on Grab…') }}</button>
+          <button type="button" :class="[iconButton, tone.sky]" @click="fromEdit(openChange)"><PaperAirplaneIcon class="h-4 w-4 shrink-0" />{{ $t('Update on Grab…') }}</button>
         </div>
 
         <!-- Store details -->
@@ -685,7 +685,9 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHead from '@/Components/TableHead.vue';
-import { MagnifyingGlassIcon, PlusIcon } from '@heroicons/vue/20/solid';
+import {
+  ArrowsRightLeftIcon, ClockIcon, EyeIcon, MagnifyingGlassIcon, PaperAirplaneIcon, PauseIcon, PencilSquareIcon, PlayIcon, PlusCircleIcon, PlusIcon, PowerIcon, XCircleIcon,
+} from '@heroicons/vue/20/solid';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import moment from 'moment';
@@ -712,6 +714,16 @@ const inputClass = 'mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500
 const actionClass = 'rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50'
 const dangerClass = 'rounded border border-red-300 bg-white px-2 py-1 text-xs text-red-700 hover:bg-red-50'
 const primaryClass = 'rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50'
+// Store buttons: an icon and a colour per kind of action (look = grey/green, change = indigo, stop = amber/red).
+const iconButton = 'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium whitespace-nowrap'
+const tone = {
+  gray: 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+  green: 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100',
+  indigo: 'border-indigo-300 bg-indigo-50 text-indigo-800 hover:bg-indigo-100',
+  sky: 'border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100',
+  amber: 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100',
+  red: 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100',
+}
 
 const statusNames = {
   selling: t('Selling'),
