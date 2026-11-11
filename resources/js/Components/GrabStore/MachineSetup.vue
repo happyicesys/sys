@@ -114,6 +114,7 @@ const missingLeft = computed(() => rows.value.filter(needs).length)
 
 let timer = null
 let seq = 0
+let ruleTouched = false
 function load() {
   clearTimeout(timer)
   const code = String(props.vendCode ?? '').trim()
@@ -132,6 +133,7 @@ function load() {
       if (mine !== seq) return
       // A store with its own rule already starts from it.
       if (!preview.value && data.own_rule) {
+        ruleTouched = true
         choice.value = 'store'
         rule.value = ruleFields(data.own_rule)
         note.value = data.own_rule.note ?? ''
@@ -148,6 +150,13 @@ function load() {
   }, 400)
 }
 watch(() => [props.vendCode, props.operatorId, props.refId], () => { preview.value = null; picks.value = {}; prices.value = {}; load() }, { immediate: true })
+// A store's own rule starts from the company's (e.g. RP2 × 1.25), so only what differs is changed.
+watch(choice, (now) => {
+  if (now === 'store' && !ruleTouched && preview.value?.company_rule) {
+    rule.value = ruleFields(preview.value.company_rule)
+  }
+  if (now === 'store') ruleTouched = true
+})
 watch([choice, rule], load, { deep: true })
 
 // What the server applies: the rule, the picked sub-categories and the typed prices.
