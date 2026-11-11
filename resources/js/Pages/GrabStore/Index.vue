@@ -135,7 +135,7 @@
                   <button v-if="canUpdate" type="button" class="ml-1 underline font-medium" @click="markChangeDone(store)">{{ $t('Done') }}</button>
                 </div>
               </TableData>
-              <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
+              <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-center">
                 <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold" :class="statusClass[store.status]">
                   {{ statusNames[store.status] }}
                 </span>
@@ -194,18 +194,8 @@
                 <div class="flex flex-wrap gap-1">
                   <button type="button" :class="actionClass" @click="openHistory(store)">{{ $t('History') }}</button>
                   <button v-if="store.binding" type="button" :class="actionClass" @click="openMenu(store)">{{ $t('On Grab now') }}</button>
-                  <template v-if="canUpdate">
-                    <button type="button" :class="actionClass" @click="openEdit(store)">{{ $t('Edit') }}</button>
-                    <button v-if="store.can_ask_grab" type="button" :class="actionClass" @click="openChange(store)">{{ $t('Update on Grab…') }}</button>
-                    <button v-if="store.binding" type="button" :class="actionClass" @click="openMove(store)">{{ $t('Move') }}</button>
-                    <button v-else type="button" :class="actionClass" @click="openBind(store)">{{ $t('Put on machine') }}</button>
-                    <button v-if="store.binding && store.binding.is_active" type="button" :class="actionClass" @click="openPause(store)">{{ $t('Pause') }}</button>
-                    <button v-if="store.binding && !store.binding.is_active" type="button" :class="actionClass" @click="resume(store)">{{ $t('Resume') }}</button>
-                    <button v-if="store.binding" type="button" :class="actionClass" @click="openUnbind(store)">{{ $t('Remove from machine') }}</button>
-                    <button type="button" :class="store.is_off ? actionClass : dangerClass" @click="toggleOff(store)">
-                      {{ store.is_off ? $t('Switch on') : $t('Switch off') }}
-                    </button>
-                  </template>
+                  <!-- Every change to a store (machine, pause, switch off, Grab requests, details) is in its Edit window. -->
+                  <button v-if="canUpdate" type="button" :class="actionClass" @click="openEdit(store)">{{ $t('Edit') }}</button>
                 </div>
               </TableData>
             </tr>
@@ -439,10 +429,67 @@
       </div>
     </Modal>
 
+    <!-- Resume / Switch off / Switch on: asked once more before Grab is told -->
+    <Modal :open="modal === 'confirm'" @modalClose="closeModal">
+      <template #header>{{ confirmation?.title }}</template>
+      <div class="space-y-3 text-sm">
+        <p class="text-gray-700">{{ confirmation?.text }}</p>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" :class="actionClass" @click="closeModal">{{ $t('Cancel') }}</button>
+          <button type="button" :class="confirmation?.danger ? dangerClass : primaryClass" class="!px-4 !py-2 !text-sm" :disabled="confirmation?.processing" @click="confirmation?.run()">{{ confirmation?.button }}</button>
+        </div>
+      </div>
+    </Modal>
+
     <!-- Edit store -->
     <Modal :open="modal === 'edit'" @modalClose="closeModal">
       <template #header>{{ $t('Edit Grab store :ref', { ref: current?.ref_number }) }}</template>
-      <div class="space-y-3 text-sm">
+      <div v-if="current" class="space-y-3 text-sm">
+        <!-- Machine -->
+        <div class="rounded-md border px-3 py-2 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div class="font-semibold text-gray-800">{{ $t('Machine') }}</div>
+            <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold" :class="statusClass[current.status]">{{ statusNames[current.status] }}</span>
+          </div>
+          <p v-if="current.binding" class="text-gray-700">
+            {{ $t('Sells from machine :code (:site) since :time.', { code: current.binding.vend_code, site: current.binding.site ?? $t('no Site'), time: formatDateTime(current.binding.since) }) }}
+          </p>
+          <p v-else class="text-gray-600">{{ $t('No machine sells this store.') }}</p>
+          <p v-if="current.binding && !current.binding.is_active && !current.is_off" class="text-amber-800">
+            {{ current.binding.paused_until
+              ? $t('Paused until :time.', { time: formatDateTime(current.binding.paused_until) })
+              : $t('Paused until someone presses Resume.') }}
+            <span v-if="current.binding.pause_reason">{{ $t('Reason: :reason', { reason: current.binding.pause_reason }) }}</span>
+          </p>
+          <div class="flex flex-wrap gap-1">
+            <button v-if="current.binding" type="button" :class="actionClass" @click="fromEdit(openMove)">{{ $t('Move to another machine…') }}</button>
+            <button v-else type="button" :class="actionClass" @click="fromEdit(openBind)">{{ $t('Put on machine…') }}</button>
+            <button v-if="current.binding" type="button" :class="dangerClass" @click="fromEdit(openUnbind)">{{ $t('Remove from machine…') }}</button>
+          </div>
+        </div>
+
+        <!-- Selling on Grab -->
+        <div class="rounded-md border px-3 py-2 space-y-2">
+          <div class="font-semibold text-gray-800">{{ $t('Selling on Grab') }}</div>
+          <p class="text-xs text-gray-500">{{ $t('Pause = a short break; it comes back by itself at the time you set, or when you press Resume. Switch off = closed until someone switches it on.') }}</p>
+          <div class="flex flex-wrap gap-1">
+            <button v-if="current.binding && current.binding.is_active" type="button" :class="actionClass" @click="fromEdit(openPause)">{{ $t('Pause…') }}</button>
+            <button v-if="current.binding && !current.binding.is_active && !current.is_off" type="button" :class="actionClass" @click="fromEdit(openResume)">{{ $t('Resume…') }}</button>
+            <button type="button" :class="current.is_off ? actionClass : dangerClass" @click="fromEdit(openSwitch)">
+              {{ current.is_off ? $t('Switch on…') : $t('Switch off…') }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Grab's own records -->
+        <div v-if="current.can_ask_grab" class="rounded-md border px-3 py-2 space-y-2">
+          <div class="font-semibold text-gray-800">{{ $t('Store details on Grab') }}</div>
+          <p class="text-xs text-gray-500">{{ $t('Address, name or opening hours that Grab keeps: ask Grab to change them.') }}</p>
+          <button type="button" :class="actionClass" @click="fromEdit(openChange)">{{ $t('Update on Grab…') }}</button>
+        </div>
+
+        <!-- Store details -->
+        <div class="font-semibold text-gray-800 pt-1">{{ $t('Store details') }}</div>
         <div>
           <label class="block font-medium text-gray-700">{{ $t('Operator') }}</label>
           <select v-model="editForm.operator_id" :class="inputClass" :disabled="!!current?.binding">
@@ -785,8 +832,25 @@ function money(cents) {
 const modal = ref(null)
 const current = ref(null)
 
+// A window opened from Edit goes back to Edit on Cancel; once it has done its job, everything closes.
+let backToEdit = false
 function closeModal() {
+  if (backToEdit && modal.value !== 'edit') {
+    backToEdit = false
+    modal.value = 'edit'
+    return
+  }
+  backToEdit = false
   modal.value = null
+}
+function closeAll() {
+  backToEdit = false
+  modal.value = null
+}
+function fromEdit(open) {
+  const store = current.value
+  open(store)
+  backToEdit = true
 }
 
 const addForm = useForm({
@@ -798,7 +862,7 @@ const unbindForm = useForm({ reason: 'removed', remarks: '' })
 const editForm = useForm({ operator_id: null, ref_number: '', remarks: '', skip_grab_check: false })
 const merchantIdChanged = computed(() => (editForm.ref_number ?? '').trim().toUpperCase() !== (current.value?.ref_number ?? ''))
 
-const ok = { preserveScroll: true, onSuccess: () => closeModal() }
+const ok = { preserveScroll: true, onSuccess: () => closeAll() }
 
 // Update on Grab (HIPL stores): what to change, prepared for the GrabMerchant app or Grab's Help Centre form.
 const changeKindNames = {
@@ -955,8 +1019,27 @@ function submitPause() {
   pauseForm.post(`/grab-stores/bindings/${current.value.binding.id}/pause`, ok)
 }
 
-function resume(store) {
-  router.post(`/grab-stores/bindings/${store.binding.id}/resume`, {}, { preserveScroll: true })
+// Resume, Switch off and Switch on act on Grab at once, so each asks first.
+const confirmation = ref(null)
+function confirmThen({ title, text, button, danger = false, post, data = {} }) {
+  confirmation.value = {
+    title, text, button, danger, processing: false,
+    run: () => {
+      confirmation.value.processing = true
+      router.post(post, data, { preserveScroll: true, onSuccess: () => closeAll(), onFinish: () => { confirmation.value.processing = false } })
+    },
+  }
+  modal.value = 'confirm'
+}
+
+function openResume(store) {
+  current.value = store
+  confirmThen({
+    title: t('Resume :ref', { ref: store.ref_number }),
+    text: t('Machine :code sells on Grab again at once.', { code: store.binding.vend_code }),
+    button: t('Resume'),
+    post: `/grab-stores/bindings/${store.binding.id}/resume`,
+  })
 }
 
 function openUnbind(store) {
@@ -978,14 +1061,24 @@ function closeLeftover(store, other) {
   router.post(`/grab-stores/bindings/${other.id}/unbind`, { reason: 'correction', remarks: 'Leftover open binding closed' }, { preserveScroll: true })
 }
 
-function toggleOff(store) {
-  const question = store.is_off
-    ? t('Switch :ref on? It reopens on Grab if it is on a machine.', { ref: store.ref_number })
-    : t('Switch :ref off? It is paused on Grab at once and stops selling.', { ref: store.ref_number })
-  if (!window.confirm(question)) {
-    return
-  }
-  router.post(`/grab-stores/${store.id}/status`, { active: store.is_off }, { preserveScroll: true })
+function openSwitch(store) {
+  current.value = store
+  confirmThen(store.is_off
+    ? {
+        title: t('Switch :ref on', { ref: store.ref_number }),
+        text: t('Switch :ref on? It reopens on Grab if it is on a machine.', { ref: store.ref_number }),
+        button: t('Switch on'),
+        post: `/grab-stores/${store.id}/status`,
+        data: { active: true },
+      }
+    : {
+        title: t('Switch :ref off', { ref: store.ref_number }),
+        text: t('Switch :ref off? It is paused on Grab at once and stops selling.', { ref: store.ref_number }),
+        button: t('Switch off'),
+        danger: true,
+        post: `/grab-stores/${store.id}/status`,
+        data: { active: false },
+      })
 }
 
 // History
