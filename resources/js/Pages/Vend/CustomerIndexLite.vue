@@ -2192,6 +2192,10 @@ const getAlertTooltip = (alert) => {
 
 function compareRefPrice(vend, channel) {
 // let type = vend && vend.customer ? vend.customer.selling_price_type : vend.selling_price_type
+// A machine on server price sells at it, not at the board price: the board price differing is no fault (2026-11-11).
+if(channel && channel.server_amount != null && channel.server_amount > 0) {
+	return 'text-gray-900'
+}
 if(channel && channel.amount && channel.amount != channel.ref_price) {
 	return 'text-red-500'
 }

@@ -352,6 +352,9 @@ RP back and forth). `App\Services\Product\MachinePriceDelivery` is the one rule,
   2 min while anything is waiting. "Send to machine again" (`POST …/price-delivery/push`, `update machine-settings`) runs
   `nudge()`. A machine on Machine Price gets no badge: its board prices are what it charges. Tracking began 2026-11-11, so
   a machine reads Not checked yet until its next menu load.
+- **Machine Price on a server-price machine** (Brian, 2026-11-11): the column shows what the machine SELLS at (its server
+  price) with the VMC board's own price as a small "(VMC price …)" note only when it differs, never in red; the dashboard
+  row's channel code is not red for it either. A board-price machine keeps the red board-vs-Ref mismatch.
 Regression coverage: `tests/Feature/MachinePriceDeliveryTest.php`.
 
 **A Smart Freezer has no choice: always Yes** (Brian, 2026-09-14). The freezer

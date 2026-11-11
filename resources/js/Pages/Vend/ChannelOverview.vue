@@ -170,8 +170,16 @@
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                         {{ channel.capacity }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="compareSellingPrice(channel)">
-                        {{ (channel.amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                      <!--
+                        Brian, 2026-11-11: a machine that follows the Site's pricing sells at the server price, not at
+                        the VMC board's own price. Show what it sells at; the board price only as a small note when it
+                        differs, never in red (10033: staff read the red board price as the price charged).
+                      -->
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="sellsAtServerPrice(channel) ? 'text-gray-800' : compareSellingPrice(channel)">
+                        {{ formatAmount(sellsAtServerPrice(channel) ? channel.server_amount : channel.amount) }}
+                        <div v-if="sellsAtServerPrice(channel) && channel.amount != channel.server_amount" class="mt-0.5 text-[11px] font-normal text-gray-500">
+                          ({{ $t('VMC price :price', { price: formatAmount(channel.amount) }) }})
+                        </div>
                       </td>
                       <!-- <td class=" py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center">
                         {{ (channel.server_amount ?? 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -389,6 +397,8 @@ function applyPriceDelivery(data) {
     const live = data.channels[String(channel.code)]
     if (live && channel.product) {
       channel.ref_price = live.ref_price !== null ? live.ref_price / 100 : null
+      // What the machine sells at now (null on a board-price machine), live like Ref Price.
+      channel.server_amount = data.follows_site && live.expected !== null ? live.expected / 100 : null
     }
   })
 }
@@ -547,6 +557,17 @@ function getSellingPrice(channel) {
   return null
 }
 
+
+// The machine follows the Site's pricing and has a server price for this channel (the APK prefers it when > 0).
+function sellsAtServerPrice(channel) {
+  const follows = priceDelivery.value ? priceDelivery.value.follows_site : channel.server_amount != null
+  return follows && channel.server_amount != null && channel.server_amount > 0
+}
+
+function formatAmount(amount) {
+  const digits = operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent
+  return Number(amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
+}
 
 function compareSellingPrice(channel) {
   // let type = props.vend && props.vend.customer ? props.vend.customer.selling_price_type : props.vend.selling_price_type
