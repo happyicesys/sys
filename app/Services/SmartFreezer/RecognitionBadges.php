@@ -60,7 +60,7 @@ class RecognitionBadges
         foreach ($matched as $saleId => $recognition) {
             $hold = $holds->get($recognition->session_ref);
             $out[$saleId] = $this->badge($recognition) + [
-                'handled' => $this->handled($saleById->get($saleId), $hold),
+                'handled' => $this->handled($saleById->get($saleId), $hold, $recognition),
                 // Nothing was charged, so nothing is left to do, whoever released it.
                 'released' => $hold?->state === CardPaymentIntent::STATE_VOIDED,
             ];
@@ -125,10 +125,11 @@ class RecognitionBadges
     /**
      * A person has dealt with this sale: their count (`meta_json.correction`, FreezerSaleCorrection) or
      * their keyed-in charge (`ai_decision.by_person`). The AI's verdict is kept; this only says it is settled.
+     * A count equal to the AI's is `confirmed`, any other `adjusted` (PersonCount).
      *
      * @return array{kind: string, by: ?string}|null
      */
-    private function handled(?object $sale, ?CardPaymentIntent $intent): ?array
+    private function handled(?object $sale, ?CardPaymentIntent $intent, SmartFreezerRecognition $recognition): ?array
     {
         $meta = $sale->meta_json ?? null;
         if (is_string($meta)) {
@@ -136,7 +137,10 @@ class RecognitionBadges
         }
         $correction = is_array($meta) ? ($meta['correction'] ?? null) : null;
         if (is_array($correction)) {
-            return ['kind' => 'adjusted', 'by' => $correction['by']['name'] ?? null];
+            // A count equal to the AI's confirms it, and must not read as the AI corrected (Brian, 2026-11-12).
+            $kind = PersonCount::confirmsAi($recognition->verdict, (array) $recognition->verdict_lines, $correction) ? 'confirmed' : 'adjusted';
+
+            return ['kind' => $kind, 'by' => $correction['by']['name'] ?? null];
         }
         $person = $intent?->ai_decision['by_person'] ?? null;
 

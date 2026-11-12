@@ -137,6 +137,30 @@ class TransactionIndexAiRecognitionColumnTest extends TestCase
         $this->assertSame('mixed', $ai['verdict']);
     }
 
+    /** Brian, 2026-11-12: a count equal to what the AI saw confirms it, and must not read as the AI being corrected. */
+    public function test_a_count_equal_to_the_ais_says_confirmed_and_a_different_one_adjusted(): void
+    {
+        $lines = [
+            ['product_id' => 11, 'code' => '111', 'paid' => 0, 'taken' => 1, 'delta' => 1],
+            ['product_id' => 12, 'code' => '222', 'paid' => 1, 'taken' => 0, 'delta' => -1],
+        ];
+        foreach (['ORD-SAME' => [11 => 1], 'ORD-DIFF' => [12 => 1]] as $order => $basket) {
+            $ref = 'SF-50001-1-'.($order === 'ORD-SAME' ? 5 : 6);
+            $sale = $this->sale($order, $ref);
+            $sale->forceFill(['meta_json' => ['correction' => ['by' => ['name' => 'Daniel'], 'basket' => $basket]]])->save();
+            SmartFreezerRecognition::create([
+                'trade_id' => $ref, 'session_ref' => $ref, 'vend_id' => $this->vendId,
+                'vend_transaction_id' => $sale->id, 'status' => 'completed', 'verdict' => 'mixed', 'verdict_lines' => $lines,
+            ]);
+        }
+
+        $rows = $this->gridRows();
+
+        $this->assertSame(['kind' => 'confirmed', 'by' => 'Daniel'], $rows['ORD-SAME']['ai_recognition']['handled']);
+        $this->assertSame(['kind' => 'adjusted', 'by' => 'Daniel'], $rows['ORD-DIFF']['ai_recognition']['handled']);
+        $this->assertSame('mixed', $rows['ORD-SAME']['ai_recognition']['verdict'], 'the AI verdict is kept');
+    }
+
     public function test_a_hold_keyed_in_without_a_count_is_handled_and_an_untouched_one_is_not(): void
     {
         $keyed = $this->sale('ORD-KEY', 'SF-50001-2-4');

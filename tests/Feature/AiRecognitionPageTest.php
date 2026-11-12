@@ -766,6 +766,40 @@ class AiRecognitionPageTest extends TestCase
             $this->assertSame(2, $lines['A']['adjusted']);
             $this->assertSame(0, $lines['B']['adjusted'], 'left out of the count = none taken');
             $this->assertSame([1, 0, 0, 300, 'none'], [$lines['C']['adjusted'], $lines['C']['paid'], $lines['C']['taken'], $lines['C']['unit_cents'], $lines['C']['state']], 'only the person counted it');
+            $this->assertFalse($row['correction']['confirms_ai'], 'the count differs from what the AI saw');
+        });
+    }
+
+    /**
+     * Brian, 2026-11-12 (his own test on 50002): paid for B, took A; the AI saw A, and Daniel's count said the
+     * same. The person confirmed the AI, so the row must not read as a correction, and the dashboard counts
+     * every unit as the AI's.
+     */
+    public function test_a_count_equal_to_what_the_ai_saw_confirms_it(): void
+    {
+        $took = Product::forceCreate(['code' => 'A', 'name' => 'Aye', 'operator_id' => 1, 'barcode' => '111']);
+        $paid = Product::forceCreate(['code' => 'B', 'name' => 'Bee', 'operator_id' => 1, 'barcode' => '222']);
+        $sale = VendTransaction::forceCreate(['order_id' => 'O-1', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 170, 'transaction_datetime' => Carbon::now(), 'gst_vat_rate' => 9, 'operator_id' => 1,
+            'vend_transaction_json' => ['transf_info' => [['goods_id' => $paid->id, 'Price' => 120]]],
+            'meta_json' => ['correction' => [
+                'at' => '2026-11-12T16:54:00+08:00', 'by' => ['name' => 'Daniel', 'user_id' => 2], 'value_cents' => 170,
+                'basket' => [$took->id => 1],
+                'lines' => [['product_id' => $took->id, 'name' => 'Aye', 'qty' => 1, 'unit_cents' => 170]],
+            ]]]);
+        $this->recognition(['vend_transaction_id' => $sale->id, 'status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0, 'verdict' => 'mixed', 'verdict_lines' => [
+            ['product_id' => $took->id, 'code' => '111', 'paid' => 0, 'taken' => 1, 'delta' => 1],
+            ['product_id' => $paid->id, 'code' => '222', 'paid' => 1, 'taken' => 0, 'delta' => -1],
+        ]]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(function (AssertableInertia $page) {
+            $props = $page->toArray()['props'];
+            $row = $props['recognitions']['data'][0];
+            $this->assertTrue($row['correction']['confirms_ai']);
+            $this->assertSame('Daniel', $row['correction']['by']);
+            $lines = collect($row['ai_check'])->keyBy('code');
+            $this->assertSame([1, 1], [$lines['A']['adjusted'], $lines['A']['taken']], 'same as the AI: drawn white, not blue');
+            $this->assertSame([0, 0], [$lines['B']['adjusted'], $lines['B']['taken']]);
+            $this->assertSame([1, 0], [$props['dashboard']['correct_qty'], $props['dashboard']['adjusted_qty']]);
         });
     }
 

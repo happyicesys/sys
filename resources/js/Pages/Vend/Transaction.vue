@@ -1018,8 +1018,9 @@
                                     {{ aiRecognitionBadge(vendTransaction.ai_recognition).label }}
                                 </a>
                                 <span v-if="vendTransaction.ai_recognition.handled?.by"
-                                    class="text-[10px] font-semibold text-blue-700 break-words">
-                                    {{ vendTransaction.ai_recognition.handled.kind === 'adjusted' ? $t('Adjusted by :name', { name: vendTransaction.ai_recognition.handled.by }) : $t('Keyed in by :name', { name: vendTransaction.ai_recognition.handled.by }) }}
+                                    class="text-[10px] font-semibold break-words"
+                                    :class="vendTransaction.ai_recognition.handled.kind === 'confirmed' ? 'text-gray-600' : 'text-blue-700'">
+                                    {{ aiHandledByLabel(vendTransaction.ai_recognition.handled) }}
                                 </span>
                                 <span v-if="vendTransaction.ai_recognition.total_seconds !== null"
                                     class="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold border bg-sky-50 text-sky-800 border-sky-200 whitespace-nowrap">
@@ -1392,9 +1393,15 @@ const aiStatusBadges = {
 // Blue = a person has dealt with it (Brian, 2026-11-04): red only ever means nobody has yet.
 const aiHandledBadges = {
     adjusted: { label: t('Adjusted'), cls: 'bg-blue-600 text-white border-blue-700' },
+    // A person's count equal to the AI's: they confirmed it, the AI was right (Brian, 2026-11-12). Not blue.
+    confirmed: { label: t('Confirmed'), cls: 'bg-white text-gray-700 border-gray-300' },
     keyed_in: { label: t('Keyed in'), cls: 'bg-blue-600 text-white border-blue-700' },
 }
 // A released hold charged nothing, so nobody has anything to do: grey, not the verdict's colour (Brian, 2026-11-04).
+const aiHandledByLabel = (handled) => ({
+    adjusted: t('Adjusted by :name', { name: handled.by }),
+    confirmed: t('Confirmed by :name', { name: handled.by }),
+}[handled.kind] ?? t('Keyed in by :name', { name: handled.by }))
 const aiReleasedBadge = { label: t('Hold released'), cls: 'bg-gray-100 text-gray-700 border-gray-300' }
 const aiRecognitionBadge = (ai) => (ai.handled && aiHandledBadges[ai.handled.kind])
     || (ai.released && aiReleasedBadge)

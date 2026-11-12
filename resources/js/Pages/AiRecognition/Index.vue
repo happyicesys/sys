@@ -515,7 +515,9 @@
                             <span v-else class="text-gray-400">…</span>
                           </td>
                           <td class="py-1 text-center text-sm">
-                            <span v-if="line.adjusted !== null" class="inline-flex min-w-[2rem] justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-sm font-bold text-white">{{ line.adjusted }}</span>
+                            <!-- Blue only where the person's count differs from the AI's; equal = they confirmed it (Brian, 2026-11-12). -->
+                            <span v-if="line.adjusted !== null && line.adjusted !== line.taken" class="inline-flex min-w-[2rem] justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-sm font-bold text-white" tabindex="0" v-tooltip="$t('Changed from what the AI saw')">{{ line.adjusted }}</span>
+                            <span v-else-if="line.adjusted !== null" class="inline-flex min-w-[2rem] justify-center rounded-full border border-gray-300 bg-white px-1.5 py-0.5 text-sm font-bold text-gray-700" tabindex="0" v-tooltip="$t('Same as what the AI saw')">{{ line.adjusted }}</span>
                             <span v-else-if="line.state === 'na'" class="text-gray-400">{{ $t('N/A') }}</span>
                             <span v-else class="text-gray-400" tabindex="0" v-tooltip="$t('Not adjusted')">—</span>
                           </td>
@@ -534,8 +536,11 @@
                       <span v-else class="cursor-help text-amber-700" tabindex="0" v-tooltip="$t('The app files one door error every 2 minutes, so a failure soon after another is not logged.')">{{ $t('Door did not complete · no error logged') }}</span>
                     </div>
                     <!-- A person's count sits beside the AI's verdict, which is never overwritten. -->
-                    <div v-if="row.correction" class="mt-1 flex flex-wrap items-center gap-x-2 rounded border border-blue-700 bg-blue-600 px-1.5 py-1 text-xs text-white">
-                      <span class="flex items-center gap-1 font-semibold"><PencilSquareIcon class="h-4 w-4 flex-none" aria-hidden="true" />{{ $t('Adjusted by :name', { name: row.correction.by }) }}</span>
+                    <!-- A count equal to the AI's confirms it: white, so the row never reads as the AI being wrong (Brian, 2026-11-12). -->
+                    <div v-if="row.correction" class="mt-1 flex flex-wrap items-center gap-x-2 rounded border px-1.5 py-1 text-xs"
+                      :class="row.correction.confirms_ai ? 'border-gray-300 bg-white text-gray-700' : 'border-blue-700 bg-blue-600 text-white'">
+                      <span v-if="row.correction.confirms_ai" class="flex items-center gap-1 font-semibold" tabindex="0" v-tooltip="$t('The count a person keyed in is the same as what the AI saw: the AI was right.')"><CheckCircleIcon class="h-4 w-4 flex-none text-green-600" aria-hidden="true" />{{ $t('Confirmed by :name', { name: row.correction.by }) }}</span>
+                      <span v-else class="flex items-center gap-1 font-semibold"><PencilSquareIcon class="h-4 w-4 flex-none" aria-hidden="true" />{{ $t('Adjusted by :name', { name: row.correction.by }) }}</span>
                       <span class="whitespace-nowrap">{{ row.correction.at }}</span>
                     </div>
                   </TableData>
@@ -855,7 +860,7 @@ const BUTTON_QUIET = 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
 
 // Each button turns blue only for its own action: an adjusted row with no refund keeps a plain Refund.
 function adjustButtonClass(row) {
-  if (row.correction) return BUTTON_BLUE
+  if (row.correction) return row.correction.confirms_ai ? BUTTON_QUIET : BUTTON_BLUE
   return needsPerson(row) ? BUTTON_RED : BUTTON_QUIET
 }
 

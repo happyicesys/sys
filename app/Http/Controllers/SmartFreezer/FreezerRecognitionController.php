@@ -20,6 +20,7 @@ use App\Services\NoteNotificationService;
 use App\Services\SmartFreezer\DoorFault;
 use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\FreezerRecognitionService;
+use App\Services\SmartFreezer\PersonCount;
 use App\Services\SmartFreezer\RecognitionBadges;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
@@ -338,21 +339,18 @@ class FreezerRecognitionController extends Controller
             return [0, 0, 0];
         }
 
+        if (is_array($correction)) {
+            return [...PersonCount::compare((array) $r->verdict_lines, (array) ($correction['basket'] ?? [])), 0];
+        }
+
         $taken = $paid = [];
         foreach ((array) $r->verdict_lines as $line) {
-            $key = (int) ($line['product_id'] ?? 0) ?: 'code:'.($line['code'] ?? '?');
+            $key = PersonCount::key($line);
             $taken[$key] = ($taken[$key] ?? 0) + (int) ($line['taken'] ?? 0);
             $paid[$key] = ($paid[$key] ?? 0) + (int) ($line['paid'] ?? 0);
         }
 
         $agreed = fn (array $other) => array_sum(array_map(fn ($key) => min($taken[$key] ?? 0, $other[$key] ?? 0), array_keys($taken)));
-
-        if (is_array($correction)) {
-            $counted = array_map('intval', (array) ($correction['basket'] ?? []));
-            $right = $agreed($counted);
-
-            return [$right, max(array_sum($taken), array_sum($counted)) - $right, 0];
-        }
         if ($r->verdict === RecognitionVerdict::MATCH || ($card?->state === CardPaymentIntent::STATE_VOIDED && array_sum($taken) === 0)) {
             return [array_sum($taken), 0, 0];
         }
@@ -533,7 +531,7 @@ class FreezerRecognitionController extends Controller
             ] : null,
             // The Correct button (FreezerSaleCorrection, which says why when it refuses).
             'can_correct' => $sale !== null && $r->vend?->isSmartFreezer(),
-            'correction' => $this->correctionOf($sale, $card),
+            'correction' => $this->correctionOf($r, $sale, $card),
             // A T05 hold this session's verdict charges (CardPaymentService::settleAwaitingAi).
             'card' => $card ? [
                 'id' => $card->id,
@@ -711,7 +709,7 @@ class FreezerRecognitionController extends Controller
     }
 
     /** The person's correction beside the AI's verdict, and what it still says should go back. */
-    private function correctionOf(?VendTransaction $sale, ?CardPaymentIntent $card): ?array
+    private function correctionOf(SmartFreezerRecognition $r, ?VendTransaction $sale, ?CardPaymentIntent $card): ?array
     {
         $correction = ((array) $sale?->meta_json)['correction'] ?? null;
         if (! is_array($correction)) {
@@ -721,6 +719,8 @@ class FreezerRecognitionController extends Controller
 
         return [
             'by' => $correction['by']['name'] ?? null,
+            // The person's count equals what the AI saw: they confirmed it, nothing was corrected (Brian, 2026-11-12).
+            'confirms_ai' => PersonCount::confirmsAi($r->verdict, (array) $r->verdict_lines, $correction),
             'at' => isset($correction['at']) ? Carbon::parse($correction['at'])->format('ymd h:i a') : null,
             'lines' => array_values((array) ($correction['lines'] ?? [])),
             'value_cents' => (int) ($correction['value_cents'] ?? 0),

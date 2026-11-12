@@ -1813,8 +1813,14 @@ badge reads a solid blue Adjusted / Keyed in with who, the AI's verdict moving t
 (state `voided`, `released`) charged nothing, so it reads a grey Hold released unless a person released it. AI Recognition
 follows the same three looks: red = a difference nobody has dealt with, blue = handled, grey = nothing to do (a released
 hold included), the verdict pills grey on all but red rows, and a Refund still owed stays red. Each button turns blue only
-for its own action: Adjust Qty once adjusted, Refund once refunded; a refund also ends the row's red. Regression coverage:
-`tests/Feature/TransactionIndexAiRecognitionColumnTest.php`.
+for its own action: Adjust Qty once adjusted, Refund once refunded; a refund also ends the row's red. **A count equal to
+what the AI saw is a confirmation, not an adjustment** (Brian, 2026-11-12: a customer took a different item than they paid
+for, the AI saw it right, and the blue made it look as if the AI was wrong). `App\Services\SmartFreezer\PersonCount` is the
+one rule (the AI Dashboard's accuracy reads it too): the AI gave a verdict with its lines and the person changed 0 units.
+Then Sales Transactions reads a white Confirmed / "Confirmed by", AI Recognition's bar reads "✓ Confirmed by" in white
+(`correction.confirms_ai`) and its Adjust Qty button stays plain; the row's red still ends. Each Adjusted number is blue only
+where it differs from AI saw, on any row. Regression coverage:
+`tests/Feature/TransactionIndexAiRecognitionColumnTest.php`, `tests/Feature/AiRecognitionPageTest.php`.
 
 Integration record, live proofs and open questions for Zijia:
 `apk/smart-freezer/ZIJIA_ALGORITHM_2026-09-27.md` (algorithm) and
