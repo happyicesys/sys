@@ -5872,6 +5872,7 @@ class CustomerController extends Controller
                 'site_alt_phone_number' => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
                 // Free-text remarks for the delivery address.
                 'address_remarks' => 'nullable|string|max:5000',
+                'grab_driver_instruction' => 'nullable|string|max:1000',
                 // CMS Linking ID — manually entered CMS person id. Must be
                 // unique so two sites can't link to the same CMS person, which
                 // would double-target API invoicing. Empty → null (nullable),
@@ -6216,6 +6217,7 @@ class CustomerController extends Controller
                 'customer.site_alt_phone_number' => 'nullable|string|max:50|regex:/^[0-9+\-\s()]+$/',
                 // Free-text remarks for the delivery address.
                 'customer.address_remarks' => 'nullable|string|max:5000',
+                'customer.grab_driver_instruction' => 'nullable|string|max:1000',
                 // CMS Linking ID — unique across customers (ignoring this row),
                 // so two sites can't link to the same CMS person. Empty → null
                 // (nullable), so unlinked sites are unaffected. Closure (instead

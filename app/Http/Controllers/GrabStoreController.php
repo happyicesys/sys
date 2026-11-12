@@ -774,6 +774,7 @@ class GrabStoreController extends Controller
             'postal_code' => ['nullable', 'string', 'max:12'],
             'go_live_on' => ['nullable', 'date'],
             'details' => ['nullable', 'required_unless:kind,address', 'string', 'max:1000'],
+            'driver_instruction' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $this->changeRequests->requested($ref, $validated, auth()->id());

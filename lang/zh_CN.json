@@ -6935,5 +6935,13 @@
     "Names and addresses on Grab read :time from the GrabMerchant website": "Grab 上的店名和地址于 :time 从 GrabMerchant 网站读取",
     "Read from the GrabMerchant website :time": ":time 从 GrabMerchant 网站读取",
     "Seen on Grab": "Grab 上显示",
-    "new Site confirmed": "新点位已确认"
+    "new Site confirmed": "新点位已确认",
+    "Copy driver instruction": "复制司机指引",
+    "From the Site. A change here is sent to Grab only; change it on the Site to keep it.": "来自点位。这里的修改只发给 Grab；要保存请在点位里修改。",
+    "Grab driver instruction": "Grab 司机指引",
+    "How a Grab rider finds the machine": "Grab 骑手如何找到机器",
+    "Open the Site": "打开点位",
+    "Paste the Grab driver instruction where Grab asks for notes for the driver.": "在 Grab 要求填写给司机的备注处，粘贴 Grab 司机指引。",
+    "The Site has none yet. Add it on the Site so it is ready next time.": "点位还没有填写。请在点位里添加，下次即可直接使用。",
+    "e.g. Machine is at the lobby, level 1, next to the lift. Ask the guardhouse to let you in.": "例如：机器在 1 楼大堂电梯旁。请让警卫室放行。"
 }

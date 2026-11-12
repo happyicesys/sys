@@ -393,6 +393,10 @@
                     <div class="sm:col-span-6">
                       <FormTextarea v-model="form.address_remarks" :error="form.errors['customer.address_remarks']" :placeholderStr="$t('e.g. Loading bay at rear, ask security for access')" rows="2"> {{ $t('Remarks for Address') }} </FormTextarea>
                     </div>
+                    <!-- How a Grab rider finds the machine (customers.grab_driver_instruction); Grab Stores → Update on Grab offers it. -->
+                    <div class="sm:col-span-6">
+                      <FormTextarea v-model="form.grab_driver_instruction" :error="form.errors['customer.grab_driver_instruction']" :placeholderStr="$t('e.g. Machine is at the lobby, level 1, next to the lift. Ask the guardhouse to let you in.')" rows="3"> {{ $t('Grab driver instruction') }} </FormTextarea>
+                    </div>
                   </div>
 
                   <!-- Billing & Bank Section — highlighted container (matches Placement Contract Detail styling) -->
@@ -2335,6 +2339,7 @@ function getDefaultForm() {
     site_alt_phone_number: '',
     // Free-text remarks for the delivery address.
     address_remarks: '',
+    grab_driver_instruction: '',
     is_gst_registered: false,
     address: {
       block_num: '',

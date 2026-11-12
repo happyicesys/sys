@@ -361,6 +361,16 @@
                 <input v-model="changeForm.go_live_on" type="date" :class="inputClass" />
               </div>
             </div>
+            <div>
+              <label class="block font-medium text-gray-700">{{ $t('Grab driver instruction') }}</label>
+              <textarea v-model="changeForm.driver_instruction" rows="3" :class="inputClass" :placeholder="$t('How a Grab rider finds the machine')"></textarea>
+              <p class="text-xs text-gray-500 mt-1">
+                <template v-if="change.draft?.driver_instruction">{{ $t('From the Site. A change here is sent to Grab only; change it on the Site to keep it.') }}</template>
+                <template v-else>{{ $t('The Site has none yet. Add it on the Site so it is ready next time.') }}</template>
+                <a v-if="change.draft?.site_id" :href="`/customers/${change.draft.site_id}/edit`" target="_blank" class="ml-1 font-medium text-blue-700 underline">{{ $t('Open the Site') }}</a>
+              </p>
+              <button v-if="changeForm.driver_instruction" type="button" :class="actionClass" class="mt-1" @click="copyDriverInstruction">{{ change.driverCopied ? $t('Copied') : $t('Copy driver instruction') }}</button>
+            </div>
           </template>
           <div v-else>
             <label class="block font-medium text-gray-700">{{ $t('What exactly should change?') }}</label>
@@ -375,6 +385,7 @@
                 <li>{{ $t('Open the GrabMerchant app and pick this store (:ref).', { ref: current?.ref_number }) }}</li>
                 <li>{{ $t('Tap the Store tile, then Address.') }}</li>
                 <li>{{ $t('Enter the new address above and move the pin to the store entrance.') }}</li>
+                <li v-if="changeForm.driver_instruction">{{ $t('Paste the Grab driver instruction where Grab asks for notes for the driver.') }}</li>
                 <li>{{ $t('Pick the go-live date (it changes at 9:00 that morning) and tap Submit.') }}</li>
               </ol>
               <p v-else class="mt-1 text-gray-700">{{ $t('Open the GrabMerchant app, pick this store, tap the Store tile and change it there. If the app does not offer it, use the Help Centre form.') }}</p>
@@ -901,8 +912,8 @@ const changeKindNames = {
   hours: t('Opening hours or phone'),
   other: t('Something else'),
 }
-const change = ref({ loading: false, draft: null, copied: false })
-const changeForm = useForm({ kind: 'address', route: 'app', address: '', postal_code: '', go_live_on: '', details: '' })
+const change = ref({ loading: false, draft: null, copied: false, driverCopied: false })
+const changeForm = useForm({ kind: 'address', route: 'app', address: '', postal_code: '', go_live_on: '', details: '', driver_instruction: '' })
 // Typed into Grab's form, so it stays in English whatever the screen language.
 const changeText = computed(() => {
   const d = change.value.draft ?? {}
@@ -917,6 +928,7 @@ const changeText = computed(() => {
     const postal = (changeForm.postal_code ?? '').trim()
     const withPostal = postal && !changeForm.address.includes(postal) ? `${changeForm.address}, Singapore ${postal}` : changeForm.address
     lines.push(`New address: ${withPostal}`)
+    if ((changeForm.driver_instruction ?? '').trim()) lines.push(`Driver instructions: ${changeForm.driver_instruction.trim()}`)
     if (changeForm.go_live_on) lines.push(`Please make it live on: ${changeForm.go_live_on}`)
   } else {
     lines.push(`Change: ${{ name: 'store name', hours: 'opening hours / phone', other: 'store information' }[changeForm.kind]}`)
@@ -929,7 +941,7 @@ async function openChange(store) {
   current.value = store
   changeForm.reset()
   changeForm.clearErrors()
-  change.value = { loading: true, draft: null, copied: false }
+  change.value = { loading: true, draft: null, copied: false, driverCopied: false }
   modal.value = 'change'
   try {
     const { data } = await axios.get(`/grab-stores/${store.id}/change-request`)
@@ -937,6 +949,7 @@ async function openChange(store) {
     changeForm.address = data.address ?? ''
     changeForm.postal_code = data.postal_code ?? ''
     changeForm.go_live_on = data.go_live_on ?? ''
+    changeForm.driver_instruction = data.driver_instruction ?? ''
   } finally {
     change.value.loading = false
   }
@@ -947,6 +960,14 @@ async function copyChangeText() {
     change.value.copied = true
   } catch (e) {
     change.value.copied = false
+  }
+}
+async function copyDriverInstruction() {
+  try {
+    await navigator.clipboard.writeText(changeForm.driver_instruction.trim())
+    change.value.driverCopied = true
+  } catch (e) {
+    change.value.driverCopied = false
   }
 }
 function submitChange(route) {

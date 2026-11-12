@@ -61,6 +61,8 @@ class GrabStoreChangeRequests
             'site_changed_from' => $binding?->siteChangedFrom(),
             'address' => $address ? self::addressLine($address) : null,
             'postal_code' => $address?->postcode,
+            // How a Grab rider finds the machine: the Site's own text (Site → Grab driver instruction).
+            'driver_instruction' => $binding?->currentSite()?->grab_driver_instruction,
             'go_live_on' => Carbon::today()->addDays(self::LEAD_DAYS)->toDateString(),
             'open' => $this->open(collect([$ref->id]))[$ref->id] ?? null,
             'help_centre_url' => self::HELP_CENTRE_URL,
@@ -83,6 +85,7 @@ class GrabStoreChangeRequests
             'postal_code' => self::clean($data['postal_code'] ?? null),
             'go_live_on' => $data['go_live_on'] ?? null,
             'details' => self::clean($data['details'] ?? null),
+            'driver_instruction' => trim((string) ($data['driver_instruction'] ?? '')) ?: null,
             'vend_code' => $binding?->vend_code,
         ]);
     }

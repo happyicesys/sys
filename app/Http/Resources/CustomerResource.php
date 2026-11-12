@@ -3,13 +3,14 @@
 namespace App\Http\Resources;
 
 use App\Models\Customer;
+use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
-use App\Traits\GetUserTimezone;
 
 class CustomerResource extends JsonResource
 {
     use GetUserTimezone;
+
     /**
      * Transform the resource into an array.
      *
@@ -48,6 +49,7 @@ class CustomerResource extends JsonResource
             'site_alt_phone_number' => $this->site_alt_phone_number,
             // Free-text remarks for the delivery address.
             'address_remarks' => $this->address_remarks,
+            'grab_driver_instruction' => $this->grab_driver_instruction,
             // Read-only CMS mirror scalars (see UpdateCustomerCmsFields job).
             'company_remark' => $this->company_remark,
             'site_name' => $this->site_name,
@@ -84,7 +86,7 @@ class CustomerResource extends JsonResource
             // leaks the same figure the masked blob above hides. The full-load
             // denominator itself IS product-filtered at source.
             'thirty_days_over_full_load_ratio' => (! \App\Support\ProductAccess::isRestricted() && isset($this->thirty_days_over_full_load_ratio)) ? $this->thirty_days_over_full_load_ratio : 0,
-            'total_full_load_amount' => isset($this->total_full_load_amount) ? $this->total_full_load_amount/100 : 0,
+            'total_full_load_amount' => isset($this->total_full_load_amount) ? $this->total_full_load_amount / 100 : 0,
             'updated_at' => Carbon::parse($this->updated_at)->toDateString(),
             'virtual_customer_code' => $this->virtual_customer_code,
             'virtual_customer_prefix' => $this->virtual_customer_prefix,

@@ -212,6 +212,8 @@ class Customer extends Model
         // Free-text remarks for the delivery address. See migration
         // 2026_06_01_000001_add_address_remarks_to_customers.
         'address_remarks',
+        // 2026_11_12_120000: how a Grab rider finds the machine here (Grab Stores → Update on Grab).
+        'grab_driver_instruction',
         // Read-only CMS mirror scalars (see migration
         // 2026_05_27_000000_add_cms_mirror_fields_to_customers and the
         // UpdateCustomerCmsFields job). Only written by the CMS sync,

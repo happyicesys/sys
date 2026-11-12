@@ -348,6 +348,12 @@
                 {{ $t('Remarks for Address') }}
               </FormTextarea>
             </div>
+            <!-- How a Grab rider finds the machine (customers.grab_driver_instruction). -->
+            <div class="sm:col-span-6">
+              <FormTextarea v-model="form.grab_driver_instruction" :error="form.errors.grab_driver_instruction" :placeholderStr="$t('e.g. Machine is at the lobby, level 1, next to the lift. Ask the guardhouse to let you in.')" rows="3">
+                {{ $t('Grab driver instruction') }}
+              </FormTextarea>
+            </div>
 
             </div>
 
@@ -719,6 +725,7 @@ function getDefaultForm() {
     site_alt_phone_number: '',
     // Free-text remarks for the delivery address.
     address_remarks: '',
+    grab_driver_instruction: '',
     address: {
       block_num: '',
       building: '',

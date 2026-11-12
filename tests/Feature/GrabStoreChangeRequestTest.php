@@ -78,11 +78,12 @@ class GrabStoreChangeRequestTest extends TestCase
     {
         $this->actingAs($this->user)->post("/grab-stores/{$this->ref->id}/change-request", [
             'kind' => 'address', 'route' => 'app', 'address' => 'Blk 1A Tampines St 92, Level 1 lobby', 'postal_code' => '528882', 'go_live_on' => '2026-11-14',
+            'driver_instruction' => "  Lobby, next to the lift \n",
         ])->assertSessionHasNoErrors();
 
         $event = DeliveryPlatformStoreEvent::query()->where('event', DeliveryPlatformStoreEvent::EVENT_GRAB_CHANGE_REQUESTED)->sole();
         // MySQL keeps JSON keys in its own order: compare the keys and values, not their order.
-        $this->assertEquals(['kind' => 'address', 'route' => 'app', 'address' => 'Blk 1A Tampines St 92, Level 1 lobby', 'postal_code' => '528882', 'go_live_on' => '2026-11-14', 'details' => null, 'vend_code' => 2338], $event->data);
+        $this->assertEquals(['kind' => 'address', 'route' => 'app', 'address' => 'Blk 1A Tampines St 92, Level 1 lobby', 'postal_code' => '528882', 'go_live_on' => '2026-11-14', 'details' => null, 'driver_instruction' => 'Lobby, next to the lift', 'vend_code' => 2338], $event->data);
         $this->assertSame($this->user->id, $event->user_id);
 
         $this->actingAs($this->user)->get('/grab-stores')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
@@ -171,5 +172,15 @@ class GrabStoreChangeRequestTest extends TestCase
 
         $link->forceFill(['end_date' => now()])->save();
         $this->assertSame('15895 Tampines SAFRA (Indoor)', $link->fresh()->siteName());
+    }
+
+    public function test_the_window_offers_the_sites_grab_driver_instruction(): void
+    {
+        $site = $this->ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->sole()->vend->customer;
+        $site->forceFill(['grab_driver_instruction' => "Lobby, level 1, next to the lift.\nAsk the guardhouse."])->save();
+
+        $this->actingAs($this->user)->getJson("/grab-stores/{$this->ref->id}/change-request")
+            ->assertOk()
+            ->assertJsonPath('driver_instruction', "Lobby, level 1, next to the lift.\nAsk the guardhouse.");
     }
 }

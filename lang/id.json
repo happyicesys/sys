@@ -6935,5 +6935,13 @@
     "Names and addresses on Grab read :time from the GrabMerchant website": "Nama dan alamat di Grab dibaca :time dari situs GrabMerchant",
     "Read from the GrabMerchant website :time": "Dibaca dari situs GrabMerchant :time",
     "Seen on Grab": "Terlihat di Grab",
-    "new Site confirmed": "Site baru dikonfirmasi"
+    "new Site confirmed": "Site baru dikonfirmasi",
+    "Copy driver instruction": "Salin instruksi driver",
+    "From the Site. A change here is sent to Grab only; change it on the Site to keep it.": "Dari Site. Perubahan di sini hanya dikirim ke Grab; ubah di Site agar tersimpan.",
+    "Grab driver instruction": "Instruksi driver Grab",
+    "How a Grab rider finds the machine": "Cara driver Grab menemukan mesin",
+    "Open the Site": "Buka Site",
+    "Paste the Grab driver instruction where Grab asks for notes for the driver.": "Tempel instruksi driver Grab di kolom catatan untuk driver.",
+    "The Site has none yet. Add it on the Site so it is ready next time.": "Site belum punya. Tambahkan di Site agar siap lain kali.",
+    "e.g. Machine is at the lobby, level 1, next to the lift. Ask the guardhouse to let you in.": "mis. Mesin ada di lobi lantai 1, di samping lift. Minta pos jaga untuk masuk."
 }
