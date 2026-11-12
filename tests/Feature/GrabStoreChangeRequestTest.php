@@ -145,6 +145,7 @@ class GrabStoreChangeRequestTest extends TestCase
         $this->actingAs($this->user)->get('/grab-stores')->assertInertia(fn (AssertableInertia $page) => $page
             ->where('stores.data.0.binding.site', '15960 Ferraria Park Condo')
             ->where('stores.data.0.binding.site_id', $ferraria->id)
+            ->where('stores.data.0.binding.site_address', '20 Flora Drive, Ferraria Park Condo')
             ->where('stores.data.0.binding.site_changed_from', '15895 Tampines SAFRA (Indoor)'));
         $this->assertSame(['merchant_id' => self::STORE, 'old_site' => '15895 Tampines SAFRA (Indoor)', 'waiting' => false, 'url' => '/grab-stores?codes=2338,'], $changes->siteNoticeFor($old->vend->fresh()));
 
@@ -178,6 +179,9 @@ class GrabStoreChangeRequestTest extends TestCase
     {
         $site = $this->ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->sole()->vend->customer;
         $site->forceFill(['grab_driver_instruction' => "Lobby, level 1, next to the lift.\nAsk the guardhouse."])->save();
+        $this->actingAs($this->user)->get('/grab-stores')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('stores.data.0.binding.site_driver_instruction', "Lobby, level 1, next to the lift.\nAsk the guardhouse.")
+            ->where('stores.data.0.binding.site_address', 'Blk 1A Tampines St 92, #01-01, Tampines SAFRA'));
 
         $this->actingAs($this->user)->getJson("/grab-stores/{$this->ref->id}/change-request")
             ->assertOk()

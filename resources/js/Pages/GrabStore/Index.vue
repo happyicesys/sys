@@ -514,11 +514,46 @@
           </div>
         </div>
 
-        <!-- Grab's own records -->
-        <div v-if="current.can_ask_grab" class="rounded-md border px-3 py-2 space-y-2">
-          <div class="font-semibold text-gray-800">{{ $t('Store details on Grab') }}</div>
-          <p class="text-xs text-gray-500">{{ $t('Address, name or opening hours that Grab keeps: ask Grab to change them.') }}</p>
-          <button type="button" :class="[iconButton, tone.sky]" @click="fromEdit(openChange)"><PaperAirplaneIcon class="h-4 w-4 shrink-0" />{{ $t('Update on Grab…') }}</button>
+        <!-- Site and Grab: what customers see on Grab next to the machine's Site, to check before asking Grab to change it. -->
+        <div v-if="current.binding || current.grab_profile || current.can_ask_grab" class="rounded-md border px-3 py-2 space-y-2">
+          <div class="font-semibold text-gray-800">{{ $t('Site and Grab') }}</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div class="rounded-md bg-gray-50 px-3 py-2 space-y-1">
+              <div class="text-xs font-semibold uppercase text-gray-500">{{ $t('On Grab') }}</div>
+              <template v-if="current.grab_profile">
+                <div><span class="text-xs text-gray-500">{{ $t('Grab store name') }}</span><div class="text-gray-800">{{ current.grab_profile.name ?? '—' }}</div></div>
+                <div><span class="text-xs text-gray-500">{{ $t('Address') }}</span><div :class="current.grab_profile.match === false ? 'text-red-700 font-medium' : 'text-gray-800'">{{ current.grab_profile.address ?? '—' }}</div></div>
+                <div v-if="current.grab_profile.hours"><span class="text-xs text-gray-500">{{ $t('Delivery hours') }}</span><div class="text-gray-800">{{ current.grab_profile.hours }}</div></div>
+                <div class="text-xs text-gray-400">{{ $t('Read from the GrabMerchant website :time', { time: formatDateTime(current.grab_profile.checked_at) }) }}</div>
+              </template>
+              <p v-else class="text-gray-500">{{ $t('Not read from the GrabMerchant website yet.') }}</p>
+            </div>
+            <div class="rounded-md bg-gray-50 px-3 py-2 space-y-1">
+              <div class="text-xs font-semibold uppercase text-gray-500">{{ $t('Site in ConnectVend') }}</div>
+              <template v-if="current.binding?.site_id">
+                <div>
+                  <span class="text-xs text-gray-500">{{ $t('Site name') }}</span>
+                  <div><a :href="`/customers/${current.binding.site_id}/edit`" target="_blank" class="text-blue-700 hover:underline">{{ current.binding.site }}</a></div>
+                </div>
+                <div><span class="text-xs text-gray-500">{{ $t('Delivery address') }}</span><div :class="current.grab_profile?.match === false ? 'text-red-700 font-medium' : 'text-gray-800'">{{ current.binding.site_address ?? '—' }}</div></div>
+                <div>
+                  <span class="text-xs text-gray-500">{{ $t('Grab driver instruction') }}</span>
+                  <div v-if="current.binding.site_driver_instruction" class="text-gray-800 whitespace-pre-wrap">{{ current.binding.site_driver_instruction }}</div>
+                  <div v-else class="text-gray-400">{{ $t('None yet: add it on the Site.') }}</div>
+                </div>
+              </template>
+              <p v-else class="text-gray-500">{{ current.binding ? $t('Machine :code has no Site.', { code: current.binding.vend_code }) : $t('No machine sells this store.') }}</p>
+            </div>
+          </div>
+          <p v-if="current.grab_profile?.match === false" class="text-xs text-red-700">
+            {{ $t('Grab shows postal code :grab, this Site is :site: customers may see the wrong address.', { grab: current.grab_profile.postal_code, site: current.grab_profile.site_postal_code }) }}
+          </p>
+          <p v-else-if="current.grab_profile?.match" class="text-xs text-green-700"><CheckCircleIcon class="inline h-3.5 w-3.5 -mt-0.5" /> {{ $t('Same postal code on Grab and the Site.') }}</p>
+          <div class="flex flex-wrap gap-1">
+            <a v-if="current.binding?.site_id" :href="`/customers/${current.binding.site_id}/edit`" target="_blank" :class="[iconButton, tone.gray]"><PencilSquareIcon class="h-4 w-4 shrink-0" />{{ $t('Edit the Site') }}</a>
+            <button v-if="current.can_ask_grab" type="button" :class="[iconButton, tone.sky]" @click="fromEdit(openChange)"><PaperAirplaneIcon class="h-4 w-4 shrink-0" />{{ $t('Update on Grab…') }}</button>
+          </div>
+          <p v-if="current.can_ask_grab" class="text-xs text-gray-500">{{ $t('Address, name or opening hours that Grab keeps: ask Grab to change them.') }}</p>
         </div>
 
         <!-- Store details -->

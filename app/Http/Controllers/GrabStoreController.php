@@ -75,9 +75,9 @@ class GrabStoreController extends Controller
                 'openDeliveryProductMappingVends' => fn ($query) => $query->withoutGlobalScopes()->with([
                     'vend:id,code,code_prefix,name,customer_id',
                     // An open link's Site is its machine's current one (DeliveryProductMappingVend::currentSite).
-                    'vend.customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code')
-                        // Its postal code against Grab's (GrabStoreProfiles).
-                        ->with('deliveryAddress:id,modelable_id,modelable_type,type,postcode'),
+                    'vend.customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code', 'grab_driver_instruction')
+                        // Its address against Grab's (GrabStoreProfiles), shown side by side in the Edit window.
+                        ->with('deliveryAddress:id,modelable_id,modelable_type,type,postcode,full_address,block_num,street_name,unit_num,building'),
                     'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                     'deliveryProductMapping:id,name,product_mapping_id',
                 ]),
@@ -650,6 +650,9 @@ class GrabStoreController extends Controller
                 'vend' => $binding->vend?->only(['id', 'code', 'code_prefix', 'name']),
                 'site' => $binding->siteName(),
                 'site_id' => $binding->currentSite()?->id,
+                // The Site's side of the Edit window's "Site and Grab" comparison.
+                'site_address' => ($address = $binding->currentSite()?->deliveryAddress) ? GrabStoreChangeRequests::addressLine($address) : null,
+                'site_driver_instruction' => $binding->currentSite()?->grab_driver_instruction,
                 // The machine moved to another Site since the store was put on it: Grab may still show the old address.
                 'site_changed_from' => $binding->siteChangedFrom(),
                 'template_id' => $binding->delivery_product_mapping_id,
