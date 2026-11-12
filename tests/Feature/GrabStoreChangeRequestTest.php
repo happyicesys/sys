@@ -137,11 +137,13 @@ class GrabStoreChangeRequestTest extends TestCase
         $this->actingAs($this->user)->getJson("/grab-stores/{$this->ref->id}/change-request")
             ->assertOk()
             ->assertJsonPath('site', '15960 Ferraria Park Condo')
+            ->assertJsonPath('site_id', $ferraria->id)
             ->assertJsonPath('site_changed_from', '15895 Tampines SAFRA (Indoor)')
             ->assertJsonPath('address', '20 Flora Drive, Ferraria Park Condo')
             ->assertJsonPath('postal_code', '506889');
         $this->actingAs($this->user)->get('/grab-stores')->assertInertia(fn (AssertableInertia $page) => $page
             ->where('stores.data.0.binding.site', '15960 Ferraria Park Condo')
+            ->where('stores.data.0.binding.site_id', $ferraria->id)
             ->where('stores.data.0.binding.site_changed_from', '15895 Tampines SAFRA (Indoor)'));
         $this->assertSame(['merchant_id' => self::STORE, 'old_site' => '15895 Tampines SAFRA (Indoor)', 'waiting' => false, 'url' => '/grab-stores?codes=2338,'], $changes->siteNoticeFor($old->vend->fresh()));
 

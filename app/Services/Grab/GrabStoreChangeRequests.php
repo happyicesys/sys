@@ -56,6 +56,8 @@ class GrabStoreChangeRequests
             'merchant_id' => $ref->ref_number,
             'vend_code' => $binding?->vend_code,
             'site' => $binding?->siteName(),
+            // Grab Stores links it, so staff can check the Site's details before sending them to Grab.
+            'site_id' => $binding?->currentSite()?->id,
             'site_changed_from' => $binding?->siteChangedFrom(),
             'address' => $address ? self::addressLine($address) : null,
             'postal_code' => $address?->postcode,

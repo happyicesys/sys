@@ -6926,5 +6926,7 @@
     "Switch :ref on": "开启 :ref",
     "Switch off…": "关闭…",
     "Switch on…": "开启…",
-    "The merchant ID is the store on Grab, so it cannot be changed here.": "商户 ID 就是 Grab 上的这家店，所以这里不能更改。"
+    "The merchant ID is the store on Grab, so it cannot be changed here.": "商户 ID 就是 Grab 上的这家店，所以这里不能更改。",
+    "From the Site of machine :code:": "来自机器 :code 的点位：",
+    "Check it, and say where the machine stands (e.g. lobby, level 1).": "请核对，并注明机器所在位置（如大堂、1 楼）。"
 }

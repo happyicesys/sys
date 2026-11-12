@@ -620,6 +620,7 @@ class GrabStoreController extends Controller
                 'vend_code' => $binding->vend_code,
                 'vend' => $binding->vend?->only(['id', 'code', 'code_prefix', 'name']),
                 'site' => $binding->siteName(),
+                'site_id' => $binding->currentSite()?->id,
                 // The machine moved to another Site since the store was put on it: Grab may still show the old address.
                 'site_changed_from' => $binding->siteChangedFrom(),
                 'template_id' => $binding->delivery_product_mapping_id,

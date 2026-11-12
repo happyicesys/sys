@@ -106,7 +106,8 @@
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
                 <template v-if="store.binding">
                   <MachineIdLink :vend="store.binding.vend" :code="store.binding.vend ? null : store.binding.vend_code" />
-                  <div class="text-xs text-gray-600">{{ store.binding.site }}</div>
+                  <a v-if="store.binding.site_id" :href="`/customers/${store.binding.site_id}/edit`" target="_blank" class="block text-xs text-blue-700 hover:underline">{{ store.binding.site }}</a>
+                  <div v-else class="text-xs text-gray-600">{{ store.binding.site }}</div>
                   <div class="text-xs text-gray-500">{{ $t('Since :time', { time: formatDateTime(store.binding.since) }) }}</div>
                   <div v-if="store.binding.machine_menu" class="text-xs text-gray-400">{{ $t('Menu: what is in this machine') }}</div>
                   <div v-else class="text-xs text-gray-400">{{ $t('Old Grab menu: :template', { template: store.binding.template }) }}</div>
@@ -326,7 +327,12 @@
             <div>
               <label class="block font-medium text-gray-700">{{ $t('New address') }}</label>
               <input v-model="changeForm.address" type="text" :class="inputClass" />
-              <p class="text-xs text-gray-500 mt-1">{{ $t('From the Site of machine :code (:site). Check it, and say where the machine stands (e.g. lobby, level 1).', { code: change.draft?.vend_code ?? '—', site: change.draft?.site ?? '—' }) }}</p>
+              <p class="text-xs text-gray-500 mt-1">
+                {{ $t('From the Site of machine :code:', { code: change.draft?.vend_code ?? '—' }) }}
+                <a v-if="change.draft?.site_id" :href="`/customers/${change.draft.site_id}/edit`" target="_blank" class="font-medium text-blue-700 underline">{{ change.draft?.site }}</a>
+                <span v-else>{{ change.draft?.site ?? '—' }}</span>.
+                {{ $t('Check it, and say where the machine stands (e.g. lobby, level 1).') }}
+              </p>
               <InputError :message="changeForm.errors.address" />
             </div>
             <div class="grid grid-cols-2 gap-2">

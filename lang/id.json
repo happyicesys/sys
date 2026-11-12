@@ -6926,5 +6926,7 @@
     "Switch :ref on": "Nyalakan :ref",
     "Switch off…": "Matikan…",
     "Switch on…": "Nyalakan…",
-    "The merchant ID is the store on Grab, so it cannot be changed here.": "Merchant ID adalah toko ini di Grab, jadi tidak bisa diubah di sini."
+    "The merchant ID is the store on Grab, so it cannot be changed here.": "Merchant ID adalah toko ini di Grab, jadi tidak bisa diubah di sini.",
+    "From the Site of machine :code:": "Dari Site mesin :code:",
+    "Check it, and say where the machine stands (e.g. lobby, level 1).": "Periksa, dan sebutkan letak mesin (mis. lobi, lantai 1)."
 }
