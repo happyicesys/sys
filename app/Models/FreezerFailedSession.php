@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * A paid freezer session that ended in an error, as the machine reported it. A record only: no sale,
- * no stock, no money. `items`: [{sku, name, unit_cents, qty, channel, product_id}].
+ * no stock, no money. `items`: [{sku, name, unit_cents, qty, channel, product_id}]. `door_log` (app 57+):
+ * {first_order_at_ms, error_shown_at_ms, steps: [{t_ms, kind, try, text}]} — every door try, the host's answers
+ * and the rescue's reads, timed on the machine from the first door order (`FreezerDoorTimeline` reads it).
  */
 class FreezerFailedSession extends Model
 {
@@ -19,6 +21,7 @@ class FreezerFailedSession extends Model
     {
         return [
             'items' => 'array',
+            'door_log' => 'array',
             'is_test' => 'boolean',
             'started_at' => 'datetime',
             'ended_at' => 'datetime',

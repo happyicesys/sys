@@ -19,6 +19,7 @@ use App\Services\HappyHour\HappyHourPricing;
 use App\Services\NoteNotificationService;
 use App\Services\SmartFreezer\DoorFault;
 use App\Services\SmartFreezer\FreezerClipLinks;
+use App\Services\SmartFreezer\FreezerDoorTimeline;
 use App\Services\SmartFreezer\FreezerRecognitionService;
 use App\Services\SmartFreezer\PersonCount;
 use App\Services\SmartFreezer\RecognitionBadges;
@@ -174,6 +175,7 @@ class FreezerRecognitionController extends Controller
         $payments = app(CardPaymentService::class);
         $page->through(fn (SmartFreezerRecognition $r) => $this->row($r, $names, $cards, $purchasedProducts, $happyHour, $payments, $failedSessions) + [
             'door_error' => $this->doorError($r, $doorErrors, $failedSessions),
+            'door_timeline' => $this->doorTimeline($r, $doorErrors, $failedSessions, $cards),
             'clips' => $clips[$r->id] ?? [],
             'invoice' => $this->invoiceScan($r, $invoiceScans),
             'site' => $sites[$r->vendTransaction?->customer_id ?? $r->vend?->customer_id] ?? null,
@@ -929,7 +931,7 @@ class FreezerRecognitionController extends Controller
             ->whereIn('session_ref', $refs)
             ->whereIn('vend_id', $recognitions->pluck('vend_id')->filter()->unique())
             ->orderBy('id')
-            ->get(['id', 'vend_id', 'session_ref', 'state', 'amount_cents', 'captured_cents', 'refunded_cents', 'owed_cents', 'ai_decision', 'last_error'])
+            ->get(['id', 'vend_id', 'session_ref', 'state', 'amount_cents', 'captured_cents', 'refunded_cents', 'owed_cents', 'ai_decision', 'last_error', 'approved_at', 'voided_at'])
             ->keyBy(fn (CardPaymentIntent $i) => $i->vend_id.'|'.$i->session_ref);
         foreach ($this->holdsWithoutSession($recognitions, $failedSessions) as $key => $hold) {
             $intents[$key] ??= $hold;
@@ -1005,7 +1007,7 @@ class FreezerRecognitionController extends Controller
             ->whereIn('state', [CardPaymentIntent::STATE_APPROVED, CardPaymentIntent::STATE_VOIDED, CardPaymentIntent::STATE_VOID_FAILED])
             ->whereBetween('created_at', [$from, $to])
             ->orderBy('id')
-            ->get(['id', 'vend_id', 'session_ref', 'state', 'amount_cents', 'captured_cents', 'refunded_cents', 'owed_cents', 'payment_method', 'ai_decision', 'last_error', 'created_at', 'reference', 'provider_txn_id']);
+            ->get(['id', 'vend_id', 'session_ref', 'state', 'amount_cents', 'captured_cents', 'refunded_cents', 'owed_cents', 'payment_method', 'ai_decision', 'last_error', 'created_at', 'reference', 'provider_txn_id', 'approved_at', 'voided_at']);
         if ($holds->isEmpty()) {
             return [];
         }
@@ -1078,11 +1080,23 @@ class FreezerRecognitionController extends Controller
     }
 
     /**
+     * How the failed door went (FreezerDoorTimeline): tries, waits, the sorry page and the hold's times. Only a
+     * session the machine reported as failed has one.
+     */
+    private function doorTimeline(SmartFreezerRecognition $r, array $doorErrors, array $failedSessions, array $cards): ?array
+    {
+        $key = $r->vend_id.'|'.$r->session_ref;
+        $failed = $r->vendTransaction === null ? ($failedSessions[$key] ?? null) : null;
+
+        return $failed === null ? null : FreezerDoorTimeline::build($failed, $cards[$key] ?? null, $doorErrors[$key]['tries'] ?? null);
+    }
+
+    /**
      * Why a session's door failed, whatever it was paid with. The app files a failed door as one line naming
      * the session, and the machine's own words are the result. It files one line per 2 minutes, so a failure
      * right after another goes unlogged (50001's session 7, 2026-11-04).
      *
-     * @return array<string, array{code: string, text: string, plain: string, at: ?string}> "vend_id|session_ref" => the error
+     * @return array<string, array{code: string, text: string, plain: string, at: ?string, tries: ?int}> "vend_id|session_ref" => the error
      */
     private function doorErrors($recognitions): array
     {
@@ -1112,6 +1126,7 @@ class FreezerRecognitionController extends Controller
                     'text' => $fault['text'],
                     'plain' => DoorFault::plain($fault['code']),
                     'at' => $c->created_at?->format('H:i:s'),
+                    'tries' => $fault['tries'],
                 ]];
             })
             ->all();

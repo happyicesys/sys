@@ -1768,7 +1768,13 @@ or "Door did not complete · no error logged" when no line names it (the app's `
 so 50001's session 7, 29 s after session 6, was never filed). **Any door error shows on its session**, whatever the fault and
 with or without a hold (`doorErrors`, `DoorFault`): hover gives the meaning and the legend above the table lists every code.
 Zijia has not defined them all; lock, business, storage and power come from their documents and logs, the rest from the name. App 48+ reports each such session with its cart on `POST /api/v1/vends/{code}/sessions/{sessionRef}/failed` (`freezer_failed_sessions`, a record only: no sale, no stock, no money; rows already parked in the freezer's `sale_outbox` too, kept 90 days there). The row then lists the items, Paid = the cart's qty, AI saw / Verdict / Adjusted N/A (the AI's count stays when it did see goods), the error last, and the report's `payment_ref` picks the hold instead of the time. Below 48, or with no report yet,
-only the amount is known. T05 only; a PayNow or NETS door failure is not shown.
+only the amount is known. T05 only; a PayNow or NETS door failure is not shown. **How the door went** (Brian, 2026-11-12:
+"show how many attempts … how long … then the sorry page"; `FreezerDoorTimeline`): app 57+ sends `door` with the report
+(`freezer_failed_sessions.door_log`: every try, the host's answers, the rescue's camera reads, the sorry page, timed on the
+MACHINE from the first door order), and the row lists it as "+6.7 s Try 1 refused: …" under the door error, with the
+hold's approved / released times (mark1's clock, shown apart: 50001 runs ~2 s ahead). Before 57 the tries come from the
+app's `error:BoxVmc` line ("after N tries", none = one; that suffix hid the whole line from `DoorFault::fromLog` until
+then) and the sorry page is the report's `ended_at`, which the app writes as the page appears.
 
 **AI Recognition is the control panel** (Brian, 2026-11-03: "not only info"). **Adjust Qty** (`FreezerSaleCorrection`, the
 one writer; permission `charge ai-recognition`: superadmin, admin and, since 2026-11-07, supervisor (Brian: LiangBao runs Adjust Qty and Refund like Admin); `ai-recognition/{recognition}/correction`) lets a

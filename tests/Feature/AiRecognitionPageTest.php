@@ -564,6 +564,91 @@ class AiRecognitionPageTest extends TestCase
             );
     }
 
+    /** Brian, 2026-11-12 (50001, 19:22): app 57 reports each try, the camera reads and the sorry page, timed on the machine. */
+    public function test_a_failed_door_lists_its_tries_the_wait_and_the_sorry_page(): void
+    {
+        $ref = 'SF-50001-1793784418-6';
+        $this->sessionWithNoSale($ref);
+        $hold = $this->holdWithoutSession($this->afterStart($ref, 3), ['provider_txn_id' => 'PAY123', 'approved_at' => $this->afterStart($ref, 4), 'voided_at' => $this->afterStart($ref, 12)]);
+        $firstOrderMs = ((int) explode('-', $ref)[2] + 7) * 1000 + 560;
+        FreezerFailedSession::create([
+            'vend_id' => $this->vend->id, 'session_ref' => $ref, 'payment_method' => 'card', 'payment_ref' => 'PAY123', 'amount_cents' => 430,
+            'reason' => 'hw:lock', 'detail' => '1号门锁开锁超时(损坏,锁舌卡住)', 'ended_at' => $this->afterStart($ref, 14), 'items' => [],
+            'door_log' => [
+                'first_order_at_ms' => $firstOrderMs,
+                'error_shown_at_ms' => $firstOrderMs + 6_880,
+                'steps' => [
+                    ['t_ms' => 0, 'kind' => 'order', 'try' => 1, 'text' => $ref],
+                    ['t_ms' => 5_020, 'kind' => 'check', 'try' => 1, 'text' => 'no door yet; AI cameras recording [3] → wait'],
+                    ['t_ms' => 6_671, 'kind' => 'refused', 'try' => 1, 'text' => 'LOCK: 1号门锁开锁超时(损坏,锁舌卡住)'],
+                ],
+            ],
+        ]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.door_timeline.reported', true)
+                ->where('recognitions.data.0.door_timeline.tries', 1)
+                ->where('recognitions.data.0.door_timeline.waited', '6.9 s')
+                ->where('recognitions.data.0.door_timeline.sorry_at', Carbon::createFromTimestampMs($firstOrderMs + 6_880, config('app.timezone'))->format('H:i:s'))
+                ->where('recognitions.data.0.door_timeline.steps.0', ['offset' => '+0.0 s', 'kind' => 'order', 'text' => 'Try 1: door order sent to the host'])
+                ->where('recognitions.data.0.door_timeline.steps.1.text', 'Still shut, cameras checked: no door yet; AI cameras recording [3] → wait')
+                ->where('recognitions.data.0.door_timeline.steps.2', ['offset' => '+6.7 s', 'kind' => 'refused', 'text' => 'Try 1 refused: LOCK: 1号门锁开锁超时(损坏,锁舌卡住)'])
+                ->where('recognitions.data.0.door_timeline.steps.3', ['offset' => '+6.9 s', 'kind' => 'sorry', 'text' => 'Sorry page shown'])
+                ->where('recognitions.data.0.door_timeline.card_approved_at', Carbon::parse($this->afterStart($ref, 4))->format('H:i:s'))
+                ->where('recognitions.data.0.door_timeline.card_released_at', Carbon::parse($this->afterStart($ref, 12))->format('H:i:s'))
+            );
+        $this->assertSame(CardPaymentIntent::STATE_VOIDED, $hold->state);
+    }
+
+    /** Before app 57: the tries come from the app's own line ("after N tries", none = one), the sorry page is the report's end. */
+    public function test_an_older_report_still_says_the_tries_and_the_sorry_page(): void
+    {
+        $once = 'SF-50001-1793784418-6';
+        $thrice = 'SF-50001-1793784450-7';
+        $silent = 'SF-50001-1793784551-8';
+        foreach ([$once, $thrice, $silent] as $ref) {
+            $this->sessionWithNoSale($ref);
+            FreezerFailedSession::create([
+                'vend_id' => $this->vend->id, 'session_ref' => $ref, 'payment_method' => 'card', 'amount_cents' => 430,
+                'reason' => 'hw:lock', 'detail' => '1号门锁开锁超时(损坏,锁舌卡住)', 'ended_at' => $this->afterStart($ref, 20), 'items' => [],
+            ]);
+        }
+        foreach ([
+            ['01KA0000000000000000000011', "Door refused for {$once}: LOCK (1号门锁开锁超时(损坏,锁舌卡住))", $once],
+            ['01KA0000000000000000000012', "Door refused for {$thrice} after 3 tries: LOCK (1号门锁开锁超时(损坏,锁舌卡住))", $thrice],
+        ] as [$cmdId, $line, $ref]) {
+            FreezerControlCommand::forceCreate([
+                'vend_id' => $this->vend->id, 'cmd_id' => $cmdId, 'op' => 'error:BoxVmc', 'status' => 'ok', 'source' => 'event',
+                'response_msg' => $line, 'created_at' => $this->afterStart($ref, 19),
+            ]);
+        }
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.session_ref', $silent)
+                ->where('recognitions.data.0.door_timeline.reported', false)
+                ->where('recognitions.data.0.door_timeline.tries', null)
+                ->where('recognitions.data.0.door_timeline.waited', null)
+                ->where('recognitions.data.0.door_timeline.steps', [])
+                ->where('recognitions.data.0.door_timeline.sorry_at', Carbon::parse($this->afterStart($silent, 20))->format('H:i:s'))
+                ->where('recognitions.data.1.door_timeline.tries', 3)
+                // "after 3 tries" used to hide the whole line: the error is read now too.
+                ->where('recognitions.data.1.door_error.code', 'LOCK')
+                ->where('recognitions.data.1.door_error.text', '1号门锁开锁超时(损坏,锁舌卡住)')
+                ->where('recognitions.data.2.door_timeline.tries', 1)
+            );
+    }
+
+    /** Only a session the machine reported as failed has a door timeline. */
+    public function test_a_session_not_reported_as_failed_has_no_door_timeline(): void
+    {
+        $this->recognition();
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('recognitions.data.0.door_timeline', null));
+    }
+
     /** Session 7, 2026-11-04: the app dropped the log line, its saved record says only door_open_failed. */
     public function test_a_report_without_the_machines_words_shows_the_apps_fault_code(): void
     {

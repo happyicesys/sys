@@ -78,6 +78,15 @@ class FreezerOrderController extends Controller
             'items.*.qty' => ['required', 'integer', 'min:1'],
             'items.*.channel' => ['nullable', 'string', 'max:16'],
             'items.*.product_id' => ['nullable', 'integer', 'min:1'],
+            // App 57+: the door timeline (FreezerDoorTimeline). Optional, so older apps are unchanged.
+            'door' => ['nullable', 'array'],
+            'door.first_order_at_ms' => ['nullable', 'integer', 'min:0'],
+            'door.error_shown_at_ms' => ['nullable', 'integer', 'min:0'],
+            'door.steps' => ['nullable', 'array', 'max:40'],
+            'door.steps.*.t_ms' => ['required', 'integer', 'min:0'],
+            'door.steps.*.kind' => ['required', 'string', 'max:20'],
+            'door.steps.*.try' => ['nullable', 'integer', 'min:0', 'max:99'],
+            'door.steps.*.text' => ['nullable', 'string', 'max:160'],
         ]);
         if ($validator->fails()) {
             return response()->json(['status' => 'refused', 'error' => $validator->errors()->first()], 422);
@@ -95,6 +104,16 @@ class FreezerOrderController extends Controller
                 'reason' => $data['reason'],
                 'detail' => $data['detail'] ?? null,
                 'items' => $data['items'],
+                'door_log' => isset($data['door']) ? [
+                    'first_order_at_ms' => $data['door']['first_order_at_ms'] ?? null,
+                    'error_shown_at_ms' => $data['door']['error_shown_at_ms'] ?? null,
+                    'steps' => array_map(fn (array $step) => [
+                        't_ms' => (int) $step['t_ms'],
+                        'kind' => (string) $step['kind'],
+                        'try' => (int) ($step['try'] ?? 0),
+                        'text' => (string) ($step['text'] ?? ''),
+                    ], array_values($data['door']['steps'] ?? [])),
+                ] : null,
                 'is_test' => (bool) ($data['test'] ?? false),
                 'started_at' => $at($data['started_at'] ?? null),
                 'ended_at' => $at($data['ended_at'] ?? null),

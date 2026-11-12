@@ -76,6 +76,38 @@ class FreezerFailedSessionTest extends TestCase
         $this->assertSame(0, VendTransaction::withoutGlobalScopes()->count());
     }
 
+    /** App 57+: the door timeline rides the report; older apps send none and are unchanged. */
+    public function test_the_door_timeline_is_kept_with_the_report(): void
+    {
+        $door = [
+            'first_order_at_ms' => 1794482551560,
+            'error_shown_at_ms' => 1794482558440,
+            'steps' => [
+                ['t_ms' => 0, 'kind' => 'order', 'try' => 1, 'text' => self::REF],
+                ['t_ms' => 6671, 'kind' => 'refused', 'try' => 1, 'text' => 'LOCK: 1号门锁开锁超时(损坏,锁舌卡住)'],
+            ],
+        ];
+        $this->report(['door' => $door])->assertStatus(201);
+
+        // MySQL keeps JSON keys in its own order; the content is what matters.
+        $this->assertEquals($door, FreezerFailedSession::sole()->door_log);
+    }
+
+    public function test_a_report_without_a_door_timeline_stores_none(): void
+    {
+        $this->report()->assertStatus(201);
+
+        $this->assertNull(FreezerFailedSession::sole()->door_log);
+    }
+
+    public function test_a_runaway_door_timeline_is_refused_for_good(): void
+    {
+        $steps = array_fill(0, 41, ['t_ms' => 0, 'kind' => 'check', 'try' => 1, 'text' => 'x']);
+
+        $this->report(['door' => ['steps' => $steps]])->assertStatus(422);
+        $this->assertSame(0, FreezerFailedSession::count());
+    }
+
     public function test_a_repeat_answers_ok_and_the_first_report_stands(): void
     {
         $this->report()->assertStatus(201);

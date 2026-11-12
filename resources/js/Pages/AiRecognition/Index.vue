@@ -534,6 +534,26 @@
                       <!-- The code is in the legend above the table; the rest is the machine's own words. -->
                       <span v-if="row.door_error" class="cursor-help rounded border border-red-200 bg-red-50 px-1.5 py-1 font-semibold text-red-800" tabindex="0" v-tooltip="row.door_error.plain">{{ $t('Door error :time', { time: row.door_error.at }) }}: <span class="font-mono">{{ row.door_error.code }}</span><template v-if="row.door_error.text"> — {{ row.door_error.text }}</template></span>
                       <span v-else class="cursor-help text-amber-700" tabindex="0" v-tooltip="$t('The app files one door error every 2 minutes, so a failure soon after another is not logged.')">{{ $t('Door did not complete · no error logged') }}</span>
+                      <!-- How the failed door went (Brian, 2026-11-12): tries, how long the customer waited, the sorry page. App 57+ reports every step on the machine's clock; older apps only the tries their error line names. -->
+                      <div v-if="row.door_timeline" class="rounded border border-gray-200 bg-gray-50 px-1.5 py-1 text-gray-700">
+                        <div class="flex flex-wrap gap-x-2 font-semibold text-gray-900">
+                          <span v-if="row.door_timeline.tries">{{ $tc('Door tried :count time|Door tried :count times', row.door_timeline.tries) }}</span>
+                          <span v-else class="cursor-help text-gray-500" tabindex="0" v-tooltip="$t('The app did not report its door tries. Freezer app 57 and later reports every try.')">{{ $t('Door tries not reported') }}</span>
+                          <span v-if="row.door_timeline.waited">· {{ $t('customer waited :seconds', { seconds: row.door_timeline.waited }) }}</span>
+                          <span v-if="row.door_timeline.sorry_at">· {{ $t('sorry page :time', { time: row.door_timeline.sorry_at }) }}</span>
+                        </div>
+                        <ol v-if="row.door_timeline.steps.length" class="mt-0.5 space-y-0.5" :aria-label="$t('Door steps, timed from the first door order')">
+                          <li v-for="(step, i) in row.door_timeline.steps" :key="i" class="flex gap-2"
+                            :class="{ 'text-red-700': ['refused', 'not_delivered', 'unlock_failed', 'gave_up'].includes(step.kind), 'font-semibold': step.kind === 'sorry' }">
+                            <span class="w-12 flex-none text-right font-mono tabular-nums text-gray-500">{{ step.offset }}</span>
+                            <span>{{ step.text }}</span>
+                          </li>
+                        </ol>
+                        <div v-if="row.door_timeline.card_approved_at || row.door_timeline.card_released_at" class="mt-0.5 cursor-help text-gray-500" tabindex="0" v-tooltip="$t('Card times are on the ConnectVend clock; the door steps are on the machine clock, which can be a few seconds apart.')">
+                          <span v-if="row.door_timeline.card_approved_at">{{ $t('Card approved :time', { time: row.door_timeline.card_approved_at }) }}</span>
+                          <span v-if="row.door_timeline.card_released_at"> · {{ $t('hold released :time', { time: row.door_timeline.card_released_at }) }}</span>
+                        </div>
+                      </div>
                     </div>
                     <!-- A person's count sits beside the AI's verdict, which is never overwritten. -->
                     <!-- A count equal to the AI's confirms it: white, so the row never reads as the AI being wrong (Brian, 2026-11-12). -->

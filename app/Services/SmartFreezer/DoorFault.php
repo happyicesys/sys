@@ -16,14 +16,21 @@ final class DoorFault
 
     public const CODES = ['LOCK', 'DOOR', 'CAMERA', 'STORAGE', 'POWER', 'MACHINE', 'BUSINESS', 'SHOPLOCK', 'EXCEPTION', 'UNKNOWN', self::NOT_DELIVERED, 'DOOR_OPEN_FAILED', 'DOOR_OPEN_TIMEOUT', 'UNLOCK_AUTHORIZATION_FAILED'];
 
-    /** @return array{session_ref: string, code: string, text: string}|null */
+    /**
+     * "after N tries" (app 54+) is there only when the lock was tried again; a refusal without it was one try. A
+     * "never reached host" line names the try's own order (`<ref>R<n>`), so it is read back to the sale's ref.
+     *
+     * @return array{session_ref: string, code: string, text: string, tries: ?int}|null
+     */
     public static function fromLog(string $line): ?array
     {
-        if (preg_match('/^Door refused for (\S+): (\S+) \((.*)\)$/s', $line, $m)) {
-            return ['session_ref' => $m[1], 'code' => $m[2], 'text' => $m[3]];
+        if (preg_match('/^Door refused for (\S+?)(?: after (\d+) tries)?: (\S+) \((.*)\)$/s', $line, $m)) {
+            return ['session_ref' => $m[1], 'code' => $m[3], 'text' => $m[4], 'tries' => $m[2] !== '' ? (int) $m[2] : 1];
         }
         if (preg_match('/^Door call never reached host for (\S+): (.*)$/s', $line, $m)) {
-            return ['session_ref' => $m[1], 'code' => self::NOT_DELIVERED, 'text' => $m[2]];
+            $try = preg_match('/^(SF-.+-\d+)R(\d+)$/', $m[1], $t) ? [$t[1], (int) $t[2]] : [$m[1], 1];
+
+            return ['session_ref' => $try[0], 'code' => self::NOT_DELIVERED, 'text' => $m[2], 'tries' => $try[1]];
         }
 
         return null;
