@@ -41,6 +41,9 @@ class DeliveryPlatformStoreEvent extends Model
 
     const EVENT_GRAB_CHANGE_DONE = 'grab_change_done';
 
+    // The GrabMerchant website's Store profile read (GrabStoreProfiles): name or address on Grab changed.
+    const EVENT_GRAB_PROFILE = 'grab_profile';
+
     protected $fillable = [
         'data',
         'delivery_platform_ref_number_id',

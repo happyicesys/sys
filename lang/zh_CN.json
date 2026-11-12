@@ -6928,5 +6928,12 @@
     "Switch on…": "开启…",
     "The merchant ID is the store on Grab, so it cannot be changed here.": "商户 ID 就是 Grab 上的这家店，所以这里不能更改。",
     "From the Site of machine :code:": "来自机器 :code 的点位：",
-    "Check it, and say where the machine stands (e.g. lobby, level 1).": "请核对，并注明机器所在位置（如大堂、1 楼）。"
+    "Check it, and say where the machine stands (e.g. lobby, level 1).": "请核对，并注明机器所在位置（如大堂、1 楼）。",
+    "Grab shows postal code :grab, this Site is :site: customers may see the wrong address.": "Grab 显示的邮编是 :grab，此点位是 :site：顾客可能看到错误的地址。",
+    "Grab shows the new address (GrabMerchant check).": "Grab 已显示新地址（GrabMerchant 核对）。",
+    "Names and addresses on Grab not read yet": "尚未读取 Grab 上的店名和地址",
+    "Names and addresses on Grab read :time from the GrabMerchant website": "Grab 上的店名和地址于 :time 从 GrabMerchant 网站读取",
+    "Read from the GrabMerchant website :time": ":time 从 GrabMerchant 网站读取",
+    "Seen on Grab": "Grab 上显示",
+    "new Site confirmed": "新点位已确认"
 }

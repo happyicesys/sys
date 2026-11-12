@@ -6928,5 +6928,12 @@
     "Switch on…": "Nyalakan…",
     "The merchant ID is the store on Grab, so it cannot be changed here.": "Merchant ID adalah toko ini di Grab, jadi tidak bisa diubah di sini.",
     "From the Site of machine :code:": "Dari Site mesin :code:",
-    "Check it, and say where the machine stands (e.g. lobby, level 1).": "Periksa, dan sebutkan letak mesin (mis. lobi, lantai 1)."
+    "Check it, and say where the machine stands (e.g. lobby, level 1).": "Periksa, dan sebutkan letak mesin (mis. lobi, lantai 1).",
+    "Grab shows postal code :grab, this Site is :site: customers may see the wrong address.": "Grab menampilkan kode pos :grab, Site ini :site: pelanggan mungkin melihat alamat yang salah.",
+    "Grab shows the new address (GrabMerchant check).": "Grab sudah menampilkan alamat baru (cek GrabMerchant).",
+    "Names and addresses on Grab not read yet": "Nama dan alamat di Grab belum dibaca",
+    "Names and addresses on Grab read :time from the GrabMerchant website": "Nama dan alamat di Grab dibaca :time dari situs GrabMerchant",
+    "Read from the GrabMerchant website :time": "Dibaca dari situs GrabMerchant :time",
+    "Seen on Grab": "Terlihat di Grab",
+    "new Site confirmed": "Site baru dikonfirmasi"
 }

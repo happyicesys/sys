@@ -67,6 +67,9 @@
             <p class="text-sm text-gray-700">
               {{ $t('Showing :from to :to of :total results', { from: stores.meta.from ?? 0, to: stores.meta.to ?? 0, total: stores.meta.total }) }}
             </p>
+            <p class="text-xs text-gray-500">
+              {{ grabProfilesCheckedAt ? $t('Names and addresses on Grab read :time from the GrabMerchant website', { time: formatDateTime(grabProfilesCheckedAt) }) : $t('Names and addresses on Grab not read yet') }}
+            </p>
             <p class="text-sm text-gray-700">
               {{ $t('Grab sales of these stores: :week last 7 days · :month last 30 days', { week: money(salesTotals?.sales_7d), month: money(salesTotals?.sales_30d) }) }}
             </p>
@@ -102,6 +105,15 @@
                 <div class="font-mono whitespace-nowrap">{{ store.ref_number }}</div>
                 <div class="text-xs text-gray-500">{{ store.operator?.code }}</div>
                 <div v-if="store.remarks" class="text-xs text-gray-500 whitespace-pre-wrap">{{ store.remarks }}</div>
+                <!-- What customers see on Grab: the daily GrabMerchant website read. -->
+                <div v-if="store.grab_profile" class="mt-1 max-w-xs text-xs text-gray-600" :title="$t('Read from the GrabMerchant website :time', { time: formatDateTime(store.grab_profile.checked_at) })">
+                  <div class="font-medium">{{ store.grab_profile.name }}</div>
+                  <div :class="store.grab_profile.match === false ? 'text-red-700' : ''">
+                    <CheckCircleIcon v-if="store.grab_profile.match" class="inline h-3.5 w-3.5 text-green-600 -mt-0.5" />
+                    {{ store.grab_profile.address }}
+                  </div>
+                  <div v-if="store.grab_profile.hours" class="text-gray-500">{{ store.grab_profile.hours }}</div>
+                </div>
               </TableData>
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
                 <template v-if="store.binding">
@@ -126,7 +138,11 @@
                     @click="closeLeftover(store, other)"
                   >{{ $t('Take it off :code', { code: other.vend_code }) }}</button>
                 </div>
-                <div v-if="store.binding?.site_changed_from && !store.grab_change" class="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                <div v-if="store.binding && store.grab_profile?.match === false" class="mt-1 rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-800">
+                  {{ $t('Grab shows postal code :grab, this Site is :site: customers may see the wrong address.', { grab: store.grab_profile.postal_code, site: store.grab_profile.site_postal_code }) }}
+                  <button v-if="canUpdate && store.can_ask_grab && !store.grab_change" type="button" class="ml-1 underline font-medium" @click="openChange(store)">{{ $t('Update on Grab…') }}</button>
+                </div>
+                <div v-else-if="store.binding?.site_changed_from && !store.grab_change && store.grab_profile?.match !== true" class="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800">
                   {{ $t('Site changed (was :site): Grab may still show the old address.', { site: store.binding.site_changed_from }) }}
                   <button v-if="canUpdate && store.can_ask_grab" type="button" class="ml-1 underline font-medium" @click="openChange(store)">{{ $t('Update on Grab…') }}</button>
                 </div>
@@ -687,7 +703,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHead from '@/Components/TableHead.vue';
 import {
-  ArrowsRightLeftIcon, ClockIcon, EyeIcon, MagnifyingGlassIcon, PaperAirplaneIcon, PauseIcon, PencilSquareIcon, PlayIcon, PlusCircleIcon, PlusIcon, PowerIcon, XCircleIcon,
+  ArrowsRightLeftIcon, CheckCircleIcon, ClockIcon, EyeIcon, MagnifyingGlassIcon, PaperAirplaneIcon, PauseIcon, PencilSquareIcon, PlayIcon, PlusCircleIcon, PlusIcon, PowerIcon, XCircleIcon,
 } from '@heroicons/vue/20/solid';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -703,6 +719,7 @@ const props = defineProps({
   unbindReasons: Object,
   canUpdate: Boolean,
   salesTotals: Object,
+  grabProfilesCheckedAt: { type: String, default: null },
   rpTypes: { type: Array, default: () => [] },
   roundUpSteps: { type: Array, default: () => [10, 100] },
 })
@@ -765,6 +782,7 @@ const eventNames = {
   price_rule: t('Price rule changed'),
   grab_change_requested: t('Asked Grab to update'),
   grab_change_done: t('Grab update done'),
+  grab_profile: t('Seen on Grab'),
 }
 const menuReasons = {
   no_rp: t('No RP price (Grab Menu & Prices)'),
@@ -1146,6 +1164,13 @@ function eventText(event) {
     }
     const note = event.data?.note ? ` (“${event.data.note}”)` : ''
     return `${name}: ${t('own rule')}${note}`
+  }
+  if (event.event === 'grab_profile') {
+    const parts = []
+    if (event.data?.name) parts.push(event.data.name.to ?? '—')
+    if (event.data?.address) parts.push(event.data.address.to ?? '—')
+    if (event.data?.site) parts.push(t('new Site confirmed'))
+    return `${name}: ${parts.join(' · ')}`
   }
   if (event.event === 'renamed') {
     return `${name}: ${event.data?.from ?? ''} → ${event.data?.to ?? ''}`

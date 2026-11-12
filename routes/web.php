@@ -498,6 +498,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
             Route::post('/bindings/{bindingId}/resume', [GrabStoreController::class, 'resume'])->name('grab-stores.resume');
             Route::post('/{id}/change-request', [GrabStoreController::class, 'changeRequested'])->name('grab-stores.change-requested');
             Route::post('/{id}/change-request/done', [GrabStoreController::class, 'changeDone'])->name('grab-stores.change-done');
+            Route::post('/grab-profiles', [GrabStoreController::class, 'importProfiles'])->name('grab-stores.grab-profiles');
         });
     });
 

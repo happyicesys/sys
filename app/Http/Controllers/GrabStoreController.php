@@ -17,6 +17,7 @@ use App\Models\Vend;
 use App\Services\DeliveryPlatformService;
 use App\Services\DeliveryProductMappingService;
 use App\Services\Grab\GrabStoreChangeRequests;
+use App\Services\Grab\GrabStoreProfiles;
 use App\Services\Grab\GrabStoreSetup;
 use App\Services\Grab\Menu\GrabMachineMenu;
 use App\Services\Grab\Menu\MachineMenuLine;
@@ -74,7 +75,9 @@ class GrabStoreController extends Controller
                 'openDeliveryProductMappingVends' => fn ($query) => $query->withoutGlobalScopes()->with([
                     'vend:id,code,code_prefix,name,customer_id',
                     // An open link's Site is its machine's current one (DeliveryProductMappingVend::currentSite).
-                    'vend.customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code'),
+                    'vend.customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code')
+                        // Its postal code against Grab's (GrabStoreProfiles).
+                        ->with('deliveryAddress:id,modelable_id,modelable_type,type,postcode'),
                     'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                     'deliveryProductMapping:id,name,product_mapping_id',
                 ]),
@@ -143,6 +146,8 @@ class GrabStoreController extends Controller
                 'meta' => ['from' => $refs->firstItem(), 'to' => $refs->lastItem(), 'total' => $refs->total()],
             ],
             'totals' => $totals,
+            // The daily GrabMerchant website read: when it last ran for these operators' stores.
+            'grabProfilesCheckedAt' => DeliveryPlatformRefNumber::query()->whereIn('operator_id', $operatorIds)->max('grab_profile_checked_at'),
             'salesTotals' => [
                 'sales_7d' => (int) $salesTotals->sales_7d,
                 'sales_30d' => (int) $salesTotals->sales_30d,
@@ -306,6 +311,30 @@ class GrabStoreController extends Controller
         );
 
         return back()->with('success', __('Grab store :ref saved.', ['ref' => $ref->ref_number]));
+    }
+
+    /**
+     * The GrabMerchant website's Store profile pages, read once a day in a signed-in browser (the scheduled
+     * "Grab store address check"): name, address and hours as customers see them on Grab. JSON in, JSON out.
+     */
+    public function importProfiles(Request $request, GrabStoreProfiles $profiles)
+    {
+        $validated = $request->validate([
+            'stores' => ['required', 'array', 'max:500'],
+            'stores.*.merchant_id' => ['nullable', 'string', 'max:64'],
+            'stores.*.text' => ['nullable', 'string', 'max:20000'],
+            'stores.*.name' => ['nullable', 'string', 'max:500'],
+            'stores.*.address' => ['nullable', 'string', 'max:1000'],
+            'stores.*.hours' => ['nullable', 'string', 'max:500'],
+            'checked_at' => ['nullable', 'date'],
+        ]);
+
+        return response()->json($profiles->import(
+            $validated['stores'],
+            GrabStoreVisibility::operatorIds(),
+            auth()->id(),
+            isset($validated['checked_at']) ? Carbon::parse($validated['checked_at']) : null,
+        ));
     }
 
     /**
@@ -631,6 +660,16 @@ class GrabStoreController extends Controller
                 'is_active' => (bool) $binding->is_active,
                 'paused_until' => $binding->paused_until?->toIso8601String(),
                 'pause_reason' => $binding->pause_reason,
+            ] : null,
+            // What customers see on Grab, from the daily GrabMerchant website read, and whether its postal code is the Site's.
+            'grab_profile' => $ref->grab_profile_checked_at ? [
+                'name' => $ref->grab_store_name,
+                'address' => $ref->grab_address,
+                'postal_code' => $ref->grab_postal_code,
+                'hours' => $ref->grab_hours,
+                'checked_at' => $ref->grab_profile_checked_at->toIso8601String(),
+                'site_postal_code' => GrabStoreProfiles::sitePostalCode($binding),
+                'match' => GrabStoreProfiles::matches($ref->grab_postal_code, $binding),
             ] : null,
             // The 2658 case: one store still open on a second machine.
             'other_open_bindings' => $open->slice(1)->map(fn ($other) => [

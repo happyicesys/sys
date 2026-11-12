@@ -20,11 +20,17 @@ class DeliveryPlatformRefNumber extends Model
 
     protected $casts = [
         'menu_from_machine_at' => 'datetime',
+        'grab_profile_checked_at' => 'datetime',
     ];
 
     protected $fillable = [
         'created_at',
         'delivery_platform_id',
+        'grab_address',
+        'grab_hours',
+        'grab_postal_code',
+        'grab_profile_checked_at',
+        'grab_store_name',
         'menu_from_machine_at',
         'operator_id',
         'ref_number',
