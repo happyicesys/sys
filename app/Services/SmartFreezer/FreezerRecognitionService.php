@@ -9,6 +9,7 @@ use App\Models\SmartFreezerRecognition;
 use App\Models\SmartFreezerVideo;
 use App\Models\Vend;
 use App\Models\VendChannel;
+use App\Services\SmartFreezer\Claude\ClaudeShadowRecognitionService;
 use App\Services\SmartFreezer\Zijia\RecognitionRequest;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use App\Services\SmartFreezer\Zijia\ZijiaAlgorithmClient;
@@ -38,6 +39,7 @@ class FreezerRecognitionService
     public function __construct(
         private readonly ZijiaAlgorithmClient $client,
         private readonly FreezerSaleLocator $sales,
+        private readonly ClaudeShadowRecognitionService $claude,
     ) {}
 
     /**
@@ -95,6 +97,9 @@ class FreezerRecognitionService
 
         $recognition->status_reason = $this->blocker($recognition);
         $recognition->save();
+
+        // Claude counts the same session beside Zijia, shadow only; never throws, never holds Zijia's check.
+        $this->claude->schedule($recognition);
 
         if ($recognition->status_reason === null && config('smart_freezer.zijia.algorithm.auto_submit')) {
             // One job per push; the job waits for the session to go quiet, and the claim in

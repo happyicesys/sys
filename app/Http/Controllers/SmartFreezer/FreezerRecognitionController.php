@@ -10,6 +10,7 @@ use App\Models\FreezerControlCommand;
 use App\Models\FreezerFailedSession;
 use App\Models\Product;
 use App\Models\Scopes\OperatorVendFilterScope;
+use App\Models\SmartFreezerClaudeRecognition;
 use App\Models\SmartFreezerRecognition;
 use App\Models\Vend;
 use App\Models\VendTransaction;
@@ -17,6 +18,8 @@ use App\Services\CardTerminal\CardPaymentService;
 use App\Services\Freezer\FreezerSaleCorrection;
 use App\Services\HappyHour\HappyHourPricing;
 use App\Services\NoteNotificationService;
+use App\Services\SmartFreezer\Claude\ClaudeShadowRecognitionService;
+use App\Services\SmartFreezer\Claude\ClaudeZijiaComparison;
 use App\Services\SmartFreezer\DoorFault;
 use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\FreezerDoorTimeline;
@@ -163,6 +166,7 @@ class FreezerRecognitionController extends Controller
         $purchasedProducts = $this->purchasedProducts($page->getCollection(), $failedSessions);
         $sites = $this->sites($page->getCollection());
         $invoiceScans = $this->invoiceScans($page->getCollection());
+        $claude = $this->claudeRows($page->getCollection());
         $happyHour = CampaignLabelFilter::happyHourLabels($page->getCollection()->map(fn (SmartFreezerRecognition $r) => $r->vendTransaction)->filter()
             ->flatMap(fn (VendTransaction $sale) => $sale->vendTransactionItems->pluck('happy_hour_slot_id')->push($sale->happy_hour_slot_id)));
 
@@ -179,6 +183,7 @@ class FreezerRecognitionController extends Controller
             'clips' => $clips[$r->id] ?? [],
             'invoice' => $this->invoiceScan($r, $invoiceScans),
             'site' => $sites[$r->vendTransaction?->customer_id ?? $r->vend?->customer_id] ?? null,
+            'claude' => $this->claudeOf($r, $claude),
         ]);
 
         return Inertia::render('AiRecognition/Index', [
@@ -288,6 +293,62 @@ class FreezerRecognitionController extends Controller
             'invoice_scanned' => $invoiceScanned,
             'invoice_scanned_pct' => $invoiceSales > 0 ? round($invoiceScanned / $invoiceSales * 100, 2) : null,
             'invoice_final_seen' => $invoiceFinalSeen,
+            // Claude beside Zijia on the same sessions (shadow only); null until any session has a Claude row.
+            'claude' => ($claude = SmartFreezerClaudeRecognition::with('recognition')->whereIn('smart_freezer_recognition_id', $rows->pluck('id'))->get())->isEmpty()
+                ? null
+                : ClaudeZijiaComparison::summarise($claude),
+        ];
+    }
+
+    /**
+     * This page's Claude rows, with the names of every product they saw.
+     *
+     * @return array{rows: array<int, SmartFreezerClaudeRecognition>, names: array<int, string>}
+     */
+    private function claudeRows($recognitions): array
+    {
+        $rows = SmartFreezerClaudeRecognition::whereIn('smart_freezer_recognition_id', $recognitions->pluck('id'))->get()
+            ->keyBy('smart_freezer_recognition_id')->all();
+        $ids = collect($rows)->flatMap(fn (SmartFreezerClaudeRecognition $c) => array_keys((array) $c->items))->unique()->values();
+
+        return [
+            'rows' => $rows,
+            'names' => $ids->isEmpty() ? [] : Product::withoutGlobalScopes()->whereIn('id', $ids)->pluck('name', 'id')->all(),
+        ];
+    }
+
+    /**
+     * Claude's count of this session beside Zijia's and a person's (shadow only: it decides nothing).
+     *
+     * @param  array{rows: array<int, SmartFreezerClaudeRecognition>, names: array<int, string>}  $claude
+     */
+    private function claudeOf(SmartFreezerRecognition $r, array $claude): ?array
+    {
+        $row = $claude['rows'][$r->id] ?? null;
+        if ($row === null) {
+            return null;
+        }
+        $counts = ClaudeShadowRecognitionService::counts($row, $r, (array) $r->vendTransaction?->meta_json);
+        $same = fn (?array $other) => $counts['claude'] === null || $other === null ? null : ClaudeZijiaComparison::same($counts['claude'], $other);
+
+        return [
+            'status' => $row->status,
+            'reason' => $row->status_reason,
+            'items' => collect((array) $row->items)->map(fn ($n, $id) => [
+                'product_id' => (int) $id,
+                'name' => $claude['names'][(int) $id] ?? __('product :id', ['id' => $id]),
+                'number' => (int) $n,
+            ])->values()->all(),
+            'unknown' => array_values((array) (($row->answer ?? [])['unknown_items'] ?? [])),
+            'verdict' => $row->verdict,
+            'same_as_zijia' => $same($counts['zijia']),
+            'same_as_person' => $same($counts['person']),
+            'confidence' => $row->confidence,
+            'needs_review' => $row->needs_review,
+            'notes' => ($row->answer ?? [])['notes'] ?? null,
+            'model' => $row->model,
+            'seconds' => $row->duration_ms !== null ? (int) round($row->duration_ms / 1000) : null,
+            'cost_sgd' => $row->costSgdCents() === null ? null : number_format($row->costSgdCents() / 100, 2),
         ];
     }
 

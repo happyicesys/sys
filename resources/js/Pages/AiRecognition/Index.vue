@@ -132,7 +132,7 @@
         </div>
 
         <!-- Totals over everything the filters list. Each session lands in one outcome and its units in one count. -->
-        <dl class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
+        <dl :class="['mt-4 grid grid-cols-1 gap-2 text-sm', dashboard.claude ? 'md:grid-cols-5' : 'md:grid-cols-4']">
           <div class="overflow-hidden rounded-lg bg-gray-100 px-4 py-3 shadow">
             <p class="text-base font-bold text-gray-800">{{ $t('Total Sales $') }}</p>
             <div class="mt-1 flex justify-between gap-2">
@@ -208,6 +208,32 @@
             <div class="mt-1 flex justify-between gap-2 border-t border-gray-300 pt-1">
               <dt tabindex="0" v-tooltip="$t('Paid sales from freezer app 41 on. Testing Mode sales are left out.')">{{ $t('Paid sales') }}:</dt>
               <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.invoice_sales.toLocaleString() }}</dd>
+            </div>
+          </div>
+          <!-- Claude counts the same sessions beside Zijia, as a trial: it decides nothing (Brian, 2026-11-13). -->
+          <div v-if="dashboard.claude" class="overflow-hidden rounded-lg bg-violet-50 px-4 py-3 shadow">
+            <p class="text-base font-bold text-violet-900" tabindex="0" v-tooltip="$t('Claude counts the same videos as a trial, to compare with Zijia. It never charges, refunds or moves stock.')">{{ $t('Claude vs Zijia (trial)') }}</p>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Sessions where the count equals what was paid for.')">{{ $t('Matches paid') }}:</dt>
+              <dd class="text-right tabular-nums text-gray-900">
+                <span class="font-semibold">{{ pctText(dashboard.claude.claude_match_paid_pct) }}</span>
+                <span class="text-xs text-gray-500"> · {{ $t('Zijia :pct', { pct: pctText(dashboard.claude.zijia_match_paid_pct) }) }}</span>
+              </dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Sessions a person counted with Adjust Qty, where the AI gave the same count. The person is taken as right.')">{{ $t('Right by a person') }}:</dt>
+              <dd class="text-right tabular-nums text-gray-900">
+                <span class="font-semibold">{{ dashboard.claude.claude_right }}/{{ dashboard.claude.person_counted }}</span>
+                <span class="text-xs text-gray-500"> · {{ $t('Zijia :n', { n: dashboard.claude.zijia_right + '/' + dashboard.claude.zijia_person_counted }) }}</span>
+              </dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Sessions both answered with the same products and units.')">{{ $t('Same count') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.claude.agree }}/{{ dashboard.claude.both_answered }}</dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2 border-t border-violet-200 pt-1">
+              <dt tabindex="0" v-tooltip="$t('What the Claude calls cost, in Singapore dollars at the rate in the settings.')">{{ $t('Claude cost') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">S${{ dashboard.claude.cost_sgd.toFixed(2) }}</dd>
             </div>
           </div>
         </dl>
@@ -563,6 +589,28 @@
                       <span v-else class="flex items-center gap-1 font-semibold"><PencilSquareIcon class="h-4 w-4 flex-none" aria-hidden="true" />{{ $t('Adjusted by :name', { name: row.correction.by }) }}</span>
                       <span class="whitespace-nowrap">{{ row.correction.at }}</span>
                     </div>
+                    <!-- Claude's count of the same videos, a trial beside Zijia's: it decides nothing (Brian, 2026-11-13). -->
+                    <div v-if="row.claude" class="mt-1 w-[24rem] rounded border border-violet-200 bg-violet-50 px-1.5 py-1 text-xs text-violet-900">
+                      <div class="flex flex-wrap items-center gap-x-2">
+                        <span class="font-semibold" tabindex="0" v-tooltip="$t('Claude counts the same videos as a trial, to compare with Zijia. It never charges, refunds or moves stock.')">{{ $t('Claude saw') }}:</span>
+                        <template v-if="row.claude.status === 'done'">
+                          <span v-for="item in row.claude.items" :key="item.product_id">{{ item.number }} × {{ item.name }}</span>
+                          <span v-for="(item, i) in row.claude.unknown" :key="'u' + i" class="text-amber-800">{{ item.taken }} × {{ item.description }}</span>
+                          <span v-if="!row.claude.items.length && !row.claude.unknown.length">{{ $t('Nothing taken') }}</span>
+                        </template>
+                        <span v-else-if="row.claude.status === 'pending' || row.claude.status === 'running'" class="text-gray-500">{{ $t('counting…') }}</span>
+                        <span v-else class="cursor-help text-gray-500" tabindex="0" v-tooltip="row.claude.reason || ''">{{ row.claude.status === 'skipped' ? $t('not sent') : $t('failed') }}</span>
+                      </div>
+                      <div v-if="row.claude.status === 'done'" class="mt-0.5 flex flex-wrap items-center gap-x-2 text-violet-800">
+                        <span v-if="row.claude.same_as_zijia === true" class="font-semibold text-green-700">{{ $t('Same as Zijia') }}</span>
+                        <span v-else-if="row.claude.same_as_zijia === false" class="font-semibold text-red-700">{{ $t('Differs from Zijia') }}</span>
+                        <span v-if="row.claude.same_as_person === true" class="font-semibold text-green-700">· {{ $t('Same as the person\'s count') }}</span>
+                        <span v-else-if="row.claude.same_as_person === false" class="font-semibold text-red-700">· {{ $t('Differs from the person\'s count') }}</span>
+                        <span v-if="row.claude.confidence !== null" class="cursor-help" tabindex="0" v-tooltip="row.claude.notes || ''">· {{ $t('sure :pct%', { pct: row.claude.confidence }) }}</span>
+                        <span v-if="row.claude.needs_review" class="text-amber-800">· {{ $t('wants a person') }}</span>
+                        <span v-if="row.claude.cost_sgd !== null" class="text-gray-500">· S${{ row.claude.cost_sgd }}</span>
+                      </div>
+                    </div>
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
                     <div v-if="row.sale" class="flex flex-col space-y-1 text-xs">
@@ -848,6 +896,11 @@ function saleUrl(sale) {
 // Money is integer cents; divide only for display.
 function formatCents(cents) {
   return (cents / 100).toFixed(2)
+}
+
+// A share for the Claude box; a dash when there is nothing to divide by yet.
+function pctText(pct) {
+  return pct === null || pct === undefined ? '–' : pct.toFixed(1) + '%'
 }
 
 // The session's T05 hold, charged by the verdict (CardPaymentService::settleAwaitingAi).

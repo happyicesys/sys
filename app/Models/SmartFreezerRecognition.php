@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * One AI recognition of one freezer door session (Zijia's algorithm service).
@@ -63,5 +64,11 @@ class SmartFreezerRecognition extends Model
     public function vendTransaction(): BelongsTo
     {
         return $this->belongsTo(VendTransaction::class)->withoutGlobalScopes();
+    }
+
+    /** Claude's own count of this door session, shadow only (ClaudeShadowRecognitionService). */
+    public function claude(): HasOne
+    {
+        return $this->hasOne(SmartFreezerClaudeRecognition::class);
     }
 }

@@ -47,6 +47,15 @@ class AppServiceProvider extends ServiceProvider
             \App\Services\Products\WelcomeSketch\SketchChecker::class,
             \App\Services\Products\WelcomeSketch\ClaudeSketchChecker::class,
         );
+        // Claude counts each freezer door session beside Zijia's AI, shadow only (off until CLAUDE_FREEZER_AI=true).
+        $this->app->bind(
+            \App\Services\SmartFreezer\Claude\FreezerCounter::class,
+            \App\Services\SmartFreezer\Claude\ClaudeFreezerCounter::class,
+        );
+        $this->app->bind(
+            \App\Services\SmartFreezer\Claude\DoorFrameSource::class,
+            \App\Services\SmartFreezer\Claude\FfmpegDoorFrames::class,
+        );
         // ...and fall back to an open-source background cut-out (rembg) finished as a sticker.
         $this->app->bind(
             \App\Services\Products\WelcomeSketch\CutoutMaker::class,

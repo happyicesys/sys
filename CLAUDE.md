@@ -1744,6 +1744,31 @@ then removes from the address bar); a manual refresh still counts. Link previews
 scan rate over paid sales from app 41 on, Testing Mode left out. Staff scanning on a real purchase still count as customers.
 A row opened before 2026-11-05 has no device and no `final_seen_at`, and its `open_count` includes reloads.
 
+**Claude counts beside Zijia — a trial, shadow only** (Brian, 2026-11-13: "instead of we just sending it to Zijia, we
+also send a copy to you … store your response and also your cost … compare whether Zijia's one is reliable or yours").
+`App\Services\SmartFreezer\Claude\ClaudeShadowRecognitionService` is the only writer of `smart_freezer_claude_recognitions`
+(one row per Zijia recognition row). `FreezerRecognitionService::open` calls `schedule()` (never throws), and
+`RunClaudeFreezerRecognition` (`low`, one try, the pending → running claim) runs `delay_seconds` (120) later. It reads
+the SAME videos Zijia is sent (`sendableVideos`), **cameras 3 and 4 only**, by the camera in Zijia's file name
+(`-d1c3-`). A file whose camera cannot be read is left out, so camera 5, which sees faces, is never sent. It reads our
+Spaces copy first, else their allowed link. `FfmpegDoorFrames` cuts `frames_per_camera` (8) frames spread over each
+video, ≤ 1024 px. `ClaudeFreezerCounter` sends those frames with the freezer's live planogram (name, item code,
+sections, a 256 px photo) and **never what was paid** (blind). It uses the official SDK the way `ClaudeSketchChecker`
+does: `fallbacks: default`, JSON schema, `claude-opus-5-5` at effort `high`. The answer is taken / returned per
+product id, plus things not on the freezer, people seen, confidence, needs_review and reasons. `items` keeps the net units per
+product; `evaluate()` puts them through `RecognitionVerdict` exactly as Zijia's (the sweep `--evaluate` every 10 min
+judges late sales). **Cost:** usage from the API's reply, priced by the model that ANSWERED (a fallback may) from
+`smart_freezer.claude_recognition.prices` (US$/M tokens), stored as integer `cost_usd_micros`, shown in S$ at
+`usd_to_sgd` (1.29); a declined or cut-off call is failed but its cost is still kept. **Nothing reads these rows to
+charge, release, refund or move stock**: Zijia's verdict alone drives the T05 hold. AI Recognition shows each
+session's "Claude saw" line (same as / differs from Zijia and from a person's Adjust Qty, confidence, S$) and a
+"Claude vs Zijia (trial)" box on the AI Dashboard (`ClaudeZijiaComparison`: matches paid, right where a person
+counted — the person is the truth — same count, cost). Off until `CLAUDE_FREEZER_AI=true` AND `ANTHROPIC_API_KEY`;
+`CLAUDE_FREEZER_AI_VENDS` narrows it; `CLAUDE_FREEZER_AI_DAILY_LIMIT` (100) caps automatic calls a day (a person's
+command is not capped). `smart-freezer:claude-recognition {id} [--retry]`, `--backfill --days=30 [--vend] [--limit]
+[--dry-run]` for past sessions, `--report --days=30 [--details]`. Every call is billed. Regression coverage:
+`tests/Feature/ClaudeFreezerRecognitionTest.php`.
+
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,
 permission `ai-recognition` read: superadmin/admin/supervisor) lists every recognition:
 the sale's Order ID and Transaction DateTime first (Brian, 2026-11-03: the reference and the time

@@ -197,4 +197,48 @@ return [
             'hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env('FREEZER_EARLY_VIDEO_HOSTS', 'jishi1.oss-cn-hangzhou.aliyuncs.com'))))),
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Claude's count beside Zijia's (Brian, 2026-11-13)
+    |--------------------------------------------------------------------------
+    | Every door session Zijia's AI is asked about is also counted by Claude from the same videos (cameras 3
+    | and 4 only — never the customer-facing camera), so the two can be compared on AI Recognition and with
+    | `smart-freezer:claude-recognition --report`. SHADOW ONLY: nothing reads Claude's count to charge,
+    | release, refund or move stock. Off until CLAUDE_FREEZER_AI=true and ANTHROPIC_API_KEY is set
+    | (config services.anthropic.api_key).
+    */
+    'claude_recognition' => [
+        'enabled' => (bool) env('CLAUDE_FREEZER_AI', false),
+        // Empty = every smart freezer; else a comma list of machine codes.
+        'vends' => array_values(array_filter(array_map('trim', explode(',', (string) env('CLAUDE_FREEZER_AI_VENDS', ''))))),
+        'model' => env('CLAUDE_FREEZER_AI_MODEL', 'claude-opus-5-5'),
+        'effort' => env('CLAUDE_FREEZER_AI_EFFORT', 'high'),
+        // Waits after the session opens, so every camera's video and our own copy are in.
+        'delay_seconds' => (int) env('CLAUDE_FREEZER_AI_DELAY', 120),
+        // Cameras sent (from the file name "-d1c3-"): 3 Real-Front View, 4 Top View. Camera 5 sees faces.
+        'cameras' => array_values(array_filter(array_map('intval', explode(',', (string) env('CLAUDE_FREEZER_AI_CAMERAS', '3,4'))))),
+        'frames_per_camera' => (int) env('CLAUDE_FREEZER_AI_FRAMES', 8),
+        // Longest side of each frame sent, px (1024x576 ≈ 790 input tokens a frame).
+        'frame_max_px' => (int) env('CLAUDE_FREEZER_AI_FRAME_PX', 1024),
+        'product_photo_px' => (int) env('CLAUDE_FREEZER_AI_PHOTO_PX', 256),
+        'max_video_bytes' => (int) env('CLAUDE_FREEZER_AI_MAX_VIDEO_BYTES', 100 * 1024 * 1024),
+        'ffmpeg_bin' => env('CLAUDE_FREEZER_AI_FFMPEG', '/usr/bin/ffmpeg'),
+        // The SDK's own timeout is advisory; the Guzzle client enforces this one.
+        'timeout_seconds' => (int) env('CLAUDE_FREEZER_AI_TIMEOUT', 300),
+        // Calls a day, counted from midnight. A session over the cap is skipped with the reason, never queued.
+        'daily_limit' => (int) env('CLAUDE_FREEZER_AI_DAILY_LIMIT', 100),
+        // Anthropic list prices, US dollars per million tokens (2026-11-13). The model the API says answered
+        // is the one priced; an unknown model is stored with no cost.
+        'prices' => [
+            'claude-opus-5-5' => ['input' => 4.00, 'output' => 20.00, 'cache_write' => 5.00, 'cache_read' => 0.20],
+            'claude-opus-5' => ['input' => 5.00, 'output' => 25.00, 'cache_write' => 6.25, 'cache_read' => 0.50],
+            'claude-opus-4-8' => ['input' => 5.00, 'output' => 25.00, 'cache_write' => 6.25, 'cache_read' => 0.50],
+            'claude-sonnet-5-5' => ['input' => 2.00, 'output' => 10.00, 'cache_write' => 2.50, 'cache_read' => 0.10],
+            'claude-sonnet-5' => ['input' => 2.00, 'output' => 10.00, 'cache_write' => 2.50, 'cache_read' => 0.20],
+            'claude-haiku-5-5' => ['input' => 0.10, 'output' => 0.50, 'cache_write' => 0.125, 'cache_read' => 0.01],
+        ],
+        // Shown in Singapore dollars (OFX interbank 1.2865 on 2026-11-13); the API bills in US dollars.
+        'usd_to_sgd' => (float) env('CLAUDE_FREEZER_AI_USD_SGD', 1.29),
+    ],
 ];

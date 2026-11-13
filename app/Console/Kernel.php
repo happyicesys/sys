@@ -133,6 +133,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('screenshots:capture-scheduled')->dailyAt('17:00')->withoutOverlapping(10);
         // Freezer AI results that landed before their sale (offline board): judge them once it arrives.
         $schedule->command('smart-freezer:zijia-evaluate-pending')->everyTenMinutes()->withoutOverlapping();
+        // Claude's shadow counts whose sale landed after them (no call made, no cost).
+        $schedule->command('smart-freezer:claude-recognition --evaluate --days=7')->everyTenMinutes()->withoutOverlapping();
         // Freezer product barcodes from Zijia's SKU library (unique exact name match only) until
         // Zijia offers an approval callback — a product with no barcode is never sent to their AI.
         $schedule->command('smart-freezer:zijia-barcode-sync')->cron('*/30 * * * *')->withoutOverlapping(5);
