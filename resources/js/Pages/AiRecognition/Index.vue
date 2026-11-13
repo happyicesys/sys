@@ -377,6 +377,9 @@
                     {{ $t('Verification') }}
                   </TableHeadSort>
                   <TableHead>
+                    <span class="text-violet-800" tabindex="0" v-tooltip="$t('Claude counts the same videos as a trial, to compare with Zijia. It never charges, refunds or moves stock.')">{{ $t('Claude Verdict') }}</span>
+                  </TableHead>
+                  <TableHead>
                     {{ $t('Sale / Card charge') }}
                   </TableHead>
                   <TableHead>
@@ -407,6 +410,7 @@
                     <span v-for="item in sale.items" :key="item.name" class="block">{{ item.qty }} × {{ item.name }}</span>
                     <span class="mt-1 block text-gray-500">{{ $t('The AI check starts when the video arrives.') }}</span>
                   </td>
+                  <td class="px-3 py-2"></td>
                   <td class="px-3 py-2 text-center font-medium">{{ formatCents(sale.amount_cents) }}</td>
                   <td class="px-3 py-2"></td>
                 </tr>
@@ -605,28 +609,33 @@
                       <span v-else class="flex items-center gap-1 font-semibold"><PencilSquareIcon class="h-4 w-4 flex-none" aria-hidden="true" />{{ $t('Adjusted by :name', { name: row.correction.by }) }}</span>
                       <span class="whitespace-nowrap">{{ row.correction.at }}</span>
                     </div>
-                    <!-- Claude's count of the same videos, a trial beside Zijia's: it decides nothing (Brian, 2026-11-13). -->
-                    <div v-if="row.claude" class="mt-1 w-[24rem] rounded border border-violet-200 bg-violet-50 px-1.5 py-1 text-xs text-violet-900">
-                      <div class="flex flex-wrap items-center gap-x-2">
-                        <span class="font-semibold" tabindex="0" v-tooltip="$t('Claude counts the same videos as a trial, to compare with Zijia. It never charges, refunds or moves stock.')">{{ $t('Claude saw') }}:</span>
-                        <template v-if="row.claude.status === 'done'">
-                          <span v-for="item in row.claude.items" :key="item.product_id">{{ item.number }} × {{ item.name }}</span>
-                          <span v-for="(item, i) in row.claude.unknown" :key="'u' + i" class="text-amber-800">{{ item.taken }} × {{ item.description }}</span>
-                          <span v-if="!row.claude.items.length && !row.claude.unknown.length">{{ $t('Nothing taken') }}</span>
-                        </template>
-                        <span v-else-if="row.claude.status === 'pending' || row.claude.status === 'running'" class="text-gray-500">{{ $t('counting…') }}</span>
-                        <span v-else class="cursor-help text-gray-500" tabindex="0" v-tooltip="row.claude.reason || ''">{{ row.claude.status === 'skipped' ? $t('not sent') : $t('failed') }}</span>
-                      </div>
-                      <div v-if="row.claude.status === 'done'" class="mt-0.5 flex flex-wrap items-center gap-x-2 text-violet-800">
+                  </TableData>
+                  <!-- Claude Verdict (Brian, 2026-11-13): Claude's count of the same videos, a trial beside Zijia's. It decides nothing:
+                       Adjust Qty, the T05 charge and stock still follow Zijia's answer. -->
+                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
+                    <div v-if="row.claude" class="flex w-56 flex-col gap-1 text-xs text-violet-900">
+                      <template v-if="row.claude.status === 'done'">
+                        <span v-if="row.claude.verdict" :class="['inline-flex w-fit items-center rounded-full px-2 py-0.5 font-semibold', verdictBadgeClass(row.claude.verdict)]">{{ $t(verdictLabels[row.claude.verdict] || row.claude.verdict) }}</span>
+                        <span v-else class="w-fit cursor-help rounded-full bg-gray-100 px-2 py-0.5 text-gray-600" tabindex="0" v-tooltip="row.claude.reason || ''">{{ $t('Waiting for the sale') }}</span>
+                        <span v-for="item in row.claude.items" :key="item.product_id">{{ item.number }} × {{ item.name }}</span>
+                        <span v-for="(item, i) in row.claude.unknown" :key="'u' + i" class="text-amber-800">{{ item.taken }} × {{ item.description }}</span>
+                        <span v-if="!row.claude.items.length && !row.claude.unknown.length" class="text-gray-600">{{ $t('Nothing taken') }}</span>
                         <span v-if="row.claude.same_as_zijia === true" class="font-semibold text-green-700">{{ $t('Same as Zijia') }}</span>
                         <span v-else-if="row.claude.same_as_zijia === false" class="font-semibold text-red-700">{{ $t('Differs from Zijia') }}</span>
-                        <span v-if="row.claude.same_as_person === true" class="font-semibold text-green-700">· {{ $t('Same as the person\'s count') }}</span>
-                        <span v-else-if="row.claude.same_as_person === false" class="font-semibold text-red-700">· {{ $t('Differs from the person\'s count') }}</span>
-                        <span v-if="row.claude.confidence !== null" class="cursor-help" tabindex="0" v-tooltip="row.claude.notes || ''">· {{ $t('sure :pct%', { pct: row.claude.confidence }) }}</span>
-                        <span v-if="row.claude.needs_review" class="text-amber-800">· {{ $t('wants a person') }}</span>
-                        <span v-if="row.claude.cost_sgd !== null" class="text-gray-500">· S${{ row.claude.cost_sgd }}</span>
-                      </div>
+                        <span v-if="row.claude.same_as_person === true" class="font-semibold text-green-700">{{ $t('Same as the person\'s count') }}</span>
+                        <span v-else-if="row.claude.same_as_person === false" class="font-semibold text-red-700">{{ $t('Differs from the person\'s count') }}</span>
+                        <span class="flex flex-wrap gap-x-1.5 text-violet-700">
+                          <span v-if="row.claude.confidence !== null" class="cursor-help" tabindex="0" v-tooltip="row.claude.notes || ''">{{ $t('sure :pct%', { pct: row.claude.confidence }) }}</span>
+                          <span v-if="row.claude.needs_review" class="text-amber-800">· {{ $t('wants a person') }}</span>
+                        </span>
+                      </template>
+                      <span v-else-if="row.claude.status === 'pending' || row.claude.status === 'running'" class="text-gray-500">{{ $t('counting…') }}</span>
+                      <span v-else class="w-fit cursor-help text-gray-500" tabindex="0" v-tooltip="row.claude.reason || ''">{{ row.claude.status === 'skipped' ? $t('not sent') : $t('failed') }}</span>
+                      <span v-if="row.claude.model || row.claude.cost_sgd !== null" class="text-gray-500">
+                        {{ (row.claude.model || '').replace(/^claude-/, '') }}<template v-if="row.claude.cost_sgd !== null"> · S${{ row.claude.cost_sgd }}</template>
+                      </span>
                     </div>
+                    <span v-else class="text-gray-400" tabindex="0" v-tooltip="$t('Claude did not count this session.')">—</span>
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
                     <div v-if="row.sale" class="flex flex-col space-y-1 text-xs">
@@ -685,7 +694,7 @@
                   </TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
-                  <td colspan="10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td colspan="11" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                     {{ $t('No Results Found') }}
                   </td>
                 </tr>
