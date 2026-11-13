@@ -212,13 +212,21 @@ return [
         'enabled' => (bool) env('CLAUDE_FREEZER_AI', false),
         // Empty = every smart freezer; else a comma list of machine codes.
         'vends' => array_values(array_filter(array_map('trim', explode(',', (string) env('CLAUDE_FREEZER_AI_VENDS', ''))))),
+        // The default; AI Recognition's picker (permission update ai-recognition) chooses among `models` and wins.
         'model' => env('CLAUDE_FREEZER_AI_MODEL', 'claude-opus-5-5'),
+        // What the picker offers, most capable first. Each needs a row in `prices`.
+        'models' => [
+            'claude-fable-5-2' => 'Claude Fable 5.2',
+            'claude-opus-5-5' => 'Claude Opus 5.5',
+            'claude-sonnet-5-5' => 'Claude Sonnet 5.5',
+            'claude-haiku-5-5' => 'Claude Haiku 5.5',
+        ],
         'effort' => env('CLAUDE_FREEZER_AI_EFFORT', 'high'),
         // Waits after the session opens, so every camera's video and our own copy are in.
         'delay_seconds' => (int) env('CLAUDE_FREEZER_AI_DELAY', 120),
         // Cameras sent (from the file name "-d1c3-"): 3 Real-Front View, 4 Top View. Camera 5 sees faces.
         'cameras' => array_values(array_filter(array_map('intval', explode(',', (string) env('CLAUDE_FREEZER_AI_CAMERAS', '3,4'))))),
-        'frames_per_camera' => (int) env('CLAUDE_FREEZER_AI_FRAMES', 8),
+        'frames_per_camera' => (int) env('CLAUDE_FREEZER_AI_FRAMES', 12),
         // Longest side of each frame sent, px (1024x576 ≈ 790 input tokens a frame).
         'frame_max_px' => (int) env('CLAUDE_FREEZER_AI_FRAME_PX', 1024),
         'product_photo_px' => (int) env('CLAUDE_FREEZER_AI_PHOTO_PX', 256),
@@ -231,6 +239,7 @@ return [
         // Anthropic list prices, US dollars per million tokens (2026-11-13). The model the API says answered
         // is the one priced; an unknown model is stored with no cost.
         'prices' => [
+            'claude-fable-5-2' => ['input' => 8.00, 'output' => 40.00, 'cache_write' => 10.00, 'cache_read' => 0.20],
             'claude-opus-5-5' => ['input' => 4.00, 'output' => 20.00, 'cache_write' => 5.00, 'cache_read' => 0.20],
             'claude-opus-5' => ['input' => 5.00, 'output' => 25.00, 'cache_write' => 6.25, 'cache_read' => 0.50],
             'claude-opus-4-8' => ['input' => 5.00, 'output' => 25.00, 'cache_write' => 6.25, 'cache_read' => 0.50],

@@ -20,6 +20,9 @@ class ClaudeFreezerCounter implements FreezerCounter
 
     private const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
+    /** Models that take a server-side fallback on a refusal; Haiku 5.5 has none, so it is sent without. */
+    private const FALLBACK_MODELS = ['claude-fable-5-2', 'claude-fable-5-1', 'claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5'];
+
     /** The API takes at most 100 images a request; frames always go, product photos fill what is left. */
     private const MAX_IMAGES = 95;
 
@@ -33,9 +36,10 @@ class ClaudeFreezerCounter implements FreezerCounter
         return trim((string) config('services.anthropic.api_key')) !== '';
     }
 
+    /** The model picked on AI Recognition, else the config default (ClaudeModelChoice). */
     public function model(): string
     {
-        return (string) config('smart_freezer.claude_recognition.model', 'claude-opus-5-5');
+        return ClaudeModelChoice::current();
     }
 
     public function count(array $frames, array $catalog, string $sessionLabel): FreezerCount
@@ -45,18 +49,22 @@ class ClaudeFreezerCounter implements FreezerCounter
         }
         $catalogIds = array_map(fn (CatalogProduct $p) => $p->id, $catalog);
 
+        $model = $this->model();
+        $fallback = in_array($model, self::FALLBACK_MODELS, true)
+            ? ['fallbacks' => 'default', 'betas' => [self::FALLBACK_BETA]]
+            : [];
+
         try {
             $message = $this->client()->beta->messages->create(
+                ...$fallback,
                 maxTokens: self::MAX_TOKENS,
                 messages: [['role' => 'user', 'content' => $this->content($frames, $catalog, $sessionLabel)]],
-                model: $this->model(),
-                fallbacks: 'default',
+                model: $model,
                 outputConfig: [
                     'effort' => (string) config('smart_freezer.claude_recognition.effort', 'high'),
                     'format' => ['type' => 'json_schema', 'schema' => self::schema()],
                 ],
                 system: self::systemPrompt(),
-                betas: [self::FALLBACK_BETA],
             );
         } catch (Throwable $e) {
             throw new CountFailed('Claude call failed: '.$e->getMessage(), null, $e);

@@ -1104,6 +1104,12 @@ class RolePermissionSyncSeeder extends Seeder
                 ['charge'],
                 ['superadmin', 'admin', 'supervisor'],
             ],
+            // Pick the Claude model of the shadow count beside Zijia (Brian, 2026-11-13): it spends API credit, so admin only.
+            [
+                'ai-recognition',
+                ['update'],
+                ['superadmin', 'admin'],
+            ],
 
             // Operator Groups (payout groups) module. Source of truth = migration
             // 2026_07_06_120000_seed_operator_group_permissions.php. Listed here too

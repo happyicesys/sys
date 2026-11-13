@@ -252,6 +252,22 @@
         </div>
       </div>
 
+      <!-- The Claude trial beside Zijia: which model counts, roughly what a session costs, and whether it is on (Brian, 2026-11-13). -->
+      <div v-if="claudeModel" class="-mx-3 sm:-mx-6 lg:-mx-8 mt-3 bg-violet-50 rounded-md border border-violet-200 px-3 py-2">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-violet-900">
+          <span class="font-medium" tabindex="0" v-tooltip="$t('Claude counts the same videos as a trial, to compare with Zijia. It never charges, refunds or moves stock.')">{{ $t('Claude trial') }}</span>
+          <span v-if="!claudeModel.on" class="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-700" tabindex="0" v-tooltip="$t('Switched off on the server, or no Anthropic API key is set.')">{{ $t('Off') }}</span>
+          <label for="claude-model" class="text-xs text-violet-800">{{ $t('Model') }}</label>
+          <select id="claude-model" v-model="claudeModelPick" :disabled="!claudeModel.can_change || claudeModelSaving"
+            class="rounded-md border-violet-300 py-1 pl-2 pr-8 text-sm disabled:bg-violet-50 disabled:text-violet-900" @change="saveClaudeModel">
+            <option v-for="option in claudeModel.options" :key="option.id" :value="option.id">
+              {{ option.estimate_sgd !== null ? $t(':model · about S$:cost a session', { model: option.label, cost: option.estimate_sgd.toFixed(3) }) : option.label }}
+            </option>
+          </select>
+          <span v-if="claudeModel.set_by" class="text-xs text-violet-700">{{ $t('Set by :name, :time', { name: claudeModel.set_by, time: claudeModel.set_at }) }}</span>
+        </div>
+      </div>
+
       <div v-if="sessionlessHolds.length" class="-mx-3 sm:-mx-6 lg:-mx-8 mt-3 bg-amber-50 rounded-md border border-amber-300 px-3 py-2">
         <p class="text-sm font-medium text-amber-900">
           {{ $t('T05 card holds with no AI session (:count)', { count: sessionlessHolds.length }) }}
@@ -777,7 +793,7 @@ import { CheckCircleIcon, InformationCircleIcon, MagnifyingGlassIcon, PencilSqua
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { t, tk } from '@/i18n';
 
@@ -791,6 +807,7 @@ const props = defineProps({
   sessionlessHolds: { type: Array, default: () => [] },
   waitingForVideo: { type: Array, default: () => [] },
   aiCoverage: { type: Array, default: () => [] },
+  claudeModel: { type: Object, default: null },
   orderStatusLegend: Array,
   doorFaultLegend: { type: Array, default: () => [] },
   filters: Object,
@@ -896,6 +913,21 @@ function saleUrl(sale) {
 // Money is integer cents; divide only for display.
 function formatCents(cents) {
   return (cents / 100).toFixed(2)
+}
+
+// The Claude trial's model: saved at once on change; a refused save puts the page's value back.
+const claudeModelPick = ref(props.claudeModel?.current ?? null)
+const claudeModelSaving = ref(false)
+watch(() => props.claudeModel?.current, (current) => { claudeModelPick.value = current ?? null })
+function saveClaudeModel() {
+  claudeModelSaving.value = true
+  router.post('/ai-recognition/claude-model', { model: claudeModelPick.value }, {
+    preserveScroll: true,
+    preserveState: true,
+    only: ['claudeModel', 'flash', 'errors'],
+    onError: () => { claudeModelPick.value = props.claudeModel?.current ?? null },
+    onFinish: () => { claudeModelSaving.value = false },
+  })
 }
 
 // A share for the Claude box; a dash when there is nothing to divide by yet.

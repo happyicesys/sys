@@ -1751,10 +1751,10 @@ also send a copy to you … store your response and also your cost … compare w
 `RunClaudeFreezerRecognition` (`low`, one try, the pending → running claim) runs `delay_seconds` (120) later. It reads
 the SAME videos Zijia is sent (`sendableVideos`), **cameras 3 and 4 only**, by the camera in Zijia's file name
 (`-d1c3-`). A file whose camera cannot be read is left out, so camera 5, which sees faces, is never sent. It reads our
-Spaces copy first, else their allowed link. `FfmpegDoorFrames` cuts `frames_per_camera` (8) frames spread over each
+Spaces copy first, else their allowed link. `FfmpegDoorFrames` cuts `frames_per_camera` (12) frames spread over each
 video, ≤ 1024 px. `ClaudeFreezerCounter` sends those frames with the freezer's live planogram (name, item code,
 sections, a 256 px photo) and **never what was paid** (blind). It uses the official SDK the way `ClaudeSketchChecker`
-does: `fallbacks: default`, JSON schema, `claude-opus-5-5` at effort `high`. The answer is taken / returned per
+does: JSON schema, effort `high`, `fallbacks: default` where the model takes one (Haiku 5.5 does not). **The model is picked on AI Recognition** (`ClaudeModelChoice`, permission `update ai-recognition`: superadmin, admin; kept on `settings.claude_freezer_ai_model` with who and when; the options are `smart_freezer.claude_recognition.models`, each shown with about what a session costs), else `CLAUDE_FREEZER_AI_MODEL` (`claude-opus-5-5`). The answer is taken / returned per
 product id, plus things not on the freezer, people seen, confidence, needs_review and reasons. `items` keeps the net units per
 product; `evaluate()` puts them through `RecognitionVerdict` exactly as Zijia's (the sweep `--evaluate` every 10 min
 judges late sales). **Cost:** usage from the API's reply, priced by the model that ANSWERED (a fallback may) from

@@ -48,6 +48,9 @@ class Setting extends Model
         'customer_index_json',
         'payment_gateway_log_refund_scanned_at',
         'missing_trade_marked_until',
+        'claude_freezer_ai_model',
+        'claude_freezer_ai_model_set_by',
+        'claude_freezer_ai_model_set_at',
     ];
 
     protected $casts = [
@@ -56,5 +59,6 @@ class Setting extends Model
         'customer_index_json' => 'json',
         'payment_gateway_log_refund_scanned_at' => 'datetime',
         'missing_trade_marked_until' => 'datetime',
+        'claude_freezer_ai_model_set_at' => 'datetime',
     ];
 }

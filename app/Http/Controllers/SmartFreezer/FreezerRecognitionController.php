@@ -18,6 +18,7 @@ use App\Services\CardTerminal\CardPaymentService;
 use App\Services\Freezer\FreezerSaleCorrection;
 use App\Services\HappyHour\HappyHourPricing;
 use App\Services\NoteNotificationService;
+use App\Services\SmartFreezer\Claude\ClaudeModelChoice;
 use App\Services\SmartFreezer\Claude\ClaudeShadowRecognitionService;
 use App\Services\SmartFreezer\Claude\ClaudeZijiaComparison;
 use App\Services\SmartFreezer\DoorFault;
@@ -74,6 +75,16 @@ class FreezerRecognitionController extends Controller
     {
         $this->middleware(['permission:read ai-recognition']);
         $this->middleware(['permission:charge ai-recognition'])->only('charge', 'correctionEditor', 'correct');
+        $this->middleware(['permission:update ai-recognition'])->only('claudeModel');
+    }
+
+    /** Which Claude model counts the door sessions from now on (ClaudeModelChoice). Shadow only: it decides nothing. */
+    public function claudeModel(Request $request)
+    {
+        $data = $request->validate(['model' => ['required', 'string', 'in:'.implode(',', array_keys(ClaudeModelChoice::offered()))]]);
+        ClaudeModelChoice::pick($data['model'], $request->user());
+
+        return back()->with('success', __('Claude now counts with :model.', ['model' => ClaudeModelChoice::offered()[$data['model']]]));
     }
 
     public function index(Request $request)
@@ -190,6 +201,8 @@ class FreezerRecognitionController extends Controller
             // Resource-collection shape (data / links / meta) — what Components/Paginator.vue reads.
             'recognitions' => JsonResource::collection($page),
             'dashboard' => fn () => $this->dashboard($dashboardQuery),
+            // The Claude trial's model picker (shadow only).
+            'claudeModel' => fn () => ClaudeModelChoice::forPage($request->user()),
             // Per freezer, how many of its products the AI is asked about today (SKU Links).
             'aiCoverage' => fn () => array_values(app(ZijiaSkuLinks::class)->coverage(ZijiaSkuLinks::viewerVendIds())),
             'statuses' => [

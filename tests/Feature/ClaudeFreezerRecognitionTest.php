@@ -14,6 +14,7 @@ use App\Models\VendTransaction;
 use App\Services\SmartFreezer\Claude\CallUsage;
 use App\Services\SmartFreezer\Claude\CatalogProduct;
 use App\Services\SmartFreezer\Claude\ClaudeFreezerCounter;
+use App\Services\SmartFreezer\Claude\ClaudeModelChoice;
 use App\Services\SmartFreezer\Claude\ClaudeShadowRecognitionService;
 use App\Services\SmartFreezer\Claude\ClaudeZijiaComparison;
 use App\Services\SmartFreezer\Claude\CountFailed;
@@ -402,6 +403,52 @@ class ClaudeFreezerRecognitionTest extends TestCase
                 ->where('recognitions.data.0.claude.cost_sgd', '0.18')
                 ->where('dashboard.claude.agree', 1)
                 ->where('dashboard.claude.claude_match_paid', 1));
+    }
+
+    public function test_an_admin_picks_the_model_others_only_see_it_and_the_pick_is_what_is_sent(): void
+    {
+        Permission::findOrCreate('read ai-recognition', 'web');
+        Permission::findOrCreate('update ai-recognition', 'web');
+        $admin = User::factory()->create(['operator_id' => 1, 'name' => 'Brian']);
+        $admin->givePermissionTo('read ai-recognition', 'update ai-recognition');
+        $viewer = User::factory()->create(['operator_id' => 1]);
+        $viewer->givePermissionTo('read ai-recognition');
+
+        $this->actingAs($viewer)->post('/ai-recognition/claude-model', ['model' => 'claude-haiku-5-5'])->assertForbidden();
+        $this->actingAs($admin)->post('/ai-recognition/claude-model', ['model' => 'gpt-5'])->assertSessionHasErrors('model');
+        $this->assertSame('claude-opus-5-5', ClaudeModelChoice::current(), 'nothing picked = the config default');
+
+        $this->actingAs($admin)->post('/ai-recognition/claude-model', ['model' => 'claude-haiku-5-5'])->assertSessionHasNoErrors();
+
+        $this->assertSame('claude-haiku-5-5', ClaudeModelChoice::current());
+        $this->assertSame('claude-haiku-5-5', (new ClaudeFreezerCounter)->model());
+        $this->actingAs($viewer)->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('claudeModel.current', 'claude-haiku-5-5')
+                ->where('claudeModel.can_change', false)
+                ->where('claudeModel.set_by', 'Brian')
+                ->where('claudeModel.options.1.id', 'claude-opus-5-5')
+                ->where('claudeModel.options.1.estimate_sgd', 0.181));
+    }
+
+    public function test_haiku_is_sent_without_the_fallback_it_does_not_take(): void
+    {
+        ClaudeModelChoice::pick('claude-haiku-5-5', User::factory()->create(['operator_id' => 1]));
+        $history = new \ArrayObject;
+        $stack = HandlerStack::create(new MockHandler([new Response(200, ['Content-Type' => 'application/json'], json_encode([
+            'id' => 'msg_h', 'type' => 'message', 'role' => 'assistant', 'model' => 'claude-haiku-5-5',
+            'content' => [['type' => 'text', 'text' => '{"items":[],"unknown_items":[],"people_seen":1,"confidence":80,"needs_review":false,"reasons":[],"notes":""}']],
+            'stop_reason' => 'end_turn', 'stop_sequence' => null, 'usage' => ['input_tokens' => 25000, 'output_tokens' => 2000],
+        ]))]));
+        $stack->push(Middleware::history($history));
+
+        $count = (new ClaudeFreezerCounter(new GuzzleClient(['handler' => $stack])))->count([new DoorFrame(3, 0, 1000, 'x')], [], 'S');
+
+        $body = json_decode((string) $history[0]['request']->getBody(), true);
+        $this->assertSame('claude-haiku-5-5', $body['model']);
+        $this->assertArrayNotHasKey('fallbacks', $body);
+        $this->assertStringNotContainsString('server-side-fallback', $history[0]['request']->getHeaderLine('anthropic-beta'));
+        $this->assertSame(3_500, $count->usage->costUsdMicros(), '25,000 in × $0.10 + 2,000 out × $0.50 per million');
     }
 }
 

@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Claude's own count of a freezer door session, run beside Zijia's AI on the same videos so the two can be
  * compared (Brian, 2026-11-13). Shadow only: nothing reads it to charge, refund or move stock.
- * One row per Zijia recognition row; the cost of each call is kept in integer micro-USD.
+ * One row per Zijia recognition row; the cost of each call is kept in integer micro-USD. The model is picked on
+ * AI Recognition and kept on the settings row.
  */
 return new class extends Migration
 {
@@ -42,10 +43,20 @@ return new class extends Migration
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
         });
+
+        // The model AI Recognition's picker chose (NULL = config default), and who chose it.
+        Schema::table('settings', function (Blueprint $table) {
+            $table->string('claude_freezer_ai_model', 64)->nullable();
+            $table->unsignedBigInteger('claude_freezer_ai_model_set_by')->nullable();
+            $table->timestamp('claude_freezer_ai_model_set_at')->nullable();
+        });
     }
 
     public function down(): void
     {
+        Schema::table('settings', function (Blueprint $table) {
+            $table->dropColumn(['claude_freezer_ai_model', 'claude_freezer_ai_model_set_by', 'claude_freezer_ai_model_set_at']);
+        });
         Schema::dropIfExists('smart_freezer_claude_recognitions');
     }
 };

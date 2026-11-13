@@ -1481,6 +1481,9 @@ Route::middleware(['auth', 'cors', 'can:verify refunds'])->prefix('card-refunds'
 // A person keys in the final charge for a T05 hold with no AI verdict (permission:charge ai-recognition).
 Route::middleware(['auth', 'cors'])->post('/ai-recognition/card-holds/{intent}/charge', [\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class, 'charge'])
     ->name('ai-recognition.charge');
+// Which Claude model counts the freezer door sessions beside Zijia, a shadow trial (permission:update ai-recognition).
+Route::middleware(['auth', 'cors'])->post('/ai-recognition/claude-model', [\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class, 'claudeModel'])
+    ->name('ai-recognition.claude-model');
 // A person corrects what left the cabinet: sale items and stock follow, the money by where the sale stands.
 Route::middleware(['auth', 'cors'])->controller(\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class)->prefix('ai-recognition/{recognition}/correction')->name('ai-recognition.correction')->group(function () {
     Route::get('/', 'correctionEditor');
