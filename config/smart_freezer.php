@@ -240,6 +240,23 @@ return [
             'width_px' => (int) env('CLAUDE_FREEZER_AI_CLOSEUP_WIDTH', 1568),
             'box' => [3 => [0.15, 0.36, 0.87, 0.80]],
         ],
+        // Contact sheets over the part of each video where something moves: 3x3 small pictures 4 a second, cropped to the
+        // baskets and the space above them (box as for close-ups). Tuning, 2026-11-13: 15-16 of 20 at 4 a second, 14 at 3, 13 without.
+        'sheets' => [
+            'enabled' => (bool) env('CLAUDE_FREEZER_AI_SHEETS', true),
+            'fps' => (float) env('CLAUDE_FREEZER_AI_SHEET_FPS', 4),
+            'cols' => 3,
+            'rows' => 3,
+            'max' => (int) env('CLAUDE_FREEZER_AI_SHEET_MAX', 8),
+            'width_px' => 1568,
+            'pad_ms' => 600,
+            'box' => [3 => [0.12, 0.08, 0.90, 0.85]],
+        ],
+        // Each session is counted `runs` times (2) and once more while the counts disagree, up to `max_runs` (3); the
+        // majority wins and only an agreed count with no doubt is "sure". Tuning, 2026-11-13: majority of three 17/20,
+        // one count 15-16/20. The repeats read the cached request at a tenth of the input price.
+        'runs' => (int) env('CLAUDE_FREEZER_AI_RUNS', 2),
+        'max_runs' => (int) env('CLAUDE_FREEZER_AI_MAX_RUNS', 3),
         // Worked examples sent with every call: door sessions (AI Recognition ids) whose count a person confirmed,
         // shown with that count, the closest Claude comes to being trained on our freezers. The answer is the person's
         // Adjust Qty, else Zijia's count. A session is never its own example; the same freezer's come first.

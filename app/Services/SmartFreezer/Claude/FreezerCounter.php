@@ -18,8 +18,9 @@ interface FreezerCounter
      * @param  list<DoorFrame>  $frames  in camera, then time order
      * @param  list<CatalogProduct>  $catalog  the freezer's live planogram
      * @param  list<WorkedExample>  $examples  earlier sessions with their confirmed count, sent first
+     * @param  bool  $cacheAll  cache the whole request: the session will be counted again
      *
      * @throws CountFailed
      */
-    public function count(array $frames, array $catalog, string $sessionLabel, array $examples = []): FreezerCount;
+    public function count(array $frames, array $catalog, string $sessionLabel, array $examples = [], bool $cacheAll = false): FreezerCount;
 }

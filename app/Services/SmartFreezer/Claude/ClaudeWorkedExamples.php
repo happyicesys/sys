@@ -108,7 +108,7 @@ class ClaudeWorkedExamples
         $cached = Cache::store('file')->get($key);
         if (! is_array($cached)) {
             try {
-                $cut = $this->frames->framesFor($recognition, $frames)['frames'];
+                $cut = $this->frames->framesFor($recognition, $frames, sheets: false)['frames'];
             } catch (Throwable $e) {
                 report($e);
 

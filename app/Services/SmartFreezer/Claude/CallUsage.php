@@ -19,6 +19,20 @@ final class CallUsage
         public readonly int $cacheReadTokens,
     ) {}
 
+    /** Two calls' usage as one (the session's bill); the first call's model and message id are kept. */
+    public function plus(self $other): self
+    {
+        return new self(
+            model: $this->model ?? $other->model,
+            messageId: $this->messageId ?? $other->messageId,
+            stopReason: $other->stopReason ?? $this->stopReason,
+            inputTokens: $this->inputTokens + $other->inputTokens,
+            outputTokens: $this->outputTokens + $other->outputTokens,
+            cacheWriteTokens: $this->cacheWriteTokens + $other->cacheWriteTokens,
+            cacheReadTokens: $this->cacheReadTokens + $other->cacheReadTokens,
+        );
+    }
+
     public function costUsdMicros(): ?int
     {
         $price = $this->model !== null ? (config('smart_freezer.claude_recognition.prices')[$this->model] ?? null) : null;

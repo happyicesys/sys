@@ -11,6 +11,7 @@ use App\Services\SmartFreezer\FreezerSaleLocator;
 use App\Services\SmartFreezer\PersonCount;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Imagick;
 use Throwable;
@@ -132,7 +133,8 @@ class ClaudeShadowRecognitionService
                 return $this->finish($row, ClaudeRow::STATUS_FAILED, 'the freezer has no product on its planogram', $started);
             }
 
-            $count = $this->counter->count($frames, $catalog, (string) ($recognition->session_ref ?? $recognition->trade_id).' on machine '.$recognition->vend->code, $examples);
+            $label = (string) ($recognition->session_ref ?? $recognition->trade_id).' on machine '.$recognition->vend->code;
+            $count = $this->countByMajority($frames, $catalog, $label, $examples);
 
             $row->update($count->usage->columns() + [
                 'items' => self::itemsOf($count),
@@ -154,6 +156,42 @@ class ClaudeShadowRecognitionService
         }
 
         return $this->evaluate($row);
+    }
+
+    /**
+     * `runs` counts of the same request (2), and one more while no count has a majority (up to `max_runs`, 3): the
+     * majority wins (FreezerCount::byMajority). Every run after the first reads the cached request. A failed run after
+     * a good one stops the repeats and keeps what is in; a failed first run fails the session, with its bill.
+     *
+     * @throws CountFailed
+     */
+    private function countByMajority(array $frames, array $catalog, string $label, array $examples): FreezerCount
+    {
+        $runs = max(1, (int) config('smart_freezer.claude_recognition.runs', 1));
+        $maxRuns = max($runs, (int) config('smart_freezer.claude_recognition.max_runs', $runs));
+        $done = [];
+        $billed = null;
+        while (count($done) < $maxRuns) {
+            if (count($done) >= $runs && (count($done) === 1 || (FreezerCount::byMajority($done)->answer['agreed'] ?? 0) > 0)) {
+                break;
+            }
+            try {
+                $done[] = $this->counter->count($frames, $catalog, $label, $examples, cacheAll: $maxRuns > 1);
+            } catch (CountFailed $e) {
+                if ($done === []) {
+                    throw $e;
+                }
+                $billed = $e->usage;
+                break;
+            }
+        }
+        $count = FreezerCount::byMajority($done);
+        if ($billed !== null) {
+            $count = new FreezerCount($count->items, $count->unknownItems, $count->peopleSeen, $count->confidence, true,
+                $count->reasons, $count->notes, $count->answer, $count->usage->plus($billed));
+        }
+
+        return $count;
     }
 
     /**
@@ -307,20 +345,68 @@ class ClaudeShadowRecognitionService
             ->orderBy('code')->get(['product_id', 'code']) as $channel) {
             $sections[(int) $channel->product_id][] = (string) $channel->code;
         }
-        if ($sections === []) {
+
+        // What the freezer held AT THE SESSION: the barcodes sent to Zijia then (request_payload.goodsList). A past
+        // session judged against today's planogram is unanswerable for every product since taken off (2026-11-13: 5 of
+        // the first 8 tuning misses). A recent session also keeps today's planogram, whose products without a
+        // barcode Zijia was never sent.
+        $ids = self::productIdsSentToZijia($recognition, array_keys($sections));
+        $recent = $recognition->created_at === null || $recognition->created_at->gt(Carbon::now()->subDay());
+        $ids = $ids === [] ? array_keys($sections) : ($recent ? array_values(array_unique(array_merge($ids, array_keys($sections)))) : $ids);
+        if ($ids === []) {
             return [];
+        }
+
+        // A past session's sections as they were: the latest refill of each product there on or before it (a product
+        // moves between sections; a section is the strongest clue between look-alikes, e.g. six Cornetto flavours).
+        if (! $recent && $recognition->vend !== null) {
+            $then = [];
+            foreach (DB::table('ops_job_item_channels')->where('vend_code', (string) $recognition->vend->code)->whereIn('product_id', $ids)
+                ->where('created_at', '<=', $recognition->created_at)->orderBy('created_at')
+                ->get(['product_id', 'vend_channel_code', 'created_at']) as $refill) {
+                $then[(int) $refill->product_id][(string) $refill->created_at][] = (string) $refill->vend_channel_code;
+            }
+            foreach ($then as $productId => $byVisit) {
+                $sections[$productId] = end($byVisit);
+            }
         }
 
         $px = (int) config('smart_freezer.claude_recognition.product_photo_px');
 
-        return Product::withoutGlobalScopes()->with('thumbnail')->whereIn('id', array_keys($sections))->orderBy('name')->get()
+        return Product::withoutGlobalScopes()->with('thumbnail')->whereIn('id', $ids)->orderBy('name')->get()
             ->map(fn (Product $p) => new CatalogProduct(
                 id: $p->id,
                 name: (string) $p->name,
                 code: $p->code ? (string) $p->code : null,
-                sections: array_values(array_unique($sections[$p->id])),
+                sections: array_values(array_unique($sections[$p->id] ?? [])),
                 photoJpeg: self::photo($p->thumbnail?->full_url, $px),
             ))->values()->all();
+    }
+
+    /**
+     * Products named by the barcodes in the session's Zijia request; where a barcode is shared, the one on the freezer.
+     *
+     * @param  list<int>  $onFreezer
+     * @return list<int>
+     */
+    public static function productIdsSentToZijia(SmartFreezerRecognition $recognition, array $onFreezer): array
+    {
+        $barcodes = [];
+        foreach ((array) (((array) ($recognition->request_payload ?? []))['goodsList'] ?? []) as $good) {
+            $sn = is_array($good) ? trim((string) ($good['sn'] ?? '')) : '';
+            if ($sn !== '') {
+                $barcodes[$sn] = true;
+            }
+        }
+        if ($barcodes === []) {
+            return [];
+        }
+        $ids = [];
+        foreach (Product::withoutGlobalScopes()->whereIn('barcode', array_keys($barcodes))->orderBy('id')->get(['id', 'barcode'])->groupBy('barcode') as $products) {
+            $ids[] = (int) ($products->first(fn (Product $p) => in_array($p->id, $onFreezer, true)) ?? $products->first())->id;
+        }
+
+        return array_values(array_unique($ids));
     }
 
     private static function photo(?string $url, int $px): ?string

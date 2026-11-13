@@ -14,12 +14,17 @@ final class DoorFrame
     /** The baskets at full detail at the end of the video, after the lid closed. */
     public const KIND_AFTER = 'after';
 
+    /** A contact sheet: many small pictures close together over the part where a hand is in the freezer. */
+    public const KIND_SHEET = 'sheet';
+
     public function __construct(
         public readonly int $camera,
         public readonly int $atMs,
         public readonly int $videoMs,
         public readonly string $jpeg,
         public readonly string $kind = self::KIND_FRAME,
+        /** For a sheet: ['to_ms' => int, 'step_ms' => int, 'cols' => int, 'rows' => int]; atMs is its first picture. */
+        public readonly array $sheet = [],
     ) {}
 
     public function isCloseUp(): bool
@@ -27,9 +32,9 @@ final class DoorFrame
         return $this->kind !== self::KIND_FRAME;
     }
 
-    /** @return array{camera: int, at_ms: int, video_ms: int, bytes: int, kind: string} what the row keeps of it */
+    /** @return array<string, int|string> what the row keeps of it */
     public function meta(): array
     {
-        return ['camera' => $this->camera, 'at_ms' => $this->atMs, 'video_ms' => $this->videoMs, 'bytes' => strlen($this->jpeg), 'kind' => $this->kind];
+        return ['camera' => $this->camera, 'at_ms' => $this->atMs, 'video_ms' => $this->videoMs, 'bytes' => strlen($this->jpeg), 'kind' => $this->kind] + $this->sheet;
     }
 }

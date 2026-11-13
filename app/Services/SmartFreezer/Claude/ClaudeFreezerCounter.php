@@ -42,7 +42,7 @@ class ClaudeFreezerCounter implements FreezerCounter
         return ClaudeModelChoice::current();
     }
 
-    public function count(array $frames, array $catalog, string $sessionLabel, array $examples = []): FreezerCount
+    public function count(array $frames, array $catalog, string $sessionLabel, array $examples = [], bool $cacheAll = false): FreezerCount
     {
         if ($frames === []) {
             throw new CountFailed('no frames to send');
@@ -58,7 +58,7 @@ class ClaudeFreezerCounter implements FreezerCounter
             $message = $this->client()->beta->messages->create(
                 ...$fallback,
                 maxTokens: self::MAX_TOKENS,
-                messages: [['role' => 'user', 'content' => self::content($frames, $catalog, $sessionLabel, $examples)]],
+                messages: [['role' => 'user', 'content' => self::content($frames, $catalog, $sessionLabel, $examples, $cacheAll)]],
                 model: $model,
                 outputConfig: [
                     'effort' => (string) config('smart_freezer.claude_recognition.effort', 'high'),
@@ -104,9 +104,10 @@ class ClaudeFreezerCounter implements FreezerCounter
      * @param  list<DoorFrame>  $frames
      * @param  list<CatalogProduct>  $catalog
      * @param  list<WorkedExample>  $examples
+     * @param  bool  $cacheAll  a cache breakpoint at the end too, for a session counted more than once
      * @return list<array<string, mixed>>
      */
-    public static function content(array $frames, array $catalog, string $sessionLabel, array $examples = []): array
+    public static function content(array $frames, array $catalog, string $sessionLabel, array $examples = [], bool $cacheAll = false): array
     {
         $content = [];
         $exampleImages = 0;
@@ -141,6 +142,10 @@ class ClaudeFreezerCounter implements FreezerCounter
 
         array_push($content, ...self::frameBlocks($frames));
         $content[] = ['type' => 'text', 'text' => 'Count what left the freezer in this session.'];
+        if ($cacheAll) {
+            // The same session is counted more than once: the whole request is cached, a repeat reads it at a tenth.
+            $content[array_key_last($content)]['cacheControl'] = ['type' => 'ephemeral'];
+        }
 
         return $content;
     }
@@ -154,6 +159,16 @@ class ClaudeFreezerCounter implements FreezerCounter
         $blocks = [];
         $camera = null;
         foreach ($frames as $frame) {
+            if ($frame->kind === DoorFrame::KIND_SHEET) {
+                $blocks[] = ['type' => 'text', 'text' => sprintf(
+                    'Camera %d contact sheet: %d small pictures %.2f s apart, from %.1f s to %.1f s, read left to right then top to bottom; cropped to the baskets and the space above them where hands lift goods out:',
+                    $frame->camera, ($frame->sheet['cols'] ?? 1) * ($frame->sheet['rows'] ?? 1), ($frame->sheet['step_ms'] ?? 0) / 1000,
+                    $frame->atMs / 1000, ($frame->sheet['to_ms'] ?? $frame->atMs) / 1000,
+                )];
+                $blocks[] = self::jpegBlock($frame->jpeg);
+
+                continue;
+            }
             if ($frame->camera !== $camera) {
                 $camera = $frame->camera;
                 $blocks[] = ['type' => 'text', 'text' => sprintf(
@@ -209,7 +224,12 @@ that hides what it holds. Do not stop at the first unit you see.
 
 Worked examples, when given, are earlier sessions with the count a person confirmed. Use them to learn how
 the products look from these cameras and how many units a hand can hold, never as this session's answer.
-Some freezers film with camera 3 only; a missing camera 4 is not by itself a reason to ask for a person. Name products by their look and by the section the
+Some freezers film with camera 3 only; a missing camera 4 is not by itself a reason to ask for a person.
+
+Contact sheets show the whole time a hand is in the freezer at a few pictures a second. A reach often lasts
+only half a second, so use them to follow each reach: count the packs in the hand as it rises above the
+baskets, picture by picture. The still frames and close-ups give detail; the contact sheets make sure no
+lift is missed. Name products by their look and by the section the
 hand reached into, and use only ids from the list. Something that left the freezer and matches no product
 goes in unknown_items with a short description. List only products with something taken or returned.
 
@@ -323,7 +343,8 @@ TXT;
         return new Client(
             apiKey: (string) config('services.anthropic.api_key'),
             requestOptions: [
-                'maxRetries' => 1,
+                // Anthropic answered 503 for ~30 s on 2026-11-13 20:52 and five sessions failed; the SDK backs off between tries.
+                'maxRetries' => 3,
                 'transporter' => $this->transporter ?? new GuzzleClient(['timeout' => $timeout, 'connect_timeout' => 10]),
             ],
             openTelemetry: false,

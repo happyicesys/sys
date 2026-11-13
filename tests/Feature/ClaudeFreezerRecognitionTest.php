@@ -35,6 +35,7 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Permission;
@@ -70,6 +71,8 @@ class ClaudeFreezerRecognitionTest extends TestCase
             'smart_freezer.claude_recognition.vends' => [],
             'smart_freezer.zijia.algorithm.auto_submit' => false,
             'smart_freezer.zijia.video_copy.enabled' => false,
+            'smart_freezer.claude_recognition.runs' => 1,
+            'smart_freezer.claude_recognition.max_runs' => 1,
         ]);
         $this->vend = Vend::create(['code' => 50001, 'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER, 'is_active' => 1, 'operator_id' => 1]);
         $this->basque = Product::forceCreate(['code' => 'CC-01', 'name' => 'Basque Cheesecake', 'operator_id' => 1, 'barcode' => '9726436016148']);
@@ -127,8 +130,12 @@ class ClaudeFreezerRecognitionTest extends TestCase
         return app(ClaudeShadowRecognitionService::class);
     }
 
+    /** @param  array  $items  count lines, or product id => units taken */
     private function counted(array $items, int $input = 25800, int $output = 1800): FreezerCount
     {
+        if ($items !== [] && ! is_array(reset($items))) {
+            $items = array_map(fn ($id, $n) => ['product_id' => (int) $id, 'taken' => (int) $n, 'returned' => 0], array_keys($items), $items);
+        }
         return new FreezerCount($items, [], 1, 90, false, [], 'took one Basque', ['items' => $items, 'unknown_items' => [], 'notes' => 'took one Basque'],
             new CallUsage('claude-opus-5-5', 'msg_1', 'end_turn', $input, $output, 0, 0));
     }
@@ -394,6 +401,67 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertCount(2, $this->counter->examples[0]);
     }
 
+    public function test_a_session_is_counted_twice_and_a_third_time_only_when_the_two_disagree(): void
+    {
+        config(['smart_freezer.claude_recognition.runs' => 2, 'smart_freezer.claude_recognition.max_runs' => 3]);
+        $sale = $this->sale([$this->magnum->id => 2]);
+
+        // Agree at once: two calls, sure, both billed.
+        $agree = $this->zijia(['vend_transaction_id' => $sale->id]);
+        $this->counter->answers = [$this->counted([$this->magnum->id => 2], 20000, 2000), $this->counted([$this->magnum->id => 2], 20000, 2000)];
+        $row = $this->service()->run(ClaudeRow::create(['smart_freezer_recognition_id' => $agree->id, 'status' => 'pending']));
+        $this->assertSame([$this->magnum->id => 2], $row->items);
+        $this->assertSame(2, $row->answer['agreed']);
+        $this->assertCount(2, $row->answer['runs']);
+        $this->assertSame(40000, $row->input_tokens, 'the bill is both runs');
+        $this->assertSame([true, true], $this->counter->cacheAll, 'the whole request is cached for the repeat');
+        $this->assertSame('match', $row->verdict);
+
+        // Disagree: a third run decides; 2 of 3 win.
+        $ref = 'SF-50001-1794482999-7';
+        $split = $this->zijia(['trade_id' => $ref, 'session_ref' => $ref]);
+        $this->counter->answers = [$this->counted([$this->magnum->id => 1]), $this->counted([$this->magnum->id => 2]), $this->counted([$this->magnum->id => 2])];
+        $row = $this->service()->run(ClaudeRow::create(['smart_freezer_recognition_id' => $split->id, 'status' => 'pending']));
+        $this->assertSame([$this->magnum->id => 2], $row->items);
+        $this->assertSame(2, $row->answer['agreed']);
+        $this->assertCount(3, $row->answer['runs']);
+
+        // All three differ: no majority, a person is asked.
+        $ref = 'SF-50001-1794483000-8';
+        $none = $this->zijia(['trade_id' => $ref, 'session_ref' => $ref]);
+        $this->counter->answers = [$this->counted([$this->magnum->id => 1]), $this->counted([$this->magnum->id => 2]), $this->counted([$this->basque->id => 1])];
+        $row = $this->service()->run(ClaudeRow::create(['smart_freezer_recognition_id' => $none->id, 'status' => 'pending']));
+        $this->assertSame(0, $row->answer['agreed']);
+        $this->assertTrue($row->needs_review);
+        $this->assertLessThanOrEqual(40, $row->confidence);
+    }
+
+    public function test_a_past_session_is_counted_against_the_products_it_had_then(): void
+    {
+        // Taken off the freezer since: only Zijia's request of that day still names it.
+        $old = Product::forceCreate(['code' => 'U-99', 'name' => 'Cornetto Old Flavour', 'operator_id' => 1, 'barcode' => '7777']);
+        $payload = ['goodsList' => [['sn' => '7777', 'positions' => []], ['sn' => '9726436016148', 'positions' => []]]];
+
+        $past = $this->zijia(['trade_id' => 'SF-50001-1793000000-1', 'session_ref' => 'SF-50001-1793000000-1', 'request_payload' => $payload]);
+        $past->forceFill(['created_at' => Carbon::now()->subDays(10)])->save();
+        DB::table('ops_job_item_channels')->insert([
+            ['vend_code' => '50001', 'product_id' => $old->id, 'vend_channel_code' => '61', 'created_at' => Carbon::now()->subDays(30), 'updated_at' => Carbon::now()->subDays(30)],
+            ['vend_code' => '50001', 'product_id' => $old->id, 'vend_channel_code' => '63', 'created_at' => Carbon::now()->subDays(12), 'updated_at' => Carbon::now()->subDays(12)],
+            ['vend_code' => '50001', 'product_id' => $old->id, 'vend_channel_code' => '11', 'created_at' => Carbon::now()->subDays(2), 'updated_at' => Carbon::now()->subDays(2)],
+        ]);
+        $this->counter->answers[] = $this->counted([$old->id => 1]);
+        $this->service()->run(ClaudeRow::create(['smart_freezer_recognition_id' => $past->id, 'status' => 'pending']));
+        $this->assertEqualsCanonicalizing([$old->id, $this->basque->id], array_map(fn (CatalogProduct $p) => $p->id, $this->counter->catalogs[0]),
+            "then: what Zijia was sent, not today's planogram");
+        $this->assertSame(['63'], collect($this->counter->catalogs[0])->firstWhere('id', $old->id)->sections, 'its section then, from the refill before it');
+
+        $now = $this->zijia(['request_payload' => $payload]);
+        $this->counter->answers[] = $this->counted([$this->basque->id => 1]);
+        $this->service()->run(ClaudeRow::create(['smart_freezer_recognition_id' => $now->id, 'status' => 'pending']));
+        $this->assertEqualsCanonicalizing([$old->id, $this->basque->id, $this->magnum->id], array_map(fn (CatalogProduct $p) => $p->id, $this->counter->catalogs[1]),
+            "a live session also keeps today's planogram");
+    }
+
     public function test_the_counter_sends_examples_first_as_one_cached_block_then_the_close_ups(): void
     {
         $history = new \ArrayObject;
@@ -410,7 +478,8 @@ class ClaudeFreezerRecognitionTest extends TestCase
             [$this->magnum->id => 2], [$this->magnum->id => 'Magnum Classic'], 'person');
 
         (new ClaudeFreezerCounter(new GuzzleClient(['handler' => $stack])))->count(
-            [new DoorFrame(3, 0, 9000, 'f'), new DoorFrame(3, 0, 9000, 'b', DoorFrame::KIND_BEFORE), new DoorFrame(3, 8800, 9000, 'a', DoorFrame::KIND_AFTER)],
+            [new DoorFrame(3, 0, 9000, 'f'), new DoorFrame(3, 0, 9000, 'b', DoorFrame::KIND_BEFORE), new DoorFrame(3, 8800, 9000, 'a', DoorFrame::KIND_AFTER),
+                new DoorFrame(3, 2400, 9000, 's', DoorFrame::KIND_SHEET, ['to_ms' => 5067, 'step_ms' => 333, 'cols' => 3, 'rows' => 3])],
             [new CatalogProduct(7, 'Basque Cheesecake', 'CC-01', ['11'], 'photo')],
             self::REF.' on machine 50001',
             [$example],
@@ -424,6 +493,7 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertLessThan(strpos($text, 'Product id 7'), strpos($text, 'Example 1'), 'examples come before the session');
         $this->assertStringContainsString('Camera 3 close-up of the baskets BEFORE, at 0.0 s', $text);
         $this->assertStringContainsString('Camera 3 close-up of the baskets AFTER, at 8.8 s', $text);
+        $this->assertStringContainsString('Camera 3 contact sheet: 9 small pictures 0.33 s apart, from 2.4 s to 5.1 s', $text);
         $this->assertStringNotContainsStringIgnoringCase('paid', $text, 'still blind');
         $this->assertStringContainsString('Do not stop at the first unit you see', ClaudeFreezerCounter::systemPrompt());
     }
@@ -451,8 +521,14 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $got = (new FfmpegDoorFrames(app(ZijiaVideoCopier::class)))->framesFor($recognition->fresh('videos'));
 
         // The session's whole budget goes to camera 3, the only AI camera with a video here, then its two close-ups.
-        $this->assertSame([3, 3, 3, 3, 3, 3, 3, 3], array_map(fn (DoorFrame $f) => $f->camera, $got['frames']));
-        $this->assertSame(['frame', 'frame', 'frame', 'frame', 'frame', 'frame', 'before', 'after'], array_map(fn (DoorFrame $f) => $f->kind, $got['frames']));
+        $kinds = array_map(fn (DoorFrame $f) => $f->kind, $got['frames']);
+        $this->assertSame(array_fill(0, count($kinds), 3), array_map(fn (DoorFrame $f) => $f->camera, $got['frames']));
+        $this->assertSame(['frame', 'frame', 'frame', 'frame', 'frame', 'frame', 'before', 'after'], array_slice($kinds, 0, 8));
+        $this->assertNotEmpty(array_slice($kinds, 8), 'contact sheets come last');
+        $this->assertSame(['sheet'], array_values(array_unique(array_slice($kinds, 8))));
+        $sheet = $got['frames'][8];
+        $this->assertSame([3, 3], [$sheet->sheet['cols'], $sheet->sheet['rows']]);
+        $this->assertSame(1566, getimagesizefromstring($sheet->jpeg)[0], 'three 522 px tiles across');
         $closeUp = getimagesizefromstring($got['frames'][6]->jpeg);
         $this->assertSame(1568, $closeUp[0], 'the basket close-up is enlarged, not shrunk');
         $this->assertSame([0, 1800], [$got['frames'][6]->atMs, $got['frames'][7]->atMs], 'before = the start, after = the end');
@@ -644,6 +720,9 @@ class FakeFreezerCounter implements FreezerCounter
     /** @var list<list<\App\Services\SmartFreezer\Claude\WorkedExample>> */
     public array $examples = [];
 
+    /** @var list<bool> */
+    public array $cacheAll = [];
+
     public function isConfigured(): bool
     {
         return $this->configured;
@@ -654,10 +733,11 @@ class FakeFreezerCounter implements FreezerCounter
         return 'claude-opus-5-5';
     }
 
-    public function count(array $frames, array $catalog, string $sessionLabel, array $examples = []): FreezerCount
+    public function count(array $frames, array $catalog, string $sessionLabel, array $examples = [], bool $cacheAll = false): FreezerCount
     {
         $this->catalogs[] = $catalog;
         $this->examples[] = $examples;
+        $this->cacheAll[] = $cacheAll;
         $answer = array_shift($this->answers) ?? throw new \LogicException('no answer queued');
         if ($answer instanceof CountFailed) {
             throw $answer;
@@ -669,7 +749,7 @@ class FakeFreezerCounter implements FreezerCounter
 
 class FakeDoorFrames implements DoorFrameSource
 {
-    public function framesFor(SmartFreezerRecognition $recognition, ?int $framesPerSession = null): array
+    public function framesFor(SmartFreezerRecognition $recognition, ?int $framesPerSession = null, bool $sheets = true): array
     {
         return ['frames' => [new DoorFrame(3, 0, 9000, 'a'), new DoorFrame(3, 8800, 9000, 'b'), new DoorFrame(4, 0, 9000, 'c'), new DoorFrame(4, 8800, 9000, 'd')], 'notes' => []];
     }
