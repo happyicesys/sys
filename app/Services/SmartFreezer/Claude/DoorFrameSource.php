@@ -8,8 +8,10 @@ use App\Models\SmartFreezerRecognition;
 interface DoorFrameSource
 {
     /**
-     * @return array{frames: list<DoorFrame>, notes: list<string>} frames in camera, then time order; notes say
+     * @param  int|null  $framesPerSession  motion frames for the whole session; null = `frames_per_session`
+     * @return array{frames: list<DoorFrame>, notes: list<string>} frames in camera, then time order, each camera's
+     *                                                             before/after close-ups after its frames; notes say
      *                                                             what was left out and why
      */
-    public function framesFor(SmartFreezerRecognition $recognition): array;
+    public function framesFor(SmartFreezerRecognition $recognition, ?int $framesPerSession = null): array;
 }

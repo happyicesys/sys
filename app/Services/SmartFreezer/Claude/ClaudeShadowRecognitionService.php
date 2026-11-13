@@ -34,6 +34,7 @@ class ClaudeShadowRecognitionService
         private readonly FreezerCounter $counter,
         private readonly DoorFrameSource $frames,
         private readonly FreezerSaleLocator $sales,
+        private readonly ClaudeWorkedExamples $examples,
     ) {}
 
     public function enabledFor(SmartFreezerRecognition $recognition): bool
@@ -115,12 +116,14 @@ class ClaudeShadowRecognitionService
         try {
             ['frames' => $frames, 'notes' => $notes] = $this->frames->framesFor($recognition);
             $catalog = $this->catalog($recognition);
+            $examples = $frames === [] ? [] : $this->examples->for($recognition);
             $row->update([
                 'vend_id' => $recognition->vend_id,
                 'session_ref' => $recognition->session_ref,
                 'model' => $this->counter->model(),
                 'effort' => (string) config('smart_freezer.claude_recognition.effort'),
-                'frames' => ['sent' => array_map(fn (DoorFrame $f) => $f->meta(), $frames), 'notes' => $notes, 'catalog' => array_map(fn (CatalogProduct $p) => $p->id, $catalog)],
+                'frames' => ['sent' => array_map(fn (DoorFrame $f) => $f->meta(), $frames), 'notes' => $notes, 'catalog' => array_map(fn (CatalogProduct $p) => $p->id, $catalog),
+                    'examples' => array_map(fn (WorkedExample $e) => $e->recognitionId, $examples)],
             ]);
             if ($frames === []) {
                 return $this->finish($row, ClaudeRow::STATUS_FAILED, 'no camera 3 or 4 video could be read'.($notes ? ': '.implode('; ', $notes) : ''), $started);
@@ -129,7 +132,7 @@ class ClaudeShadowRecognitionService
                 return $this->finish($row, ClaudeRow::STATUS_FAILED, 'the freezer has no product on its planogram', $started);
             }
 
-            $count = $this->counter->count($frames, $catalog, (string) ($recognition->session_ref ?? $recognition->trade_id).' on machine '.$recognition->vend->code);
+            $count = $this->counter->count($frames, $catalog, (string) ($recognition->session_ref ?? $recognition->trade_id).' on machine '.$recognition->vend->code, $examples);
 
             $row->update($count->usage->columns() + [
                 'items' => self::itemsOf($count),

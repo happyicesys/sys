@@ -24,7 +24,7 @@ class FfmpegDoorFrames implements DoorFrameSource
 {
     public function __construct(private readonly ZijiaVideoCopier $copier) {}
 
-    public function framesFor(SmartFreezerRecognition $recognition): array
+    public function framesFor(SmartFreezerRecognition $recognition, ?int $framesPerSession = null): array
     {
         $config = config('smart_freezer.claude_recognition');
         $wanted = array_map('intval', (array) $config['cameras']);
@@ -70,15 +70,22 @@ class FfmpegDoorFrames implements DoorFrameSource
                 $videos[$camera] = [$tmp, $durationMs];
             }
 
-            $each = self::framesPerCamera((int) $config['frames_per_session'], count($videos));
+            $each = self::framesPerCamera($framesPerSession ?? (int) $config['frames_per_session'], count($videos));
             foreach ($videos as $camera => [$tmp, $durationMs]) {
-                $taken = $this->extract($tmp, $camera, $durationMs, self::moments($durationMs, $each, $this->motionWindow($tmp, $durationMs)));
+                $taken = $this->extract($tmp, $camera, $durationMs, self::moments($durationMs, $each, $this->motionWindow($tmp, $durationMs)), $this->frameFilter($camera));
                 if ($taken === []) {
                     $notes[] = "camera {$camera}: no frame could be cut";
 
                     continue;
                 }
                 array_push($frames, ...$taken);
+                // The baskets before and after at full detail (Brian, 2026-11-13: two identical bars lifted together
+                // read as one at 576 px). Counting the gap in a section is easier than following a hand.
+                if ((bool) ($config['closeups']['enabled'] ?? false)) {
+                    $last = max(0, $durationMs - 200);
+                    array_push($frames, ...$this->extract($tmp, $camera, $durationMs, [0], $this->closeUpFilter($camera), DoorFrame::KIND_BEFORE));
+                    array_push($frames, ...$this->extract($tmp, $camera, $durationMs, [$last], $this->closeUpFilter($camera), DoorFrame::KIND_AFTER));
+                }
             }
         } finally {
             foreach ($videos as [$tmp]) {
@@ -86,9 +93,41 @@ class FfmpegDoorFrames implements DoorFrameSource
             }
         }
 
-        usort($frames, fn (DoorFrame $a, DoorFrame $b) => [$a->camera, $a->atMs] <=> [$b->camera, $b->atMs]);
+        // Camera, then the motion frames in time order, then that camera's before and after close-ups.
+        $rank = [DoorFrame::KIND_FRAME => 0, DoorFrame::KIND_BEFORE => 1, DoorFrame::KIND_AFTER => 2];
+        usort($frames, fn (DoorFrame $a, DoorFrame $b) => [$a->camera, $rank[$a->kind], $a->atMs] <=> [$b->camera, $rank[$b->kind], $b->atMs]);
 
         return ['frames' => $frames, 'notes' => $notes];
+    }
+
+    /** The whole picture, `frame_height_px` high, camera 3's black fisheye corners cropped (`crop_width`). */
+    private function frameFilter(int $camera): string
+    {
+        $height = max(144, (int) config('smart_freezer.claude_recognition.frame_height_px'));
+        $crop = (float) (((array) config('smart_freezer.claude_recognition.crop_width'))[$camera] ?? 1);
+
+        return ($crop > 0 && $crop < 1 ? "crop=iw*{$crop}:ih," : '')."scale=-2:{$height}";
+    }
+
+    /**
+     * The basket area only (`closeups.box` per camera, as shares of the picture: left, top, right, bottom; a camera
+     * with no box keeps the whole picture), enlarged to `closeups.width_px` so a small pack covers more of what
+     * Claude reads. Enlarging adds no detail the camera did not record; it only stops the picture being shrunk.
+     */
+    public static function closeUpFilter(int $camera): string
+    {
+        $config = (array) config('smart_freezer.claude_recognition.closeups');
+        $width = max(320, (int) ($config['width_px'] ?? 1568));
+        $box = ((array) ($config['box'] ?? []))[$camera] ?? null;
+        $crop = '';
+        if (is_array($box) && count($box) === 4) {
+            [$left, $top, $right, $bottom] = array_map('floatval', $box);
+            if ($left >= 0 && $top >= 0 && $right <= 1 && $bottom <= 1 && $right > $left && $bottom > $top) {
+                $crop = sprintf('crop=iw*%.4F:ih*%.4F:iw*%.4F:ih*%.4F,', $right - $left, $bottom - $top, $left, $top);
+            }
+        }
+
+        return $crop."scale={$width}:-2:flags=lanczos";
     }
 
     /** The session's frame budget split over the cameras that have a video, at least 2 each (before and after). */
@@ -209,16 +248,12 @@ class FfmpegDoorFrames implements DoorFrameSource
      * @param  list<int>  $moments  ms
      * @return list<DoorFrame>
      */
-    private function extract(string $video, int $camera, int $durationMs, array $moments): array
+    private function extract(string $video, int $camera, int $durationMs, array $moments, string $filter, string $kind = DoorFrame::KIND_FRAME): array
     {
         $bin = (string) config('smart_freezer.claude_recognition.ffmpeg_bin');
         if ($bin === '' || ! is_executable($bin)) {
             return [];
         }
-
-        $height = max(144, (int) config('smart_freezer.claude_recognition.frame_height_px'));
-        $crop = (float) (((array) config('smart_freezer.claude_recognition.crop_width'))[$camera] ?? 1);
-        $filter = ($crop > 0 && $crop < 1 ? "crop=iw*{$crop}:ih," : '')."scale=-2:{$height}";
 
         $frames = [];
         foreach ($moments as $atMs) {
@@ -232,7 +267,7 @@ class FfmpegDoorFrames implements DoorFrameSource
                 $process->setTimeout(30);
                 $process->run();
                 if ($process->isSuccessful() && is_file($out) && filesize($out) > 0) {
-                    $frames[] = new DoorFrame($camera, $atMs, $durationMs, (string) file_get_contents($out));
+                    $frames[] = new DoorFrame($camera, $atMs, $durationMs, (string) file_get_contents($out), $kind);
                 }
             } catch (Throwable $e) {
                 report($e);

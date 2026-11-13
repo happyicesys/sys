@@ -42,7 +42,7 @@ class ClaudeFreezerCounter implements FreezerCounter
         return ClaudeModelChoice::current();
     }
 
-    public function count(array $frames, array $catalog, string $sessionLabel): FreezerCount
+    public function count(array $frames, array $catalog, string $sessionLabel, array $examples = []): FreezerCount
     {
         if ($frames === []) {
             throw new CountFailed('no frames to send');
@@ -58,7 +58,7 @@ class ClaudeFreezerCounter implements FreezerCounter
             $message = $this->client()->beta->messages->create(
                 ...$fallback,
                 maxTokens: self::MAX_TOKENS,
-                messages: [['role' => 'user', 'content' => $this->content($frames, $catalog, $sessionLabel)]],
+                messages: [['role' => 'user', 'content' => self::content($frames, $catalog, $sessionLabel, $examples)]],
                 model: $model,
                 outputConfig: [
                     'effort' => (string) config('smart_freezer.claude_recognition.effort', 'high'),
@@ -99,15 +99,33 @@ class ClaudeFreezerCounter implements FreezerCounter
     }
 
     /**
+     * Worked examples first (one cached block), then this freezer's products, then this session's frames.
+     *
      * @param  list<DoorFrame>  $frames
      * @param  list<CatalogProduct>  $catalog
+     * @param  list<WorkedExample>  $examples
      * @return list<array<string, mixed>>
      */
-    private function content(array $frames, array $catalog, string $sessionLabel): array
+    public static function content(array $frames, array $catalog, string $sessionLabel, array $examples = []): array
     {
-        $content = [['type' => 'text', 'text' => "Door session {$sessionLabel}. The products this freezer holds:"]];
+        $content = [];
+        $exampleImages = 0;
+        if ($examples !== []) {
+            $content[] = ['type' => 'text', 'text' => 'Worked examples: earlier door sessions on these freezers, each with the count a person confirmed. They show how the cameras see the products. They are not this session.'];
+            foreach ($examples as $n => $example) {
+                $content[] = ['type' => 'text', 'text' => sprintf('Example %d, session %s.', $n + 1, $example->label)];
+                foreach (self::frameBlocks($example->frames) as $block) {
+                    $content[] = $block;
+                    $exampleImages += $block['type'] === 'image' ? 1 : 0;
+                }
+                $content[] = ['type' => 'text', 'text' => sprintf('Example %d confirmed count: %s.', $n + 1, $example->answerText())];
+            }
+            // Everything above is the same for every session while the list stands: cached, a repeat read costs a tenth.
+            $content[array_key_last($content)]['cacheControl'] = ['type' => 'ephemeral'];
+        }
 
-        $photos = max(0, self::MAX_IMAGES - count($frames));
+        $content[] = ['type' => 'text', 'text' => "Now the session to count: door session {$sessionLabel}. The products this freezer holds:"];
+        $photos = max(0, self::MAX_IMAGES - count($frames) - $exampleImages);
         foreach ($catalog as $product) {
             $line = "Product id {$product->id}: {$product->name}";
             if ($product->code) {
@@ -121,21 +139,37 @@ class ClaudeFreezerCounter implements FreezerCounter
             }
         }
 
+        array_push($content, ...self::frameBlocks($frames));
+        $content[] = ['type' => 'text', 'text' => 'Count what left the freezer in this session.'];
+
+        return $content;
+    }
+
+    /**
+     * @param  list<DoorFrame>  $frames
+     * @return list<array<string, mixed>>
+     */
+    private static function frameBlocks(array $frames): array
+    {
+        $blocks = [];
         $camera = null;
         foreach ($frames as $frame) {
             if ($frame->camera !== $camera) {
                 $camera = $frame->camera;
-                $content[] = ['type' => 'text', 'text' => sprintf(
+                $blocks[] = ['type' => 'text', 'text' => sprintf(
                     'Camera %d (%s), video %.1f s long. Frames in time order:',
                     $frame->camera, self::cameraName($frame->camera), $frame->videoMs / 1000,
                 )];
             }
-            $content[] = ['type' => 'text', 'text' => sprintf('Camera %d at %.1f s:', $frame->camera, $frame->atMs / 1000)];
-            $content[] = self::jpegBlock($frame->jpeg);
+            $blocks[] = ['type' => 'text', 'text' => match ($frame->kind) {
+                DoorFrame::KIND_BEFORE => sprintf('Camera %d close-up of the baskets BEFORE, at %.1f s (full detail):', $frame->camera, $frame->atMs / 1000),
+                DoorFrame::KIND_AFTER => sprintf('Camera %d close-up of the baskets AFTER, at %.1f s (full detail):', $frame->camera, $frame->atMs / 1000),
+                default => sprintf('Camera %d at %.1f s:', $frame->camera, $frame->atMs / 1000),
+            }];
+            $blocks[] = self::jpegBlock($frame->jpeg);
         }
-        $content[] = ['type' => 'text', 'text' => 'Count what left the freezer in this session.'];
 
-        return $content;
+        return $blocks;
     }
 
     public static function cameraName(int $camera): string
@@ -161,9 +195,21 @@ this freezer holds (id, name, section, and a photo where we have one), then stil
 filming the same session: camera 3 looks across the baskets from the front, camera 4 looks down on them
 from above. Each frame says how many seconds into its video it was taken.
 
+For each camera you also get two close-ups of the baskets at full detail: BEFORE (the first moment) and
+AFTER (the last). Count from them first: for each section, how many fewer units does it hold after than
+before? Then use the frames to see which section the hand reached into and what it lifted out.
+
 For each product, count the units that were lifted out above the lid opening ("taken") and the units put
 back in ("returned"). A unit picked up and put back is taken 1, returned 1. When no frame shows the moment,
-compare where the goods were at the start with the end. Name products by their look and by the section the
+compare where the goods were at the start with the end.
+
+Customers often take two or three of the same product at once, held together in one hand or stacked. Look
+for more than one stick, wrapper edge or pack in the hand, and trust the gap left in the section over a hand
+that hides what it holds. Do not stop at the first unit you see.
+
+Worked examples, when given, are earlier sessions with the count a person confirmed. Use them to learn how
+the products look from these cameras and how many units a hand can hold, never as this session's answer.
+Some freezers film with camera 3 only; a missing camera 4 is not by itself a reason to ask for a person. Name products by their look and by the section the
 hand reached into, and use only ids from the list. Something that left the freezer and matches no product
 goes in unknown_items with a short description. List only products with something taken or returned.
 

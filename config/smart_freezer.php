@@ -232,6 +232,21 @@ return [
         // SESSION, split over the cameras that have a video: 30 = 15 each from cameras 3 and 4, or 30 from camera 3
         // alone (2026-11-13, raised from 12 per camera after a one-camera session missed two of four items).
         'frames_per_session' => (int) env('CLAUDE_FREEZER_AI_FRAMES', 30),
+        // Each camera's baskets at full detail at the start and the end of the video (Brian, 2026-11-13: two identical
+        // bars lifted together read as one at 576 px). box = the basket area as shares of the picture (left, top, right,
+        // bottom), checked on 50001's camera 3 on 2026-11-13; a camera without a box keeps the whole picture.
+        'closeups' => [
+            'enabled' => (bool) env('CLAUDE_FREEZER_AI_CLOSEUPS', true),
+            'width_px' => (int) env('CLAUDE_FREEZER_AI_CLOSEUP_WIDTH', 1568),
+            'box' => [3 => [0.15, 0.36, 0.87, 0.80]],
+        ],
+        // Worked examples sent with every call: door sessions (AI Recognition ids) whose count a person confirmed,
+        // shown with that count, the closest Claude comes to being trained on our freezers. The answer is the person's
+        // Adjust Qty, else Zijia's count. A session is never its own example; the same freezer's come first.
+        // The block is cached for 5 minutes (a repeat read costs a tenth), which a run of past sessions reuses.
+        'examples' => array_values(array_filter(array_map('intval', explode(',', (string) env('CLAUDE_FREEZER_AI_EXAMPLES', ''))))),
+        'max_examples' => (int) env('CLAUDE_FREEZER_AI_MAX_EXAMPLES', 2),
+        'example_frames' => (int) env('CLAUDE_FREEZER_AI_EXAMPLE_FRAMES', 8),
         'motion_threshold' => (float) env('CLAUDE_FREEZER_AI_MOTION', 0.02),
         'motion_pad_ms' => (int) env('CLAUDE_FREEZER_AI_MOTION_PAD_MS', 500),
         // Height of each frame sent, px; width follows the picture (1024x576 ≈ 790 input tokens a frame).
