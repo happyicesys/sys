@@ -13,6 +13,7 @@ use App\Models\VendChannel;
 use App\Models\VendTransaction;
 use App\Services\SmartFreezer\Claude\CallUsage;
 use App\Services\SmartFreezer\Claude\CatalogProduct;
+use App\Services\SmartFreezer\Claude\ClaudeAccuracyEvaluation;
 use App\Services\SmartFreezer\Claude\ClaudeCostMoney;
 use App\Services\SmartFreezer\Claude\ClaudeFreezerCounter;
 use App\Services\SmartFreezer\Claude\ClaudeModelChoice;
@@ -497,6 +498,63 @@ class ClaudeFreezerRecognitionTest extends TestCase
         config(['smart_freezer.claude_recognition.currency' => 'THB']);
         $this->assertSame('US$0.14', ClaudeCostMoney::text(139_200), 'no rate on file: US dollars');
         $this->assertNull(ClaudeCostMoney::text(null));
+    }
+
+    /** @param  array<int, int>|null  $correction  a person's Adjust Qty basket */
+    private function judgedSession(string $ref, ?string $zijiaVerdict, array $zijiaTaken, ?array $correction, ?array $claude, int $micros, string $status = 'done'): void
+    {
+        $sale = VendTransaction::forceCreate(['order_id' => 'O-'.$ref, 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 240,
+            'transaction_datetime' => Carbon::now(), 'gst_vat_rate' => 9, 'operator_id' => 1, 'vend_transaction_json' => ['SFREF' => $ref],
+            'meta_json' => $correction === null ? null : ['correction' => ['basket' => $correction]]]);
+        $zijia = $this->zijia(['trade_id' => $ref, 'session_ref' => $ref, 'status' => 'completed', 'verdict' => $zijiaVerdict, 'vend_transaction_id' => $sale->id,
+            'verdict_lines' => collect($zijiaTaken)->map(fn ($n, $id) => ['product_id' => $id, 'paid' => 1, 'taken' => $n])->values()->all()]);
+        ClaudeRow::create(['smart_freezer_recognition_id' => $zijia->id, 'vend_id' => $this->vend->id, 'session_ref' => $ref, 'status' => $status,
+            'items' => $claude, 'vend_transaction_id' => $sale->id, 'model' => 'claude-opus-5-5', 'cost_usd_micros' => $micros]);
+    }
+
+    public function test_a_persons_amended_count_is_the_final_and_a_correct_result_is_priced(): void
+    {
+        $b = $this->basque->id;
+        $m = $this->magnum->id;
+        // Amended by a person: Claude saw it right, Zijia did not.
+        $this->judgedSession('SF-50001-1794000001-1', 'took_less', [$b => 0], [$b => 1], [$b => 1], 140_000);
+        // Zijia matched paid, nobody amended: Claude agrees once, disagrees once.
+        $this->judgedSession('SF-50001-1794000002-2', 'match', [$m => 1], null, [$m => 1], 140_000);
+        $this->judgedSession('SF-50001-1794000003-3', 'match', [$m => 2], null, [$m => 1], 140_000);
+        // No final result: Zijia unsure, nobody amended.
+        $this->judgedSession('SF-50001-1794000004-4', 'mixed', [$b => 1], null, [$b => 2], 140_000);
+        // A billed call that failed still costs.
+        $this->judgedSession('SF-50001-1794000005-5', 'match', [$b => 1], null, null, 40_000, 'failed');
+
+        $s = ClaudeAccuracyEvaluation::evaluate(ClaudeRow::with('recognition')->orderBy('id')->get())['summary'];
+
+        $this->assertSame([1, 1, 100.0], [$s['claude_right_person'], $s['person_sessions'], $s['claude_right_person_pct']]);
+        $this->assertSame([0, 1, 0.0], [$s['zijia_right_person'], $s['zijia_person_sessions'], $s['zijia_right_person_pct']]);
+        $this->assertSame([1, 2], [$s['claude_right_accepted'], $s['accepted_sessions']]);
+        $this->assertSame([2, 3, 66.7], [$s['claude_right'], $s['judged_sessions'], $s['claude_right_pct']]);
+        $this->assertSame(1, $s['unknown_sessions']);
+        $this->assertSame([600_000, 5, 120_000], [$s['cost_usd_micros'], $s['calls'], $s['cost_per_call_usd_micros']]);
+        $this->assertSame(300_000, $s['cost_per_correct_usd_micros'], 'US$0.60 spent for two right answers');
+        $lines = ClaudeAccuracyEvaluation::reportLines(ClaudeAccuracyEvaluation::evaluate(ClaudeRow::with('recognition')->get()));
+        $this->assertStringContainsString('US$0.3000 (S$0.39) per correct result', implode("\n", $lines));
+    }
+
+    public function test_the_evaluation_seeder_sends_nothing_until_switched_on_and_never_counts_a_session_twice(): void
+    {
+        $this->zijia();
+        config(['smart_freezer.claude_recognition.enabled' => false]);
+        $this->seed(\Database\Seeders\ClaudeFreezerEvaluationSeeder::class);
+        $this->assertSame(0, ClaudeRow::count());
+
+        config(['smart_freezer.claude_recognition.enabled' => true]);
+        $this->counter->answers[] = $this->counted([['product_id' => $this->basque->id, 'taken' => 1, 'returned' => 0]]);
+        $this->seed(\Database\Seeders\ClaudeFreezerEvaluationSeeder::class);
+        $this->seed(\Database\Seeders\ClaudeFreezerEvaluationSeeder::class);
+
+        $this->assertSame(1, ClaudeRow::count());
+        $this->assertSame(ClaudeRow::STATUS_DONE, ClaudeRow::first()->status);
+        $this->assertCount(1, $this->counter->catalogs, 'one billed call for one session');
+        $this->assertNotEmpty(glob(storage_path('app/claude-eval/eval-*.csv')));
     }
 }
 

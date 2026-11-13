@@ -1774,7 +1774,14 @@ from Zijia and from a person's Adjust Qty, confidence, then the call's cost (sit
 counted — the person is the truth — same count, cost). Off until `CLAUDE_FREEZER_AI=true` AND `ANTHROPIC_API_KEY`;
 `CLAUDE_FREEZER_AI_VENDS` narrows it; `CLAUDE_FREEZER_AI_DAILY_LIMIT` (100) caps automatic calls a day (a person's
 command is not capped). `smart-freezer:claude-recognition {id} [--retry]`, `--backfill --days=30 [--vend] [--limit]
-[--dry-run]` for past sessions, `--report --days=30 [--details]`. Every call is billed. Regression coverage:
+[--dry-run]` for past sessions, `--report --days=30 [--details]`, `--accuracy --days=N` (no calls). Every call is billed.
+**Evaluation of past sessions** (Brian, 2026-11-13; `ClaudeFreezerEvaluationSeeder`, run by hand only, after the key and the switch:
+`[CLAUDE_EVAL_LIMIT=3] php artisan db:seed --class=ClaudeFreezerEvaluationSeeder --force`, `CLAUDE_EVAL_REPORT_ONLY=1` to
+report again without calls): every past session Claude has not counted goes through the live path, then
+`ClaudeAccuracyEvaluation` reports against the FINAL result: a person's Adjust Qty, else Zijia's count where it matched
+what was paid (Zijia is then right by definition, so its accuracy is measured on amended sessions only); sessions with
+neither are left out. Cost per correct result = every call's cost (failed ones too) ÷ sessions Claude got right; a CSV of
+every session lands in `storage/app/claude-eval/`. On 2026-11-13: 106 past sessions, 17 amended, 53 matched-not-amended. Regression coverage:
 `tests/Feature/ClaudeFreezerRecognitionTest.php`.
 
 **Transactions → AI Recognition** (`/ai-recognition`, `FreezerRecognitionController`,

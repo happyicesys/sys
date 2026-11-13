@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\SmartFreezerClaudeRecognition as ClaudeRow;
 use App\Models\SmartFreezerRecognition;
+use App\Services\SmartFreezer\Claude\ClaudeAccuracyEvaluation;
 use App\Services\SmartFreezer\Claude\ClaudeCostMoney;
 use App\Services\SmartFreezer\Claude\ClaudeModelChoice;
 use App\Services\SmartFreezer\Claude\ClaudeShadowRecognitionService;
@@ -20,6 +21,7 @@ use Illuminate\Console\Command;
  *                                                    count past sessions that have no Claude row yet
  *   smart-freezer:claude-recognition --evaluate      judge answers whose sale has arrived since (every 10 min)
  *   smart-freezer:claude-recognition --report --days=30 [--vend=50001] [--details]
+ *   smart-freezer:claude-recognition --accuracy --days=60   how close Claude came to the final result, cost per correct result
  */
 class ClaudeFreezerRecognitionCommand extends Command
 {
@@ -29,6 +31,7 @@ class ClaudeFreezerRecognitionCommand extends Command
         {--backfill : count past sessions with no Claude row yet}
         {--evaluate : judge answers whose sale has arrived since}
         {--report : Claude against Zijia over --days}
+        {--accuracy : how close Claude came to the final result, and the cost per correct result (no calls)}
         {--details : with --report, one line per session}
         {--days=30}
         {--vend= : a machine code}
@@ -42,6 +45,7 @@ class ClaudeFreezerRecognitionCommand extends Command
         return match (true) {
             (bool) $this->option('evaluate') => $this->evaluate($claude),
             (bool) $this->option('report') => $this->report(),
+            (bool) $this->option('accuracy') => $this->accuracy(),
             (bool) $this->option('backfill') => $this->backfill($claude),
             $this->argument('recognition') !== null => $this->one($claude, (int) $this->argument('recognition')),
             default => $this->usage(),
@@ -159,6 +163,19 @@ class ClaudeFreezerRecognitionCommand extends Command
                     $r->costText() ?? '–',
                 ];
             })->all());
+        }
+
+        return self::SUCCESS;
+    }
+
+    private function accuracy(): int
+    {
+        $rows = ClaudeRow::with(['recognition', 'vend'])
+            ->where('created_at', '>=', Carbon::now()->subDays(max(1, (int) $this->option('days'))))
+            ->when($this->option('vend'), fn ($q, $code) => $q->whereHas('vend', fn ($v) => $v->where('code', $code)))
+            ->orderBy('id')->get();
+        foreach (ClaudeAccuracyEvaluation::reportLines(ClaudeAccuracyEvaluation::evaluate($rows)) as $line) {
+            $this->line($line);
         }
 
         return self::SUCCESS;
