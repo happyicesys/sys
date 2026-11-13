@@ -72,6 +72,8 @@ final class ClaudeModelChoice
             ])->values()->all(),
             'set_by' => $by?->name,
             'set_at' => $setting?->claude_freezer_ai_model_set_at?->format('Y-m-d H:i'),
+            // CLAUDE_FREEZER_AI=true: AI Recognition shows the Claude Verdict column (Brian, 2026-11-13).
+            'enabled' => (bool) config('smart_freezer.claude_recognition.enabled'),
             'on' => (bool) config('smart_freezer.claude_recognition.enabled') && trim((string) config('services.anthropic.api_key')) !== '',
             'can_change' => (bool) $viewer?->can('update ai-recognition'),
         ];

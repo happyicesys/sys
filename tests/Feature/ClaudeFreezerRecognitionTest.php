@@ -426,6 +426,7 @@ class ClaudeFreezerRecognitionTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('claudeModel.current', 'claude-haiku-5-5')
                 ->where('claudeModel.can_change', false)
+                ->where('claudeModel.enabled', true)
                 ->where('claudeModel.set_by', 'Brian')
                 ->where('claudeModel.options.1.id', 'claude-opus-5-5')
                 ->where('claudeModel.options.1.estimate_sgd', 0.181));

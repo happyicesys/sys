@@ -376,7 +376,7 @@
                   <TableHeadSort modelName="verdict" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('verdict')">
                     {{ $t('Verification') }}
                   </TableHeadSort>
-                  <TableHead>
+                  <TableHead v-if="claudeColumn">
                     <span class="text-violet-800" tabindex="0" v-tooltip="$t('Claude counts the same videos as a trial, to compare with Zijia. It never charges, refunds or moves stock.')">{{ $t('Claude Verdict') }}</span>
                   </TableHead>
                   <TableHead>
@@ -410,7 +410,7 @@
                     <span v-for="item in sale.items" :key="item.name" class="block">{{ item.qty }} × {{ item.name }}</span>
                     <span class="mt-1 block text-gray-500">{{ $t('The AI check starts when the video arrives.') }}</span>
                   </td>
-                  <td class="px-3 py-2"></td>
+                  <td v-if="claudeColumn" class="px-3 py-2"></td>
                   <td class="px-3 py-2 text-center font-medium">{{ formatCents(sale.amount_cents) }}</td>
                   <td class="px-3 py-2"></td>
                 </tr>
@@ -612,7 +612,7 @@
                   </TableData>
                   <!-- Claude Verdict (Brian, 2026-11-13): Claude's count of the same videos, a trial beside Zijia's. It decides nothing:
                        Adjust Qty, the T05 charge and stock still follow Zijia's answer. -->
-                  <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
+                  <TableData v-if="claudeColumn" :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
                     <div v-if="row.claude" class="flex w-56 flex-col gap-1 text-xs text-violet-900">
                       <template v-if="row.claude.status === 'done'">
                         <span v-if="row.claude.verdict" :class="['inline-flex w-fit items-center rounded-full px-2 py-0.5 font-semibold', verdictBadgeClass(row.claude.verdict)]">{{ $t(verdictLabels[row.claude.verdict] || row.claude.verdict) }}</span>
@@ -631,9 +631,12 @@
                       </template>
                       <span v-else-if="row.claude.status === 'pending' || row.claude.status === 'running'" class="text-gray-500">{{ $t('counting…') }}</span>
                       <span v-else class="w-fit cursor-help text-gray-500" tabindex="0" v-tooltip="row.claude.reason || ''">{{ row.claude.status === 'skipped' ? $t('not sent') : $t('failed') }}</span>
-                      <span v-if="row.claude.model || row.claude.cost_sgd !== null" class="text-gray-500">
-                        {{ (row.claude.model || '').replace(/^claude-/, '') }}<template v-if="row.claude.cost_sgd !== null"> · S${{ row.claude.cost_sgd }}</template>
-                      </span>
+                      <!-- What this session's Claude call cost (a declined or cut-off call is billed too), and the model that answered. -->
+                      <div v-if="row.claude.cost_sgd !== null || row.claude.model" class="mt-0.5 flex items-baseline justify-between gap-2 border-t border-violet-200 pt-1">
+                        <span v-if="row.claude.cost_sgd !== null" class="font-semibold text-gray-900" tabindex="0" v-tooltip="$t('What this Claude call cost, in Singapore dollars at the rate in the settings.')">{{ $t('Cost S$:amount', { amount: row.claude.cost_sgd }) }}</span>
+                        <span v-else class="text-gray-500">{{ $t('No cost') }}</span>
+                        <span v-if="row.claude.model" class="text-gray-500">{{ row.claude.model.replace(/^claude-/, '') }}</span>
+                      </div>
                     </div>
                     <span v-else class="text-gray-400" tabindex="0" v-tooltip="$t('Claude did not count this session.')">—</span>
                   </TableData>
@@ -694,7 +697,7 @@
                   </TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
-                  <td colspan="11" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td :colspan="claudeColumn ? 11 : 10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                     {{ $t('No Results Found') }}
                   </td>
                 </tr>
@@ -802,7 +805,7 @@ import { CheckCircleIcon, InformationCircleIcon, MagnifyingGlassIcon, PencilSqua
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { t, tk } from '@/i18n';
 
@@ -923,6 +926,9 @@ function saleUrl(sale) {
 function formatCents(cents) {
   return (cents / 100).toFixed(2)
 }
+
+// The Claude Verdict column shows while CLAUDE_FREEZER_AI is true on the server (Brian, 2026-11-13).
+const claudeColumn = computed(() => Boolean(props.claudeModel?.enabled))
 
 // The Claude trial's model: saved at once on change; a refused save puts the page's value back.
 const claudeModelPick = ref(props.claudeModel?.current ?? null)

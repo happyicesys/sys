@@ -1762,7 +1762,7 @@ judges late sales). **Cost:** usage from the API's reply, priced by the model th
 `usd_to_sgd` (1.29); a declined or cut-off call is failed but its cost is still kept. **Nothing reads these rows to
 charge, release, refund or move stock**: Zijia's verdict alone drives the T05 hold. AI Recognition gives Claude its own
 **Claude Verdict** column beside Verification (Brian, 2026-11-13: the verdict against paid, what it saw, same as / differs
-from Zijia and from a person's Adjust Qty, confidence, model and S$; Adjust Qty stays on Zijia's answer) and a
+from Zijia and from a person's Adjust Qty, confidence, then the call's cost in S$ and the model on its last line; Adjust Qty stays on Zijia's answer; the column is shown only while `CLAUDE_FREEZER_AI=true`) and a
 "Claude vs Zijia (trial)" box on the AI Dashboard (`ClaudeZijiaComparison`: matches paid, right where a person
 counted — the person is the truth — same count, cost). Off until `CLAUDE_FREEZER_AI=true` AND `ANTHROPIC_API_KEY`;
 `CLAUDE_FREEZER_AI_VENDS` narrows it; `CLAUDE_FREEZER_AI_DAILY_LIMIT` (100) caps automatic calls a day (a person's
