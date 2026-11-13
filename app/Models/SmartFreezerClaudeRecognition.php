@@ -50,13 +50,9 @@ class SmartFreezerClaudeRecognition extends Model
         return $this->belongsTo(Vend::class)->withoutGlobalScopes();
     }
 
-    /** The call's cost in Singapore cents, rounded half up, at the configured rate. */
-    public function costSgdCents(): ?float
+    /** The call's cost in this site's money, e.g. "S$0.18" or "Rp 2,544" (ClaudeCostMoney); null when none. */
+    public function costText(): ?string
     {
-        if ($this->cost_usd_micros === null) {
-            return null;
-        }
-
-        return round($this->cost_usd_micros / 10_000 * (float) config('smart_freezer.claude_recognition.usd_to_sgd'), 2);
+        return \App\Services\SmartFreezer\Claude\ClaudeCostMoney::text($this->cost_usd_micros);
     }
 }

@@ -68,9 +68,10 @@ final class ClaudeZijiaComparison
         $s['agree_pct'] = $pct($s['agree'], $s['both_answered']);
         $s['claude_right_pct'] = $pct($s['claude_right'], $s['person_counted']);
         $s['zijia_right_pct'] = $pct($s['zijia_right'], $s['zijia_person_counted']);
-        $s['cost_sgd'] = round($s['cost_usd_micros'] / 1_000_000 * (float) config('smart_freezer.claude_recognition.usd_to_sgd'), 2);
+        // In this site's money (ClaudeCostMoney): the total, and per call that was billed.
         $calls = $rows->filter(fn (ClaudeRow $r) => $r->cost_usd_micros !== null)->count();
-        $s['cost_sgd_per_session'] = $calls > 0 ? round($s['cost_sgd'] / $calls, 3) : null;
+        $s['cost_text'] = ClaudeCostMoney::text($s['cost_usd_micros']);
+        $s['cost_per_session_text'] = $calls > 0 ? ClaudeCostMoney::text(intdiv($s['cost_usd_micros'], $calls)) : null;
 
         return $s;
     }

@@ -17,7 +17,8 @@ use Throwable;
  * `smart_freezer.claude_recognition.cameras` only — the camera is read from Zijia's file name ("-d1c3-" =
  * door 1, camera 3), and a file whose camera cannot be read is left out, so the customer-facing camera is
  * never sent by mistake. Our own Spaces copy is read first (ZijiaVideoCopier), else their link on an allowed
- * host. Frames are spread evenly from the first to the last moment of each video, both ends included.
+ * host. Each video gives its first and last frame and the rest over the part where something moves (moments()); camera 3
+ * is cropped of its fisheye corners. Both are settings in smart_freezer.claude_recognition.
  */
 class FfmpegDoorFrames implements DoorFrameSource
 {
@@ -61,7 +62,8 @@ class FfmpegDoorFrames implements DoorFrameSource
 
                     continue;
                 }
-                $taken = $this->extract($tmp, $camera, $durationMs, (int) $config['frames_per_camera'], (int) $config['frame_max_px']);
+                $window = $this->motionWindow($tmp, $durationMs);
+                $taken = $this->extract($tmp, $camera, $durationMs, self::moments($durationMs, (int) $config['frames_per_camera'], $window));
                 if ($taken === []) {
                     $notes[] = "camera {$camera}: no frame could be cut";
 
@@ -88,20 +90,64 @@ class FfmpegDoorFrames implements DoorFrameSource
     }
 
     /**
-     * Even spread over the video, both ends included; the last a fifth of a second before the end, where a
-     * frame still exists.
+     * The first and last moment of the video (the baskets before and after) and the rest spread over the window where
+     * something moves; with no window, an even spread. The last is a fifth of a second before the end, where a frame
+     * still exists.
      *
-     * @return list<int> milliseconds
+     * @param  array{0: int, 1: int}|null  $window  [start, end] ms of the motion
+     * @return list<int> milliseconds, ascending, no repeats
      */
-    public static function moments(int $durationMs, int $count): array
+    public static function moments(int $durationMs, int $count, ?array $window = null): array
     {
         $count = max(1, $count);
         $last = max(0, $durationMs - 200);
         if ($count === 1) {
             return [intdiv($last, 2)];
         }
+        $spread = fn (int $from, int $to, int $n) => $n <= 1
+            ? [intdiv($from + $to, 2)]
+            : array_map(fn (int $i) => (int) round($from + ($to - $from) * $i / ($n - 1)), range(0, $n - 1));
 
-        return array_map(fn (int $i) => (int) round($last * $i / ($count - 1)), range(0, $count - 1));
+        if ($window === null || $count < 3) {
+            return $spread(0, $last, $count);
+        }
+        [$from, $to] = [max(0, min($window[0], $last)), max(0, min($window[1], $last))];
+        $moments = array_merge([0], $spread($from, $to, $count - 2), [$last]);
+
+        return array_values(array_unique($moments));
+    }
+
+    /**
+     * Where something moves in the video: ffmpeg's scene-change score on a small 5 fps copy, above
+     * `motion_threshold`, padded `motion_pad_ms` each side. Null when nothing moved or ffmpeg cannot say.
+     *
+     * @return array{0: int, 1: int}|null
+     */
+    private function motionWindow(string $video, int $durationMs): ?array
+    {
+        $bin = (string) config('smart_freezer.claude_recognition.ffmpeg_bin');
+        $threshold = (float) config('smart_freezer.claude_recognition.motion_threshold');
+        if ($bin === '' || ! is_executable($bin) || $threshold <= 0) {
+            return null;
+        }
+        try {
+            $process = new Process([$bin, '-hide_banner', '-nostats', '-i', $video, '-vf',
+                "fps=5,scale=160:-2,select='gt(scene\\,{$threshold})',showinfo", '-f', 'null', '-']);
+            $process->setTimeout(30);
+            $process->run();
+            preg_match_all('/pts_time:([0-9.]+)/', $process->getErrorOutput(), $m);
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
+        $times = array_map(fn ($t) => (int) round((float) $t * 1000), $m[1] ?? []);
+        if ($times === []) {
+            return null;
+        }
+        $pad = (int) config('smart_freezer.claude_recognition.motion_pad_ms');
+
+        return [max(0, min($times) - $pad), min($durationMs, max($times) + $pad)];
     }
 
     private function fetch(string $url, string $tmp): bool
@@ -143,21 +189,28 @@ class FfmpegDoorFrames implements DoorFrameSource
         }
     }
 
-    /** @return list<DoorFrame> */
-    private function extract(string $video, int $camera, int $durationMs, int $count, int $maxPx): array
+    /**
+     * @param  list<int>  $moments  ms
+     * @return list<DoorFrame>
+     */
+    private function extract(string $video, int $camera, int $durationMs, array $moments): array
     {
         $bin = (string) config('smart_freezer.claude_recognition.ffmpeg_bin');
         if ($bin === '' || ! is_executable($bin)) {
             return [];
         }
 
+        $height = max(144, (int) config('smart_freezer.claude_recognition.frame_height_px'));
+        $crop = (float) (((array) config('smart_freezer.claude_recognition.crop_width'))[$camera] ?? 1);
+        $filter = ($crop > 0 && $crop < 1 ? "crop=iw*{$crop}:ih," : '')."scale=-2:{$height}";
+
         $frames = [];
-        foreach (self::moments($durationMs, $count) as $atMs) {
+        foreach ($moments as $atMs) {
             $out = tempnam(sys_get_temp_dir(), 'sfframe').'.jpg';
             try {
                 $process = new Process([
                     $bin, '-v', 'error', '-ss', sprintf('%.3f', $atMs / 1000), '-i', $video,
-                    '-frames:v', '1', '-vf', "scale=w={$maxPx}:h={$maxPx}:force_original_aspect_ratio=decrease",
+                    '-frames:v', '1', '-vf', $filter,
                     '-q:v', '4', '-f', 'image2', '-y', $out,
                 ]);
                 $process->setTimeout(30);

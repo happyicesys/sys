@@ -1751,18 +1751,25 @@ also send a copy to you … store your response and also your cost … compare w
 `RunClaudeFreezerRecognition` (`low`, one try, the pending → running claim) runs `delay_seconds` (120) later. It reads
 the SAME videos Zijia is sent (`sendableVideos`), **cameras 3 and 4 only**, by the camera in Zijia's file name
 (`-d1c3-`). A file whose camera cannot be read is left out, so camera 5, which sees faces, is never sent. It reads our
-Spaces copy first, else their allowed link. `FfmpegDoorFrames` cuts `frames_per_camera` (12) frames spread over each
-video, ≤ 1024 px. `ClaudeFreezerCounter` sends those frames with the freezer's live planogram (name, item code,
+Spaces copy first, else their allowed link. `FfmpegDoorFrames` cuts `frames_per_camera` (12) frames a video, 576 px
+high: the first and last (the baskets before and after) and the rest over the part where something moves (ffmpeg scene
+score > `motion_threshold`, padded `motion_pad_ms`; none found = even spread), with camera 3's black fisheye corners
+cropped (`crop_width` 0.8, every basket kept on 50001's video, ~20% fewer image tokens). `ClaudeFreezerCounter` sends those frames with the freezer's live planogram (name, item code,
 sections, a 256 px photo) and **never what was paid** (blind). It uses the official SDK the way `ClaudeSketchChecker`
 does: JSON schema, effort `high`, `fallbacks: default` where the model takes one (Haiku 5.5 does not). **The model is picked on AI Recognition** (`ClaudeModelChoice`, permission `update ai-recognition`: superadmin, admin; kept on `settings.claude_freezer_ai_model` with who and when; the options are `smart_freezer.claude_recognition.models`, each shown with about what a session costs), else `CLAUDE_FREEZER_AI_MODEL` (`claude-opus-5-5`). The answer is taken / returned per
 product id, plus things not on the freezer, people seen, confidence, needs_review and reasons. `items` keeps the net units per
 product; `evaluate()` puts them through `RecognitionVerdict` exactly as Zijia's (the sweep `--evaluate` every 10 min
 judges late sales). **Cost:** usage from the API's reply, priced by the model that ANSWERED (a fallback may) from
-`smart_freezer.claude_recognition.prices` (US$/M tokens), stored as integer `cost_usd_micros`, shown in S$ at
-`usd_to_sgd` (1.29); a declined or cut-off call is failed but its cost is still kept. **Nothing reads these rows to
+`smart_freezer.claude_recognition.prices` (US$/M tokens), stored as integer `cost_usd_micros`, shown only through
+`ClaudeCostMoney` in the SITE's currency (Brian, 2026-11-13): `CLAUDE_FREEZER_AI_CURRENCY`, else the one currency every
+operator on the server shares (IDN → Rp whole rupiah, LSH → S$), else S$ (sys has SGD/MYR/THB operators); rates in
+`usd_rates` (SGD 1.29, IDR 18,200, MYR 4.08 on 2026-11-13), a currency with none shows US$. A declined or cut-off call
+is failed but its cost is still kept. **Spend never reaches a card**: Brian's Claude Ultra plan gives US$200 of API
+credit a month (each grant expires, nothing carries over), Console auto-reload is off, and `monthly_budget_usd` (150)
+stops every call, a person's included, once the calendar month's `cost_usd_micros` reach it. **Nothing reads these rows to
 charge, release, refund or move stock**: Zijia's verdict alone drives the T05 hold. AI Recognition gives Claude its own
 **Claude Verdict** column beside Verification (Brian, 2026-11-13: the verdict against paid, what it saw, same as / differs
-from Zijia and from a person's Adjust Qty, confidence, then the call's cost in S$ and the model on its last line; Adjust Qty stays on Zijia's answer; the column is shown only while `CLAUDE_FREEZER_AI=true`) and a
+from Zijia and from a person's Adjust Qty, confidence, then the call's cost (site currency) and the model on its last line; Adjust Qty stays on Zijia's answer; the column is shown only while `CLAUDE_FREEZER_AI=true`) and a
 "Claude vs Zijia (trial)" box on the AI Dashboard (`ClaudeZijiaComparison`: matches paid, right where a person
 counted — the person is the truth — same count, cost). Off until `CLAUDE_FREEZER_AI=true` AND `ANTHROPIC_API_KEY`;
 `CLAUDE_FREEZER_AI_VENDS` narrows it; `CLAUDE_FREEZER_AI_DAILY_LIMIT` (100) caps automatic calls a day (a person's

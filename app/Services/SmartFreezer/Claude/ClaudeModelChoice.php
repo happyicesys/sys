@@ -50,13 +50,10 @@ final class ClaudeModelChoice
         ])->save();
     }
 
-    /** Roughly what one session costs on $model, in Singapore dollars, from the price table. */
-    public static function estimateSgd(string $model): ?float
+    /** Roughly what one session costs on $model, in this site's money ("S$0.18", "Rp 2,548"), from the price table. */
+    public static function estimateText(string $model): ?string
     {
-        $usage = new CallUsage($model, null, null, self::ESTIMATE_INPUT_TOKENS, self::ESTIMATE_OUTPUT_TOKENS, 0, 0);
-        $micros = $usage->costUsdMicros();
-
-        return $micros === null ? null : round($micros / 1_000_000 * (float) config('smart_freezer.claude_recognition.usd_to_sgd'), 3);
+        return ClaudeCostMoney::text((new CallUsage($model, null, null, self::ESTIMATE_INPUT_TOKENS, self::ESTIMATE_OUTPUT_TOKENS, 0, 0))->costUsdMicros());
     }
 
     /** @return array<string, mixed> what the picker shows */
@@ -68,7 +65,7 @@ final class ClaudeModelChoice
         return [
             'current' => self::current(),
             'options' => collect(self::offered())->map(fn (string $label, string $id) => [
-                'id' => $id, 'label' => $label, 'estimate_sgd' => self::estimateSgd($id),
+                'id' => $id, 'label' => $label, 'estimate' => self::estimateText($id),
             ])->values()->all(),
             'set_by' => $by?->name,
             'set_at' => $setting?->claude_freezer_ai_model_set_at?->format('Y-m-d H:i'),

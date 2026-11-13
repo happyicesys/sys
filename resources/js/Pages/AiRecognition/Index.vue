@@ -232,8 +232,8 @@
               <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.claude.agree }}/{{ dashboard.claude.both_answered }}</dd>
             </div>
             <div class="mt-1 flex justify-between gap-2 border-t border-violet-200 pt-1">
-              <dt tabindex="0" v-tooltip="$t('What the Claude calls cost, in Singapore dollars at the rate in the settings.')">{{ $t('Claude cost') }}:</dt>
-              <dd class="font-semibold tabular-nums text-gray-900">S${{ dashboard.claude.cost_sgd.toFixed(2) }}</dd>
+              <dt tabindex="0" v-tooltip="$t('What the Claude calls cost, in this site\'s currency. Anthropic bills in US dollars; the rate is in the settings.')">{{ $t('Claude cost') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.claude.cost_text || '–' }}<span v-if="dashboard.claude.cost_per_session_text" class="block text-xs font-normal text-gray-500">{{ $t(':cost a session', { cost: dashboard.claude.cost_per_session_text }) }}</span></dd>
             </div>
           </div>
         </dl>
@@ -261,7 +261,7 @@
           <select id="claude-model" v-model="claudeModelPick" :disabled="!claudeModel.can_change || claudeModelSaving"
             class="rounded-md border-violet-300 py-1 pl-2 pr-8 text-sm disabled:bg-violet-50 disabled:text-violet-900" @change="saveClaudeModel">
             <option v-for="option in claudeModel.options" :key="option.id" :value="option.id">
-              {{ option.estimate_sgd !== null ? $t(':model · about S$:cost a session', { model: option.label, cost: option.estimate_sgd.toFixed(3) }) : option.label }}
+              {{ option.estimate ? $t(':model · about :cost a session', { model: option.label, cost: option.estimate }) : option.label }}
             </option>
           </select>
           <span v-if="claudeModel.set_by" class="text-xs text-violet-700">{{ $t('Set by :name, :time', { name: claudeModel.set_by, time: claudeModel.set_at }) }}</span>
@@ -632,8 +632,8 @@
                       <span v-else-if="row.claude.status === 'pending' || row.claude.status === 'running'" class="text-gray-500">{{ $t('counting…') }}</span>
                       <span v-else class="w-fit cursor-help text-gray-500" tabindex="0" v-tooltip="row.claude.reason || ''">{{ row.claude.status === 'skipped' ? $t('not sent') : $t('failed') }}</span>
                       <!-- What this session's Claude call cost (a declined or cut-off call is billed too), and the model that answered. -->
-                      <div v-if="row.claude.cost_sgd !== null || row.claude.model" class="mt-0.5 flex items-baseline justify-between gap-2 border-t border-violet-200 pt-1">
-                        <span v-if="row.claude.cost_sgd !== null" class="font-semibold text-gray-900" tabindex="0" v-tooltip="$t('What this Claude call cost, in Singapore dollars at the rate in the settings.')">{{ $t('Cost S$:amount', { amount: row.claude.cost_sgd }) }}</span>
+                      <div v-if="row.claude.cost_text || row.claude.model" class="mt-0.5 flex items-baseline justify-between gap-2 border-t border-violet-200 pt-1">
+                        <span v-if="row.claude.cost_text" class="font-semibold text-gray-900" tabindex="0" v-tooltip="$t('What this Claude call cost, in this site\'s currency. Anthropic bills in US dollars; the rate is in the settings.')">{{ $t('Cost :amount', { amount: row.claude.cost_text }) }}</span>
                         <span v-else class="text-gray-500">{{ $t('No cost') }}</span>
                         <span v-if="row.claude.model" class="text-gray-500">{{ row.claude.model.replace(/^claude-/, '') }}</span>
                       </div>

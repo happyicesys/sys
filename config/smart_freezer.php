@@ -226,9 +226,20 @@ return [
         'delay_seconds' => (int) env('CLAUDE_FREEZER_AI_DELAY', 120),
         // Cameras sent (from the file name "-d1c3-"): 3 Real-Front View, 4 Top View. Camera 5 sees faces.
         'cameras' => array_values(array_filter(array_map('intval', explode(',', (string) env('CLAUDE_FREEZER_AI_CAMERAS', '3,4'))))),
+        // The first and last frame of each video (the baskets before and after), the rest spread over the part where
+        // something moves (ffmpeg scene change above motion_threshold, padded motion_pad_ms), so a hand reaching in is
+        // seen in more frames for the same cost. A video with no motion found is spread evenly.
         'frames_per_camera' => (int) env('CLAUDE_FREEZER_AI_FRAMES', 12),
-        // Longest side of each frame sent, px (1024x576 ≈ 790 input tokens a frame).
-        'frame_max_px' => (int) env('CLAUDE_FREEZER_AI_FRAME_PX', 1024),
+        'motion_threshold' => (float) env('CLAUDE_FREEZER_AI_MOTION', 0.02),
+        'motion_pad_ms' => (int) env('CLAUDE_FREEZER_AI_MOTION_PAD_MS', 500),
+        // Height of each frame sent, px; width follows the picture (1024x576 ≈ 790 input tokens a frame).
+        'frame_height_px' => (int) env('CLAUDE_FREEZER_AI_FRAME_HEIGHT', 576),
+        // Share of the width kept, centred, per camera: camera 3's fisheye leaves black corners outside the baskets
+        // (checked on 50001's video, 2026-11-13: every basket kept), so 80% cuts ~20% of its tokens. 1 = no crop.
+        'crop_width' => [3 => (float) env('CLAUDE_FREEZER_AI_CROP_CAM3', 0.8)],
+        // Hard stop in US dollars a calendar month (person or automatic): above it no call is made. The Ultra plan's
+        // credit is US$200 a month and Console auto-reload is off, so nothing is ever charged to a card.
+        'monthly_budget_usd' => (float) env('CLAUDE_FREEZER_AI_MONTHLY_BUDGET', 150),
         'product_photo_px' => (int) env('CLAUDE_FREEZER_AI_PHOTO_PX', 256),
         'max_video_bytes' => (int) env('CLAUDE_FREEZER_AI_MAX_VIDEO_BYTES', 100 * 1024 * 1024),
         'ffmpeg_bin' => env('CLAUDE_FREEZER_AI_FFMPEG', '/usr/bin/ffmpeg'),
@@ -247,7 +258,14 @@ return [
             'claude-sonnet-5' => ['input' => 2.00, 'output' => 10.00, 'cache_write' => 2.50, 'cache_read' => 0.20],
             'claude-haiku-5-5' => ['input' => 0.10, 'output' => 0.50, 'cache_write' => 0.125, 'cache_read' => 0.01],
         ],
-        // Shown in Singapore dollars (OFX interbank 1.2865 on 2026-11-13); the API bills in US dollars.
-        'usd_to_sgd' => (float) env('CLAUDE_FREEZER_AI_USD_SGD', 1.29),
+        // Costs are shown in the site's currency (ClaudeCostMoney): this one when set, else the one currency all of the
+        // server's operators share, else SGD. The API bills in US dollars; units per US dollar on 2026-11-13: SGD OFX
+        // interbank 1.2865, IDR Valuta/Wise ~18,200, MYR Pluang 4.078. A currency missing here is shown in US$.
+        'currency' => env('CLAUDE_FREEZER_AI_CURRENCY'),
+        'usd_rates' => [
+            'SGD' => (float) env('CLAUDE_FREEZER_AI_USD_SGD', 1.29),
+            'IDR' => (float) env('CLAUDE_FREEZER_AI_USD_IDR', 18200),
+            'MYR' => (float) env('CLAUDE_FREEZER_AI_USD_MYR', 4.08),
+        ],
     ],
 ];

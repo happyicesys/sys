@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\SmartFreezerClaudeRecognition as ClaudeRow;
 use App\Models\SmartFreezerRecognition;
+use App\Services\SmartFreezer\Claude\ClaudeCostMoney;
+use App\Services\SmartFreezer\Claude\ClaudeModelChoice;
 use App\Services\SmartFreezer\Claude\ClaudeShadowRecognitionService;
 use App\Services\SmartFreezer\Claude\ClaudeZijiaComparison;
 use Carbon\Carbon;
@@ -103,7 +105,8 @@ class ClaudeFreezerRecognitionCommand extends Command
 
             return self::SUCCESS;
         }
-        $this->info(sprintf('%d session(s) to count, about S$%.2f at S$0.20 each.', $ids->count(), $ids->count() * 0.20));
+        $each = ClaudeModelChoice::estimateText(ClaudeModelChoice::current());
+        $this->info(sprintf('%d session(s) to count on %s, about %s each.', $ids->count(), ClaudeModelChoice::current(), $each ?? '?'));
         if ($this->option('dry-run')) {
             $this->line('Dry run: nothing sent. Recognition ids: '.$ids->implode(', '));
 
@@ -121,7 +124,7 @@ class ClaudeFreezerRecognitionCommand extends Command
             $spent += (int) $row->cost_usd_micros;
             $this->line(sprintf('#%d %s', $id, $this->describe($row)));
         }
-        $this->info(sprintf('Spent about US$%.2f (S$%.2f).', $spent / 1_000_000, $spent / 1_000_000 * (float) config('smart_freezer.claude_recognition.usd_to_sgd')));
+        $this->info(sprintf('Spent about US$%.2f (%s).', $spent / 1_000_000, ClaudeCostMoney::text($spent)));
 
         return self::SUCCESS;
     }
@@ -142,18 +145,18 @@ class ClaudeFreezerRecognitionCommand extends Command
         ]);
         $this->line("Claude and Zijia gave the same count on {$s['agree']} of {$s['both_answered']} sessions ({$p($s['agree_pct'])}).");
         $this->line("Claude asked for a person on {$s['claude_needs_review']}; failed on {$s['claude_failed']}.");
-        $this->line(sprintf('Claude cost: S$%.2f in all, S$%s a session.', $s['cost_sgd'], $s['cost_sgd_per_session'] ?? '–'));
+        $this->line(sprintf('Claude cost: %s in all, %s a session.', $s['cost_text'] ?? '–', $s['cost_per_session_text'] ?? '–'));
 
         if ($this->option('details')) {
             $metas = ClaudeZijiaComparison::metas($rows);
             $fmt = fn (?array $c) => $c === null ? '–' : (collect($c)->map(fn ($n, $id) => "{$n}×{$id}")->implode(' ') ?: 'nothing');
-            $this->table(['Zijia #', 'Session', 'Paid → Claude', 'Zijia', 'Claude', 'Person', 'S$'], $rows->map(function (ClaudeRow $r) use ($metas, $fmt) {
+            $this->table(['Zijia #', 'Session', 'Paid → Claude', 'Zijia', 'Claude', 'Person', 'Cost'], $rows->map(function (ClaudeRow $r) use ($metas, $fmt) {
                 $c = ClaudeShadowRecognitionService::counts($r, $r->recognition, $metas[$r->vend_transaction_id ?? $r->recognition?->vend_transaction_id] ?? null);
 
                 return [
                     $r->smart_freezer_recognition_id, $r->session_ref, $r->verdict ?? $r->status,
                     $fmt($c['zijia']), $fmt($c['claude']), $fmt($c['person']),
-                    $r->costSgdCents() === null ? '–' : number_format($r->costSgdCents() / 100, 3),
+                    $r->costText() ?? '–',
                 ];
             })->all());
         }
@@ -172,11 +175,11 @@ class ClaudeFreezerRecognitionCommand extends Command
         $items = collect((array) $row->items)->map(fn ($n, $id) => "{$n}×product {$id}")->implode(', ') ?: 'nothing taken';
 
         return match ($row->status) {
-            ClaudeRow::STATUS_DONE => sprintf('%s; verdict %s; confidence %s%%%s; %s tokens in / %s out; S$%s',
+            ClaudeRow::STATUS_DONE => sprintf('%s; verdict %s; confidence %s%%%s; %s tokens in / %s out; %s',
                 $items, $row->verdict ?? 'waiting for the sale', $row->confidence ?? '?', $row->needs_review ? ', wants a person' : '',
                 number_format((int) $row->input_tokens), number_format((int) $row->output_tokens),
-                $row->costSgdCents() === null ? '?' : number_format($row->costSgdCents() / 100, 3)),
-            default => "{$row->status}: {$row->status_reason}".($row->cost_usd_micros !== null ? sprintf(' (billed S$%.3f)', $row->costSgdCents() / 100) : ''),
+                $row->costText() ?? '?'),
+            default => "{$row->status}: {$row->status_reason}".($row->cost_usd_micros !== null ? ' (billed '.$row->costText().')' : ''),
         };
     }
 

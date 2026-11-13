@@ -361,7 +361,7 @@ class FreezerRecognitionController extends Controller
             'notes' => ($row->answer ?? [])['notes'] ?? null,
             'model' => $row->model,
             'seconds' => $row->duration_ms !== null ? (int) round($row->duration_ms / 1000) : null,
-            'cost_sgd' => $row->costSgdCents() === null ? null : number_format($row->costSgdCents() / 100, 2),
+            'cost_text' => $row->costText(),
         ];
     }
 

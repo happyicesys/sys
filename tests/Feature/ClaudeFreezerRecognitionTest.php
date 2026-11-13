@@ -13,6 +13,7 @@ use App\Models\VendChannel;
 use App\Models\VendTransaction;
 use App\Services\SmartFreezer\Claude\CallUsage;
 use App\Services\SmartFreezer\Claude\CatalogProduct;
+use App\Services\SmartFreezer\Claude\ClaudeCostMoney;
 use App\Services\SmartFreezer\Claude\ClaudeFreezerCounter;
 use App\Services\SmartFreezer\Claude\ClaudeModelChoice;
 use App\Services\SmartFreezer\Claude\ClaudeShadowRecognitionService;
@@ -178,7 +179,7 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertSame('match', $row->verdict);
         // 25,800 in × $4 + 1,800 out × $20 per million = $0.1392.
         $this->assertSame(139_200, $row->cost_usd_micros);
-        $this->assertSame(17.96, $row->costSgdCents(), 'S$0.18 at 1.29');
+        $this->assertSame('S$0.18', $row->costText(), 'US$0.1392 at 1.29');
         $this->assertSame([3, 3, 4, 4], array_column($row->frames['sent'], 'camera'));
         $this->assertSame([$this->basque->id, $this->magnum->id], $row->frames['catalog']);
         $this->assertSame(['Basque Cheesecake', 'Magnum Classic'], array_map(fn (CatalogProduct $p) => $p->name, $this->counter->catalogs[0]));
@@ -227,6 +228,25 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $row->update(['status' => ClaudeRow::STATUS_PENDING]);
         $this->counter->answers[] = $this->counted([]);
         $this->assertSame(ClaudeRow::STATUS_DONE, $this->service()->run($row, byPerson: true)->status);
+    }
+
+    public function test_the_monthly_budget_stops_every_call_even_a_persons(): void
+    {
+        config(['smart_freezer.claude_recognition.monthly_budget_usd' => 0.2]);
+        $first = $this->zijia();
+        ClaudeRow::create(['smart_freezer_recognition_id' => $first->id, 'status' => ClaudeRow::STATUS_DONE,
+            'started_at' => Carbon::now(), 'cost_usd_micros' => 200_000]);
+        ClaudeRow::create(['smart_freezer_recognition_id' => $this->zijia(['trade_id' => 'T-old', 'session_ref' => null])->id,
+            'status' => ClaudeRow::STATUS_DONE, 'started_at' => Carbon::now()->subMonth(), 'cost_usd_micros' => 9_000_000]);
+        $row = ClaudeRow::create(['smart_freezer_recognition_id' => $this->zijia(['trade_id' => 'SF-50001-1794482580-5', 'session_ref' => 'SF-50001-1794482580-5'])->id,
+            'status' => ClaudeRow::STATUS_PENDING]);
+
+        $row = $this->service()->run($row, byPerson: true);
+
+        $this->assertSame(ClaudeRow::STATUS_SKIPPED, $row->status);
+        $this->assertSame('monthly Claude budget of US$0.2 reached', $row->status_reason);
+        $this->assertSame([], $this->counter->catalogs);
+        $this->assertSame(200_000, $this->service()->spentThisMonthUsdMicros(), 'last month does not count');
     }
 
     public function test_a_door_try_that_did_not_open_is_not_sent(): void
@@ -334,6 +354,9 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertSame(5, FfmpegDoorFrames::cameraOf('https://x/SF-1-d1c5-25f-1280x720.mp4'));
         $this->assertNull(FfmpegDoorFrames::cameraOf('https://x/clip.mp4'));
         $this->assertSame([0, 3600, 7200, 10800], FfmpegDoorFrames::moments(11000, 4));
+        // First and last kept for the baskets before and after; the rest go where the hand moves.
+        $this->assertSame([0, 2000, 3000, 4000, 5000, 6000, 8680], FfmpegDoorFrames::moments(8880, 7, [2000, 6000]));
+        $this->assertSame([0, 4440, 8680], FfmpegDoorFrames::moments(8880, 3, [4440, 4440]));
     }
 
     public function test_real_frames_come_from_cameras_3_and_4_only(): void
@@ -359,7 +382,7 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $got = (new FfmpegDoorFrames(app(ZijiaVideoCopier::class)))->framesFor($recognition->fresh('videos'));
 
         $this->assertSame([3, 3, 3], array_map(fn (DoorFrame $f) => $f->camera, $got['frames']));
-        $this->assertSame([1024, 576], array_slice(getimagesizefromstring($got['frames'][0]->jpeg), 0, 2));
+        $this->assertSame([820, 576], array_slice(getimagesizefromstring($got['frames'][0]->jpeg), 0, 2), 'camera 3 loses its fisheye corners');
         $this->assertStringContainsString('camera 5', implode(' ', $got['notes']));
     }
 
@@ -383,7 +406,8 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertSame(1, $s['zijia_match_paid']);
         $this->assertSame([1, 2], [$s['agree'], $s['both_answered']]);
         $this->assertSame([1, 1, 0, 1], [$s['person_counted'], $s['claude_right'], $s['zijia_right'], $s['zijia_person_counted']]);
-        $this->assertSame(0.39, $s['cost_sgd'], 'US$0.30 at 1.29');
+        $this->assertSame('S$0.39', $s['cost_text'], 'US$0.30 at 1.29');
+        $this->assertSame('S$0.19', $s['cost_per_session_text']);
     }
 
     public function test_ai_recognition_shows_claude_beside_zijia(): void
@@ -400,7 +424,7 @@ class ClaudeFreezerRecognitionTest extends TestCase
                 ->where('recognitions.data.0.claude.status', 'done')
                 ->where('recognitions.data.0.claude.items.0.name', 'Basque Cheesecake')
                 ->where('recognitions.data.0.claude.same_as_zijia', true)
-                ->where('recognitions.data.0.claude.cost_sgd', '0.18')
+                ->where('recognitions.data.0.claude.cost_text', 'S$0.18')
                 ->where('dashboard.claude.agree', 1)
                 ->where('dashboard.claude.claude_match_paid', 1));
     }
@@ -429,7 +453,7 @@ class ClaudeFreezerRecognitionTest extends TestCase
                 ->where('claudeModel.enabled', true)
                 ->where('claudeModel.set_by', 'Brian')
                 ->where('claudeModel.options.1.id', 'claude-opus-5-5')
-                ->where('claudeModel.options.1.estimate_sgd', 0.181));
+                ->where('claudeModel.options.1.estimate', 'S$0.18'));
     }
 
     public function test_haiku_is_sent_without_the_fallback_it_does_not_take(): void
@@ -450,6 +474,29 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertArrayNotHasKey('fallbacks', $body);
         $this->assertStringNotContainsString('server-side-fallback', $history[0]['request']->getHeaderLine('anthropic-beta'));
         $this->assertSame(3_500, $count->usage->costUsdMicros(), '25,000 in × $0.10 + 2,000 out × $0.50 per million');
+    }
+
+    public function test_costs_show_in_the_sites_own_money(): void
+    {
+        \Illuminate\Support\Facades\Cache::forget('claude-freezer-ai-currency');
+        $idr = \Illuminate\Support\Facades\DB::table('countries')->insertGetId(['name' => 'Indonesia', 'code' => 'ID', 'currency_name' => 'IDR',
+            'currency_symbol' => 'Rp', 'is_currency_exponent_hidden' => 1, 'phone_code' => 62]);
+        \Illuminate\Support\Facades\DB::table('operators')->insert(['code' => 'IDN', 'name' => 'IDN', 'is_active' => 1, 'country_id' => $idr,
+            'created_at' => now(), 'updated_at' => now()]);
+
+        $this->assertSame('IDR', ClaudeCostMoney::currency(), 'every operator here is Indonesian');
+        $this->assertSame('Rp 2,533', ClaudeCostMoney::text(139_200), 'US$0.1392 at 18,200');
+
+        config(['smart_freezer.claude_recognition.currency' => 'SGD']);
+        $this->assertSame('S$0.18', ClaudeCostMoney::text(139_200));
+        $this->assertSame('S$0.005', ClaudeCostMoney::text(3_500), 'a tiny cost keeps a third decimal');
+
+        config(['smart_freezer.claude_recognition.currency' => 'MYR']);
+        $this->assertSame('RM0.57', ClaudeCostMoney::text(139_200));
+
+        config(['smart_freezer.claude_recognition.currency' => 'THB']);
+        $this->assertSame('US$0.14', ClaudeCostMoney::text(139_200), 'no rate on file: US dollars');
+        $this->assertNull(ClaudeCostMoney::text(null));
     }
 }
 

@@ -94,6 +94,7 @@ class ClaudeShadowRecognitionService
             $recognition->status === SmartFreezerRecognition::STATUS_SKIPPED => [ClaudeRow::STATUS_SKIPPED, 'a door try that did not open (not sent to Zijia either)'],
             $recognition->vend === null => [ClaudeRow::STATUS_FAILED, 'freezer not recognised from the push'],
             ! $byPerson && $this->callsToday() >= (int) config('smart_freezer.claude_recognition.daily_limit') => [ClaudeRow::STATUS_SKIPPED, 'daily limit of Claude calls reached'],
+            $this->overMonthlyBudget() => [ClaudeRow::STATUS_SKIPPED, sprintf('monthly Claude budget of US$%s reached', rtrim(rtrim(number_format((float) config('smart_freezer.claude_recognition.monthly_budget_usd'), 2, '.', ''), '0'), '.'))],
             default => null,
         };
         if ($stop !== null) {
@@ -218,6 +219,23 @@ class ClaudeShadowRecognitionService
             });
 
         return $judged;
+    }
+
+    /** What this calendar month's calls cost, in micro-US$. */
+    public function spentThisMonthUsdMicros(): int
+    {
+        return (int) ClaudeRow::where('started_at', '>=', Carbon::now()->startOfMonth())->sum('cost_usd_micros');
+    }
+
+    /**
+     * The hard stop (`monthly_budget_usd`), for a person's command too. A call in flight may finish past it by one
+     * call's cost; 0 or less means no budget at all.
+     */
+    public function overMonthlyBudget(): bool
+    {
+        $budget = (float) config('smart_freezer.claude_recognition.monthly_budget_usd');
+
+        return $budget > 0 && $this->spentThisMonthUsdMicros() >= (int) round($budget * 1_000_000);
     }
 
     /** Calls started today (billed or at least sent), against the daily limit. */
