@@ -30,48 +30,58 @@ class FfmpegDoorFrames implements DoorFrameSource
         $wanted = array_map('intval', (array) $config['cameras']);
         $frames = [];
         $notes = [];
-        $seen = [];
 
         $urls = FreezerRecognitionService::sendableVideos($recognition->videos)
             ->flatMap(fn (SmartFreezerVideo $v) => (array) $v->video_urls)
             ->filter(fn ($u) => is_string($u) && $u !== '')
             ->unique()->values();
 
-        foreach ($urls as $url) {
-            $camera = self::cameraOf($url);
-            if ($camera === null || ! in_array($camera, $wanted, true)) {
-                $notes[] = 'left out '.basename((string) parse_url($url, PHP_URL_PATH)).($camera === null ? ' (camera not named)' : " (camera {$camera})");
+        // Fetch every usable camera first: the frame budget is per SESSION and split over the cameras that have a
+        // video, so a session filmed by camera 3 alone (50001 while its camera 4 is offline) gets every frame on it
+        // instead of half (Brian, 2026-11-13: session #138 — 12 frames 2 s apart missed two of four items).
+        $videos = [];
+        try {
+            foreach ($urls as $url) {
+                $camera = self::cameraOf($url);
+                if ($camera === null || ! in_array($camera, $wanted, true)) {
+                    $notes[] = 'left out '.basename((string) parse_url($url, PHP_URL_PATH)).($camera === null ? ' (camera not named)' : " (camera {$camera})");
 
-                continue;
-            }
-            if (isset($seen[$camera])) {
-                $notes[] = "a second camera {$camera} video was left out";
+                    continue;
+                }
+                if (isset($videos[$camera])) {
+                    $notes[] = "a second camera {$camera} video was left out";
 
-                continue;
-            }
-            $tmp = tempnam(sys_get_temp_dir(), 'sfclaude');
-            try {
+                    continue;
+                }
+                $tmp = tempnam(sys_get_temp_dir(), 'sfclaude');
                 if (! $this->fetch($url, $tmp)) {
+                    @unlink($tmp);
                     $notes[] = "camera {$camera}: video could not be read";
 
                     continue;
                 }
                 $durationMs = $this->copier->durationMs($tmp);
                 if ($durationMs === null || $durationMs <= 0) {
+                    @unlink($tmp);
                     $notes[] = "camera {$camera}: video length could not be read";
 
                     continue;
                 }
-                $window = $this->motionWindow($tmp, $durationMs);
-                $taken = $this->extract($tmp, $camera, $durationMs, self::moments($durationMs, (int) $config['frames_per_camera'], $window));
+                $videos[$camera] = [$tmp, $durationMs];
+            }
+
+            $each = self::framesPerCamera((int) $config['frames_per_session'], count($videos));
+            foreach ($videos as $camera => [$tmp, $durationMs]) {
+                $taken = $this->extract($tmp, $camera, $durationMs, self::moments($durationMs, $each, $this->motionWindow($tmp, $durationMs)));
                 if ($taken === []) {
                     $notes[] = "camera {$camera}: no frame could be cut";
 
                     continue;
                 }
-                $seen[$camera] = true;
                 array_push($frames, ...$taken);
-            } finally {
+            }
+        } finally {
+            foreach ($videos as [$tmp]) {
                 @unlink($tmp);
             }
         }
@@ -79,6 +89,12 @@ class FfmpegDoorFrames implements DoorFrameSource
         usort($frames, fn (DoorFrame $a, DoorFrame $b) => [$a->camera, $a->atMs] <=> [$b->camera, $b->atMs]);
 
         return ['frames' => $frames, 'notes' => $notes];
+    }
+
+    /** The session's frame budget split over the cameras that have a video, at least 2 each (before and after). */
+    public static function framesPerCamera(int $perSession, int $cameras): int
+    {
+        return $cameras <= 0 ? 0 : max(2, intdiv(max(2, $perSession), $cameras));
     }
 
     /** "…/SF-50001-…-d1c3-25f-1280x720.mp4" → 3; null when the name carries no camera. */

@@ -360,6 +360,14 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertSame([0, 4440, 8680], FfmpegDoorFrames::moments(8880, 3, [4440, 4440]));
     }
 
+    public function test_the_frame_budget_is_per_session_and_split_over_the_cameras_with_video(): void
+    {
+        $this->assertSame(30, FfmpegDoorFrames::framesPerCamera(30, 1));
+        $this->assertSame(15, FfmpegDoorFrames::framesPerCamera(30, 2));
+        $this->assertSame(2, FfmpegDoorFrames::framesPerCamera(3, 2), 'never fewer than before and after');
+        $this->assertSame(0, FfmpegDoorFrames::framesPerCamera(30, 0));
+    }
+
     public function test_real_frames_come_from_cameras_3_and_4_only(): void
     {
         $ffmpeg = trim((string) shell_exec('command -v ffmpeg'));
@@ -368,7 +376,7 @@ class ClaudeFreezerRecognitionTest extends TestCase
             $this->markTestSkipped('ffmpeg is not installed here');
         }
         config(['smart_freezer.claude_recognition.ffmpeg_bin' => $ffmpeg, 'smart_freezer.clips.ffprobe_bin' => $ffprobe,
-            'smart_freezer.claude_recognition.frames_per_camera' => 3, 'smart_freezer.zijia.video_copy.hosts' => ['oss.example.cn']]);
+            'smart_freezer.claude_recognition.frames_per_session' => 6, 'smart_freezer.zijia.video_copy.hosts' => ['oss.example.cn']]);
         $video = tempnam(sys_get_temp_dir(), 'sfvid').'.mp4';
         (new Process([$ffmpeg, '-v', 'error', '-f', 'lavfi', '-i', 'testsrc=duration=2:size=1280x720:rate=25', '-pix_fmt', 'yuv420p', '-y', $video]))->mustRun();
         $bytes = file_get_contents($video);
@@ -382,7 +390,8 @@ class ClaudeFreezerRecognitionTest extends TestCase
 
         $got = (new FfmpegDoorFrames(app(ZijiaVideoCopier::class)))->framesFor($recognition->fresh('videos'));
 
-        $this->assertSame([3, 3, 3], array_map(fn (DoorFrame $f) => $f->camera, $got['frames']));
+        // The session's whole budget goes to camera 3, the only AI camera with a video here.
+        $this->assertSame([3, 3, 3, 3, 3, 3], array_map(fn (DoorFrame $f) => $f->camera, $got['frames']));
         $this->assertSame([820, 576], array_slice(getimagesizefromstring($got['frames'][0]->jpeg), 0, 2), 'camera 3 loses its fisheye corners');
         $this->assertStringContainsString('camera 5', implode(' ', $got['notes']));
     }

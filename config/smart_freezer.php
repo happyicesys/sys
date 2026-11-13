@@ -228,8 +228,10 @@ return [
         'cameras' => array_values(array_filter(array_map('intval', explode(',', (string) env('CLAUDE_FREEZER_AI_CAMERAS', '3,4'))))),
         // The first and last frame of each video (the baskets before and after), the rest spread over the part where
         // something moves (ffmpeg scene change above motion_threshold, padded motion_pad_ms), so a hand reaching in is
-        // seen in more frames for the same cost. A video with no motion found is spread evenly.
-        'frames_per_camera' => (int) env('CLAUDE_FREEZER_AI_FRAMES', 12),
+        // seen in more frames for the same cost. A video with no motion found is spread evenly. The budget is per
+        // SESSION, split over the cameras that have a video: 30 = 15 each from cameras 3 and 4, or 30 from camera 3
+        // alone (2026-11-13, raised from 12 per camera after a one-camera session missed two of four items).
+        'frames_per_session' => (int) env('CLAUDE_FREEZER_AI_FRAMES', 30),
         'motion_threshold' => (float) env('CLAUDE_FREEZER_AI_MOTION', 0.02),
         'motion_pad_ms' => (int) env('CLAUDE_FREEZER_AI_MOTION_PAD_MS', 500),
         // Height of each frame sent, px; width follows the picture (1024x576 ≈ 790 input tokens a frame).

@@ -1751,7 +1751,7 @@ also send a copy to you … store your response and also your cost … compare w
 `RunClaudeFreezerRecognition` (`low`, one try, the pending → running claim) runs `delay_seconds` (120) later. It reads
 the SAME videos Zijia is sent (`sendableVideos`), **cameras 3 and 4 only**, by the camera in Zijia's file name
 (`-d1c3-`). A file whose camera cannot be read is left out, so camera 5, which sees faces, is never sent. It reads our
-Spaces copy first, else their allowed link. `FfmpegDoorFrames` cuts `frames_per_camera` (12) frames a video, 576 px
+Spaces copy first, else their allowed link. `FfmpegDoorFrames` cuts `frames_per_session` (30) frames a session, split over the cameras that have a video (camera 3 alone gets all 30; 2026-11-13, after #138 lost two of four items at 12 per camera), 576 px
 high: the first and last (the baskets before and after) and the rest over the part where something moves (ffmpeg scene
 score > `motion_threshold`, padded `motion_pad_ms`; none found = even spread), with camera 3's black fisheye corners
 cropped (`crop_width` 0.8, every basket kept on 50001's video, ~20% fewer image tokens). `ClaudeFreezerCounter` sends those frames with the freezer's live planogram (name, item code,
