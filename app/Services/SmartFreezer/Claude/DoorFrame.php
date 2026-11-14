@@ -20,6 +20,9 @@ final class DoorFrame
     /** A contact sheet of the lid opening only, where goods leave the freezer: what crosses it is taken. */
     public const KIND_EXIT = 'exit';
 
+    /** The BEFORE close-up with each section's code written where that section sits (SectionMap). */
+    public const KIND_MAP = 'map';
+
     public function __construct(
         public readonly int $camera,
         public readonly int $atMs,

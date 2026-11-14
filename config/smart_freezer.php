@@ -265,6 +265,38 @@ return [
             'pad_ms' => 600,
             'box' => [3 => [0.10, 0.0, 0.90, 0.55]],
         ],
+        // How each freezer's camera 3 was mounted, by time (CameraPosition; Brian, 2026-11-14: "factor in whether the
+        // camera is displayed inverted"). `rotate` 180 = the video comes upside down and every picture cut from it is turned
+        // upright first (50001 until 2026-11-02: lid at the bottom; from 2026-11-03 the same view arrives already flipped).
+        // `baskets` = basket => [left, right, y] in the upright picture, shares of it, section 1 at the right end — measured
+        // 2026-11-14 on sessions that took one known product (50001 #102/#109/#111/#128/#141) and on the packs visible
+        // (50002 #136). Re-measure when a camera is moved; a freezer or time not listed is sent as filmed, with no map.
+        // Zijia's host says what IT does, not how the camera hangs: getHardwareInfo (sdkcall, 2026-11-14, cmds 3147/3148)
+        // gives 50001's camera 3 (MIPI) "rotation": 180 — the host turns it, which is why its video is upright since
+        // 2026-11-03 with the time stamp upside down — while 50002's camera 3 is a BKS3D_02 RTSP camera with no rotation
+        // field, filmed upright. A change in that value means the view flipped: re-check `rotate` here.
+        'camera_positions' => [
+            '50001' => [
+                ['since' => '2026-11-03 00:00:00', 'camera' => 3, 'rotate' => 0, 'baskets' => $freezer50001Baskets = [
+                    1 => [0.539, 0.777, 0.681], 2 => [0.531, 0.703, 0.556], 3 => [0.523, 0.664, 0.476],
+                    4 => [0.234, 0.469, 0.667], 5 => [0.297, 0.473, 0.563], 6 => [0.344, 0.477, 0.479],
+                ]],
+                ['since' => null, 'camera' => 3, 'rotate' => 180, 'baskets' => $freezer50001Baskets],
+            ],
+            '50002' => [
+                ['since' => '2026-11-05 00:00:00', 'camera' => 3, 'rotate' => 0, 'baskets' => [
+                    1 => [0.531, 0.789, 0.708], 2 => [0.520, 0.699, 0.583], 3 => [0.516, 0.672, 0.500],
+                    4 => [0.227, 0.492, 0.708], 5 => [0.305, 0.500, 0.583], 6 => [0.348, 0.504, 0.500],
+                ]],
+            ],
+        ],
+        // A labelled map of the sections (SectionMap; Brian, 2026-11-14: "the planogram already exists"): the session's own
+        // camera-3 BEFORE close-up with each section's code drawn where it sits (camera_positions `baskets`), so "section 21"
+        // in the product list points at a place in the picture. The split of each basket comes from the session's catalog.
+        'section_map' => [
+            'enabled' => (bool) env('CLAUDE_FREEZER_AI_SECTION_MAP', false),
+            'fonts' => ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/System/Library/Fonts/Supplemental/Arial Bold.ttf'],
+        ],
         // Each session may be counted `runs` times and once more while the counts disagree, up to `max_runs`; the majority
         // wins. OFF (1/1) since 2026-11-14: on the 50 held-back sessions two counts + a tie-break got 34/50, one count
         // 33-35/50 -- Claude's misses repeat run to run, so a repeat only doubled the bill. Kept for a later model.
@@ -288,6 +320,15 @@ return [
         // credit is US$200 a month and Console auto-reload is off, so nothing is ever charged to a card.
         'monthly_budget_usd' => (float) env('CLAUDE_FREEZER_AI_MONTHLY_BUDGET', 150),
         'product_photo_px' => (int) env('CLAUDE_FREEZER_AI_PHOTO_PX', 256),
+        // Each product's AI training photos (its approved application: pack shot + model photos, every angle) as one
+        // strip of square tiles in place of the single product photo (ProductViews; Brian, 2026-11-14). ~270 image
+        // tokens a product at 180 px x 8. Built once per photo list and cached `cache_days`.
+        'reference_photos' => [
+            'enabled' => (bool) env('CLAUDE_FREEZER_AI_REFERENCE_PHOTOS', false),
+            'tile_px' => (int) env('CLAUDE_FREEZER_AI_REFERENCE_TILE_PX', 180),
+            'max_views' => 8,
+            'cache_days' => 30,
+        ],
         'max_video_bytes' => (int) env('CLAUDE_FREEZER_AI_MAX_VIDEO_BYTES', 100 * 1024 * 1024),
         'ffmpeg_bin' => env('CLAUDE_FREEZER_AI_FFMPEG', '/usr/bin/ffmpeg'),
         // The SDK's own timeout is advisory; the Guzzle client enforces this one.

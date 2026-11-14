@@ -133,6 +133,9 @@ class ClaudeFreezerCounter implements FreezerCounter
                 $line .= " (item code {$product->code})";
             }
             $line .= $product->sections !== [] ? ', in section '.implode(', ', $product->sections) : ', section not known';
+            if ($product->views > 1 && $product->photoJpeg !== null && $photos > 0) {
+                $line .= "; photo: {$product->views} views of the same pack side by side";
+            }
             $content[] = ['type' => 'text', 'text' => $line.'.'];
             if ($product->photoJpeg !== null && $photos > 0) {
                 $content[] = self::jpegBlock($product->photoJpeg);
@@ -159,6 +162,15 @@ class ClaudeFreezerCounter implements FreezerCounter
         $blocks = [];
         $camera = null;
         foreach ($frames as $frame) {
+            if ($frame->kind === DoorFrame::KIND_MAP) {
+                $blocks[] = ['type' => 'text', 'text' => sprintf(
+                    'SECTION MAP: camera %d\'s BEFORE close-up with each section\'s code written where that section sits (the codes in the product list above):',
+                    $frame->camera,
+                )];
+                $blocks[] = self::jpegBlock($frame->jpeg);
+
+                continue;
+            }
             if ($frame->kind === DoorFrame::KIND_EXIT) {
                 $blocks[] = ['type' => 'text', 'text' => sprintf(
                     'Camera %d LID OPENING sheet: %d pictures %.3f s apart, from %.2f s to %.2f s, left to right then top to bottom; only the band where goods leave the freezer:',
@@ -220,6 +232,12 @@ this freezer holds (id, name, section, and a photo where we have one), then stil
 filming the same session: camera 3 looks across the baskets from the front, camera 4 looks down on them
 from above. Each frame says how many seconds into its video it was taken.
 
+A SECTION MAP, when given, is camera 3's BEFORE close-up with each section's code written where that section
+sits: use it to tell which section a hand reached into. The sections say where each product SHOULD be, but a
+driver sometimes puts a product in the wrong section. A pack's own look decides what it is; use the section only
+to choose between products that look alike (one flavour of a range from another). When a pack clearly is not the
+product its section should hold, name it by its look, set needs_review and add the reason misplaced_product.
+
 For each camera you also get two close-ups of the baskets at full detail: BEFORE (the first moment) and
 AFTER (the last). Count from them first: for each section, how many fewer units does it hold after than
 before? Then use the frames to see which section the hand reached into and what it lifted out.
@@ -227,6 +245,10 @@ before? Then use the frames to see which section the hand reached into and what 
 For each product, count the units that were lifted out above the lid opening ("taken") and the units put
 back in ("returned"). A unit picked up and put back is taken 1, returned 1. When no frame shows the moment,
 compare where the goods were at the start with the end.
+
+A product's photo may be a strip of several views of the same pack side by side: front, back, sides and its
+ends. In the baskets and in a hand a pack shows any of them (a cone lying in a basket shows its round top), so
+match the view you see, not only the front.
 
 Customers often take two or three of the same product at once, held together in one hand or stacked. Look
 for more than one stick, wrapper edge or pack in the hand, and trust the gap left in the section over a hand

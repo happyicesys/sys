@@ -11,7 +11,9 @@ use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendTransaction;
+use App\Models\ZijiaSkuApplication;
 use App\Services\SmartFreezer\Claude\CallUsage;
+use App\Services\SmartFreezer\Claude\CameraPosition;
 use App\Services\SmartFreezer\Claude\CatalogProduct;
 use App\Services\SmartFreezer\Claude\ClaudeAccuracyEvaluation;
 use App\Services\SmartFreezer\Claude\ClaudeCostMoney;
@@ -26,6 +28,8 @@ use App\Services\SmartFreezer\Claude\DoorFrameSource;
 use App\Services\SmartFreezer\Claude\FfmpegDoorFrames;
 use App\Services\SmartFreezer\Claude\FreezerCount;
 use App\Services\SmartFreezer\Claude\FreezerCounter;
+use App\Services\SmartFreezer\Claude\ProductViews;
+use App\Services\SmartFreezer\Claude\SectionMap;
 use App\Services\SmartFreezer\Claude\WorkedExample;
 use App\Services\SmartFreezer\ZijiaVideoCopier;
 use Carbon\Carbon;
@@ -36,6 +40,7 @@ use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Permission;
@@ -136,6 +141,7 @@ class ClaudeFreezerRecognitionTest extends TestCase
         if ($items !== [] && ! is_array(reset($items))) {
             $items = array_map(fn ($id, $n) => ['product_id' => (int) $id, 'taken' => (int) $n, 'returned' => 0], array_keys($items), $items);
         }
+
         return new FreezerCount($items, [], 1, 90, false, [], 'took one Basque', ['items' => $items, 'unknown_items' => [], 'notes' => 'took one Basque'],
             new CallUsage('claude-opus-5-5', 'msg_1', 'end_turn', $input, $output, 0, 0));
     }
@@ -499,6 +505,132 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertStringContainsString('anything that left the freezer through the lid opening', ClaudeFreezerCounter::systemPrompt());
     }
 
+    public function test_the_section_map_puts_each_section_where_it_sits_split_as_the_catalog_says(): void
+    {
+        $catalog = [new CatalogProduct(1, 'A', null, ['21', '22'], null), new CatalogProduct(2, 'B', null, ['41'], null),
+            new CatalogProduct(3, 'C', null, ['101A', '7'], null)];
+        $this->assertSame([2 => 2, 4 => 1], SectionMap::divisions($catalog), 'a basket\'s split is its highest section; other codes ignored');
+
+        $labels = SectionMap::labels([2 => [0.5, 0.7, 0.55], 4 => [0.2, 0.4, 0.66]], [2 => 2, 4 => 1, 6 => 3]);
+        $this->assertSame(['21', '22', '41'], array_column($labels, 'code'), 'a basket with no measured place gets no label');
+        $this->assertEqualsWithDelta(0.65, $labels[0]['x'], 1e-9, 'section 1 at the right end');
+        $this->assertEqualsWithDelta(0.55, $labels[1]['x'], 1e-9);
+        $this->assertEqualsWithDelta(0.30, $labels[2]['x'], 1e-9, 'one section fills its basket');
+
+        $positions = [['since' => '2026-11-03 00:00:00', 'camera' => 3, 'id' => 'now', 'rotate' => 0],
+            ['since' => '2026-10-01 00:00:00', 'camera' => 3, 'id' => 'old', 'rotate' => 180], ['since' => null, 'camera' => 4, 'id' => 'cam4']];
+        $this->assertSame('now', CameraPosition::pick($positions, '2026-11-13 12:00:00', 3)['id']);
+        $this->assertSame('old', CameraPosition::pick($positions, '2026-10-20 12:00:00', 3)['id'], 'the camera position at the time');
+        $this->assertNull(CameraPosition::pick($positions, '2026-09-20 12:00:00', 3), 'before any measured position: none');
+        $this->assertSame('cam4', CameraPosition::pick($positions, '2026-09-20 12:00:00', 4)['id'], 'since null = from the start');
+        $this->assertSame('hflip,vflip,', CameraPosition::uprightFilter(CameraPosition::pick($positions, '2026-10-20 12:00:00', 3)), 'upside down is turned upright');
+        $this->assertSame('', CameraPosition::uprightFilter(CameraPosition::pick($positions, '2026-11-13 12:00:00', 3)));
+        $this->assertSame('', CameraPosition::uprightFilter(null));
+        $this->assertNotNull(CameraPosition::for('50001', '2026-10-20 12:00:00', 3), '50001 is configured');
+        $this->assertSame(180, CameraPosition::for('50001', '2026-11-02 16:57:00', 3)['rotate'], '50001 filmed upside down until 2026-11-02');
+        $this->assertSame(0, CameraPosition::for('50001', '2026-11-13 12:00:00', 3)['rotate']);
+    }
+
+    public function test_a_session_gets_its_section_map_first_when_switched_on(): void
+    {
+        if (! function_exists('imagettftext') || collect((array) config('smart_freezer.claude_recognition.section_map.fonts'))->first(fn ($f) => is_file($f)) === null) {
+            $this->markTestSkipped('no GD FreeType or no font here');
+        }
+        $image = imagecreatetruecolor(1568, 540);
+        ob_start();
+        imagejpeg($image);
+        $before = (string) ob_get_clean();
+        $this->app->instance(DoorFrameSource::class, new class($before) implements DoorFrameSource
+        {
+            public function __construct(private string $before) {}
+
+            public function framesFor(SmartFreezerRecognition $recognition, ?int $framesPerSession = null, bool $sheets = true): array
+            {
+                return ['frames' => [new DoorFrame(3, 0, 9000, 'a'), new DoorFrame(3, 0, 9000, $this->before, DoorFrame::KIND_BEFORE)], 'notes' => []];
+            }
+        });
+
+        // Off: nothing added.
+        $this->counter->answers[] = $this->counted([]);
+        $this->service()->run(ClaudeRow::create(['smart_freezer_recognition_id' => $this->zijia()->id, 'status' => 'pending']));
+        $this->assertSame([DoorFrame::KIND_FRAME, DoorFrame::KIND_BEFORE], array_map(fn (DoorFrame $f) => $f->kind, $this->counter->frames[0]));
+
+        config(['smart_freezer.claude_recognition.section_map.enabled' => true]);
+        $this->counter->answers[] = $this->counted([]);
+        $row = $this->service()->run(ClaudeRow::create(['smart_freezer_recognition_id' => $this->zijia(['trade_id' => 'SF-50001-1794600000-1', 'session_ref' => 'SF-50001-1794600000-1'])->id, 'status' => 'pending']));
+        $sent = $this->counter->frames[1];
+        $this->assertSame(DoorFrame::KIND_MAP, $sent[0]->kind, 'the map comes first');
+        $this->assertSame(2, $sent[0]->sheet['sections'], 'sections 11 and 21 of this freezer\'s planogram');
+        $this->assertNotFalse(@imagecreatefromstring($sent[0]->jpeg));
+        $this->assertSame('map', $row->frames['sent'][0]['kind']);
+
+        // A session from before any measured camera position gets none.
+        config(['smart_freezer.claude_recognition.camera_positions.50001' => [['since' => '2026-11-03 00:00:00', 'camera' => 3, 'rotate' => 0,
+            'baskets' => config('smart_freezer.claude_recognition.camera_positions.50001.0.baskets')]]]);
+        $this->counter->answers[] = $this->counted([]);
+        $old = $this->zijia(['trade_id' => 'SF-50001-1790000000-1', 'session_ref' => 'SF-50001-1790000000-1']);
+        $old->forceFill(['created_at' => '2026-10-01 10:00:00'])->save();
+        $this->service()->run(ClaudeRow::create(['smart_freezer_recognition_id' => $old->id, 'status' => 'pending']));
+        $this->assertNotSame(DoorFrame::KIND_MAP, $this->counter->frames[2][0]->kind);
+    }
+
+    public function test_the_counter_names_the_section_map_and_lets_a_packs_look_beat_its_section(): void
+    {
+        $history = new \ArrayObject;
+        $stack = HandlerStack::create(new MockHandler([new Response(200, ['Content-Type' => 'application/json'], json_encode([
+            'id' => 'msg_11', 'type' => 'message', 'role' => 'assistant', 'model' => 'claude-opus-5-5',
+            'content' => [['type' => 'text', 'text' => json_encode(['items' => [], 'unknown_items' => [], 'people_seen' => 0,
+                'confidence' => 70, 'needs_review' => true, 'reasons' => ['misplaced_product'], 'notes' => 'A Magnum sat in 11.'])]],
+            'stop_reason' => 'end_turn', 'stop_sequence' => null, 'usage' => ['input_tokens' => 9000, 'output_tokens' => 500],
+        ]))]));
+        $stack->push(Middleware::history($history));
+
+        $count = (new ClaudeFreezerCounter(new GuzzleClient(['handler' => $stack])))->count(
+            [new DoorFrame(3, 0, 9000, 'm', DoorFrame::KIND_MAP, ['sections' => 2]), new DoorFrame(3, 0, 9000, 'f')],
+            [new CatalogProduct(7, 'Basque Cheesecake', 'CC-01', ['11'], null)], self::REF.' on machine 50001',
+        );
+
+        $content = json_decode((string) $history[0]['request']->getBody(), true)['messages'][0]['content'];
+        $text = implode("\n", array_column(array_filter($content, fn ($b) => $b['type'] === 'text'), 'text'));
+        $this->assertStringContainsString("SECTION MAP: camera 3's BEFORE close-up", $text);
+        $this->assertLessThan(strpos($text, 'Camera 3 (Real-Front View'), strpos($text, 'SECTION MAP'));
+        $this->assertStringContainsString("A pack's own look decides what it is", ClaudeFreezerCounter::systemPrompt());
+        $this->assertSame(['misplaced_product'], $count->reasons);
+    }
+
+    public function test_a_product_trained_on_several_angles_is_shown_as_one_strip_of_them(): void
+    {
+        config(['smart_freezer.claude_recognition.reference_photos.enabled' => true, 'cache.default' => 'array']);
+        $png = function (string $hex): string {
+            $image = imagecreatetruecolor(400, 300);
+            imagefill($image, 0, 0, (int) hexdec($hex));
+            ob_start();
+            imagepng($image);
+
+            return (string) ob_get_clean();
+        };
+        Http::fake(['https://spaces.test/pack.jpg' => Http::response($png('ff0000')), 'https://spaces.test/m1.png' => Http::response($png('00ff00')),
+            'https://spaces.test/m2.png' => Http::response($png('0000ff')), 'https://spaces.test/gone.png' => Http::response('', 404)]);
+        ZijiaSkuApplication::forceCreate(['product_id' => $this->magnum->id, 'application_no' => '900001', 'status' => 'approved', 'source' => 'vms4',
+            'package_image_url' => 'https://spaces.test/pack.jpg',
+            'model_pics' => ['low' => [], 'high' => ['https://spaces.test/m1.png', 'https://spaces.test/pack.jpg', 'https://spaces.test/m2.png', 'https://spaces.test/gone.png'], 'horizontal' => []]]);
+        ZijiaSkuApplication::forceCreate(['product_id' => $this->basque->id, 'application_no' => '900002', 'status' => 'rejected', 'source' => 'mark1',
+            'package_image_url' => 'https://spaces.test/pack.jpg', 'model_pics' => ['high' => ['https://spaces.test/m1.png']]]);
+
+        $strips = ProductViews::strips([$this->magnum->id, $this->basque->id]);
+
+        $this->assertSame([$this->magnum->id], array_keys($strips), 'only an approved application');
+        $this->assertSame(3, $strips[$this->magnum->id]['views'], 'pack shot + two model photos, each once; an unreadable one skipped');
+        $size = getimagesizefromstring($strips[$this->magnum->id]['jpeg']);
+        $this->assertSame([540, 180], [$size[0], $size[1]], 'square tiles side by side');
+
+        Http::fake(fn () => throw new \RuntimeException('not fetched again'));
+        $this->assertSame(3, ProductViews::strips([$this->magnum->id])[$this->magnum->id]['views'], 'built once, then cached');
+
+        config(['smart_freezer.claude_recognition.reference_photos.enabled' => false]);
+        $this->assertSame([], ProductViews::strips([$this->magnum->id]));
+    }
+
     public function test_real_frames_come_from_cameras_3_and_4_only(): void
     {
         $ffmpeg = trim((string) shell_exec('command -v ffmpeg'));
@@ -726,6 +858,9 @@ class FakeFreezerCounter implements FreezerCounter
     /** @var list<bool> */
     public array $cacheAll = [];
 
+    /** @var list<list<DoorFrame>> */
+    public array $frames = [];
+
     public function isConfigured(): bool
     {
         return $this->configured;
@@ -739,6 +874,7 @@ class FakeFreezerCounter implements FreezerCounter
     public function count(array $frames, array $catalog, string $sessionLabel, array $examples = [], bool $cacheAll = false): FreezerCount
     {
         $this->catalogs[] = $catalog;
+        $this->frames[] = $frames;
         $this->examples[] = $examples;
         $this->cacheAll[] = $cacheAll;
         $answer = array_shift($this->answers) ?? throw new \LogicException('no answer queued');

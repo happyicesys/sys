@@ -72,14 +72,16 @@ class FfmpegDoorFrames implements DoorFrameSource
 
             $each = self::framesPerCamera($framesPerSession ?? (int) $config['frames_per_session'], count($videos));
             foreach ($videos as $camera => [$tmp, $durationMs]) {
+                // An upside-down camera (50001 until 2026-11-02) is turned upright before anything is cut from it.
+                $upright = CameraPosition::uprightFilter(CameraPosition::for((string) $recognition->vend?->code, $recognition->created_at?->toDateTimeString(), $camera));
                 $window = $this->motionWindow($tmp, $durationMs);
                 if ($sheets && (bool) ($config['sheets']['enabled'] ?? false)) {
-                    array_push($frames, ...$this->sheets($tmp, $camera, $durationMs, $window, (array) $config['sheets'], DoorFrame::KIND_SHEET));
+                    array_push($frames, ...$this->sheets($tmp, $camera, $durationMs, $window, (array) $config['sheets'], DoorFrame::KIND_SHEET, $upright));
                 }
                 if ($sheets && (bool) ($config['exit_sheets']['enabled'] ?? false) && isset($config['exit_sheets']['box'][$camera])) {
-                    array_push($frames, ...$this->sheets($tmp, $camera, $durationMs, $window, (array) $config['exit_sheets'], DoorFrame::KIND_EXIT));
+                    array_push($frames, ...$this->sheets($tmp, $camera, $durationMs, $window, (array) $config['exit_sheets'], DoorFrame::KIND_EXIT, $upright));
                 }
-                $taken = $this->extract($tmp, $camera, $durationMs, self::moments($durationMs, $each, $window), $this->frameFilter($camera));
+                $taken = $this->extract($tmp, $camera, $durationMs, self::moments($durationMs, $each, $window), $upright.$this->frameFilter($camera));
                 if ($taken === []) {
                     $notes[] = "camera {$camera}: no frame could be cut";
 
@@ -90,8 +92,8 @@ class FfmpegDoorFrames implements DoorFrameSource
                 // read as one at 576 px). Counting the gap in a section is easier than following a hand.
                 if ((bool) ($config['closeups']['enabled'] ?? false)) {
                     $last = max(0, $durationMs - 200);
-                    array_push($frames, ...$this->extract($tmp, $camera, $durationMs, [0], $this->closeUpFilter($camera), DoorFrame::KIND_BEFORE));
-                    array_push($frames, ...$this->extract($tmp, $camera, $durationMs, [$last], $this->closeUpFilter($camera), DoorFrame::KIND_AFTER));
+                    array_push($frames, ...$this->extract($tmp, $camera, $durationMs, [0], $upright.self::closeUpFilter($camera), DoorFrame::KIND_BEFORE));
+                    array_push($frames, ...$this->extract($tmp, $camera, $durationMs, [$last], $upright.self::closeUpFilter($camera), DoorFrame::KIND_AFTER));
                 }
             }
         } finally {
@@ -152,7 +154,7 @@ class FfmpegDoorFrames implements DoorFrameSource
      * @param  array{0: int, 1: int}|null  $window
      * @return list<DoorFrame>
      */
-    private function sheets(string $video, int $camera, int $durationMs, ?array $window, array $config, string $kind): array
+    private function sheets(string $video, int $camera, int $durationMs, ?array $window, array $config, string $kind, string $upright = ''): array
     {
         $bin = (string) config('smart_freezer.claude_recognition.ffmpeg_bin');
         if ($bin === '' || ! is_executable($bin)) {
@@ -182,7 +184,7 @@ class FfmpegDoorFrames implements DoorFrameSource
             try {
                 $process = new Process([$bin, '-v', 'error', '-ss', sprintf('%.3f', $start / 1000), '-i', $video,
                     '-t', sprintf('%.3f', $per * $stepMs / 1000),
-                    '-vf', sprintf('fps=%.4F,%sscale=%d:-2,tile=%dx%d', 1000 / $stepMs, $crop, $tileWidth, $cols, $rows),
+                    '-vf', sprintf('fps=%.4F,%s%sscale=%d:-2,tile=%dx%d', 1000 / $stepMs, $upright, $crop, $tileWidth, $cols, $rows),
                     '-frames:v', '1', '-q:v', '3', '-f', 'image2', '-y', $out]);
                 $process->setTimeout(60);
                 $process->run();

@@ -117,6 +117,10 @@ class ClaudeShadowRecognitionService
         try {
             ['frames' => $frames, 'notes' => $notes] = $this->frames->framesFor($recognition);
             $catalog = $this->catalog($recognition);
+            // Where each section is in the picture, first, so the product list's sections point at places (2026-11-14).
+            if (($map = SectionMap::for($recognition, $frames, $catalog)) !== null) {
+                array_unshift($frames, $map);
+            }
             $examples = $frames === [] ? [] : $this->examples->for($recognition);
             $row->update([
                 'vend_id' => $recognition->vend_id,
@@ -372,6 +376,8 @@ class ClaudeShadowRecognitionService
         }
 
         $px = (int) config('smart_freezer.claude_recognition.product_photo_px');
+        // Its training photos, every angle in one strip, where the AI has them (2026-11-14); else the product photo.
+        $views = ProductViews::strips($ids);
 
         return Product::withoutGlobalScopes()->with('thumbnail')->whereIn('id', $ids)->orderBy('name')->get()
             ->map(fn (Product $p) => new CatalogProduct(
@@ -379,7 +385,8 @@ class ClaudeShadowRecognitionService
                 name: (string) $p->name,
                 code: $p->code ? (string) $p->code : null,
                 sections: array_values(array_unique($sections[$p->id] ?? [])),
-                photoJpeg: self::photo($p->thumbnail?->full_url, $px),
+                photoJpeg: $views[$p->id]['jpeg'] ?? self::photo($p->thumbnail?->full_url, $px),
+                views: $views[$p->id]['views'] ?? 1,
             ))->values()->all();
     }
 

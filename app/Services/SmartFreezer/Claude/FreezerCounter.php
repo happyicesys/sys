@@ -7,7 +7,7 @@ interface FreezerCounter
 {
     public const REASONS = [
         'hand_hidden', 'frost_or_glare', 'two_people', 'several_in_one_hand', 'video_missing',
-        'video_cut_short', 'look_alike_products', 'not_in_catalog', 'other',
+        'video_cut_short', 'look_alike_products', 'not_in_catalog', 'misplaced_product', 'other',
     ];
 
     public function isConfigured(): bool;

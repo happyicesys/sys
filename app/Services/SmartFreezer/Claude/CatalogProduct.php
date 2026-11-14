@@ -12,5 +12,7 @@ final class CatalogProduct
         public readonly ?string $code,
         public readonly array $sections,
         public readonly ?string $photoJpeg,
+        /** How many views of the pack the photo shows side by side (ProductViews): 1 = a single product photo. */
+        public readonly int $views = 1,
     ) {}
 }
