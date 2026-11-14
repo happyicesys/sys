@@ -17,6 +17,9 @@ final class DoorFrame
     /** A contact sheet: many small pictures close together over the part where a hand is in the freezer. */
     public const KIND_SHEET = 'sheet';
 
+    /** A contact sheet of the lid opening only, where goods leave the freezer: what crosses it is taken. */
+    public const KIND_EXIT = 'exit';
+
     public function __construct(
         public readonly int $camera,
         public readonly int $atMs,

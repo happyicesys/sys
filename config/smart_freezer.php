@@ -252,11 +252,24 @@ return [
             'pad_ms' => 600,
             'box' => [3 => [0.12, 0.08, 0.90, 0.85]],
         ],
-        // Each session is counted `runs` times (2) and once more while the counts disagree, up to `max_runs` (3); the
-        // majority wins and only an agreed count with no doubt is "sure". Tuning, 2026-11-13: majority of three 17/20,
-        // one count 15-16/20. The repeats read the cached request at a tenth of the input price.
-        'runs' => (int) env('CLAUDE_FREEZER_AI_RUNS', 2),
-        'max_runs' => (int) env('CLAUDE_FREEZER_AI_MAX_RUNS', 3),
+        // Lid-opening sheets (Brian, 2026-11-14: "anything that left the freezer door is taken"): 3x4 pictures 8 a second
+        // of only the band goods leave through, over the motion window. Held-back 50, one Opus count: 35/50 with them and
+        // the taken rule, 27/50 without.
+        'exit_sheets' => [
+            'enabled' => (bool) env('CLAUDE_FREEZER_AI_EXIT_SHEETS', true),
+            'fps' => 8,
+            'cols' => 3,
+            'rows' => 4,
+            'max' => 10,
+            'width_px' => 1568,
+            'pad_ms' => 600,
+            'box' => [3 => [0.10, 0.0, 0.90, 0.55]],
+        ],
+        // Each session may be counted `runs` times and once more while the counts disagree, up to `max_runs`; the majority
+        // wins. OFF (1/1) since 2026-11-14: on the 50 held-back sessions two counts + a tie-break got 34/50, one count
+        // 33-35/50 -- Claude's misses repeat run to run, so a repeat only doubled the bill. Kept for a later model.
+        'runs' => (int) env('CLAUDE_FREEZER_AI_RUNS', 1),
+        'max_runs' => (int) env('CLAUDE_FREEZER_AI_MAX_RUNS', 1),
         // Worked examples sent with every call: door sessions (AI Recognition ids) whose count a person confirmed,
         // shown with that count, the closest Claude comes to being trained on our freezers. The answer is the person's
         // Adjust Qty, else Zijia's count. A session is never its own example; the same freezer's come first.

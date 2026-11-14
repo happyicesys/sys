@@ -159,6 +159,16 @@ class ClaudeFreezerCounter implements FreezerCounter
         $blocks = [];
         $camera = null;
         foreach ($frames as $frame) {
+            if ($frame->kind === DoorFrame::KIND_EXIT) {
+                $blocks[] = ['type' => 'text', 'text' => sprintf(
+                    'Camera %d LID OPENING sheet: %d pictures %.3f s apart, from %.2f s to %.2f s, left to right then top to bottom; only the band where goods leave the freezer:',
+                    $frame->camera, ($frame->sheet['cols'] ?? 1) * ($frame->sheet['rows'] ?? 1), ($frame->sheet['step_ms'] ?? 0) / 1000,
+                    $frame->atMs / 1000, ($frame->sheet['to_ms'] ?? $frame->atMs) / 1000,
+                )];
+                $blocks[] = self::jpegBlock($frame->jpeg);
+
+                continue;
+            }
             if ($frame->kind === DoorFrame::KIND_SHEET) {
                 $blocks[] = ['type' => 'text', 'text' => sprintf(
                     'Camera %d contact sheet: %d small pictures %.2f s apart, from %.1f s to %.1f s, read left to right then top to bottom; cropped to the baskets and the space above them where hands lift goods out:',
@@ -229,7 +239,15 @@ Some freezers film with camera 3 only; a missing camera 4 is not by itself a rea
 Contact sheets show the whole time a hand is in the freezer at a few pictures a second. A reach often lasts
 only half a second, so use them to follow each reach: count the packs in the hand as it rises above the
 baskets, picture by picture. The still frames and close-ups give detail; the contact sheets make sure no
-lift is missed. Name products by their look and by the section the
+lift is missed. LID OPENING sheets show only the band where goods leave the freezer, 8 pictures a second:
+count the packs in each hand as it passes the lid edge.
+
+WHAT COUNTS AS TAKEN (the shop's rule): anything that left the freezer through the lid opening. Watch the
+opening: every pack carried up and out past the lid edge is taken, whether or not you can tell what it is (name
+it from the section the hand came from, else put it in unknown_items). It is returned only if you see it go back
+down into a basket before the lid closes. Count at the moment the hand leaves the freezer: how many packs are in
+it, including packs held behind other packs or stacked in one grip. A hand that leaves empty took nothing.
+Never lower a count because a gap in a section is hard to see: what left through the opening decides. Name products by their look and by the section the
 hand reached into, and use only ids from the list. Something that left the freezer and matches no product
 goes in unknown_items with a short description. List only products with something taken or returned.
 

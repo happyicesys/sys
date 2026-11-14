@@ -496,6 +496,7 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertStringContainsString('Camera 3 contact sheet: 9 small pictures 0.33 s apart, from 2.4 s to 5.1 s', $text);
         $this->assertStringNotContainsStringIgnoringCase('paid', $text, 'still blind');
         $this->assertStringContainsString('Do not stop at the first unit you see', ClaudeFreezerCounter::systemPrompt());
+        $this->assertStringContainsString('anything that left the freezer through the lid opening', ClaudeFreezerCounter::systemPrompt());
     }
 
     public function test_real_frames_come_from_cameras_3_and_4_only(): void
@@ -525,7 +526,9 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertSame(array_fill(0, count($kinds), 3), array_map(fn (DoorFrame $f) => $f->camera, $got['frames']));
         $this->assertSame(['frame', 'frame', 'frame', 'frame', 'frame', 'frame', 'before', 'after'], array_slice($kinds, 0, 8));
         $this->assertNotEmpty(array_slice($kinds, 8), 'contact sheets come last');
-        $this->assertSame(['sheet'], array_values(array_unique(array_slice($kinds, 8))));
+        $this->assertSame(['sheet', 'exit'], array_values(array_unique(array_slice($kinds, 8))), 'basket sheets, then the lid-opening sheets');
+        $exit = collect($got['frames'])->firstWhere('kind', 'exit');
+        $this->assertSame([3, 4, 125], [$exit->sheet['cols'], $exit->sheet['rows'], $exit->sheet['step_ms']], '8 a second');
         $sheet = $got['frames'][8];
         $this->assertSame([3, 3], [$sheet->sheet['cols'], $sheet->sheet['rows']]);
         $this->assertSame(1566, getimagesizefromstring($sheet->jpeg)[0], 'three 522 px tiles across');

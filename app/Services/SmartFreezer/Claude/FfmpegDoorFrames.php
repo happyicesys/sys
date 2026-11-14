@@ -74,7 +74,10 @@ class FfmpegDoorFrames implements DoorFrameSource
             foreach ($videos as $camera => [$tmp, $durationMs]) {
                 $window = $this->motionWindow($tmp, $durationMs);
                 if ($sheets && (bool) ($config['sheets']['enabled'] ?? false)) {
-                    array_push($frames, ...$this->sheets($tmp, $camera, $durationMs, $window));
+                    array_push($frames, ...$this->sheets($tmp, $camera, $durationMs, $window, (array) $config['sheets'], DoorFrame::KIND_SHEET));
+                }
+                if ($sheets && (bool) ($config['exit_sheets']['enabled'] ?? false) && isset($config['exit_sheets']['box'][$camera])) {
+                    array_push($frames, ...$this->sheets($tmp, $camera, $durationMs, $window, (array) $config['exit_sheets'], DoorFrame::KIND_EXIT));
                 }
                 $taken = $this->extract($tmp, $camera, $durationMs, self::moments($durationMs, $each, $window), $this->frameFilter($camera));
                 if ($taken === []) {
@@ -99,9 +102,12 @@ class FfmpegDoorFrames implements DoorFrameSource
 
         // Camera, then the motion frames in time order, then that camera's before and after close-ups; the contact
         // sheets of every camera last (the order the 2026-11-13 tuning measured).
-        $rank = [DoorFrame::KIND_FRAME => 0, DoorFrame::KIND_BEFORE => 1, DoorFrame::KIND_AFTER => 2, DoorFrame::KIND_SHEET => 3];
-        usort($frames, fn (DoorFrame $a, DoorFrame $b) => [$a->kind === DoorFrame::KIND_SHEET, $a->camera, $rank[$a->kind], $a->atMs]
-            <=> [$b->kind === DoorFrame::KIND_SHEET, $b->camera, $rank[$b->kind], $b->atMs]);
+        $rank = [DoorFrame::KIND_FRAME => 0, DoorFrame::KIND_BEFORE => 1, DoorFrame::KIND_AFTER => 2, DoorFrame::KIND_SHEET => 3, DoorFrame::KIND_EXIT => 4];
+        $group = fn (DoorFrame $f) => match ($f->kind) {
+            DoorFrame::KIND_SHEET => 1, DoorFrame::KIND_EXIT => 2, default => 0
+        };
+        usort($frames, fn (DoorFrame $a, DoorFrame $b) => [$group($a), $a->camera, $rank[$a->kind], $a->atMs]
+            <=> [$group($b), $b->camera, $rank[$b->kind], $b->atMs]);
 
         return ['frames' => $frames, 'notes' => $notes];
     }
@@ -140,15 +146,15 @@ class FfmpegDoorFrames implements DoorFrameSource
      * Contact sheets over the motion window (padded `sheets.pad_ms`): `cols` x `rows` small pictures `fps` a second,
      * cropped to the baskets and the space above them, one image per sheet, at most `max` sheets (the rate drops to
      * fit). A reach lasts about half a second (#54, 2026-11-13: two reaches, at 5.0 s and 6.5 s), so stills a second
-     * apart miss one; the tuning set went 13 -> 14 of 20 with them, for about US$0.02 a session.
+     * apart miss one; the tuning set went 13 -> 14 of 20 with them, for about US$0.02 a session. The same builder
+     * makes the lid-opening sheets (`exit_sheets`, kind exit), 8 a second over the band goods leave through.
      *
      * @param  array{0: int, 1: int}|null  $window
      * @return list<DoorFrame>
      */
-    private function sheets(string $video, int $camera, int $durationMs, ?array $window): array
+    private function sheets(string $video, int $camera, int $durationMs, ?array $window, array $config, string $kind): array
     {
         $bin = (string) config('smart_freezer.claude_recognition.ffmpeg_bin');
-        $config = (array) config('smart_freezer.claude_recognition.sheets');
         if ($bin === '' || ! is_executable($bin)) {
             return [];
         }
@@ -181,7 +187,7 @@ class FfmpegDoorFrames implements DoorFrameSource
                 $process->setTimeout(60);
                 $process->run();
                 if ($process->isSuccessful() && is_file($out) && filesize($out) > 0) {
-                    $sheets[] = new DoorFrame($camera, $start, $durationMs, (string) file_get_contents($out), DoorFrame::KIND_SHEET,
+                    $sheets[] = new DoorFrame($camera, $start, $durationMs, (string) file_get_contents($out), $kind,
                         ['to_ms' => (int) min($to, $start + ($per - 1) * $stepMs), 'step_ms' => $stepMs, 'cols' => $cols, 'rows' => $rows]);
                 }
             } catch (Throwable $e) {
