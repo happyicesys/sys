@@ -634,9 +634,7 @@
                         <span v-if="row.claude.same_as_person === true" class="font-semibold text-green-700">{{ $t('Same as the person\'s count') }}</span>
                         <span v-else-if="row.claude.same_as_person === false" class="font-semibold text-red-700">{{ $t('Differs from the person\'s count') }}</span>
                         <span class="flex flex-wrap gap-x-1.5 text-violet-700">
-                          <span v-if="row.claude.confidence !== null" class="cursor-help" tabindex="0" v-tooltip="row.claude.notes || ''">{{ $t('sure :pct%', { pct: row.claude.confidence }) }}</span>
-                          <span v-if="row.claude.needs_review" class="text-amber-800">· {{ $t('wants a person') }}</span>
-                        </span>
+                          <span v-if="row.claude.confidence !== null" class="cursor-help" tabindex="0" v-tooltip="row.claude.notes || ''">{{ $t('sure :pct%', { pct: row.claude.confidence }) }}</span>                        </span>
                       </template>
                       <span v-else-if="row.claude.status === 'pending' || row.claude.status === 'running'" class="text-gray-500">{{ $t('counting…') }}</span>
                       <span v-else class="w-fit cursor-help text-gray-500" tabindex="0" v-tooltip="row.claude.reason || ''">{{ row.claude.status === 'skipped' ? $t('not sent') : $t('failed') }}</span>
