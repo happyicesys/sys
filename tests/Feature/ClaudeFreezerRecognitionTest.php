@@ -529,6 +529,8 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertNotNull(CameraPosition::for('50001', '2026-10-20 12:00:00', 3), '50001 is configured');
         $this->assertSame(180, CameraPosition::for('50001', '2026-11-02 16:57:00', 3)['rotate'], '50001 filmed upside down until 2026-11-02');
         $this->assertSame(0, CameraPosition::for('50001', '2026-11-13 12:00:00', 3)['rotate']);
+        $this->assertSame(180, CameraPosition::for('50001', '2026-10-09 12:00:00', 3)['rotate'], 'still turned upright');
+        $this->assertArrayNotHasKey('baskets', CameraPosition::for('50001', '2026-10-09 12:00:00', 3), 'but no map: other stock then');
     }
 
     public function test_a_session_gets_its_section_map_first_when_switched_on(): void

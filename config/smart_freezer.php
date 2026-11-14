@@ -281,7 +281,10 @@ return [
                     1 => [0.539, 0.777, 0.681], 2 => [0.531, 0.703, 0.556], 3 => [0.523, 0.664, 0.476],
                     4 => [0.234, 0.469, 0.667], 5 => [0.297, 0.473, 0.563], 6 => [0.344, 0.477, 0.479],
                 ]],
-                ['since' => null, 'camera' => 3, 'rotate' => 180, 'baskets' => $freezer50001Baskets],
+                // Same view, filmed upside down; the ice-cream baskets were in by 2026-11-02 (#28). Before that the
+                // freezer held other stock laid out differently (#20, 2026-10-09: seafood trays), so it gets no map.
+                ['since' => '2026-11-02 00:00:00', 'camera' => 3, 'rotate' => 180, 'baskets' => $freezer50001Baskets],
+                ['since' => null, 'camera' => 3, 'rotate' => 180],
             ],
             '50002' => [
                 ['since' => '2026-11-05 00:00:00', 'camera' => 3, 'rotate' => 0, 'baskets' => [
