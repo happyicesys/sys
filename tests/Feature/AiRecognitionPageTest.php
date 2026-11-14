@@ -922,6 +922,45 @@ class AiRecognitionPageTest extends TestCase
             ->where('recognitions.data.0.card.refunds.0.by', 'Daniel'));
     }
 
+    public function test_a_session_with_no_ai_answer_shows_its_paid_sale_and_how_long_it_waited(): void
+    {
+        // Brian, 2026-11-14: Zijia never answered SF-50001-1794663352-16, and the row showed no order and no items.
+        Carbon::setTestNow('2026-11-14 22:33:00');
+        $product = Product::forceCreate(['code' => 'CR', 'name' => 'Cornetto Royale', 'operator_id' => 1, 'barcode' => '111']);
+        $ref = 'SF-50001-'.Carbon::parse('2026-11-14 21:35:52')->getTimestamp().'-16';
+        $sale = $this->dashboardSale(1850, ['order_id' => 'O-EARLY', 'transaction_datetime' => '2026-11-14 21:37:20',
+            'vend_transaction_json' => ['Type' => 'TRADE', 'SFREF' => $ref, 'transf_info' => [['goods_id' => $product->id, 'Price' => 1850]]]]);
+        $waiting = $this->recognition(['session_ref' => $ref, 'trade_id' => $ref, 'status' => SmartFreezerRecognition::STATUS_SUBMITTED,
+            'request_id' => '2121598503666528257', 'submitted_at' => '2026-11-14 21:37:55', 'created_at' => '2026-11-14 21:37:48']);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('recognitions.data.0.sale.order_id', 'O-EARLY')
+            ->where('recognitions.data.0.sale.time', '21:37:20')
+            ->where('recognitions.data.0.ai_check.0.name', 'Cornetto Royale')
+            ->where('recognitions.data.0.ai_check.0.paid', 1)
+            ->where('recognitions.data.0.ai_check.0.unit_cents', 1850)
+            ->where('recognitions.data.0.ai_check.0.taken', null)
+            ->where('recognitions.data.0.ai_check.0.state', 'pending')
+            ->where('recognitions.data.0.ai_waiting.seconds', 3305)
+            ->where('recognitions.data.0.ai_waiting.long', true)
+            // Adjust Qty reads the linked sale, which only the AI's result writes.
+            ->where('recognitions.data.0.can_correct', false));
+        $this->assertNull($waiting->fresh()->vend_transaction_id, 'showing the sale links nothing');
+
+        // A short wait is not called long.
+        Carbon::setTestNow('2026-11-14 21:40:00');
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('recognitions.data.0.ai_waiting.long', false));
+
+        // Once the result is in and judged, the badge goes and the real link takes over.
+        $waiting->update(['status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0, 'vend_transaction_id' => $sale->id,
+            'verdict' => 'match', 'verdict_lines' => [['product_id' => $product->id, 'code' => '111', 'paid' => 1, 'taken' => 1, 'delta' => 0]]]);
+        $this->actingAs($this->viewer())->get('/ai-recognition')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('recognitions.data.0.ai_waiting', null)
+            ->where('recognitions.data.0.ai_check.0.state', 'ok')
+            ->where('recognitions.data.0.can_correct', true));
+    }
+
     public function test_the_ai_check_waits_for_an_answer_and_names_a_barcode_we_do_not_know(): void
     {
         $product = Product::forceCreate(['code' => 'A', 'name' => 'Aye', 'operator_id' => 1, 'barcode' => '111']);

@@ -25,6 +25,7 @@ use App\Services\SmartFreezer\DoorFault;
 use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\FreezerDoorTimeline;
 use App\Services\SmartFreezer\FreezerRecognitionService;
+use App\Services\SmartFreezer\FreezerSaleLocator;
 use App\Services\SmartFreezer\PersonCount;
 use App\Services\SmartFreezer\RecognitionBadges;
 use App\Services\SmartFreezer\RecognitionVerdict;
@@ -170,6 +171,7 @@ class FreezerRecognitionController extends Controller
         // Props are closures: the page's 30 s refresh names only some of them, and Inertia then skips the rest (audit SF2-06).
         $dashboardQuery = clone $query;
         $page = $query->paginate($numberPerPage === 'All' ? 10000 : (int) $numberPerPage)->withQueryString();
+        $this->showSalesBeforeTheResult($page->getCollection());
         $names = $this->productNames($page->getCollection());
         $failedSessions = $this->failedSessions($page->getCollection());
         $cards = $this->cardCharges($page->getCollection(), $failedSessions);
@@ -528,6 +530,56 @@ class FreezerRecognitionController extends Controller
         }
     }
 
+    /** Statuses with no AI answer yet, where the sale is shown before the result links it. */
+    private const AWAITING_ANSWER = [
+        SmartFreezerRecognition::STATUS_PENDING,
+        SmartFreezerRecognition::STATUS_SUBMITTING,
+        SmartFreezerRecognition::STATUS_SUBMITTED,
+        SmartFreezerRecognition::STATUS_FAILED,
+    ];
+
+    /** Zijia's slowest answer to 2026-11-14 took 548 s; past this the wait is called long. */
+    private const AI_WAIT_LONG_SECONDS = 15 * 60;
+
+    /** @return array{seconds: int, long: bool}|null  null once the AI answered, or for a row never sent to it */
+    private function aiWaiting(SmartFreezerRecognition $r): ?array
+    {
+        if ($r->order_status !== null || $r->verdict !== null
+            || ! in_array($r->status, [SmartFreezerRecognition::STATUS_PENDING, SmartFreezerRecognition::STATUS_SUBMITTING, SmartFreezerRecognition::STATUS_SUBMITTED], true)) {
+            return null;
+        }
+        $since = $r->submitted_at ?? $r->created_at;
+        if ($since === null) {
+            return null;
+        }
+        $seconds = max(0, now()->getTimestamp() - Carbon::parse($since)->getTimestamp());
+
+        return ['seconds' => $seconds, 'long' => $r->status === SmartFreezerRecognition::STATUS_SUBMITTED && $seconds > self::AI_WAIT_LONG_SECONDS];
+    }
+
+    /**
+     * The sale is linked to a session (`vend_transaction_id`) only when the AI's result is judged
+     * (FreezerRecognitionService::evaluate), so until then the row showed no order, no time and no
+     * items although the customer had paid (Brian, 2026-11-14: Zijia never answered SF-50001-1794663352-16).
+     * For display only, a row with no answer yet is shown with its sale, found the way evaluate finds it.
+     * Nothing is written: Adjust Qty, the dashboard and every money rule still wait for the real link.
+     */
+    private function showSalesBeforeTheResult($recognitions): void
+    {
+        $locator = app(FreezerSaleLocator::class);
+        foreach ($recognitions as $r) {
+            if ($r->vend_transaction_id !== null || $r->session_ref === null || $r->vend === null
+                || ! in_array($r->status, self::AWAITING_ANSWER, true) || $r->order_status !== null) {
+                continue;
+            }
+            $sale = $locator->find($r->vend, $r->session_ref, $r->created_at);
+            if ($sale !== null) {
+                $sale->load('vendTransactionItems:id,vend_transaction_id,product_id,happy_hour_slot_id');
+                $r->setRelation('vendTransaction', $sale);
+            }
+        }
+    }
+
     /**
      * @param  array{by_id: array<int, string>, by_code: array<string, string>}  $names
      * @param  array<string, CardPaymentIntent>  $cards  "vend_id|session_ref" => the session's T05 hold
@@ -605,8 +657,11 @@ class FreezerRecognitionController extends Controller
                 'method' => $failed->payment_method === FreezerFailedSession::METHOD_CARD ? __('Card') : __('PayNow'),
                 'amount_cents' => $failed->amount_cents,
             ] : null,
-            // The Correct button (FreezerSaleCorrection, which says why when it refuses).
-            'can_correct' => $sale !== null && $r->vend?->isSmartFreezer(),
+            // No AI answer yet: how long it has been waiting since it was sent (or since the videos came, before that).
+            'ai_waiting' => $this->aiWaiting($r),
+            // The Correct button (FreezerSaleCorrection, which says why when it refuses). It reads the
+            // linked sale, so a sale shown before the result (showSalesBeforeTheResult) does not count.
+            'can_correct' => $sale !== null && $r->vend_transaction_id !== null && $r->vend?->isSmartFreezer(),
             'correction' => $this->correctionOf($r, $sale, $card),
             // A T05 hold this session's verdict charges (CardPaymentService::settleAwaitingAi).
             'card' => $card ? [

@@ -521,6 +521,15 @@
                     <span v-if="verdictNote(row)" class="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700" tabindex="0" v-tooltip="row.status_reason || row.algorithm_status || ''">
                       <QuestionMarkCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t(verdictNote(row)) }}
                     </span>
+                    <!-- No AI answer yet: the paid items still show below (Brian, 2026-11-14), the AI columns wait. -->
+                    <span v-if="row.ai_waiting"
+                      :class="['mb-1 inline-flex w-fit cursor-help items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold', row.ai_waiting.long ? 'border-amber-300 bg-amber-100 text-amber-800' : 'border-gray-300 bg-gray-100 text-gray-700']"
+                      tabindex="0"
+                      v-tooltip="row.ai_waiting.long
+                        ? $t('Zijia usually answers within 10 minutes. These are the items paid for; Adjust Qty opens once the AI result arrives.')
+                        : $t('These are the items paid for. The AI columns fill in when the result arrives.')">
+                      <ClockIcon class="h-4 w-4" aria-hidden="true" />{{ $t('AI result not in yet · :time', { time: durationText(row.ai_waiting.seconds) }) }}
+                    </span>
                     <!-- Fixed widths, so every row's columns line up down the page whatever its contents. -->
                     <table v-if="row.ai_check.length" class="w-[24rem] table-fixed text-xs">
                       <colgroup>
@@ -801,7 +810,7 @@ import MachineIdLink from '@/Components/MachineIdLink.vue';
 import T05RefundPanel from '@/Components/T05RefundPanel.vue';
 import AiCorrectionPanel from '@/Components/AiCorrectionPanel.vue';
 import SearchInput from '@/Components/SearchInput.vue';
-import { CheckCircleIcon, InformationCircleIcon, MagnifyingGlassIcon, PencilSquareIcon, QuestionMarkCircleIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, ClockIcon, InformationCircleIcon, MagnifyingGlassIcon, PencilSquareIcon, QuestionMarkCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
