@@ -961,6 +961,34 @@ class AiRecognitionPageTest extends TestCase
             ->where('recognitions.data.0.can_correct', true));
     }
 
+    public function test_an_answer_with_no_verdict_still_shows_what_was_paid(): void
+    {
+        // Brian, 2026-11-15: Zijia answered SF-50001-1794744521-21 with "recognition error" (501/503) and no
+        // verdict; the row read "No verdict · Nothing taken" although the customer paid $6.40 for two items.
+        $solero = Product::forceCreate(['code' => 'SL', 'name' => 'Solero Split Lime', 'operator_id' => 1, 'barcode' => '111']);
+        $magnum = Product::forceCreate(['code' => 'MA', 'name' => 'Magnum Almond', 'operator_id' => 1, 'barcode' => '222']);
+        $ref = 'SF-50001-'.Carbon::now()->subMinutes(20)->getTimestamp().'-21';
+        $this->dashboardSale(640, ['order_id' => 'O-NOVERDICT', 'transaction_datetime' => Carbon::now()->subMinutes(20), 'is_multiple' => 1,
+            'vend_transaction_json' => ['Type' => 'TRADE', 'SFREF' => $ref, 'transf_info' => [
+                ['goods_id' => $solero->id, 'Price' => 300], ['goods_id' => $magnum->id, 'Price' => 340],
+            ]]]);
+        $row = $this->recognition(['session_ref' => $ref, 'trade_id' => $ref, 'status' => SmartFreezerRecognition::STATUS_FAILED,
+            'order_status' => 501, 'items' => [], 'created_at' => Carbon::now()->subMinutes(20)]);
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('recognitions.data.0.verdict', null)
+            ->where('recognitions.data.0.sale.order_id', 'O-NOVERDICT')
+            ->has('recognitions.data.0.ai_check', 2)
+            ->where('recognitions.data.0.ai_check.0.paid', 1)
+            ->where('recognitions.data.0.ai_check.1.paid', 1)
+            // Nothing seen is no count, not "0 taken": AI saw shows "—" and the verdict a question mark.
+            ->where('recognitions.data.0.ai_check.0.taken', null)
+            ->where('recognitions.data.0.ai_check.0.state', 'unknown')
+            ->where('recognitions.data.0.ai_waiting', null)
+            ->where('recognitions.data.0.can_correct', false));
+        $this->assertNull($row->fresh()->vend_transaction_id, 'showing the sale links nothing');
+    }
+
     public function test_the_ai_check_waits_for_an_answer_and_names_a_barcode_we_do_not_know(): void
     {
         $product = Product::forceCreate(['code' => 'A', 'name' => 'Aye', 'operator_id' => 1, 'barcode' => '111']);

@@ -534,11 +534,16 @@ class FreezerRecognitionController extends Controller
         }
     }
 
-    /** Statuses with no AI answer yet, where the sale is shown before the result links it. */
-    private const AWAITING_ANSWER = [
+    /**
+     * Statuses where the sale is shown before (or without) a verdict linking it: no answer yet, an
+     * answer with no verdict (Zijia's 501 recognition error, Brian 2026-11-15), or a result waiting for its sale.
+     * Not `skipped`: a door try that did not open belongs to another row, which shows the sale.
+     */
+    private const NOT_JUDGED = [
         SmartFreezerRecognition::STATUS_PENDING,
         SmartFreezerRecognition::STATUS_SUBMITTING,
         SmartFreezerRecognition::STATUS_SUBMITTED,
+        SmartFreezerRecognition::STATUS_COMPLETED,
         SmartFreezerRecognition::STATUS_FAILED,
     ];
 
@@ -564,8 +569,9 @@ class FreezerRecognitionController extends Controller
     /**
      * The sale is linked to a session (`vend_transaction_id`) only when the AI's result is judged
      * (FreezerRecognitionService::evaluate), so until then the row showed no order, no time and no
-     * items although the customer had paid (Brian, 2026-11-14: Zijia never answered SF-50001-1794663352-16).
-     * For display only, a row with no answer yet is shown with its sale, found the way evaluate finds it.
+     * items although the customer had paid (Brian, 2026-11-14: Zijia never answered SF-50001-1794663352-16;
+     * 2026-11-15: Zijia answered SF-50001-1794744521-21 with a recognition error and no verdict).
+     * For display only, a row with no verdict is shown with its sale, found the way evaluate finds it.
      * Nothing is written: Adjust Qty, the dashboard and every money rule still wait for the real link.
      */
     private function showSalesBeforeTheResult($recognitions): void
@@ -573,7 +579,7 @@ class FreezerRecognitionController extends Controller
         $locator = app(FreezerSaleLocator::class);
         foreach ($recognitions as $r) {
             if ($r->vend_transaction_id !== null || $r->session_ref === null || $r->vend === null
-                || ! in_array($r->status, self::AWAITING_ANSWER, true) || $r->order_status !== null) {
+                || ! in_array($r->status, self::NOT_JUDGED, true) || $r->verdict !== null) {
                 continue;
             }
             $sale = $locator->find($r->vend, $r->session_ref, $r->created_at);
@@ -808,7 +814,9 @@ class FreezerRecognitionController extends Controller
         foreach (array_keys($paid + $seen + ($adjusted ?? [])) as $id) {
             $product = $products[$id] ?? null;
             $qty = (int) ($paid[$id]['qty'] ?? 0);
-            $taken = $notApplicable ? null : ($seen[$id]['taken'] ?? ($answered ? 0 : null));
+            // An answer with no verdict and nothing seen (a recognition error) is no count at all, not "0 taken".
+            $counted = $answered && ($verdict !== null || (array) $r->items !== []);
+            $taken = $notApplicable ? null : ($seen[$id]['taken'] ?? ($counted ? 0 : null));
             $lines[] = [
                 'product_id' => $id,
                 'name' => $product?->name ?? __('product :id', ['id' => $id]),
