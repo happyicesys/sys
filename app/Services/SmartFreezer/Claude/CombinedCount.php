@@ -13,11 +13,12 @@ namespace App\Services\SmartFreezer\Claude;
  *  - Claude saw something unusual (a put-back, a swap, a hidden pack, goods moved or put in, a pack opened) or
  *    something not on the freezer → a person;
  *  - Zijia's count equals the paid order product by product → settle (today's rule);
+ *  - Claude's count equals the paid order and Zijia saw no more units than were paid for → settle (#79, #41:
+ *    Zijia one or two short, Claude exact, a person agreed);
  *  - Zijia's total is not the paid total → a person;
  *  - Claude's products are not exactly the paid products → a person;
  *  - one product paid for → settle (the number is Zijia's, the product Claude's and the receipt's);
- *  - several products: settle only when Claude's count equals the paid order product by product, because a split
- *    between two prices is something neither has then confirmed.
+ *  - several products → a person: the split between two prices is something neither has confirmed.
  */
 final class CombinedCount
 {
@@ -52,6 +53,11 @@ final class CombinedCount
         }
         $zijiaTotal = array_sum($zijia);
         $paidTotal = array_sum($paid);
+        // Claude's exact match is strong (8 of 8 right where a person checked, 2026-11-15: its misses are too FEW,
+        // never a whole extra product), unless Zijia saw more units than were paid for.
+        if (self::same($claude, $paid) && $zijiaTotal <= $paidTotal) {
+            return ['outcome' => self::SETTLE, 'reason' => __('Claude matched the paid order and Zijia saw no more')];
+        }
         if ($zijiaTotal !== $paidTotal) {
             return self::person(__('Zijia counted :n, :paid paid for', ['n' => $zijiaTotal, 'paid' => $paidTotal]));
         }
@@ -64,9 +70,6 @@ final class CombinedCount
         }
         if (count($paid) === 1) {
             return ['outcome' => self::SETTLE, 'reason' => __('Zijia\'s count and Claude\'s product agree with the paid order')];
-        }
-        if (self::same($claude, $paid)) {
-            return ['outcome' => self::SETTLE, 'reason' => __('Claude matched the paid order and Zijia\'s total agrees')];
         }
 
         return self::person(__('Several products: the units per product are not confirmed'));

@@ -1450,7 +1450,7 @@
     "Claude cost": "Claude 费用",
     "Claude counts the same videos as a trial, to compare with Zijia. It never charges, refunds or moves stock.": "Claude 试用：识别同样的视频，用来和智佳对比。它不会扣款、退款或改动库存。",
     "Claude did not count this session.": "Claude 没有识别这次开门。",
-    "Claude matched the paid order and Zijia's total agrees": "Claude 与付款订单一致，智佳总数也一致",
+    "Claude matched the paid order and Zijia saw no more": "Claude 与付款订单完全一致，智佳也未多数",
     "Claude now counts with :model.": "Claude 现在用 :model 识别。",
     "Claude route JSON": "Claude 路线 JSON",
     "Claude saw": "Claude 看到",

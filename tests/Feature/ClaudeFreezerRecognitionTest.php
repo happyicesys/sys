@@ -748,6 +748,9 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertSame(CombinedCount::PERSON, $person([435 => 1, 447 => 1, 465 => 1, 738 => 1, 758 => 1, 882 => 1],
             [465 => 2, 435 => 1, 447 => 1, 758 => 1, 738 => 1], [435 => 1, 447 => 1, 465 => 1, 738 => 1, 758 => 1]));
         $this->assertSame(CombinedCount::SETTLE, $person([1 => 2, 2 => 1], [1 => 1, 2 => 2], [1 => 2, 2 => 1]), 'Claude confirmed the split');
+        // #79: Claude exact (2 Cornetto Royale + 1 Solero), Zijia one short: a person agreed with Claude.
+        $this->assertSame(CombinedCount::SETTLE, $person([435 => 2, 447 => 1], [435 => 1, 447 => 1], [435 => 2, 447 => 1]));
+        $this->assertSame(CombinedCount::PERSON, $person([435 => 2, 447 => 1], [435 => 3, 447 => 1], [435 => 2, 447 => 1]), 'Zijia saw more than paid');
         // #123: a real swap. Zijia and Claude both saw the other product, so a person decides.
         $this->assertSame(CombinedCount::PERSON, $person([738 => 1], [447 => 1], [447 => 1]));
         $this->assertSame(CombinedCount::PERSON, $person([879 => 2], [879 => 2], [879 => 2], [['kind' => 'hidden_item']]), 'anything unusual');
