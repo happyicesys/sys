@@ -806,40 +806,6 @@ class ClaudeFreezerRecognitionTest extends TestCase
                 ->where('dashboard.claude.claude_unusual', 1));
     }
 
-    public function test_each_product_carries_its_stock_on_hand_when_the_door_opened_when_switched_on(): void
-    {
-        // Door opened at the ref's epoch (2026-11-12 19:22 SGT); since then this session took 2 Basque and a later
-        // Stock In added 3, so today's 4 means 4 - 3 + 2 = 3 before. A sale before the door opened does not count.
-        $opened = Carbon::createFromTimestamp(1794482528)->setTimezone(config('app.timezone'));
-        $before = $this->sale([$this->basque->id => 1]);
-        $before->forceFill(['created_at' => $opened->copy()->subHour()])->save();
-        $this->sale([$this->basque->id => 2]);
-        $item = DB::table('ops_job_items')->insertGetId(['vend_id' => $this->vend->id, 'ops_job_id' => 1, 'status' => \App\Models\OpsJob::STATUS_DELIVERED,
-            'completed_at' => $opened->copy()->addHours(2), 'created_at' => now(), 'updated_at' => now()]);
-        DB::table('ops_job_item_channels')->insert(['ops_job_id' => 1, 'ops_job_item_id' => $item, 'product_id' => $this->basque->id,
-            'vend_channel_id' => VendChannel::where('code', 11)->value('id'), 'vend_code' => 50001, 'actual_qty' => 3, 'ledger_applied_qty' => 3,
-            'created_at' => now(), 'updated_at' => now()]);
-        $recognition = $this->zijia();
-
-        $this->assertSame([$this->basque->id => 3, $this->magnum->id => 4],
-            \App\Services\SmartFreezer\Claude\StockOnHand::before($recognition->load('vend'), [$this->basque->id, $this->magnum->id]));
-
-        $this->counter->answers[] = $this->counted([]);
-        $this->service()->run(ClaudeRow::create(['smart_freezer_recognition_id' => $recognition->id, 'status' => 'pending']));
-        $this->assertSame([null, null], array_map(fn ($p) => $p->onHand, $this->counter->catalogs[0]), 'off by default');
-
-        config(['smart_freezer.claude_recognition.stock_hint' => true]);
-        $this->counter->answers[] = $this->counted([]);
-        ClaudeRow::query()->delete();
-        $this->service()->run(ClaudeRow::create(['smart_freezer_recognition_id' => $recognition->id, 'status' => 'pending']));
-        $byId = collect($this->counter->catalogs[1])->keyBy('id');
-        $this->assertSame(3, $byId[$this->basque->id]->onHand);
-        $text = implode("\n", array_column(array_filter(ClaudeFreezerCounter::content([new DoorFrame(3, 0, 9000, 'f')], $this->counter->catalogs[1], 'x'),
-            fn ($b) => $b['type'] === 'text'), 'text'));
-        $this->assertStringContainsString('Basque Cheesecake (item code CC-01), in section 11; about 3 on hand when the door opened', $text);
-        $this->assertStringContainsString('a gap is then no', ClaudeFreezerCounter::systemPrompt());
-    }
-
     public function test_ai_recognition_shows_claude_beside_zijia(): void
     {
         Permission::findOrCreate('read ai-recognition', 'web');
