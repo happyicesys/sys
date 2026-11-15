@@ -14,7 +14,5 @@ final class CatalogProduct
         public readonly ?string $photoJpeg,
         /** How many views of the pack the photo shows side by side (ProductViews): 1 = a single product photo. */
         public readonly int $views = 1,
-        /** About how many units the freezer held when the door opened (StockOnHand), null when not sent or not known. */
-        public readonly ?int $onHand = null,
     ) {}
 }

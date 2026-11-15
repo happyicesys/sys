@@ -441,8 +441,6 @@ class ClaudeShadowRecognitionService
         $px = (int) config('smart_freezer.claude_recognition.product_photo_px');
         // Its training photos, every angle in one strip, where the AI has them (2026-11-14); else the product photo.
         $views = ProductViews::strips($ids);
-        // About how many units each product had when the door opened, from our records (2026-11-15): a hint only.
-        $onHand = (bool) config('smart_freezer.claude_recognition.stock_hint') ? StockOnHand::before($recognition, $ids) : [];
 
         return Product::withoutGlobalScopes()->with('thumbnail')->whereIn('id', $ids)->orderBy('name')->get()
             ->map(fn (Product $p) => new CatalogProduct(
@@ -452,7 +450,6 @@ class ClaudeShadowRecognitionService
                 sections: array_values(array_unique($sections[$p->id] ?? [])),
                 photoJpeg: $views[$p->id]['jpeg'] ?? self::photo($p->thumbnail?->full_url, $px),
                 views: $views[$p->id]['views'] ?? 1,
-                onHand: $onHand[$p->id] ?? null,
             ))->values()->all();
     }
 
