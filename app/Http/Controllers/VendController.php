@@ -3393,6 +3393,9 @@ class VendController extends Controller
             $happyHourSlots = \App\Services\HappyHour\HappyHourPricing::openSlotsByProduct($vend, now());
         }
 
+        // Menu NEW badge (2026-11-15): SKUs new to THIS machine carry `new_until`; every other row is unchanged.
+        $newUntil = \App\Services\Menu\NewSkuBadge::newUntilByProduct($vend);
+
         $dataArr = [];
         $servedPrices = [];
 
@@ -3434,6 +3437,9 @@ class VendController extends Controller
                     $vendChannel->product_id ? $happyHourSlots->get($vendChannel->product_id, []) : [],
                     (int) $serverPrice > 0 ? (int) $serverPrice : (int) $vendChannel->amount,
                 );
+            }
+            if ($vendChannel->product_id && isset($newUntil[(int) $vendChannel->product_id])) {
+                $data['new_until'] = \App\Services\Menu\NewSkuBadge::wire($newUntil[(int) $vendChannel->product_id]);
             }
 
             if ($product?->translated_names_json) {
@@ -3529,6 +3535,9 @@ class VendController extends Controller
         // Smart mappings also carry each product's Happy Hour slots (freezer app 30+; empty otherwise).
         $happyHour = $isSmart ? \App\Services\HappyHour\HappyHourPricing::menuSlots($vend, now()) : [];
 
+        // Menu NEW badge (2026-11-15): SKUs new to THIS machine carry `new_until` (freezer app 58+).
+        $newUntil = \App\Services\Menu\NewSkuBadge::newUntilByProduct($vend);
+
         $dataArr = [];
 
         foreach ($sortedItems as $item) {
@@ -3568,6 +3577,9 @@ class VendController extends Controller
                     $welcomeSketches->get($item->product_id)
                 );
                 $data['happy_hour'] = $happyHour[$item->product_id] ?? [];
+            }
+            if (isset($newUntil[(int) $item->product_id])) {
+                $data['new_until'] = \App\Services\Menu\NewSkuBadge::wire($newUntil[(int) $item->product_id]);
             }
 
             if ($product?->translated_names_json) {

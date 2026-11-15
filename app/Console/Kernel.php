@@ -291,6 +291,10 @@ class Kernel extends ConsoleKernel
         // only as a daily safety net to backfill any vend the ingest path missed
         // (e.g. rows whose fan>1000 predates the latch), instead of running 144x/day.
         $schedule->command('check:vend-fan-enabled')->dailyAt('04:10');
+
+        // Menu NEW badge: date SKU arrivals on machines that have not re-read their menu
+        // (a menu read records them too). NewSkuBadge.
+        $schedule->command('menu:track-new-skus')->hourlyAt(17)->withoutOverlapping(30);
     }
 
     /**
