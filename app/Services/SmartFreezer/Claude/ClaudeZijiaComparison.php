@@ -54,7 +54,7 @@ final class ClaudeZijiaComparison
             $s['zijia_match_paid'] += $zijia?->verdict === 'match' ? 1 : 0;
 
             $s['claude_unusual'] += ((array) (($row->answer ?? [])['unusual'] ?? [])) !== [] ? 1 : 0;
-            $combined = $row->status === ClaudeRow::STATUS_DONE ? ClaudeShadowRecognitionService::combined($row, $zijia, $counts) : null;
+            $combined = ClaudeShadowRecognitionService::combined($row, $zijia, $counts);
             if ($combined !== null) {
                 $s['combined_judged']++;
                 if ($combined['outcome'] === CombinedCount::SETTLE) {

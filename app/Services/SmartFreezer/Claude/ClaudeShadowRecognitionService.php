@@ -68,6 +68,34 @@ class ClaudeShadowRecognitionService
         }
     }
 
+    /** The reason a row was not sent because Zijia had already matched the paid order (`only_when_needed`). */
+    public const ZIJIA_MATCHED = 'not needed: Zijia matched the paid order';
+
+    /**
+     * `only_when_needed`: true = count now, false = not needed (the row is marked skipped), null = Zijia has not judged
+     * the session yet, ask again later. Off, a person's command, or a wait past `wait_for_zijia_minutes` = true.
+     */
+    public function needed(ClaudeRow $row): ?bool
+    {
+        if (! (bool) config('smart_freezer.claude_recognition.only_when_needed') || $row->status !== ClaudeRow::STATUS_PENDING) {
+            return true;
+        }
+        $verdict = SmartFreezerRecognition::whereKey($row->smart_freezer_recognition_id)->value('verdict');
+        if ($verdict === 'match') {
+            ClaudeRow::whereKey($row->id)->where('status', ClaudeRow::STATUS_PENDING)
+                ->update(['status' => ClaudeRow::STATUS_SKIPPED, 'status_reason' => self::ZIJIA_MATCHED]);
+
+            return false;
+        }
+        if ($verdict !== null) {
+            return true;
+        }
+
+        return $row->created_at !== null
+            && $row->created_at->lt(Carbon::now()->subMinutes(max(0, (int) config('smart_freezer.claude_recognition.wait_for_zijia_minutes'))))
+            ? true : null;
+    }
+
     /** A row for a past session, made by a person (`--backfill`); null when it already has one. */
     public function openForBackfill(SmartFreezerRecognition $recognition): ?ClaudeRow
     {
@@ -298,6 +326,12 @@ class ClaudeShadowRecognitionService
      */
     public static function combined(ClaudeRow $row, ?SmartFreezerRecognition $zijia, array $counts): ?array
     {
+        if ($row->status === ClaudeRow::STATUS_SKIPPED && $row->status_reason === self::ZIJIA_MATCHED) {
+            return ['outcome' => CombinedCount::SETTLE, 'reason' => __('Zijia matched the paid order')];
+        }
+        if ($row->status !== ClaudeRow::STATUS_DONE) {
+            return null;
+        }
         $paid = [];
         $lines = $zijia?->verdict !== null ? (array) $zijia->verdict_lines : (array) $row->verdict_lines;
         foreach ($lines as $line) {

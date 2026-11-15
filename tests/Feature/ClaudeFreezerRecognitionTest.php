@@ -163,6 +163,42 @@ class ClaudeFreezerRecognitionTest extends TestCase
         Queue::assertPushed(RunClaudeFreezerRecognition::class, 1);
     }
 
+    public function test_only_when_needed_claude_waits_for_zijia_and_skips_a_session_zijia_matched(): void
+    {
+        config(['smart_freezer.claude_recognition.only_when_needed' => true, 'queue.default' => 'redis']);
+        Queue::fake();
+        $recognition = $this->zijia();
+        $row = ClaudeRow::create(['smart_freezer_recognition_id' => $recognition->id, 'status' => 'pending']);
+
+        // Zijia has not judged yet: no call, the job looks again in a minute.
+        (new RunClaudeFreezerRecognition($row->id))->handle($this->service());
+        $this->assertSame([], $this->counter->catalogs);
+        $this->assertSame(ClaudeRow::STATUS_PENDING, $row->fresh()->status);
+        Queue::assertPushed(RunClaudeFreezerRecognition::class, 1);
+
+        // Zijia matched the paid order: the "together" rule settles it whatever Claude says, so no call.
+        $recognition->update(['verdict' => 'match']);
+        (new RunClaudeFreezerRecognition($row->id))->handle($this->service());
+        $this->assertSame([], $this->counter->catalogs);
+        $this->assertSame([ClaudeRow::STATUS_SKIPPED, ClaudeShadowRecognitionService::ZIJIA_MATCHED], [$row->fresh()->status, $row->fresh()->status_reason]);
+        $this->assertSame(CombinedCount::SETTLE, ClaudeShadowRecognitionService::combined($row->fresh(), $recognition, ['claude' => null, 'zijia' => null])['outcome']);
+
+        // Zijia differs from the order: Claude counts.
+        $other = $this->zijia(['trade_id' => 'SF-50001-1794482600-5', 'session_ref' => 'SF-50001-1794482600-5', 'verdict' => 'took_less']);
+        $otherRow = ClaudeRow::create(['smart_freezer_recognition_id' => $other->id, 'status' => 'pending']);
+        $this->counter->answers[] = $this->counted([]);
+        (new RunClaudeFreezerRecognition($otherRow->id))->handle($this->service());
+        $this->assertSame(ClaudeRow::STATUS_DONE, $otherRow->fresh()->status);
+
+        // Zijia never answered within the wait: Claude counts anyway.
+        $late = $this->zijia(['trade_id' => 'SF-50001-1794482700-6', 'session_ref' => 'SF-50001-1794482700-6']);
+        $lateRow = ClaudeRow::create(['smart_freezer_recognition_id' => $late->id, 'status' => 'pending']);
+        $lateRow->forceFill(['created_at' => now()->subMinutes(31)])->save();
+        $this->counter->answers[] = $this->counted([]);
+        (new RunClaudeFreezerRecognition($lateRow->id))->handle($this->service());
+        $this->assertSame(ClaudeRow::STATUS_DONE, $lateRow->fresh()->status);
+    }
+
     public function test_nothing_is_opened_while_it_is_switched_off_without_a_key_or_on_an_unlisted_machine(): void
     {
         Queue::fake();

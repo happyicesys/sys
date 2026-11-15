@@ -32,7 +32,17 @@ class RunClaudeFreezerRecognition implements ShouldQueue
     public function handle(ClaudeShadowRecognitionService $claude): void
     {
         $row = SmartFreezerClaudeRecognition::find($this->rowId);
-        if ($row !== null && $row->status === SmartFreezerClaudeRecognition::STATUS_PENDING) {
+        if ($row === null || $row->status !== SmartFreezerClaudeRecognition::STATUS_PENDING) {
+            return;
+        }
+        $needed = $claude->needed($row);
+        if ($needed === null && config('queue.default') !== 'sync') {
+            // Zijia has not judged the session yet: look again in a minute (a fresh job, as this one has one try).
+            self::dispatch($row->id)->delay(now()->addMinute());
+
+            return;
+        }
+        if ($needed !== false) {
             $claude->run($row);
         }
     }

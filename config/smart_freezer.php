@@ -224,6 +224,12 @@ return [
         'effort' => env('CLAUDE_FREEZER_AI_EFFORT', 'high'),
         // Waits after the session opens, so every camera's video and our own copy are in.
         'delay_seconds' => (int) env('CLAUDE_FREEZER_AI_DELAY', 120),
+        // Claude only where it can change the outcome (Brian, 2026-11-15: "bring the cost down while making it very
+        // accurate"): it waits for Zijia's verdict and is not called when Zijia already matched the paid order, which the
+        // "together" rule settles whatever Claude says (62 of 116 sessions to 2026-11-15). It waits at most
+        // `wait_for_zijia_minutes`, then counts anyway. A person's command always counts.
+        'only_when_needed' => (bool) env('CLAUDE_FREEZER_AI_ONLY_WHEN_NEEDED', false),
+        'wait_for_zijia_minutes' => (int) env('CLAUDE_FREEZER_AI_WAIT_FOR_ZIJIA', 30),
         // Cameras sent (from the file name "-d1c3-"): 3 Real-Front View, 4 Top View. Camera 5 sees faces.
         'cameras' => array_values(array_filter(array_map('intval', explode(',', (string) env('CLAUDE_FREEZER_AI_CAMERAS', '3,4'))))),
         // The first and last frame of each video (the baskets before and after), the rest spread over the part where
