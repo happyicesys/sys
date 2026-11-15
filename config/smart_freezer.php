@@ -232,6 +232,9 @@ return [
         // SESSION, split over the cameras that have a video: 30 = 15 each from cameras 3 and 4, or 30 from camera 3
         // alone (2026-11-13, raised from 12 per camera after a one-camera session missed two of four items).
         'frames_per_session' => (int) env('CLAUDE_FREEZER_AI_FRAMES', 30),
+        // Each product's units on hand when the door opened, from our records (StockOnHand; Brian, 2026-11-15), as a hint
+        // in the product list: the camera sees only the front of a basket, so a full section can look nearly empty.
+        'stock_hint' => (bool) env('CLAUDE_FREEZER_AI_STOCK_HINT', false),
         // Each camera's baskets at full detail at the start and the end of the video (Brian, 2026-11-13: two identical
         // bars lifted together read as one at 576 px). box = the basket area as shares of the picture (left, top, right,
         // bottom), checked on 50001's camera 3 on 2026-11-13; a camera without a box keeps the whole picture.

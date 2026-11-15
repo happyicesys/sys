@@ -133,6 +133,9 @@ class ClaudeFreezerCounter implements FreezerCounter
                 $line .= " (item code {$product->code})";
             }
             $line .= $product->sections !== [] ? ', in section '.implode(', ', $product->sections) : ', section not known';
+            if ($product->onHand !== null) {
+                $line .= "; about {$product->onHand} on hand when the door opened";
+            }
             if ($product->views > 1 && $product->photoJpeg !== null && $photos > 0) {
                 $line .= "; photo: {$product->views} views of the same pack side by side";
             }
@@ -253,6 +256,11 @@ match the view you see, not only the front.
 Customers often take two or three of the same product at once, held together in one hand or stacked. Look
 for more than one stick, wrapper edge or pack in the hand, and trust the gap left in the section over a hand
 that hides what it holds. Do not stop at the first unit you see.
+
+A product may say about how many units were on hand when the door opened. That is our own stock record, a few
+units out at times, and it says nothing about what was bought. Use it to judge what a gap means: the camera sees
+only the front of a basket, so a section that still holds many units can look nearly empty, and a gap is then no
+count. It never sets how many were taken; the packs that left through the lid do.
 
 Worked examples, when given, are earlier sessions with the count a person confirmed. Use them to learn how
 the products look from these cameras and how many units a hand can hold, never as this session's answer.
