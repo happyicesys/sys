@@ -10,19 +10,21 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * About how many units of each product the freezer held when this session's door opened, from our own records
- * (Brian, 2026-11-15). Same rule as `freezer:rebuild-stock`: the product's last Stock In before the session (the qty
- * the page showed + the refill), minus every sale since, the AI's corrections included — never this session's own.
+ * About how many units of each product the freezer held when this session's door opened, from our own stock records
+ * (Brian, 2026-11-15), worked BACK from today's count: today's units (`vend_channels.qty`, every section of the
+ * product), less what Stock Ins added since the door opened, plus every unit that left since — this session's own,
+ * the AI's corrections included (FreezerStockLedger::unitsOut). Working back covers a freezer stocked without an ops
+ * job too (50002 has none).
  *
  * Why: on #154 Claude and Fable both read section 32 as "almost empty" after six cones left, while our records had
- * about 27 there, so the camera only sees the front layer and a gap is no proof of a count. It is a hint only: it
- * says nothing about what was paid for, and a driver's count can be a few out.
+ * about 27 there: the camera sees only the front layer, so a gap is no proof of a count. It is a hint only: it says
+ * nothing about what was paid for (what is left after the session is never sent), and a count can be a few out.
  */
 final class StockOnHand
 {
     /**
      * @param  list<int>  $productIds
-     * @return array<int, int> product id => units, only for products with a Stock In on record
+     * @return array<int, int> product id => units, only for products the freezer carries now
      */
     public static function before(SmartFreezerRecognition $recognition, array $productIds): array
     {
@@ -32,56 +34,42 @@ final class StockOnHand
             return [];
         }
 
-        $stocked = [];
-        $since = [];
-        $lines = DB::table('ops_job_item_channels as c')
-            ->join('ops_job_items as oji', 'oji.id', '=', 'c.ops_job_item_id')
-            ->where('oji.vend_id', $vend->id)
-            ->whereIn('c.product_id', $productIds)
-            ->where('oji.status', '>=', OpsJob::STATUS_DELIVERED)
-            ->where('oji.status', '<>', OpsJob::STATUS_CANCELLED)
-            ->whereNotNull('oji.completed_at')
-            ->where('oji.completed_at', '<=', $at)
-            ->orderBy('oji.completed_at')
-            ->get(['c.product_id', 'c.qty', 'c.actual_qty', 'oji.id as item_id', 'oji.completed_at']);
-        // The latest visit that stocked each product; a product on two sections in that visit is the sum of both.
-        $latest = [];
-        foreach ($lines as $line) {
-            $latest[(int) $line->product_id] = (int) $line->item_id;
+        $units = [];
+        foreach (DB::table('vend_channels')->where('vend_id', $vend->id)->where('is_active', true)->whereIn('product_id', $productIds)
+            ->get(['product_id', 'qty']) as $channel) {
+            $units[(int) $channel->product_id] = ($units[(int) $channel->product_id] ?? 0) + max(0, (int) $channel->qty);
         }
-        foreach ($lines as $line) {
-            $productId = (int) $line->product_id;
-            if ($latest[$productId] === (int) $line->item_id) {
-                $stocked[$productId] = ($stocked[$productId] ?? 0) + max(0, (int) $line->qty + (int) $line->actual_qty);
-                $since[$productId] = (string) $line->completed_at;
-            }
-        }
-        if ($stocked === []) {
+        if ($units === []) {
             return [];
         }
 
+        // Stock In since the door opened: what each one actually moved (ledger_applied_qty, else its refill).
+        foreach (DB::table('ops_job_item_channels as c')
+            ->join('ops_job_items as oji', 'oji.id', '=', 'c.ops_job_item_id')
+            ->where('oji.vend_id', $vend->id)
+            ->whereIn('c.product_id', array_keys($units))
+            ->where('oji.status', '>=', OpsJob::STATUS_DELIVERED)
+            ->where('oji.status', '<>', OpsJob::STATUS_CANCELLED)
+            ->where('oji.completed_at', '>', $at)
+            ->get(['c.product_id', 'c.actual_qty', 'c.ledger_applied_qty']) as $line) {
+            $units[(int) $line->product_id] -= (int) ($line->ledger_applied_qty ?? $line->actual_qty);
+        }
+
+        // Every unit that left since, this session's own included (its TRADE lands when the lid closes).
         $ledger = app(FreezerStockLedger::class);
-        $out = [];
         VendTransaction::withoutGlobalScopes()
             ->where('vend_id', $vend->id)
-            ->where('created_at', '>=', min($since))
-            ->where('created_at', '<', $at)
-            ->when($recognition->vend_transaction_id, fn ($q, $id) => $q->whereKeyNot($id))
+            ->where('created_at', '>=', $at)
             ->orderBy('id')
-            ->each(function (VendTransaction $sale) use ($ledger, $since, &$out) {
-                foreach ($ledger->unitsOut($sale) as $productId => $units) {
-                    if (isset($since[$productId]) && (string) $sale->created_at >= $since[$productId]) {
-                        $out[$productId] = ($out[$productId] ?? 0) + $units;
+            ->each(function (VendTransaction $sale) use ($ledger, &$units) {
+                foreach ($ledger->unitsOut($sale) as $productId => $out) {
+                    if (isset($units[$productId])) {
+                        $units[$productId] += $out;
                     }
                 }
             });
 
-        $onHand = [];
-        foreach ($stocked as $productId => $units) {
-            $onHand[$productId] = max(0, $units - ($out[$productId] ?? 0));
-        }
-
-        return $onHand;
+        return array_map(fn (int $n) => max(0, $n), $units);
     }
 
     /** The door opened at our ref's epoch ("SF-50002-1794663352-16"), else a few minutes before Zijia's row. */
