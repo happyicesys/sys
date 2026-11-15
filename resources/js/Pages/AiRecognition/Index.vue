@@ -231,6 +231,13 @@
               <dt tabindex="0" v-tooltip="$t('Sessions both answered with the same products and units.')">{{ $t('Same count') }}:</dt>
               <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.claude.agree }}/{{ dashboard.claude.both_answered }}</dd>
             </div>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Units from Zijia, products from Claude: sessions this would settle without a person, and of those a person counted, how many it would have charged wrongly. A trial only.')">{{ $t('Together would settle') }}:</dt>
+              <dd class="text-right tabular-nums text-gray-900">
+                <span class="font-semibold">{{ dashboard.claude.combined_settle }}/{{ dashboard.claude.combined_judged }}</span>
+                <span class="text-xs text-gray-500"> · {{ $t(':n wrong of :of checked', { n: dashboard.claude.combined_settle_wrong, of: dashboard.claude.combined_settle_checked }) }}</span>
+              </dd>
+            </div>
             <div class="mt-1 flex justify-between gap-2 border-t border-violet-200 pt-1">
               <dt tabindex="0" v-tooltip="$t('What the Claude calls cost, in this site\'s currency. Anthropic bills in US dollars; the rate is in the settings.')">{{ $t('Claude cost') }}:</dt>
               <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.claude.cost_text || '–' }}<span v-if="dashboard.claude.cost_per_session_text" class="block text-xs font-normal text-gray-500">{{ $t(':cost a session', { cost: dashboard.claude.cost_per_session_text }) }}</span></dd>
@@ -633,6 +640,10 @@
                         <span v-else-if="row.claude.same_as_zijia === false" class="font-semibold text-red-700">{{ $t('Differs from Zijia') }}</span>
                         <span v-if="row.claude.same_as_person === true" class="font-semibold text-green-700">{{ $t('Same as the person\'s count') }}</span>
                         <span v-else-if="row.claude.same_as_person === false" class="font-semibold text-red-700">{{ $t('Differs from the person\'s count') }}</span>
+                        <!-- Unusual things Claude saw, and what "Zijia counts, Claude names" would do (Brian, 2026-11-15; shadow only). -->
+                        <span v-for="(event, i) in row.claude.unusual" :key="'x' + i" class="cursor-help font-semibold text-amber-800" tabindex="0" v-tooltip="event.description || ''">⚠ {{ $t(unusualLabels[event.kind] || event.kind) }}<template v-if="event.at_seconds !== null"> · {{ event.at_seconds }}s</template></span>
+                        <span v-if="row.claude.combined" class="w-fit cursor-help" tabindex="0" v-tooltip="row.claude.combined.reason"
+                          :class="row.claude.combined.outcome === 'settle' ? 'font-semibold text-green-700' : 'text-gray-600'">{{ row.claude.combined.outcome === 'settle' ? $t('Together: would settle') : $t('Together: a person') }}</span>
                         <span class="flex flex-wrap gap-x-1.5 text-violet-700">
                           <span v-if="row.claude.confidence !== null" class="cursor-help" tabindex="0" v-tooltip="row.claude.notes || ''">{{ $t('sure :pct%', { pct: row.claude.confidence }) }}</span>                        </span>
                       </template>
@@ -932,6 +943,16 @@ function saleUrl(sale) {
 // Money is integer cents; divide only for display.
 function formatCents(cents) {
   return (cents / 100).toFixed(2)
+}
+
+// Unusual things Claude reports (FreezerCounter::UNUSUAL), wrapped with tk() so the wording can be translated.
+const unusualLabels = {
+  put_back: tk('Put back'),
+  swapped_product: tk('Swapped a product'),
+  hidden_item: tk('Hid a pack'),
+  moved_between_sections: tk('Moved between sections'),
+  item_put_in: tk('Put something in'),
+  opened_pack: tk('Opened a pack'),
 }
 
 // The Claude Verdict column shows while CLAUDE_FREEZER_AI is true on the server (Brian, 2026-11-13).

@@ -273,6 +273,18 @@ Never lower a count because a gap in a section is hard to see: what left through
 hand reached into, and use only ids from the list. Something that left the freezer and matches no product
 goes in unknown_items with a short description. List only products with something taken or returned.
 
+UNUSUAL BEHAVIOUR: watch every reach for what a customer might do besides taking goods, and report each one in
+unusual (kind, the second it happens, one short sentence):
+- put_back: a pack lifted out and then put back into a basket (also count it as returned).
+- swapped_product: a pack put back that is not the one lifted, or a pack put into another product's section.
+- hidden_item: a second pack carried out behind, under or inside another pack, a bag, a sleeve or a closed hand,
+  so it would not be seen at first glance. Count it as taken.
+- moved_between_sections: a pack moved from one section to another without leaving the freezer.
+- item_put_in: something put into the freezer that was not in it before (a pack from outside, rubbish).
+- opened_pack: a pack opened or eaten inside the freezer.
+List nothing in unusual when you see none of these; never guess one to be safe. Each kind you list also goes in
+reasons, and needs_review is then true.
+
 confidence is 0 to 100 for the whole count. Set needs_review to true whenever any count is uncertain, and
 give the causes from this list: {$reasons}. people_seen is how many people you can see reaching in (0 when
 none). Keep notes to one or two short sentences on what you saw.
@@ -316,9 +328,22 @@ TXT;
                 'confidence' => ['type' => 'integer'],
                 'needs_review' => ['type' => 'boolean'],
                 'reasons' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => FreezerCounter::REASONS]],
+                'unusual' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'kind' => ['type' => 'string', 'enum' => FreezerCounter::UNUSUAL],
+                            'at_seconds' => ['type' => 'number'],
+                            'description' => ['type' => 'string'],
+                        ],
+                        'required' => ['kind', 'at_seconds', 'description'],
+                        'additionalProperties' => false,
+                    ],
+                ],
                 'notes' => ['type' => 'string'],
             ],
-            'required' => ['items', 'unknown_items', 'people_seen', 'confidence', 'needs_review', 'reasons', 'notes'],
+            'required' => ['items', 'unknown_items', 'people_seen', 'confidence', 'needs_review', 'reasons', 'unusual', 'notes'],
             'additionalProperties' => false,
         ];
     }
@@ -356,13 +381,26 @@ TXT;
         }
 
         $reasons = array_values(array_intersect((array) ($answer['reasons'] ?? []), FreezerCounter::REASONS));
+        // Anything unusual it saw is a reason and asks for a person, whatever else the answer says.
+        $unusual = [];
+        foreach ((array) ($answer['unusual'] ?? []) as $event) {
+            if (is_array($event) && in_array($event['kind'] ?? null, FreezerCounter::UNUSUAL, true)) {
+                $unusual[] = [
+                    'kind' => $event['kind'],
+                    'at_seconds' => is_numeric($event['at_seconds'] ?? null) ? round((float) $event['at_seconds'], 1) : null,
+                    'description' => mb_substr(trim((string) ($event['description'] ?? '')), 0, self::MAX_TEXT),
+                ];
+            }
+        }
+        $answer['unusual'] = $unusual;
+        $reasons = array_values(array_unique([...$reasons, ...array_column($unusual, 'kind')]));
 
         return new FreezerCount(
             items: $items,
             unknownItems: array_values(array_filter($unknown, fn (array $u) => $u['taken'] > 0)),
             peopleSeen: max(0, (int) ($answer['people_seen'] ?? 0)),
             confidence: min(100, max(0, (int) ($answer['confidence'] ?? 0))),
-            needsReview: (bool) ($answer['needs_review'] ?? true),
+            needsReview: (bool) ($answer['needs_review'] ?? true) || $unusual !== [],
             reasons: $reasons,
             notes: mb_substr(trim((string) ($answer['notes'] ?? '')), 0, self::MAX_TEXT),
             answer: $answer,

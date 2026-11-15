@@ -355,6 +355,10 @@ class FreezerRecognitionController extends Controller
                 'number' => (int) $n,
             ])->values()->all(),
             'unknown' => array_values((array) (($row->answer ?? [])['unknown_items'] ?? [])),
+            // Unusual things Claude saw (a put-back, a swap, a hidden pack …) and what "Zijia counts, Claude names"
+            // would have done with the session (Brian, 2026-11-15). Shadow only.
+            'unusual' => array_values(array_filter((array) (($row->answer ?? [])['unusual'] ?? []), 'is_array')),
+            'combined' => $row->status === SmartFreezerClaudeRecognition::STATUS_DONE ? ClaudeShadowRecognitionService::combined($row, $r, $counts) : null,
             'verdict' => $row->verdict,
             'same_as_zijia' => $same($counts['zijia']),
             'same_as_person' => $same($counts['person']),

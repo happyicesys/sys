@@ -290,6 +290,35 @@ class ClaudeShadowRecognitionService
     }
 
     /**
+     * What "Zijia counts, Claude names" would do with this session (CombinedCount; shadow only), or null while an AI
+     * or the sale is missing. The paid order comes from the verdict lines, Zijia's first.
+     *
+     * @param  array{claude: array<int, int>|null, zijia: array<int|string, int>|null}  $counts  from counts()
+     * @return array{outcome: string, reason: string}|null
+     */
+    public static function combined(ClaudeRow $row, ?SmartFreezerRecognition $zijia, array $counts): ?array
+    {
+        $paid = [];
+        $lines = $zijia?->verdict !== null ? (array) $zijia->verdict_lines : (array) $row->verdict_lines;
+        foreach ($lines as $line) {
+            $id = (int) ($line['product_id'] ?? 0);
+            if ($id > 0 && (int) ($line['paid'] ?? 0) > 0) {
+                $paid[$id] = ($paid[$id] ?? 0) + (int) $line['paid'];
+            }
+        }
+        $answer = (array) ($row->answer ?? []);
+
+        return CombinedCount::judge(
+            $paid,
+            $counts['zijia'],
+            $counts['claude'],
+            array_values(array_filter((array) ($answer['unusual'] ?? []), 'is_array')),
+            (int) array_sum(array_column((array) ($answer['unknown_items'] ?? []), 'taken')),
+            (int) array_sum(array_column(array_filter((array) ($answer['items'] ?? []), 'is_array'), 'returned')),
+        );
+    }
+
+    /**
      * Claude, Zijia and a person on one session, as product id => units out of the cabinet. Zijia's is from its
      * verdict lines (null until it answered), the person's from Adjust Qty (null when nobody adjusted).
      *

@@ -3,6 +3,7 @@
 namespace App\Services\SmartFreezer\Claude;
 
 use App\Models\SmartFreezerClaudeRecognition as ClaudeRow;
+use App\Models\SmartFreezerRecognition;
 use App\Models\VendTransaction;
 use Illuminate\Support\Collection;
 
@@ -32,6 +33,10 @@ final class ClaudeZijiaComparison
             'both_answered' => 0, 'agree' => 0,
             'person_counted' => 0, 'claude_right' => 0, 'zijia_right' => 0, 'zijia_person_counted' => 0,
             'claude_needs_review' => 0,
+            // "Zijia counts, Claude names" (CombinedCount): sessions it judged, would settle, and, where a person
+            // counted, settled right / settled wrong (a wrong settle = a wrong charge).
+            'combined_judged' => 0, 'combined_settle' => 0, 'combined_settle_checked' => 0, 'combined_settle_wrong' => 0,
+            'claude_unusual' => 0,
             'cost_usd_micros' => 0,
         ];
 
@@ -47,6 +52,19 @@ final class ClaudeZijiaComparison
             $s['claude_needs_review'] += $row->needs_review ? 1 : 0;
             $s['claude_match_paid'] += $row->verdict === 'match' ? 1 : 0;
             $s['zijia_match_paid'] += $zijia?->verdict === 'match' ? 1 : 0;
+
+            $s['claude_unusual'] += ((array) (($row->answer ?? [])['unusual'] ?? [])) !== [] ? 1 : 0;
+            $combined = $row->status === ClaudeRow::STATUS_DONE ? ClaudeShadowRecognitionService::combined($row, $zijia, $counts) : null;
+            if ($combined !== null) {
+                $s['combined_judged']++;
+                if ($combined['outcome'] === CombinedCount::SETTLE) {
+                    $s['combined_settle']++;
+                    if ($counts['person'] !== null) {
+                        $s['combined_settle_checked']++;
+                        $s['combined_settle_wrong'] += self::same(self::paid($zijia, $row), $counts['person']) ? 0 : 1;
+                    }
+                }
+            }
 
             if ($counts['claude'] !== null && $counts['zijia'] !== null) {
                 $s['both_answered']++;
@@ -88,6 +106,20 @@ final class ClaudeZijiaComparison
         ksort($b);
 
         return $a === $b;
+    }
+
+    /** @return array<int, int> product id => units paid for, from the verdict lines (Zijia's first) */
+    private static function paid(?SmartFreezerRecognition $zijia, ClaudeRow $row): array
+    {
+        $paid = [];
+        foreach ($zijia?->verdict !== null ? (array) $zijia->verdict_lines : (array) $row->verdict_lines as $line) {
+            $id = (int) ($line['product_id'] ?? 0);
+            if ($id > 0) {
+                $paid[$id] = ($paid[$id] ?? 0) + (int) ($line['paid'] ?? 0);
+            }
+        }
+
+        return $paid;
     }
 
     /**

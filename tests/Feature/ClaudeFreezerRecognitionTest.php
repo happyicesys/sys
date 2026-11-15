@@ -22,6 +22,7 @@ use App\Services\SmartFreezer\Claude\ClaudeModelChoice;
 use App\Services\SmartFreezer\Claude\ClaudeShadowRecognitionService;
 use App\Services\SmartFreezer\Claude\ClaudeWorkedExamples;
 use App\Services\SmartFreezer\Claude\ClaudeZijiaComparison;
+use App\Services\SmartFreezer\Claude\CombinedCount;
 use App\Services\SmartFreezer\Claude\CountFailed;
 use App\Services\SmartFreezer\Claude\DoorFrame;
 use App\Services\SmartFreezer\Claude\DoorFrameSource;
@@ -695,6 +696,78 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->assertSame([1, 1, 0, 1], [$s['person_counted'], $s['claude_right'], $s['zijia_right'], $s['zijia_person_counted']]);
         $this->assertSame('S$0.39', $s['cost_text'], 'US$0.30 at 1.29');
         $this->assertSame('S$0.19', $s['cost_per_session_text']);
+    }
+
+    public function test_zijia_counts_and_claude_names_settle_together_only_when_both_agree_with_the_order(): void
+    {
+        // #154 (2026-11-15): 6 Butterscotch cones in two grabs. Zijia counted 6 but called one Black Currant; Claude named
+        // Butterscotch but counted 4. Together they agree with the receipt, which is what Brian saw on the video.
+        $this->assertSame(CombinedCount::SETTLE, CombinedCount::judge([879 => 6], [878 => 1, 879 => 5], [879 => 4])['outcome']);
+        $this->assertSame(CombinedCount::SETTLE, CombinedCount::judge([1 => 1, 2 => 1], [1 => 1, 2 => 1], [1 => 1])['outcome'], 'Zijia matched');
+
+        $person = fn (...$args) => CombinedCount::judge(...$args)['outcome'];
+        $this->assertSame(CombinedCount::PERSON, $person([879 => 6], [879 => 5], [879 => 4]), 'Zijia short of the order');
+        $this->assertSame(CombinedCount::PERSON, $person([879 => 6], [878 => 1, 879 => 5], [878 => 1, 879 => 3]), 'Claude saw another flavour');
+        // #150: six different products, Zijia's total right but its split wrong, Claude one short: nobody confirmed the split.
+        $this->assertSame(CombinedCount::PERSON, $person([435 => 1, 447 => 1, 465 => 1, 738 => 1, 758 => 1, 882 => 1],
+            [465 => 2, 435 => 1, 447 => 1, 758 => 1, 738 => 1], [435 => 1, 447 => 1, 465 => 1, 738 => 1, 758 => 1]));
+        $this->assertSame(CombinedCount::SETTLE, $person([1 => 2, 2 => 1], [1 => 1, 2 => 2], [1 => 2, 2 => 1]), 'Claude confirmed the split');
+        // #123: a real swap. Zijia and Claude both saw the other product, so a person decides.
+        $this->assertSame(CombinedCount::PERSON, $person([738 => 1], [447 => 1], [447 => 1]));
+        $this->assertSame(CombinedCount::PERSON, $person([879 => 2], [879 => 2], [879 => 2], [['kind' => 'hidden_item']]), 'anything unusual');
+        $this->assertSame(CombinedCount::PERSON, $person([879 => 2], [879 => 2], [879 => 2], [], 1), 'something not on the freezer');
+        $this->assertSame(CombinedCount::PERSON, $person([879 => 2], [879 => 2], [879 => 2], [], 0, 1), 'a put-back');
+        $this->assertNull(CombinedCount::judge([879 => 2], null, [879 => 2]));
+        $this->assertNull(CombinedCount::judge([879 => 2], [879 => 2], null));
+    }
+
+    public function test_claude_reports_unusual_behaviour_and_it_always_asks_for_a_person(): void
+    {
+        $stack = HandlerStack::create(new MockHandler([new Response(200, ['Content-Type' => 'application/json'], json_encode([
+            'id' => 'msg_12', 'type' => 'message', 'role' => 'assistant', 'model' => 'claude-opus-5-5',
+            'content' => [['type' => 'text', 'text' => json_encode(['items' => [['product_id' => 7, 'taken' => 2, 'returned' => 0]], 'unknown_items' => [],
+                'people_seen' => 1, 'confidence' => 80, 'needs_review' => false, 'reasons' => [], 'notes' => 'Two cheesecakes.',
+                'unusual' => [['kind' => 'hidden_item', 'at_seconds' => 6.54, 'description' => 'A second pack held under the first.'],
+                    ['kind' => 'made_up', 'at_seconds' => 1, 'description' => 'x']]])]],
+            'stop_reason' => 'end_turn', 'stop_sequence' => null, 'usage' => ['input_tokens' => 9000, 'output_tokens' => 500],
+        ]))]));
+
+        $count = (new ClaudeFreezerCounter(new GuzzleClient(['handler' => $stack])))->count(
+            [new DoorFrame(3, 0, 9000, 'f')], [new CatalogProduct(7, 'Basque Cheesecake', 'CC-01', ['11'], null)], self::REF,
+        );
+
+        $this->assertTrue($count->needsReview, 'it said sure, but it saw a hidden pack');
+        $this->assertSame(['hidden_item'], $count->reasons);
+        $this->assertSame([['kind' => 'hidden_item', 'at_seconds' => 6.5, 'description' => 'A second pack held under the first.']], $count->answer['unusual']);
+        $this->assertContains('unusual', ClaudeFreezerCounter::schema()['required']);
+        $this->assertStringContainsString('hidden_item: a second pack carried out behind', ClaudeFreezerCounter::systemPrompt());
+    }
+
+    public function test_the_page_shows_what_claude_found_unusual_and_what_both_together_would_do(): void
+    {
+        Permission::findOrCreate('read ai-recognition', 'web');
+        $user = User::factory()->create(['operator_id' => 1]);
+        $user->givePermissionTo('read ai-recognition');
+        $recognition = $this->zijia(['status' => 'completed', 'verdict' => 'mixed', 'verdict_lines' => [
+            ['product_id' => $this->magnum->id, 'paid' => 0, 'taken' => 1], ['product_id' => $this->basque->id, 'paid' => 3, 'taken' => 2]]]);
+        ClaudeRow::create(['smart_freezer_recognition_id' => $recognition->id, 'status' => 'done', 'items' => [$this->basque->id => 1],
+            'verdict' => 'took_less', 'confidence' => 45, 'needs_review' => true, 'cost_usd_micros' => 139_200,
+            'answer' => ['notes' => 'Two grabs.', 'unknown_items' => [], 'unusual' => []]]);
+
+        $this->actingAs($user)->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.claude.combined.outcome', CombinedCount::SETTLE)
+                ->where('recognitions.data.0.claude.unusual', [])
+                ->where('dashboard.claude.combined_judged', 1)
+                ->where('dashboard.claude.combined_settle', 1)
+                ->where('dashboard.claude.combined_settle_checked', 0));
+
+        ClaudeRow::query()->update(['answer' => ['notes' => 'x', 'unknown_items' => [], 'unusual' => [['kind' => 'put_back', 'at_seconds' => 4.0, 'description' => 'Put one back.']]]]);
+        $this->actingAs($user)->get('/ai-recognition')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.claude.combined.outcome', CombinedCount::PERSON)
+                ->where('recognitions.data.0.claude.unusual.0.kind', 'put_back')
+                ->where('dashboard.claude.claude_unusual', 1));
     }
 
     public function test_ai_recognition_shows_claude_beside_zijia(): void
