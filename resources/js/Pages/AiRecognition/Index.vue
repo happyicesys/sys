@@ -880,7 +880,7 @@ function verdictNote(row) {
   if (row.failed_session) return null
   if (row.verdict === 'incomplete') return verdictLabels.incomplete
   if (row.verdict === 'unrecognised') return verdictLabels.unrecognised
-  if (!row.verdict && row.algorithm_status !== null) return tk('No verdict')
+  if (!row.verdict && row.algorithm_status !== null) return tk('No verdict from Zijia')
 
   return null
 }
