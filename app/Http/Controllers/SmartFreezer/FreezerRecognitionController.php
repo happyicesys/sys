@@ -572,7 +572,9 @@ class FreezerRecognitionController extends Controller
      * items although the customer had paid (Brian, 2026-11-14: Zijia never answered SF-50001-1794663352-16;
      * 2026-11-15: Zijia answered SF-50001-1794744521-21 with a recognition error and no verdict).
      * For display only, a row with no verdict is shown with its sale, found the way evaluate finds it.
-     * Nothing is written: Adjust Qty, the dashboard and every money rule still wait for the real link.
+     * Nothing is written: the dashboard and every money rule still wait for the real link, which a
+     * verdict writes, or a person's Adjust Qty on a session the AI will not judge
+     * (FreezerSaleCorrection::judgedByPersonOnly, 2026-11-16).
      */
     private function showSalesBeforeTheResult($recognitions): void
     {
@@ -605,6 +607,9 @@ class FreezerRecognitionController extends Controller
         $submitted = self::submittedCodes($r);
         // Paid, but no sale was ever written: the app names a hold's session only at door close.
         $paidWithoutSale = $sale === null && $card !== null && $card->session_ref === null;
+        // Anything but a matching AI verdict: the hold stays until a person keys in the charge
+        // (CardPaymentService::chargeByPerson, which re-checks this).
+        $personReason = $card !== null && $card->state === CardPaymentIntent::STATE_AWAITING_AI ? $payments->personNeededBecause($card) : null;
 
         return [
             'id' => $r->id,
@@ -669,9 +674,12 @@ class FreezerRecognitionController extends Controller
             ] : null,
             // No AI answer yet: how long it has been waiting since it was sent (or since the videos came, before that).
             'ai_waiting' => $this->aiWaiting($r),
-            // The Correct button (FreezerSaleCorrection, which says why when it refuses). It reads the
-            // linked sale, so a sale shown before the result (showSalesBeforeTheResult) does not count.
-            'can_correct' => $sale !== null && $r->vend_transaction_id !== null && $r->vend?->isSmartFreezer(),
+            // The Adjust Qty button (FreezerSaleCorrection, which says why when it refuses). It reads the
+            // linked sale; a sale shown before the result (showSalesBeforeTheResult) counts only once
+            // the AI will not judge it (Brian, 2026-11-16: Zijia answered 501 with no verdict and the
+            // row offered Key in charge alone).
+            'can_correct' => $sale !== null && $r->vend?->isSmartFreezer()
+                && ($r->vend_transaction_id !== null || FreezerSaleCorrection::judgedByPersonOnly($r, $personReason !== null)),
             'correction' => $this->correctionOf($r, $sale, $card),
             // A T05 hold this session's verdict charges (CardPaymentService::settleAwaitingAi).
             'card' => $card ? [
@@ -696,11 +704,9 @@ class FreezerRecognitionController extends Controller
                 'uncertain_cents' => $card->ai_decision['uncertain'] ?? null,
                 'reason' => $card->ai_decision['reason'] ?? null,
                 'error' => $card->last_error,
-                // Anything but a matching AI verdict: the hold stays until a person keys in the charge
-                // (CardPaymentService::chargeByPerson, which re-checks this).
-                'person_reason' => $reason = ($card->state === CardPaymentIntent::STATE_AWAITING_AI ? $payments->personNeededBecause($card) : null),
-                'awaits_person' => $reason !== null,
-                'ai_suggested_cents' => $reason === CardPaymentService::PERSON_AI_MISMATCH ? $payments->personSuggestedCents($card) : null,
+                'person_reason' => $personReason,
+                'awaits_person' => $personReason !== null,
+                'ai_suggested_cents' => $personReason === CardPaymentService::PERSON_AI_MISMATCH ? $payments->personSuggestedCents($card) : null,
                 'by_person' => $card->ai_decision['by_person']['name'] ?? null,
             ] : null,
         ];

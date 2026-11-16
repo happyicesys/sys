@@ -985,8 +985,9 @@ class AiRecognitionPageTest extends TestCase
             ->where('recognitions.data.0.ai_check.0.taken', null)
             ->where('recognitions.data.0.ai_check.0.state', 'unknown')
             ->where('recognitions.data.0.ai_waiting', null)
-            ->where('recognitions.data.0.can_correct', false));
-        $this->assertNull($row->fresh()->vend_transaction_id, 'showing the sale links nothing');
+            // Brian, 2026-11-16: no verdict will ever come, so a person adjusts it like any other row.
+            ->where('recognitions.data.0.can_correct', true));
+        $this->assertNull($row->fresh()->vend_transaction_id, 'showing the sale links nothing; only a person\'s count does');
     }
 
     public function test_the_ai_check_waits_for_an_answer_and_names_a_barcode_we_do_not_know(): void

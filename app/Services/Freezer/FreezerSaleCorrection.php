@@ -122,6 +122,7 @@ class FreezerSaleCorrection
             if ($intent->state === CardPaymentIntent::STATE_CAPTURED
                 || ($intent->state === CardPaymentIntent::STATE_VOIDED && $cents === 0)) {
                 $this->write($sale->fresh(), $basket, $prices, $cents, $by);
+                $this->linkSale($recognition, $sale);
             }
 
             return ['mode' => self::MODE_HOLD, 'intent' => $intent, 'value_cents' => $cents, 'to_refund_cents' => 0, 'owed_cents' => (int) $intent->owed_cents];
@@ -131,14 +132,16 @@ class FreezerSaleCorrection
             $this->assertCorrectable($sale, $vend, null);
             [$cents, $prices] = $this->value($basket, $sale, $vend, null, $confirmedCents);
             $this->write($sale, $basket, $prices, $cents, $by);
+            $this->linkSale($recognition, $sale);
 
             return ['mode' => self::MODE_PAID, 'intent' => null, 'value_cents' => $cents, 'to_refund_cents' => 0, 'owed_cents' => 0];
         }
 
-        return $this->payments->locked($intent, function (CardPaymentIntent $fresh) use ($basket, $sale, $vend, $confirmedCents, $by) {
+        return $this->payments->locked($intent, function (CardPaymentIntent $fresh) use ($basket, $sale, $vend, $confirmedCents, $by, $recognition) {
             $this->assertCorrectable($sale->fresh(), $vend, $fresh);
             [$cents, $prices] = $this->value($basket, $sale, $vend, $fresh, $confirmedCents);
             $this->write($sale, $basket, $prices, $cents, $by);
+            $this->linkSale($recognition, $sale);
             $this->payments->noteCorrection($fresh, $cents, $by);
             $collected = (int) $fresh->captured_cents - (int) $fresh->refunded_cents;
 
@@ -330,11 +333,48 @@ class FreezerSaleCorrection
         return $basket;
     }
 
+    /**
+     * A session no AI verdict will ever link to its sale, so a person counts it from the sale found
+     * the way the verdict finds it (Brian, 2026-11-16, 50001 SF-50001-1794744521-21: Zijia answered
+     * 501 "503 goods not listed", and the row offered only Key in charge). That is an answer with
+     * no verdict (`failed`), or a T05 hold already waiting for a person (the AI never answered). Not
+     * a door try that did not open (`skipped`): its sale belongs to the try that opened.
+     */
+    public static function judgedByPersonOnly(SmartFreezerRecognition $recognition, bool $holdAwaitsPerson): bool
+    {
+        return $recognition->vend_transaction_id === null
+            && $recognition->verdict === null
+            && $recognition->status !== SmartFreezerRecognition::STATUS_SKIPPED
+            && ($recognition->status === SmartFreezerRecognition::STATUS_FAILED || $holdAwaitsPerson);
+    }
+
     private function saleOf(SmartFreezerRecognition $recognition): ?VendTransaction
     {
-        return $recognition->vend_transaction_id
-            ? VendTransaction::withoutGlobalScopes()->find($recognition->vend_transaction_id)
-            : null;
+        if ($recognition->vend_transaction_id) {
+            return VendTransaction::withoutGlobalScopes()->find($recognition->vend_transaction_id);
+        }
+        $vend = $this->vendOf($recognition);
+        if ($vend === null || $recognition->session_ref === null) {
+            return null;
+        }
+        $intent = $this->intentOf($recognition);
+        if (! self::judgedByPersonOnly($recognition, $intent !== null && $this->payments->personNeededBecause($intent) !== null)) {
+            return null;
+        }
+
+        return $this->sales->find($vend, $recognition->session_ref, $recognition->created_at);
+    }
+
+    /**
+     * A person's count of a session the AI never judged links its sale, as a verdict would have, so
+     * the row, the AI Dashboard and the money rules read the sale from now on. A later verdict finds
+     * the same sale and keeps the link.
+     */
+    private function linkSale(SmartFreezerRecognition $recognition, VendTransaction $sale): void
+    {
+        if ($recognition->vend_transaction_id === null) {
+            $recognition->update(['vend_transaction_id' => $sale->id]);
+        }
     }
 
     private function vendOf(SmartFreezerRecognition $recognition): ?Vend

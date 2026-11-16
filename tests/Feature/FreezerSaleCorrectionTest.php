@@ -479,4 +479,82 @@ class FreezerSaleCorrectionTest extends TestCase
                 ->where('recognitions.data.0.correction.lines.0.name', 'Cone')
                 ->where('recognitions.data.0.verdict', 'mixed'));
     }
+
+    /** Zijia's 501 "503 goods not listed": an answer with no verdict, so nothing ever links the sale. */
+    private function aiError(VendTransaction $sale): SmartFreezerRecognition
+    {
+        return $this->recognition($sale, [
+            'status' => SmartFreezerRecognition::STATUS_FAILED,
+            'status_reason' => 'algorithm: recognition error — 503 goods not listed in the model (商品未上架)',
+            'order_status' => 501,
+            'vend_transaction_id' => null,
+            'verdict' => null,
+            'verdict_lines' => null,
+        ]);
+    }
+
+    // 50001, 2026-11-15 20:09 (SF-50001-1794744521-21): the AI failed and the row offered only Key in charge.
+    public function test_a_hold_the_ai_failed_on_is_adjusted_like_any_other_and_links_its_sale(): void
+    {
+        $this->holdOpen();
+        $sale = $this->heldSale();
+        $recognition = $this->aiError($sale);
+
+        $this->actingAs($this->admin)->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.can_correct', true)
+                ->where('recognitions.data.0.card.awaits_person', true));
+
+        $editor = $this->actingAs($this->admin)->getJson("/ai-recognition/{$recognition->id}/correction")->assertOk()->json('editor');
+        $this->assertNull($editor['blocked_reason']);
+        $this->assertSame('hold', $editor['mode']);
+        $taken = collect($editor['lines'])->pluck('taken', 'product_id');
+        $this->assertSame([2, 1, 0], [$taken[$this->cone->id], $taken[$this->bar->id], $taken[$this->lolly->id]], 'no AI count, so it starts from what was paid');
+
+        $this->correct($recognition, [$this->cone->id => 1, $this->bar->id => 1], 500)->assertOk()->assertJsonPath('mode', 'hold');
+
+        $this->assertSame([['capture', '50001-SF1', 500]], $this->gateway->callsOf('capture'));
+        $this->assertSame($sale->id, $recognition->fresh()->vend_transaction_id, 'the count links the sale, as a verdict would have');
+        $this->assertSame([$this->cone->id => 1, $this->bar->id => 1], $this->rows($sale));
+        $this->assertSame([11, 10], [$this->qty($this->cone), $this->qty($this->bar)]);
+
+        $this->actingAs($this->admin)->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.can_correct', true)
+                ->where('recognitions.data.0.correction.by', 'Admin One')
+                ->where('recognitions.data.0.correction.value_cents', 500));
+    }
+
+    public function test_a_paynow_sale_the_ai_failed_on_can_be_adjusted(): void
+    {
+        $sale = $this->sale([], 0);
+        $recognition = $this->aiError($sale);
+
+        $this->actingAs($this->admin)->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('recognitions.data.0.can_correct', true));
+
+        $this->correct($recognition, [$this->cone->id => 2, $this->bar->id => 1, $this->lolly->id => 1], 950)->assertOk()->assertJsonPath('mode', 'paid');
+
+        $this->assertSame($sale->id, $recognition->fresh()->vend_transaction_id);
+        $this->assertSame(9, $this->qty($this->lolly));
+    }
+
+    public function test_a_session_the_ai_may_still_answer_is_not_offered_adjust_qty(): void
+    {
+        $this->holdOpen()->update(['door_closed_at' => Carbon::now()]);
+        $sale = $this->heldSale();
+        $recognition = $this->recognition($sale, [
+            'status' => SmartFreezerRecognition::STATUS_SUBMITTED, 'order_status' => null, 'completed_at' => null,
+            'vend_transaction_id' => null, 'verdict' => null, 'verdict_lines' => null,
+        ]);
+
+        $this->actingAs($this->admin)->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.can_correct', false)
+                ->where('recognitions.data.0.sale.id', $sale->id));
+
+        $this->correct($recognition, [$this->cone->id => 2, $this->bar->id => 1], 700)
+            ->assertStatus(422)->assertJsonFragment(['message' => __('This session has no freezer sale matched to it yet.')]);
+        $this->assertNull($recognition->fresh()->vend_transaction_id);
+    }
 }
