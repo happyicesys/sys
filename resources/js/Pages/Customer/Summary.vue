@@ -4719,8 +4719,11 @@ function paidTooltip(row) {
 
 // Lock a completed month's row — freezes its figures + contract details at
 // this moment. Confirms first; reloads only the summaries prop on success.
+// Same eligibility as the button and batch lock: a current-month row whose
+// site is Removed within that month may be locked early (the button showed
+// but this guard silently ignored the click until 2026-11-16).
 function onLockClicked(row) {
-  if (!row?.id || row.is_current_month || row.is_locked) return;
+  if (!row?.id || !isLockEligibleRow(row)) return;
   if (lockingFor.value.has(row.id)) return;
 
   const label = row.customer?.name || ('#' + row.customer?.id);
