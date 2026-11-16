@@ -1134,6 +1134,9 @@ mapping / returned):
   so a later expiry rule needs no app change. Every other row is byte-identical. Big board 328+ and freezer 58+ draw a
   red photo frame + "★ NEW" tag; older apps ignore the key; the small board has no product grid (no change there). A
   failure (e.g. the deploy gap before the table exists) serves the menu with no badge.
+- **A freezer learns of a mapping edit from `SmartFreezerCatalogPush`**, which selects freezers by `machine_type`
+  (2026-11-16). It used to select model "Smart Vend", which no freezer has (all are "SCF 338"), so a planogram edit
+  reached a freezer only at its next reconnect or reboot (bench 2009). `PushMappingMenuSync` stays vending-only.
 Regression coverage: `tests/Feature/NewSkuBadgeTest.php`.
 
 ## Txn, Revenue & Settlement: one sale, three sources, one line

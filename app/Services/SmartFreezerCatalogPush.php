@@ -119,7 +119,14 @@ class SmartFreezerCatalogPush
      */
     private function pushQuery($query): array
     {
-        $vends = $query->smart()->where('is_active', true)->get();
+        // A freezer is a smart_freezer by machine_type. The "Smart Vend" model test alone
+        // matched no freezer (every one is model "SCF 338"), so until 2026-11-16 a planogram
+        // edit never nudged a freezer and its menu (and NEW badge) waited for a reconnect.
+        $vends = $query
+            ->where(fn ($q) => $q->where('machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)
+                ->orWhereHas('vendModel', fn ($m) => $m->where('name', \App\Models\VendModel::SMART_VEND)))
+            ->where('is_active', true)
+            ->get();
 
         $pushed = 0;
         foreach ($vends as $vend) {
@@ -142,7 +149,7 @@ class SmartFreezerCatalogPush
     public function pushToVend(Vend $vend): bool
     {
         try {
-            PublishMqtt::dispatch('CM' . $vend->code, $this->frameFor($vend))->onQueue('high');
+            PublishMqtt::dispatch('CM'.$vend->code, $this->frameFor($vend))->onQueue('high');
 
             return true;
         } catch (\Throwable $e) {
@@ -171,8 +178,8 @@ class SmartFreezerCatalogPush
         ]));
         $contentLength = strlen($content);
         $key = $vend->private_key ?: self::FALLBACK_FRAME_KEY;
-        $md5 = md5(self::FRAME_ID . ',' . $contentLength . ',' . $content . $key);
+        $md5 = md5(self::FRAME_ID.','.$contentLength.','.$content.$key);
 
-        return self::FRAME_ID . ',' . $contentLength . ',' . $content . ',' . $md5;
+        return self::FRAME_ID.','.$contentLength.','.$content.','.$md5;
     }
 }
