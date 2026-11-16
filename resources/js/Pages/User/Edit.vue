@@ -202,7 +202,7 @@
             </div>
             <div class="col-span-12 sm:col-span-6">
               <div class="flex justify-between mt-5">
-                <Button type="button" v-if="permissions.includes('admin-access users')" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
+                <Button type="button" v-if="permissions.includes('admin-access users') && !(form.is_active && isAnotherSuperadmin)" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
                   <div>
                     <span class="flex space-x-1 items-center" v-if="form.is_active">
                       <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
@@ -330,6 +330,12 @@ onMounted(() => {
     })
   }
 })
+
+// A superadmin can only be deactivated by themselves; the server refuses it too.
+const isAnotherSuperadmin = computed(() =>
+  (user.value?.roles || []).some(role => role.name === 'superadmin')
+  && user.value?.id !== usePage().props.auth.user?.id
+)
 
 function toggleActivateDeactivate() {
   form.value.post('/users/' + form.value.id + '/toggle-activate-deactivate', {

@@ -541,6 +541,7 @@
     "A smart freezer sends its logs from Machine Settings, Remote controls, Logs.": "Log smart freezer diambil dari Pengaturan Mesin › Kontrol jarak jauh › Log.",
     "a store Grab has not integrated yet": "toko yang belum diintegrasikan Grab",
     "A store uses its machine and its price rule only after it is switched to the machine menu. Until then Grab keeps showing its old menu. A new store added on Grab Stores starts on the machine menu once its operator has switched any store.": "Toko memakai mesin dan aturan harganya hanya setelah dialihkan ke menu mesin. Sebelum itu Grab tetap menampilkan menu lamanya. Toko baru yang ditambahkan di Toko Grab langsung memakai menu mesin begitu operatornya sudah mengalihkan satu toko.",
+    "A superadmin cannot be deactivated, deleted or demoted by another user.": "Superadmin tidak dapat dinonaktifkan, dihapus, atau diturunkan perannya oleh pengguna lain.",
     "A synced report cannot be deleted — Undo sync first.": "Laporan yang sudah disinkronkan tidak bisa dihapus — Batalkan Sinkron dulu.",
     "A synced stock count is history and cannot be deleted.": "Stok opname yang sudah disinkronkan adalah riwayat dan tidak dapat dihapus.",
     "A T05 can only be put on a smart freezer; binding it there switches that freezer's card payments to it.": "T05 hanya dapat dipasang di Smart Freezer; mengikatnya di sana akan mengalihkan pembayaran kartu freezer itu ke T05 ini.",

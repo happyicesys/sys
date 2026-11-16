@@ -22,6 +22,7 @@ use App\Support\TransactionAccess;
 use App\Support\VendAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
 
@@ -56,6 +57,20 @@ class UserController extends Controller
         }
 
         abort_if($targetOperatorId === null || (int) $targetOperatorId !== $ceiling, 403);
+    }
+
+    /**
+     * A superadmin can never be deactivated, deleted or moved off superadmin by
+     * anyone else (Brian, 2026-11-16) - only by themselves. Delete and demote are
+     * guarded too, because either one would get around "never deactivated".
+     */
+    private function assertNotAnotherSuperadmin(User $target): void
+    {
+        abort_if(
+            (int) $target->id !== (int) auth()->id() && $target->hasRole('superadmin'),
+            403,
+            __('A superadmin cannot be deactivated, deleted or demoted by another user.')
+        );
     }
 
     /**
@@ -350,7 +365,20 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         $this->assertWithinOperatorCeiling($user->operator_id);
 
+        if ($user->is_active) {
+            $this->assertNotAnotherSuperadmin($user);
+        }
+
         $user->is_active = ! $user->is_active;
+
+        if (! $user->is_active) {
+            // A remember-me cookie or API token issued before deactivation must
+            // not carry over if the account is activated again later. Open web
+            // sessions are ended by the auth middleware on their next request.
+            $user->setRememberToken(Str::random(60));
+            $user->tokens()->where('revoked', false)->update(['revoked' => true]);
+        }
+
         $user->save();
 
         return redirect()->route('users');
@@ -389,6 +417,9 @@ class UserController extends Controller
             $this->assertWithinOperatorCeiling($request->operator_id);
         }
         $role = $this->requestedAssignableRole($request);
+        if ($role && $role->name !== 'superadmin') {
+            $this->assertNotAnotherSuperadmin($user);
+        }
 
         // Capture BEFORE update(): $validated can contain a new operator_id, and
         // every clamp below must validate the posted ids against the operator the
@@ -575,6 +606,7 @@ class UserController extends Controller
     {
         $user = User::findOrFail($userId);
         $this->assertWithinOperatorCeiling($user->operator_id);
+        $this->assertNotAnotherSuperadmin($user);
 
         $user->delete();
 

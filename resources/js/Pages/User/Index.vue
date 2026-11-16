@@ -206,7 +206,7 @@
                                   <Button
                                       type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
                                       @click="onDeleteClicked(user)"
-                                      v-if="permissions.includes('delete users')"
+                                      v-if="permissions.includes('delete users') && !isAnotherSuperadmin(user)"
                                   >
                                       <TrashIcon class="w-4 h-4"></TrashIcon>
                                       <span>
@@ -315,6 +315,11 @@ function onCreateClicked() {
   type.value = 'create'
   user.value = null
   showFormModal.value = true
+}
+
+// A superadmin can only be deactivated or deleted by themselves; the server refuses it too.
+function isAnotherSuperadmin(user) {
+  return user.role_name === 'superadmin' && user.id !== usePage().props.auth.user?.id
 }
 
 function onDeleteClicked(user) {

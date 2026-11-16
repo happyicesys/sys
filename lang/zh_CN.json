@@ -541,6 +541,7 @@
     "A smart freezer sends its logs from Machine Settings, Remote controls, Logs.": "智能冰柜的日志请在 机器设置 › 远程控制 › 日志 中获取。",
     "a store Grab has not integrated yet": "Grab 尚未接入的门店",
     "A store uses its machine and its price rule only after it is switched to the machine menu. Until then Grab keeps showing its old menu. A new store added on Grab Stores starts on the machine menu once its operator has switched any store.": "店铺切换到机器菜单后才会使用其机器和价格规则。在此之前 Grab 仍显示旧菜单。运营商只要已切换任何一家店铺，之后在 Grab 门店页新增的店铺会直接使用机器菜单。",
+    "A superadmin cannot be deactivated, deleted or demoted by another user.": "超级管理员不能被其他用户停用、删除或降级。",
     "A synced report cannot be deleted — Undo sync first.": "已同步的报表无法删除 — 请先撤销同步。",
     "A synced stock count is history and cannot be deleted.": "已同步的库存盘点属于历史记录，无法删除。",
     "A T05 can only be put on a smart freezer; binding it there switches that freezer's card payments to it.": "T05 只能装在智能冰柜上；绑定后，该冰柜的刷卡支付会改用这台 T05。",
