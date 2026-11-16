@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Console\Commands\BackfillNewSkuArrivals;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductMapping;
@@ -13,7 +12,6 @@ use App\Models\VendProductArrival;
 use App\Services\Menu\NewSkuBadge;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -21,8 +19,8 @@ use Tests\TestCase;
  * Menu NEW badge (Brian, 2026-11-15): a SKU is NEW on a machine for 60 days after it first appears in
  * THAT machine's product mapping — new to the machine, not to the company. Pinned: the `new_until`
  * key on /thumbnails and /menu rows (absent on every other row), per-machine dates on a shared
- * mapping, the 60-day expiry, the "back within 60 days is not new" rule, the deploy-day seed, the
- * history backfill, and a menu still served when the table is missing.
+ * mapping, the 60-day expiry, the "back within 60 days is not new" rule, the deploy-day seed and a
+ * menu still served when the table is missing.
  */
 class NewSkuBadgeTest extends TestCase
 {
@@ -203,84 +201,11 @@ class NewSkuBadgeTest extends TestCase
         $this->assertArrayNotHasKey('new_until', $this->menu($vend)['11']);
     }
 
-    public function test_backfill_dates_seeded_skus_from_refill_visits(): void
-    {
-        $vend = $this->makeVend(2031);
-        $this->addFreshToMapping();
-        foreach ([$this->old, $this->fresh] as $product) {
-            VendProductArrival::create([
-                'vend_id' => $vend->id, 'product_id' => $product->id, 'arrived_at' => '2000-01-01',
-                'source' => VendProductArrival::SOURCE_SEED,
-            ]);
-        }
-        $this->visit($vend, '2026-07-01 09:00:00', [$this->old->id]);
-        $this->visit($vend, '2026-10-20 09:00:00', [$this->old->id, $this->fresh->id]);
-        $this->visit($vend, '2026-11-10 09:00:00', [$this->old->id, $this->fresh->id]);
-
-        $this->artisan('menu:backfill-new-skus')->assertSuccessful();
-        $this->assertSame(2, VendProductArrival::where('source', 'seed')->count(), 'dry run writes nothing');
-
-        $this->artisan('menu:backfill-new-skus --apply')->assertSuccessful();
-        $old = VendProductArrival::where('product_id', $this->old->id)->sole();
-        $fresh = VendProductArrival::where('product_id', $this->fresh->id)->sole();
-        $this->assertSame('2026-07-01', $old->arrived_at->toDateString());
-        $this->assertSame('2026-10-20', $fresh->arrived_at->toDateString());
-        $this->assertSame('2026-12-19T09:00:00+08:00', $this->thumbnails($vend)['12']['new_until']);
-        $this->assertArrayNotHasKey('new_until', $this->thumbnails($vend)['11']);
-    }
-
-    public function test_a_short_absence_between_visits_keeps_the_first_arrival(): void
-    {
-        $vend = $this->makeVend(2031);
-        $this->visit($vend, '2026-06-01 09:00:00', [$this->old->id]);
-        $this->visit($vend, '2026-09-01 09:00:00', []);          // out for a visit
-        $this->visit($vend, '2026-09-20 09:00:00', [$this->old->id]); // back 19 days later
-        $this->visit($vend, '2026-10-01 09:00:00', [$this->fresh->id]); // out again…
-        $this->visit($vend, '2026-10-30 09:00:00', [$this->old->id]); // …back 29 days later
-
-        $arrivals = BackfillNewSkuArrivals::arrivalsFromVisits($vend->id, [$this->old->id], CarbonImmutable::now());
-        $this->assertSame('2026-06-01', $arrivals[$this->old->id]->toDateString());
-
-        $this->visit($vend, '2026-11-12 09:00:00', [$this->fresh->id]); // out since 3 days
-        $arrivals = BackfillNewSkuArrivals::arrivalsFromVisits($vend->id, [$this->old->id], CarbonImmutable::now());
-        $this->assertSame('2026-06-01', $arrivals[$this->old->id]->toDateString());
-    }
-
-    public function test_a_long_absence_starts_a_new_stay(): void
-    {
-        $vend = $this->makeVend(2031);
-        $this->visit($vend, '2026-05-01 09:00:00', [$this->old->id]);
-        $this->visit($vend, '2026-06-01 09:00:00', [$this->fresh->id]);
-        $this->visit($vend, '2026-10-01 09:00:00', [$this->old->id]); // back after 122 days
-
-        $arrivals = BackfillNewSkuArrivals::arrivalsFromVisits($vend->id, [$this->old->id], CarbonImmutable::now());
-        $this->assertSame('2026-10-01', $arrivals[$this->old->id]->toDateString());
-    }
-
     public function test_hourly_scan_records_arrivals_for_machines_that_did_not_read_their_menu(): void
     {
         $vend = $this->makeVend(2031);
         $this->artisan('menu:track-new-skus')->assertSuccessful();
 
         $this->assertSame(1, VendProductArrival::where('vend_id', $vend->id)->count());
-    }
-
-    /** A completed refill visit listing these products in the machine's slots. */
-    private function visit(Vend $vend, string $completedAt, array $productIds): void
-    {
-        $jobId = DB::table('ops_jobs')->insertGetId(['code' => random_int(100000, 999999), 'date' => now()->toDateString(), 'status' => 1, 'operator_id' => 1, 'created_at' => now(), 'updated_at' => now()]);
-        $itemId = DB::table('ops_job_items')->insertGetId([
-            'ops_job_id' => $jobId, 'vend_id' => $vend->id, 'customer_id' => $vend->customer_id, 'status' => 1,
-            'completed_at' => $completedAt, 'created_at' => now(), 'updated_at' => now(),
-        ]);
-        // Every visit records the machine's slots; an empty list still needs one row to count as a visit.
-        $productIds = $productIds === [] ? [Product::create(['code' => 'X-'.$itemId, 'name' => 'Other'])->id] : $productIds;
-        foreach (array_values($productIds) as $i => $productId) {
-            DB::table('ops_job_item_channels')->insert([
-                'ops_job_id' => $jobId, 'ops_job_item_id' => $itemId, 'product_id' => $productId,
-                'vend_channel_code' => 11 + $i, 'vend_code' => $vend->code, 'qty' => 0, 'actual_qty' => 3, 'capacity' => 10,
-                'created_at' => now(), 'updated_at' => now(),
-            ]);
-        }
     }
 }

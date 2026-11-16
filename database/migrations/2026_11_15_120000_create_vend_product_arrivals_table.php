@@ -11,9 +11,8 @@ use Illuminate\Support\Facades\Schema;
  * mapping (App\Services\Menu\NewSkuBadge).
  *
  * Every pair already on a machine today is seeded as old (arrived_at 2000-01-01, source
- * "seed") in this same migration, so the fleet does not light up NEW on deploy day.
- * `php artisan menu:backfill-new-skus --apply` later dates the seeded pairs that really
- * arrived in the last 60 days from sales history.
+ * "seed") in this same migration, so the fleet does not light up NEW on deploy day: only
+ * changes from launch on are new (Brian, 2026-11-16: no backfill).
  */
 return new class extends Migration
 {
@@ -28,7 +27,7 @@ return new class extends Migration
             // When the SKU was seen to leave the machine's mapping (NULL = on it). A SKU back after
             // more than 60 days away arrives again; back sooner keeps its arrival.
             $table->dateTime('left_at')->nullable();
-            // seed | mapping | returned | backfill
+            // seed | mapping | returned
             $table->string('source', 16);
             $table->timestamps();
 

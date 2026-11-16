@@ -16,8 +16,6 @@ class VendProductArrival extends Model
 
     public const SOURCE_RETURNED = 'returned';
 
-    public const SOURCE_BACKFILL = 'backfill';
-
     protected $fillable = [
         'vend_id',
         'product_id',

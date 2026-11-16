@@ -1117,8 +1117,7 @@ Regression coverage: `tests/Feature/PaymentMenuPushTest.php`.
 Brian, 2026-11-15. A SKU is NEW on a machine for `NewSkuBadge::DAYS` (60) days after it first appears in that machine's
 product mapping — new to the machine, not to the company, so one mapping can badge a SKU on a machine bound last week
 and not on one bound for months. `App\Services\Menu\NewSkuBadge` is the one rule and the only writer of
-`vend_product_arrivals` (one row per vend + product: `arrived_at`, `left_at`, `source` seed / mapping / returned /
-backfill):
+`vend_product_arrivals` (one row per vend + product: `arrived_at`, `left_at`, `source` seed / mapping / returned):
 - **Recorded on every menu read** (`/thumbnails`, `/menu` call `newUntilByProduct`, which syncs first, so a board that
   re-reads right after a mapping change already sees it) and by the hourly `menu:track-new-skus` scan. A sync writes
   only on a change: a SKU first seen, gone from the mapping (`left_at`), or back.
@@ -1126,10 +1125,8 @@ backfill):
   SEEN to leave (`left_at`), so a machine nobody read for months never turns new again.
 - **A machine seen for the first time takes its mapping as the baseline** (`seed`, arrived 2000-01-01): a new
   installation does not badge every tile. Only a CHANGE after that is new.
-- **Deploy day**: the migration seeds every pair on every machine as old, so nothing lights up.
-  `menu:backfill-new-skus [--vend=] [--apply]` then dates the seeded pairs from refill visits (first completed visit
-  carrying it in its current stay, absences ≤ 60 days merged — the User edit "SKU Start Date" rule) else first sale in
-  120 days; it touches `seed` rows only.
+- **Deploy day**: the migration seeds every pair on every machine as old, so nothing lights up: only changes from launch
+  on are new (Brian, 2026-11-16: no backfill of earlier changes).
 - **Wire**: a row gets `new_until` (ISO-8601 with offset) only while its SKU is new; every other row is byte-identical.
   Big board 328+ and freezer 58+ draw a red photo frame + "★ NEW" tag until that moment; older apps ignore the key; the
   small board has no product grid. A failure (e.g. the deploy gap before the table exists) serves the menu with no badge.
