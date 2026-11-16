@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * When each SKU arrived on each machine, for the menu's NEW badge (Brian, 2026-11-15):
- * a SKU is NEW on a machine for 60 days after it first appears in that machine's product
- * mapping (App\Services\Menu\NewSkuBadge).
+ * a SKU is NEW on a machine once it appears in that machine's product mapping after launch,
+ * until it leaves it — no expiry (App\Services\Menu\NewSkuBadge).
  *
  * Every pair already on a machine today is seeded as old (arrived_at 2000-01-01, source
  * "seed") in this same migration, so the fleet does not light up NEW on deploy day: only
@@ -22,10 +22,10 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('vend_id');
             $table->unsignedBigInteger('product_id');
-            // When the SKU (last) arrived on the machine. NEW until arrived_at + 60 days.
+            // When the SKU (last) arrived on the machine. NEW while on the mapping, unless seeded.
             $table->dateTime('arrived_at');
             // When the SKU was seen to leave the machine's mapping (NULL = on it). A SKU back after
-            // more than 60 days away arrives again; back sooner keeps its arrival.
+            // more than 60 days away arrives again (NEW); back sooner keeps what it had.
             $table->dateTime('left_at')->nullable();
             // seed | mapping | returned
             $table->string('source', 16);

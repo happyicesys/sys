@@ -16,10 +16,10 @@ use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * Menu NEW badge (Brian, 2026-11-15): a SKU is NEW on a machine for 60 days after it first appears in
- * THAT machine's product mapping — new to the machine, not to the company. Pinned: the `new_until`
+ * Menu NEW badge (Brian, 2026-11-15; no expiry 2026-11-16): a SKU is NEW on a machine once it appears in
+ * THAT machine's product mapping after launch, until it leaves it — new to the machine, not to the company. Pinned: the `new_until`
  * key on /thumbnails and /menu rows (absent on every other row), per-machine dates on a shared
- * mapping, the 60-day expiry, the "back within 60 days is not new" rule, the deploy-day seed and a
+ * mapping, no expiry (until the SKU leaves), the "back within 60 days keeps what it had" rule, the deploy-day seed and a
  * menu still served when the table is missing.
  */
 class NewSkuBadgeTest extends TestCase
@@ -81,7 +81,7 @@ class NewSkuBadgeTest extends TestCase
             ->keyBy(fn ($row) => (string) $row['channel_code'])->all();
     }
 
-    public function test_a_sku_added_to_the_mapping_is_new_for_60_days_on_both_feeds(): void
+    public function test_a_sku_added_to_the_mapping_is_new_with_no_expiry_on_both_feeds(): void
     {
         $vend = $this->makeVend(2031);
         $this->thumbnails($vend); // the machine has carried OLD-1 since before this read
@@ -90,14 +90,18 @@ class NewSkuBadgeTest extends TestCase
         $this->addFreshToMapping();
 
         $rows = $this->thumbnails($vend);
-        $this->assertSame('2027-01-17T10:00:00+08:00', $rows['12']['new_until']);
+        $this->assertSame('2099-12-31T23:59:59+08:00', $rows['12']['new_until']);
         $this->assertArrayNotHasKey('new_until', $rows['11'], 'the first read is the baseline');
 
         $menu = $this->menu($vend);
-        $this->assertSame('2027-01-17T10:00:00+08:00', $menu['12']['new_until']);
+        $this->assertSame('2099-12-31T23:59:59+08:00', $menu['12']['new_until']);
 
-        $this->travelTo(CarbonImmutable::parse('2027-01-17 10:00:01'));
-        $this->assertArrayNotHasKey('new_until', $this->thumbnails($vend)['12'], 'expired after 60 days');
+        $this->travel(400)->days();
+        $this->assertArrayHasKey('new_until', $this->thumbnails($vend)['12'], 'no expiry (Brian, 2026-11-16)');
+
+        ProductMappingItem::where('product_id', $this->fresh->id)->delete();
+        $this->assertArrayNotHasKey('12', $this->menu($vend), 'gone from the mapping');
+        $this->assertNotNull(VendProductArrival::where('product_id', $this->fresh->id)->value('left_at'));
     }
 
     public function test_rows_that_are_not_new_carry_no_key_at_all(): void
@@ -118,7 +122,7 @@ class NewSkuBadgeTest extends TestCase
         $this->addFreshToMapping();
         VendProductArrival::insert([
             ['vend_id' => $longBound->id, 'product_id' => $this->old->id, 'arrived_at' => now()->subDays(200), 'source' => 'seed', 'created_at' => now(), 'updated_at' => now()],
-            ['vend_id' => $longBound->id, 'product_id' => $this->fresh->id, 'arrived_at' => now()->subDays(90), 'source' => 'mapping', 'created_at' => now(), 'updated_at' => now()],
+            ['vend_id' => $longBound->id, 'product_id' => $this->fresh->id, 'arrived_at' => '2000-01-01', 'source' => 'seed', 'created_at' => now(), 'updated_at' => now()],
         ]);
         $newlyBound = $this->makeVend(2044);
         // 2044 was on another mapping until today, with another SKU.
@@ -145,8 +149,8 @@ class NewSkuBadgeTest extends TestCase
     {
         $vend = $this->makeVend(2031);
         $row = VendProductArrival::create([
-            'vend_id' => $vend->id, 'product_id' => $this->old->id, 'arrived_at' => now()->subDays(300),
-            'source' => 'mapping',
+            'vend_id' => $vend->id, 'product_id' => $this->old->id, 'arrived_at' => '2000-01-01',
+            'source' => 'seed',
         ]);
         ProductMappingItem::where('product_id', $this->old->id)->delete();
         NewSkuBadge::sync($vend);
@@ -156,7 +160,7 @@ class NewSkuBadgeTest extends TestCase
         ProductMappingItem::create(['product_mapping_id' => $this->mapping->id, 'channel_code' => '11', 'product_id' => $this->old->id]);
         NewSkuBadge::sync($vend);
         $this->assertNull($row->fresh()->left_at);
-        $this->assertTrue($row->fresh()->arrived_at->lt(now()->subDays(300)), 'gone 40 days: still the old arrival');
+        $this->assertSame(VendProductArrival::SOURCE_SEED, $row->fresh()->source, 'gone 40 days: still old');
         $this->assertArrayNotHasKey('new_until', $this->thumbnails($vend)['11']);
 
         ProductMappingItem::where('product_id', $this->old->id)->delete();
@@ -173,7 +177,7 @@ class NewSkuBadgeTest extends TestCase
     {
         $vend = $this->makeVend(2031);
         VendProductArrival::create([
-            'vend_id' => $vend->id, 'product_id' => $this->old->id, 'arrived_at' => now()->subDays(10), 'source' => 'mapping',
+            'vend_id' => $vend->id, 'product_id' => $this->old->id, 'arrived_at' => '2000-01-01', 'source' => 'seed',
         ]);
         $this->travel(200)->days(); // no menu read and no scan in between
 

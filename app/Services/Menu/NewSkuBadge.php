@@ -11,22 +11,27 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
 
 /**
- * The menu NEW badge (Brian, 2026-11-15): a SKU is NEW on a machine for 60 days after it
- * first appears in THAT machine's product mapping. New to the machine, not new to the company:
- * a machine that has carried the SKU for longer shows no badge, even on the same mapping.
+ * The menu NEW badge (Brian, 2026-11-15): a SKU is NEW on a machine once it appears in THAT
+ * machine's product mapping after launch — new to the machine, not new to the company. It has
+ * NO expiry (Brian, 2026-11-16): it stays NEW until it leaves that machine's mapping.
  *
- * A SKU that left the machine and comes back within 60 days is not new; one that was gone
- * for longer arrives again.
+ * A SKU that left the machine and comes back within RETURN_AFTER_DAYS keeps what it had (old
+ * stays old, new stays new); one that was gone for longer arrives again as NEW.
  *
  * The apps (big board 328+, freezer 58+) get `new_until` (ISO-8601) on each menu row while
- * the SKU is new and draw the badge until that time; older apps ignore the key.
+ * the SKU is new and draw the badge until that time; with no expiry it is always NO_EXPIRY.
+ * Older apps ignore the key.
  *
  * Arrivals are recorded when a menu is served (so a board that re-reads its menu right after
  * a mapping change already sees the badge) and by the hourly `menu:track-new-skus` scan.
  */
 final class NewSkuBadge
 {
-    public const DAYS = 60;
+    /** A SKU away from the machine for longer than this arrives again as NEW. */
+    public const RETURN_AFTER_DAYS = 60;
+
+    /** `new_until` while a SKU is new: the apps draw until this moment, so it is far away. */
+    public const NO_EXPIRY = '2099-12-31 23:59:59';
 
     /** arrived_at of a SKU that was on the machine before tracking began: never new. */
     public const BASELINE = '2000-01-01 00:00:00';
@@ -74,7 +79,7 @@ final class NewSkuBadge
         }
 
         $onMapping = array_flip($productIds);
-        $longGone = $now->subDays(self::DAYS);
+        $longGone = $now->subDays(self::RETURN_AFTER_DAYS);
         $missing = [];
         $returned = [];
         $backSoon = [];
@@ -132,7 +137,8 @@ final class NewSkuBadge
     }
 
     /**
-     * product_id => the moment its badge ends, for the machine's SKUs that are NEW now.
+     * product_id => the moment its badge ends (always NO_EXPIRY), for the machine's SKUs that
+     * are NEW now: arrived after launch (not a seed row) and still on its mapping.
      * Never throws: a menu must still be served if this fails (e.g. the deploy gap before the
      * table exists), it just shows no badges.
      *
@@ -148,14 +154,14 @@ final class NewSkuBadge
         try {
             self::sync($vend, $now);
 
+            $until = CarbonImmutable::parse(self::NO_EXPIRY);
+
             return VendProductArrival::query()
                 ->where('vend_id', $vend->id)
                 ->whereNull('left_at')
-                ->where('arrived_at', '>', $now->subDays(self::DAYS))
-                ->get(['product_id', 'arrived_at'])
-                ->mapWithKeys(fn (VendProductArrival $row) => [
-                    (int) $row->product_id => CarbonImmutable::instance($row->arrived_at)->addDays(self::DAYS),
-                ])
+                ->where('source', '!=', VendProductArrival::SOURCE_SEED)
+                ->pluck('product_id')
+                ->mapWithKeys(fn ($productId) => [(int) $productId => $until])
                 ->all();
         } catch (QueryException $e) {
             Log::warning('NewSkuBadge: no badges for vend '.$vend->id.': '.$e->getMessage());
@@ -164,7 +170,7 @@ final class NewSkuBadge
         }
     }
 
-    /** The wire form the apps parse: ISO-8601 with offset, e.g. 2027-01-14T10:05:00+08:00. */
+    /** The wire form the apps parse: ISO-8601 with offset, e.g. 2099-12-31T23:59:59+08:00. */
     public static function wire(CarbonImmutable $until): string
     {
         return $until->toIso8601String();
