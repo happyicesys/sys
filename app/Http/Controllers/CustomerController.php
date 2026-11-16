@@ -2032,7 +2032,13 @@ class CustomerController extends Controller
             return back()->with('success', __('This period is already locked.'));
         }
 
-        $this->applyLockToSummary($summary, $user->id);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($summary, $user) {
+            $this->applyLockToSummary($summary, $user->id);
+            // A removed site's current month: post its location fee now, not on the 1st.
+            if ($summary->is_current_month) {
+                app(\App\Services\Commission\RemovedSiteLocationFeeAccrual::class)->accrue($summary);
+            }
+        });
 
         return back()->with('success', __('Period locked.'));
     }
@@ -2174,7 +2180,11 @@ class CustomerController extends Controller
         $summary->is_locked = false;
         $summary->last_unlocked_at = now();
         $summary->last_unlocked_by = $user->id;
-        $summary->save();
+        \Illuminate\Support\Facades\DB::transaction(function () use ($summary) {
+            $summary->save();
+            // Take back a removed site's early-posted location fee while its month is open.
+            app(\App\Services\Commission\RemovedSiteLocationFeeAccrual::class)->retract($summary);
+        });
 
         return back()->with('success', __('Period unlocked.'));
     }
@@ -2397,6 +2407,9 @@ class CustomerController extends Controller
                     continue;
                 }
                 $this->applyLockToSummary($summary, $user->id);
+                if ($summary->is_current_month) {
+                    app(\App\Services\Commission\RemovedSiteLocationFeeAccrual::class)->accrue($summary);
+                }
                 $locked++;
             }
         });

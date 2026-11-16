@@ -47,6 +47,9 @@ class CustomerSettlement extends Model
     public const SOURCE_CRON        = 'cron';
     public const SOURCE_PAID_ACTION = 'paid-action';
     public const SOURCE_MANUAL      = 'manual';
+    // A removed site's last month, posted when that month is locked early
+    // (RemovedSiteLocationFeeAccrual) instead of by the monthly job.
+    public const SOURCE_REMOVED_LOCK = 'removed-lock';
 
     protected $fillable = [
         'reference_no',
