@@ -36,6 +36,8 @@ const props = defineProps({
 	percent: { type: Boolean, default: true },
 	// one line under the tooltip title saying what the figure is
 	hint: { type: String, default: '' },
+	// values are dollars, shown as $1.50 (Grab Stores' daily sales, 2026-11-16)
+	money: { type: Boolean, default: false },
 });
 
 const W = 100;
@@ -44,7 +46,7 @@ const PAD = 3;
 
 const top = computed(() => (props.percent ? 100 : Math.max(1, ...props.points.map((p) => p.value ?? 0)) * 1.1));
 const y = (value) => PAD + ((top.value - value) / top.value) * (H - 2 * PAD);
-const format = (value) => (value === null ? '—' : props.percent ? `${value}%` : `${value}`);
+const format = (value) => (value === null ? '—' : props.money ? `$${Number(value).toFixed(2)}` : props.percent ? `${value}%` : `${value}`);
 
 const placed = computed(() => props.points.map((p, i) => ({
 	...p,
@@ -74,7 +76,8 @@ const segments = computed(() => {
 const latest = computed(() => [byKey.value.today, byKey.value.yesterday].find((p) => p && p.value !== null) ?? null);
 const tone = computed(() => {
 	const base = byKey.value.thirty_days?.value ?? null;
-	if (!latest.value || base === null) return 'flat';
+	// Nothing then and nothing now is no trend, not "at or above".
+	if (!latest.value || base === null || (base === 0 && latest.value.value === 0)) return 'flat';
 	return latest.value.value >= base ? 'up' : 'down';
 });
 const toneStroke = computed(() => ({ up: 'stroke-green-600', down: 'stroke-red-600', flat: 'stroke-gray-400' })[tone.value]);

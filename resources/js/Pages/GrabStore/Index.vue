@@ -93,6 +93,7 @@
                   <span :class="filters.sort === column.key ? 'text-indigo-700' : 'text-gray-300'">▼</span>
                 </button>
               </TableHead>
+              <TableHead>{{ $t('Grab sales per day') }}</TableHead>
               <TableHead></TableHead>
             </tr>
           </thead>
@@ -207,6 +208,19 @@
                 </template>
                 <span v-else class="text-gray-400">—</span>
               </TableData>
+              <!-- Daily Grab sales, L30d → today, like the Operation Dashboard's graphs (Brian, 2026-11-16). -->
+              <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-center">
+                <TrendSparkline
+                  v-if="store.binding"
+                  class="w-36"
+                  :title="$t('Grab sales per day')"
+                  :percent="false"
+                  money
+                  :hint="$t('Delivered Grab orders of the machine on this store now, less Grab promo; L30d and L7d are the daily average')"
+                  :points="salesPoints(store)"
+                />
+                <span v-else class="text-gray-400">—</span>
+              </TableData>
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left">
                 <div class="flex flex-col gap-1 w-32">
                   <button type="button" :class="[iconButton, tone.gray]" @click="openHistory(store)"><ClockIcon class="h-4 w-4 shrink-0" />{{ $t('History') }}</button>
@@ -217,7 +231,7 @@
               </TableData>
             </tr>
             <tr v-if="!rows.length">
-              <td colspan="7" class="py-6 text-center text-sm text-gray-500">{{ $t('No Grab stores match.') }}</td>
+              <td colspan="10" class="py-6 text-center text-sm text-gray-500">{{ $t('No Grab stores match.') }}</td>
             </tr>
           </tbody>
         </table>
@@ -748,6 +762,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHead from '@/Components/TableHead.vue';
+import TrendSparkline from '@/Components/OpsDashboard/TrendSparkline.vue';
 import {
   ArrowsRightLeftIcon, CheckCircleIcon, ClockIcon, EyeIcon, MagnifyingGlassIcon, PaperAirplaneIcon, PauseIcon, PencilSquareIcon, PlayIcon, PlusCircleIcon, PlusIcon, PowerIcon, XCircleIcon,
 } from '@heroicons/vue/20/solid';
@@ -755,7 +770,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import moment from 'moment';
 import { computed, ref } from 'vue';
-import { t } from '@/i18n';
+import { t, tc } from '@/i18n';
 
 const props = defineProps({
   stores: Object,
@@ -861,6 +876,25 @@ const salesColumns = [
   { key: 'sales_7d', days: 7, name: t('Grab sales, last 7 days') },
   { key: 'sales_30d', days: 30, name: t('Grab sales, last 30 days') },
 ]
+
+// The row's daily sales graph: L30d and L7d as a daily average, then yesterday and today (dollars).
+// Today with no order yet is left out, so the graph reads yesterday instead of a red zero each morning.
+function salesPoints(store) {
+  const point = (key, label, cents, orders, perDays) => ({
+    key,
+    label,
+    value: cents === null ? null : Math.round(cents / perDays) / 100,
+    detail: orders === null ? t('no orders yet') : tc(':count order|:count orders', orders),
+  })
+  return [
+    point('thirty_days', t('Last 30 days'), store.sales_30d, store.sales_30d_orders, 30),
+    point('seven_days', t('Last 7 days'), store.sales_7d, store.sales_7d_orders, 7),
+    point('yesterday', t('Yesterday'), store.sales_yesterday, store.sales_yesterday_orders, 1),
+    store.sales_today_orders
+      ? point('today', t('Today'), store.sales_today, store.sales_today_orders, 1)
+      : point('today', t('Today'), null, null, 1),
+  ]
+}
 
 function sortBy(key) {
   filters.value.sort = filters.value.sort === key ? null : key

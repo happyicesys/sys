@@ -21,6 +21,7 @@ use App\Http\Controllers\DeliveryProductMappingController;
 use App\Http\Controllers\FreezerControlController;
 use App\Http\Controllers\GrabErrorController;
 use App\Http\Controllers\GrabMenuController;
+use App\Http\Controllers\GrabPerformanceController;
 use App\Http\Controllers\GrabPromotionController;
 use App\Http\Controllers\GrabStoreController;
 use App\Http\Controllers\HappyHourCampaignController;
@@ -478,6 +479,9 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/end', [GrabPromotionController::class, 'end'])->name('grab-promotions.end')->middleware('can:delete delivery-platform-campaigns');
         Route::post('/stores/{refId}/refresh', [GrabPromotionController::class, 'refresh'])->name('grab-promotions.refresh')->middleware('can:read delivery-platform-campaigns');
     });
+
+    // Grab Performance (Brian, 2026-11-16): which Grab stores sell, read only.
+    Route::get('/grab-performance', [GrabPerformanceController::class, 'index'])->name('grab-performance')->middleware('can:read delivery-platform-vends');
 
     // Grab Stores (plan §9 step 1): Grab Platform ID + Machines on one page.
     Route::prefix('grab-stores')->group(function () {

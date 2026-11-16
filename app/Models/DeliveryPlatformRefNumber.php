@@ -73,6 +73,22 @@ class DeliveryPlatformRefNumber extends Model
             ->orderByDesc('id');
     }
 
+    /**
+     * Grab Stores' status of the store: off (Inactive), no_machine, paused (its open link is off) or selling.
+     * Reads the loaded openDeliveryProductMappingVends (Grab Stores, Grab Performance).
+     */
+    public function sellingStatus(): string
+    {
+        $binding = $this->openDeliveryProductMappingVends->first();
+
+        return match (true) {
+            (int) $this->status === self::STATUS_INACTIVE => 'off',
+            ! $binding => 'no_machine',
+            ! $binding->is_active => 'paused',
+            default => 'selling',
+        };
+    }
+
     public function storeEvents()
     {
         return $this->hasMany(DeliveryPlatformStoreEvent::class)->orderByDesc('created_at')->orderByDesc('id');

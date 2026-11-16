@@ -90,6 +90,11 @@ class GrabStoreController extends Controller
                 'sales_7d_orders' => $this->salesSubquery('COUNT(*)', 7),
                 'sales_30d' => $this->salesSubquery('COALESCE(SUM(o.subtotal_amount - o.promo_amount), 0)', 30),
                 'sales_30d_orders' => $this->salesSubquery('COUNT(*)', 30),
+                // The row's "Grab sales per day" graph: yesterday and today beside the 7- and 30-day averages.
+                'sales_yesterday' => $this->salesSubquery('COALESCE(SUM(o.subtotal_amount - o.promo_amount), 0)', 0, Carbon::yesterday(), Carbon::today()),
+                'sales_yesterday_orders' => $this->salesSubquery('COUNT(*)', 0, Carbon::yesterday(), Carbon::today()),
+                'sales_today' => $this->salesSubquery('COALESCE(SUM(o.subtotal_amount - o.promo_amount), 0)', 0, Carbon::today()),
+                'sales_today_orders' => $this->salesSubquery('COUNT(*)', 0, Carbon::today()),
                 'errors_7d' => DB::table('delivery_platform_api_errors')->selectRaw('COUNT(*)')
                     ->whereColumn('delivery_platform_ref_number_id', 'delivery_platform_ref_numbers.id')
                     ->where('created_at', '>=', Carbon::now()->subDays(7)),
@@ -617,13 +622,7 @@ class GrabStoreController extends Controller
         $open = $ref->openDeliveryProductMappingVends;
         $binding = $open->first();
         $isOff = (int) $ref->status === DeliveryPlatformRefNumber::STATUS_INACTIVE;
-
-        $status = match (true) {
-            $isOff => 'off',
-            ! $binding => 'no_machine',
-            ! $binding->is_active => 'paused',
-            default => 'selling',
-        };
+        $status = $ref->sellingStatus();
 
         $partnerCode = $binding ? ($partnerCodes[$binding->id] ?? null) : null;
 
@@ -642,6 +641,10 @@ class GrabStoreController extends Controller
             'sales_7d_orders' => (int) $ref->sales_7d_orders,
             'sales_30d' => (int) $ref->sales_30d,
             'sales_30d_orders' => (int) $ref->sales_30d_orders,
+            'sales_yesterday' => (int) $ref->sales_yesterday,
+            'sales_yesterday_orders' => (int) $ref->sales_yesterday_orders,
+            'sales_today' => (int) $ref->sales_today,
+            'sales_today_orders' => (int) $ref->sales_today_orders,
             'errors_7d' => (int) $ref->errors_7d,
             'promotions_live' => (int) $ref->promotions_live,
             'binding' => $binding ? [
@@ -725,7 +728,7 @@ class GrabStoreController extends Controller
      * Grab sales of the store's machine now (its open binding): delivered orders only,
      * less Grab promo, in cents — the rule the Grab Orders page totals by.
      */
-    private function salesSubquery(string $select, int $days)
+    private function salesSubquery(string $select, int $days, ?Carbon $from = null, ?Carbon $until = null)
     {
         return DB::table('delivery_platform_orders as o')
             ->join('delivery_product_mapping_vend as ob', 'ob.id', '=', 'o.delivery_product_mapping_vend_id')
@@ -733,7 +736,8 @@ class GrabStoreController extends Controller
             ->whereColumn('ob.delivery_platform_ref_number_id', 'delivery_platform_ref_numbers.id')
             ->whereNull('ob.end_date')
             ->where('o.status', DeliveryPlatformOrder::STATUS_DELIVERED)
-            ->where('o.order_created_at', '>=', Carbon::now()->subDays($days));
+            ->where('o.order_created_at', '>=', $from ?? Carbon::now()->subDays($days))
+            ->when($until, fn ($query) => $query->where('o.order_created_at', '<', $until));
     }
 
     /** @return array<int, string> binding id => partnerMerchantID of its latest order */

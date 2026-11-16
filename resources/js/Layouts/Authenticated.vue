@@ -270,6 +270,8 @@ const navigation = computed(() => [
             // Daily use first (Brian, 2026-11-11 audit): orders, stores, menu & prices, promotions, errors, then the old templates.
             {name: tk('Grab Orders'), href: '/delivery-platform-orders', permission: 'read delivery-platform-orders'},
             {name: tk('Grab Stores'), href: '/grab-stores', permission: 'read delivery-platform-vends'},
+            // Grab Performance (2026-11-16): which stores sell, to decide which machines stay on Grab.
+            {name: tk('Grab Performance'), href: '/grab-performance', permission: 'read delivery-platform-vends'},
             // Grab Menu & Prices (2026-11-01): the menu follows each machine; the old templates stay read-only below.
             {name: tk('Grab Menu & Prices'), href: '/grab-menu', permission: 'read delivery-platform-product-mappings'},
             // The old Grab Campaign pages are gone (2026-10-31): Grab Promotions makes, changes and ends promotions on Grab.
