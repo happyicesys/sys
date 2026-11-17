@@ -149,6 +149,11 @@ class GrabStoreProfiles
             }
         });
 
+        // Grab retired the store ("[CLOSED] …"): it cannot sell again, so ConnectVend switches it off too.
+        if (DeliveryPlatformRefNumber::nameMeansClosed($name) && (int) $ref->status !== DeliveryPlatformRefNumber::STATUS_INACTIVE) {
+            $this->stores->setStatus($ref, false, $userId, __('Grab shows this store as [CLOSED].'));
+        }
+
         return ['changed' => (bool) $changes, 'site_confirmed' => $siteConfirmed, 'match' => $match];
     }
 

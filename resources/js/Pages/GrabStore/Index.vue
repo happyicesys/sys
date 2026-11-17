@@ -164,6 +164,9 @@
                 <div v-if="store.status === 'off' && store.binding" class="text-xs text-gray-500 mt-1">
                   {{ $t('Paused on Grab while off') }}
                 </div>
+                <div v-if="store.closed_by_grab" class="mt-1">
+                  <span class="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800" :title="$t('Grab has closed this store for good. It cannot sell again: ask Grab for a new store.')">{{ $t('Closed by Grab') }}</span>
+                </div>
               </TableData>
               <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-center">
                 <template v-if="store.grab_machine_code">
@@ -502,6 +505,9 @@
             {{ $t('Sells from machine :code (:site) since :time.', { code: current.binding.vend_code, site: current.binding.site ?? $t('no Site'), time: formatDateTime(current.binding.since) }) }}
           </p>
           <p v-else class="text-gray-600">{{ $t('No machine sells this store.') }}</p>
+          <p v-if="current.closed_by_grab" class="rounded border border-red-300 bg-red-50 px-2 py-1 text-red-800">
+            {{ $t('Grab has closed this store for good ([CLOSED] in its Grab name). It cannot sell again: ask Grab for a new store.') }}
+          </p>
           <p v-if="current.binding && !current.binding.is_active && !current.is_off" class="text-amber-800">
             {{ current.binding.paused_until
               ? $t('Paused until :time.', { time: formatDateTime(current.binding.paused_until) })
@@ -509,8 +515,8 @@
             <span v-if="current.binding.pause_reason">{{ $t('Reason: :reason', { reason: current.binding.pause_reason }) }}</span>
           </p>
           <div class="flex flex-wrap gap-1">
-            <button v-if="current.binding" type="button" :class="[iconButton, tone.indigo]" @click="fromEdit(openMove)"><ArrowsRightLeftIcon class="h-4 w-4 shrink-0" />{{ $t('Move to another machine…') }}</button>
-            <button v-else type="button" :class="[iconButton, tone.green]" @click="fromEdit(openBind)"><PlusCircleIcon class="h-4 w-4 shrink-0" />{{ $t('Put on machine…') }}</button>
+            <button v-if="current.binding && !current.closed_by_grab" type="button" :class="[iconButton, tone.indigo]" @click="fromEdit(openMove)"><ArrowsRightLeftIcon class="h-4 w-4 shrink-0" />{{ $t('Move to another machine…') }}</button>
+            <button v-else-if="!current.closed_by_grab" type="button" :class="[iconButton, tone.green]" @click="fromEdit(openBind)"><PlusCircleIcon class="h-4 w-4 shrink-0" />{{ $t('Put on machine…') }}</button>
             <button v-if="current.binding" type="button" :class="[iconButton, tone.red]" @click="fromEdit(openUnbind)"><XCircleIcon class="h-4 w-4 shrink-0" />{{ $t('Remove from machine…') }}</button>
           </div>
         </div>
@@ -521,8 +527,8 @@
           <p class="text-xs text-gray-500">{{ $t('Pause = a short break; it comes back by itself at the time you set, or when you press Resume. Switch off = closed until someone switches it on.') }}</p>
           <div class="flex flex-wrap gap-1">
             <button v-if="current.binding && current.binding.is_active" type="button" :class="[iconButton, tone.amber]" @click="fromEdit(openPause)"><PauseIcon class="h-4 w-4 shrink-0" />{{ $t('Pause…') }}</button>
-            <button v-if="current.binding && !current.binding.is_active && !current.is_off" type="button" :class="[iconButton, tone.green]" @click="fromEdit(openResume)"><PlayIcon class="h-4 w-4 shrink-0" />{{ $t('Resume…') }}</button>
-            <button type="button" :class="[iconButton, current.is_off ? tone.green : tone.red]" @click="fromEdit(openSwitch)">
+            <button v-if="current.binding && !current.binding.is_active && !current.is_off && !current.closed_by_grab" type="button" :class="[iconButton, tone.green]" @click="fromEdit(openResume)"><PlayIcon class="h-4 w-4 shrink-0" />{{ $t('Resume…') }}</button>
+            <button v-if="!(current.is_off && current.closed_by_grab)" type="button" :class="[iconButton, current.is_off ? tone.green : tone.red]" @click="fromEdit(openSwitch)">
               <PowerIcon class="h-4 w-4 shrink-0" />{{ current.is_off ? $t('Switch on…') : $t('Switch off…') }}
             </button>
           </div>

@@ -74,6 +74,21 @@ class DeliveryPlatformRefNumber extends Model
     }
 
     /**
+     * Grab puts "[CLOSED]" in front of a store's name when it retires the store; such a
+     * store can never sell again (Brian, 2026-11-17). Read from the name the GrabMerchant
+     * check last saw, so it follows Grab, not a person.
+     */
+    public function isClosedByGrab(): bool
+    {
+        return self::nameMeansClosed($this->grab_store_name);
+    }
+
+    public static function nameMeansClosed(?string $grabStoreName): bool
+    {
+        return $grabStoreName !== null && str_starts_with(strtoupper(ltrim($grabStoreName)), '[CLOSED]');
+    }
+
+    /**
      * Grab Stores' status of the store: off (Inactive), no_machine, paused (its open link is off) or selling.
      * Reads the loaded openDeliveryProductMappingVends (Grab Stores, Grab Performance).
      */

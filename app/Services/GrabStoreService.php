@@ -179,6 +179,7 @@ class GrabStoreService
      */
     public function bind(DeliveryPlatformRefNumber $ref, Vend $vend, ?DeliveryProductMapping $template, ?int $userId, ?string $remarks = null): DeliveryProductMappingVend
     {
+        $this->assertNotClosedByGrab($ref, 'vend_code');
         $machineMenu = $this->willUseMachineMenu($ref);
         $template ??= $machineMenu ? $this->defaultTemplateFor((int) $ref->operator_id) : null;
         if (! $template) {
@@ -214,6 +215,9 @@ class GrabStoreService
     public function move(DeliveryProductMappingVend $current, Vend $vend, ?DeliveryProductMapping $template, ?int $userId, string $reason = 'moved', ?string $remarks = null): DeliveryProductMappingVend
     {
         $ref = $this->refOf($current);
+        if ($ref) {
+            $this->assertNotClosedByGrab($ref, 'vend_id');
+        }
         $template ??= $current->deliveryProductMapping;
 
         if ((int) $vend->id === (int) $current->vend_id && (int) $template->id === (int) $current->delivery_product_mapping_id) {
@@ -313,6 +317,9 @@ class GrabStoreService
 
     public function resume(DeliveryProductMappingVend $binding, ?int $userId, ?string $reason = null): DeliveryProductMappingVend
     {
+        if ($ref = $this->refOf($binding)) {
+            $this->assertNotClosedByGrab($ref, 'reason');
+        }
         $binding->forceFill([
             'is_active' => true,
             'paused_until' => null,
@@ -343,6 +350,8 @@ class GrabStoreService
             ->where('paused_until', '<=', Carbon::now())
             ->get();
 
+        // A store Grab has closed for good stays paused (resume() refuses it).
+        $due = $due->reject(fn ($binding) => $this->refOf($binding)?->isClosedByGrab());
         $due->each(fn ($binding) => $this->resume($binding, null, __('Pause time ended')));
 
         return $due->count();
@@ -354,6 +363,9 @@ class GrabStoreService
         $status = $active ? DeliveryPlatformRefNumber::STATUS_ACTIVE : DeliveryPlatformRefNumber::STATUS_INACTIVE;
         if ((int) $ref->status === $status) {
             return;
+        }
+        if ($active) {
+            $this->assertNotClosedByGrab($ref, 'active');
         }
 
         $ref->update(['status' => $status]);
@@ -555,6 +567,16 @@ class GrabStoreService
 
         if ($pauseOnGrab) {
             $this->safely(fn () => $this->deliveryPlatformService->pauseStore($binding), 'pause after unbind');
+        }
+    }
+
+    /** A store whose Grab name starts with "[CLOSED]" never sells again: no machine, no Switch on, no Resume. */
+    public function assertNotClosedByGrab(DeliveryPlatformRefNumber $ref, string $field): void
+    {
+        if ($ref->isClosedByGrab()) {
+            throw ValidationException::withMessages([
+                $field => __('Grab has closed store :ref for good ([CLOSED] in its Grab name). It cannot sell again: ask Grab for a new store.', ['ref' => $ref->ref_number]),
+            ]);
         }
     }
 

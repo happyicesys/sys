@@ -634,6 +634,7 @@ class GrabStoreController extends Controller
             'operator_id' => $ref->operator_id,
             'status' => $status,
             'is_off' => $isOff,
+            'closed_by_grab' => $ref->isClosedByGrab(),
             'bindings_count' => (int) $ref->bindings_count,
             'last_order_at' => $ref->last_order_at ? Carbon::parse($ref->last_order_at)->toIso8601String() : null,
             'orders_30d' => (int) $ref->orders_30d,
