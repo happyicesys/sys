@@ -6,3 +6,5 @@ starlette>=0.37.0
 # OAuth (Passport JWT) validation for the hosted connector.
 PyJWT>=2.8.0
 cryptography>=42.0.0
+# Only for ask_connectvend (answers from the code on the server); the tool says it is off without it.
+anthropic>=2.9.0

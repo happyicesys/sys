@@ -1071,14 +1071,9 @@ def how_to_guide(topic: str = "") -> str:
     return text + "\n\n---\n" + _GUIDE_NOTE
 
 
-@mcp.tool()
-def search_how_to(query: str, max_sections: int = 4) -> str:
-    """Search the ConnectVend how-to guide and return the best-matching screen
-    sections in full. Use words the person used, e.g. "refund", "add product
-    to machine", "voucher", "happy hour". Best for a specific "how do I ...?"."""
-    _ident, _err = _guard("search_how_to", query)
-    if _err:
-        return _err
+def _search_guide_text(query: str, max_sections: int = 4) -> str:
+    """Best-matching guide sections for `query`, as text (shared by
+    search_how_to and the Ask ConnectVend reader)."""
     stop = {
         "how", "do", "does", "did", "can", "could", "to", "the", "a", "an", "in", "on", "of",
         "for", "and", "or", "is", "are", "my", "me", "we", "our", "i", "it", "what", "where",
@@ -1115,6 +1110,36 @@ def search_how_to(query: str, max_sections: int = 4) -> str:
     scored.sort(key=lambda x: -x[0])
     out = [f"[{t} \u2192 {h}]\n{b}" for _s, t, h, b in scored[:max_sections]]
     return "\n\n=====\n\n".join(out) + "\n\n---\n" + _GUIDE_NOTE
+
+
+@mcp.tool()
+def search_how_to(query: str, max_sections: int = 4) -> str:
+    """Search the ConnectVend how-to guide and return the best-matching screen
+    sections in full. Use words the person used, e.g. "refund", "add product
+    to machine", "voucher", "happy hour". Best for a specific "how do I ...?"."""
+    _ident, _err = _guard("search_how_to", query)
+    if _err:
+        return _err
+    return _search_guide_text(query, max_sections)
+
+
+@mcp.tool()
+def ask_connectvend(question: str) -> str:
+    """Ask how to do something in ConnectVend when how_to_guide / search_how_to
+    do not answer it (or answer it only partly). Pass the person's question in
+    their own words and language, with any detail they gave (screen, machine
+    type, error message). The server checks the system itself and returns
+    plain-language steps (menu path, buttons, notes) - never code. Takes up to
+    about two minutes; there is a daily limit per person, so try the guide first."""
+    ident, _err = _guard("ask_connectvend", question)
+    if _err:
+        return _err
+    try:
+        import ask_connectvend as _ask
+    except Exception:
+        return "Ask ConnectVend is not installed on this server."
+    who = str((ident or {}).get("email") or (ident or {}).get("name") or (ident or {}).get("user_id") or "?")
+    return _ask.answer(question, who, AUDIT_PATH, lambda q: _search_guide_text(q, 4))
 
 
 def _build_http_app():

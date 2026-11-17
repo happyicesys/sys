@@ -15,7 +15,9 @@ Tools exposed: `data_dictionary`, `list_tables`, `describe_table`, `run_query`
 disabled unless its own column-scoped DB user is configured).
 
 Also `how_to_guide` / `search_how_to`: a plain-language guide to every
-ConnectVend screen (see "How-to guide" at the end).
+ConnectVend screen, and `ask_connectvend` for questions the guide misses
+(answered from the code on the server; only checked plain text comes back).
+See "How-to guide" at the end.
 
 ---
 
@@ -247,3 +249,28 @@ plain words from the code (writers follow `feature_guide/_STYLE.md`, which is
 not served). Claude answers "how do I ...?" from these. **The code itself is
 never served** — when a screen changes, update its section here in the same
 commit. Files starting with `_` are not served.
+
+### Ask ConnectVend (questions the guide does not answer)
+
+`ask_connectvend(question)` (`ask_connectvend.py`) answers from the code **on
+the server**: a separate Claude reads this checkout with read-only tools
+(`app/`, `routes/`, `resources/js|views/`, `config/`, `lang/`, the role seeder,
+the guide — never `.env`, storage, vendor or tests) and writes plain steps.
+Before anything leaves, `leaks()` refuses an answer carrying code, file names
+or paths, snake_case names (tables, columns, permission keys), class names
+found in `app/` / `resources/js/`, or `UPPER_SNAKE` settings; one rewrite is
+asked for, then the person gets "I couldn't answer that in plain words". The
+person's Claude only ever receives that checked text.
+
+- Key: `ANTHROPIC_API_KEY` in the daemon's env, else that one line of the
+  site's `.env`. No key, or `MARK1_MCP_ASK=0` → the tool says it is off.
+- Model `MARK1_MCP_ASK_MODEL` (default `claude-opus-5-5`, effort `medium`),
+  at most `MARK1_MCP_ASK_MAX_TURNS` (10) turns / `MARK1_MCP_ASK_TIME_BUDGET`
+  (100 s), then it must answer from what it found.
+- Limits: `MARK1_MCP_ASK_DAILY_PER_USER` (20 questions a person a day) and
+  `MARK1_MCP_ASK_MONTHLY_USD` (US$30 a month per server, estimated from token
+  usage), kept in `mcp-ask-usage.json` beside the audit log.
+- Every question, answer, cost and the files it searched: `mcp-ask-log.jsonl`
+  beside the audit log (600). The audit log records the call as usual.
+- Needs `anthropic` in the daemon's venv (`pip install anthropic==2.9.0`),
+  then a daemon restart.
