@@ -988,6 +988,215 @@ def apply_route_sequence(ops_job_id: int, stops: list, dry_run: bool = False) ->
     return json.dumps(result, indent=2)
 
 
+# --------------------------------------------------------------------------- #
+# Source tools (optional): let Claude read the app's own code to answer
+# "how do I ... in ConnectVend?" questions. OFF unless MARK1_MCP_SOURCE_TOOLS=1,
+# so a server that does not opt in exposes nothing new.
+#
+# Safety:
+#   - Only an allowlist of folders and code file types is served (no .env, no
+#     storage/, vendor/, keys, .git, root-level *.md notes, debug scripts).
+#   - Every path is resolved and must stay inside an allowed folder (no ../,
+#     no symlink escape).
+#   - Served text is redacted: the default machine frame key, anything that
+#     looks like a long random key string, and default values of env() secrets.
+#   - Read-only, size-capped, audited like every other tool.
+# --------------------------------------------------------------------------- #
+SOURCE_TOOLS_ENABLED = os.getenv("MARK1_MCP_SOURCE_TOOLS", "").strip().lower() in ("1", "true", "yes", "on")
+SOURCE_ROOT = os.path.realpath(
+    os.getenv("MARK1_MCP_SOURCE_ROOT", os.path.join(os.path.dirname(__file__), ".."))
+)
+_SOURCE_DIRS = (
+    "app", "routes", "resources/js", "resources/views", "lang", "config",
+    "database/migrations",
+)
+_SOURCE_EXTS = (".php", ".vue", ".js", ".ts", ".json")
+_SOURCE_SKIP_PARTS = {"node_modules", "vendor", ".git", "storage", "public"}
+_SOURCE_MAX_FILE_BYTES = 1_500_000
+_SOURCE_MAX_READ_LINES = 400
+_SOURCE_CACHE_SECONDS = 300
+
+_REDACT_PATTERNS = [
+    # Default machine frame key (config/vend.php) and its many inline copies.
+    re.compile(r"123456789110138A"),
+    # env('SOMETHING_KEY|SECRET|PASS|TOKEN', 'default') -> hide the default.
+    re.compile(
+        r"(env\(\s*['\"][A-Z0-9_]*(?:KEY|SECRET|PASS|PASSWORD|TOKEN)[A-Z0-9_]*['\"]\s*,\s*)(['\"])[^'\"]+\2"
+    ),
+    # Long random-looking quoted strings (keys, hashes, tokens).
+    re.compile(r"(['\"])(?=[A-Za-z0-9+/=]*\d[A-Za-z0-9+/=]*\d)(?=[A-Za-z0-9+/=]*[A-Za-z])[A-Za-z0-9+/=]{16,}\1"),
+    re.compile(r"-----BEGIN [A-Z ]+-----"),
+]
+
+
+def _redact(text: str) -> str:
+    out = _REDACT_PATTERNS[0].sub("[REDACTED]", text)
+    out = _REDACT_PATTERNS[1].sub(lambda m: f"{m.group(1)}{m.group(2)}[REDACTED]{m.group(2)}", out)
+    out = _REDACT_PATTERNS[2].sub(lambda m: f"{m.group(1)}[REDACTED]{m.group(1)}", out)
+    out = _REDACT_PATTERNS[3].sub("[REDACTED]", out)
+    return out
+
+
+_source_index: dict = {"at": 0.0, "files": []}
+
+
+def _source_files() -> list:
+    """Relative paths (forward slashes) of every servable file, cached briefly."""
+    import time
+
+    now = time.time()
+    if _source_index["files"] and now - _source_index["at"] < _SOURCE_CACHE_SECONDS:
+        return _source_index["files"]
+    files = []
+    for top in _SOURCE_DIRS:
+        base = os.path.join(SOURCE_ROOT, top)
+        if not os.path.isdir(base):
+            continue
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = sorted(d for d in dirnames if d not in _SOURCE_SKIP_PARTS and not d.startswith("."))
+            for name in sorted(filenames):
+                if not name.endswith(_SOURCE_EXTS) or name.startswith("."):
+                    continue
+                full = os.path.join(dirpath, name)
+                if os.path.islink(full):
+                    continue
+                files.append(os.path.relpath(full, SOURCE_ROOT).replace(os.sep, "/"))
+    _source_index["files"] = files
+    _source_index["at"] = now
+    return files
+
+
+def _source_resolve(path: str):
+    """Return (absolute path, relative path) for an allowed file, else (None, error)."""
+    rel = (path or "").strip().lstrip("/").replace("\\", "/")
+    if not rel:
+        return None, "Give a file path, e.g. resources/js/Layouts/Authenticated.vue"
+    full = os.path.realpath(os.path.join(SOURCE_ROOT, rel))
+    if not full.startswith(SOURCE_ROOT + os.sep):
+        return None, "That path is outside the app."
+    rel = os.path.relpath(full, SOURCE_ROOT).replace(os.sep, "/")
+    if rel not in set(_source_files()):
+        return None, (
+            "Not an allowed source file. Allowed: "
+            + ", ".join(_SOURCE_DIRS) + " (" + ", ".join(_SOURCE_EXTS) + "). "
+            "Use source_list or source_search to find the right path."
+        )
+    return full, rel
+
+
+_SOURCE_GUIDE = (
+    "How to answer 'how do I ...' questions from the code: the main menu is "
+    "resources/js/Layouts/Authenticated.vue (menu labels + which permission shows "
+    "each item); URLs map to controllers in routes/web.php; each screen is a Vue "
+    "page under resources/js/Pages/; button labels and form fields are in that "
+    "page. Answer the person in plain words with the menu path and the buttons "
+    "they press, never paste code, and call the system ConnectVend. Some menus "
+    "need a permission or exist only for some countries/operators; when unsure, "
+    "say so instead of guessing."
+)
+
+
+def source_list(path_prefix: str = "", limit: int = 300) -> str:
+    """List the app's source files whose path starts with `path_prefix`
+    (e.g. "resources/js/Pages/OpsJob"). Use with source_search / source_read to
+    work out how a ConnectVend screen or feature is used."""
+    _ident, _err = _guard("source_list", path_prefix)
+    if _err:
+        return _err
+    prefix = (path_prefix or "").strip().lstrip("/")
+    limit = max(1, min(int(limit or 300), 1000))
+    matches = [f for f in _source_files() if f.startswith(prefix)]
+    return json.dumps(
+        {"total": len(matches), "shown": min(len(matches), limit), "files": matches[:limit],
+         "guide": _SOURCE_GUIDE},
+        indent=2,
+    )
+
+
+def source_search(pattern: str, path_prefix: str = "", regex: bool = False, max_results: int = 80) -> str:
+    """Search the app's source code for text (case-insensitive) and return
+    file:line matches. Set regex=true for a regular expression. Narrow with
+    path_prefix, e.g. "resources/js/Pages" for screens or "routes" for URLs.
+    Use this to answer how-to questions about ConnectVend features."""
+    _ident, _err = _guard("source_search", f"{path_prefix} :: {pattern}")
+    if _err:
+        return _err
+    if not pattern or len(pattern) < 2:
+        return json.dumps({"error": "Give at least 2 characters to search for."})
+    try:
+        rx = re.compile(pattern if regex else re.escape(pattern), re.IGNORECASE)
+    except re.error as e:
+        return json.dumps({"error": f"Bad regular expression: {e}"})
+    prefix = (path_prefix or "").strip().lstrip("/")
+    max_results = max(1, min(int(max_results or 80), 300))
+    hits, files_hit, truncated = [], 0, False
+    for rel in _source_files():
+        if not rel.startswith(prefix):
+            continue
+        full = os.path.join(SOURCE_ROOT, rel)
+        try:
+            if os.path.getsize(full) > _SOURCE_MAX_FILE_BYTES:
+                continue
+            with open(full, "r", encoding="utf-8", errors="replace") as fh:
+                lines = fh.readlines()
+        except OSError:
+            continue
+        hit_here = False
+        for i, line in enumerate(lines, 1):
+            # Match the REDACTED text, so a search can never probe a hidden
+            # value character by character.
+            text = _redact(line.rstrip("\n").strip())
+            if rx.search(text):
+                if len(text) > 240:
+                    text = text[:240] + "…"
+                hits.append(f"{rel}:{i}: {text}")
+                hit_here = True
+                if len(hits) >= max_results:
+                    truncated = True
+                    break
+        files_hit += hit_here
+        if truncated:
+            break
+    return json.dumps(
+        {"matches": len(hits), "files": files_hit, "truncated": truncated, "results": hits,
+         "guide": _SOURCE_GUIDE},
+        indent=2,
+    )
+
+
+def source_read(path: str, start_line: int = 1, end_line: int = 0) -> str:
+    """Read lines of one app source file (line-numbered, at most 400 lines per
+    call; end_line=0 means start_line+399). Secrets are redacted. Use it to see
+    a screen's buttons/fields or what a controller action does."""
+    _ident, _err = _guard("source_read", f"{path} {start_line}-{end_line}")
+    if _err:
+        return _err
+    full, rel = _source_resolve(path)
+    if not full:
+        return json.dumps({"error": rel})
+    try:
+        with open(full, "r", encoding="utf-8", errors="replace") as fh:
+            lines = fh.readlines()
+    except OSError as e:
+        return json.dumps({"error": f"Could not read {rel}: {e.strerror}"})
+    total = len(lines)
+    start = max(1, int(start_line or 1))
+    end = int(end_line or 0) or start + _SOURCE_MAX_READ_LINES - 1
+    end = min(end, start + _SOURCE_MAX_READ_LINES - 1, total)
+    if start > total:
+        return json.dumps({"error": f"{rel} has only {total} lines."})
+    body = "".join(f"{n:>5}  {lines[n - 1]}" for n in range(start, end + 1))
+    header = f"{rel}  (lines {start}-{end} of {total})\n"
+    more = f"\n... {total - end} more lines; call again with start_line={end + 1}\n" if end < total else ""
+    return header + _redact(body) + more
+
+
+if SOURCE_TOOLS_ENABLED:
+    mcp.tool()(source_list)
+    mcp.tool()(source_search)
+    mcp.tool()(source_read)
+
+
 def _build_http_app():
     """Wrap the streamable-HTTP MCP app with bearer-token auth. Each request must
     carry `Authorization: Bearer <token>` (or `X-MCP-Token`); the token is

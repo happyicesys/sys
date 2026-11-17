@@ -14,6 +14,10 @@ Tools exposed: `data_dictionary`, `list_tables`, `describe_table`, `run_query`
 `apply_route_sequence` (ops-job route planning — see "Route writing" below;
 disabled unless its own column-scoped DB user is configured).
 
+Optional, off by default: `source_list`, `source_search`, `source_read` — read
+the app's own code so Claude can answer "how do I ... in ConnectVend?" (see
+"Source tools" at the end).
+
 ---
 
 ## 1. Create a read-only MySQL user (the real safety guarantee)
@@ -232,3 +236,29 @@ the row (or deactivate the user) and both auth methods die.
 
 Deploy notes: `php artisan migrate` not needed (no new tables); if config is
 cached run `php artisan config:cache` after deploy; restart the mcp daemon.
+
+
+---
+
+## Source tools (optional, off by default)
+
+Set `MARK1_MCP_SOURCE_TOOLS=1` in the server's env and restart the daemon to add
+three read-only tools: `source_list`, `source_search` (case-insensitive text or
+regex, file:line results) and `source_read` (≤400 numbered lines per call). They
+let Claude work out how a screen is used from the menu
+(`resources/js/Layouts/Authenticated.vue`), `routes/web.php` and the Vue pages,
+and answer in plain words.
+
+Guards:
+- Only `app/`, `routes/`, `resources/js/`, `resources/views/`, `lang/`,
+  `config/`, `database/migrations/` and only `.php .vue .js .ts .json` files.
+  No `.env`, `storage/`, `vendor/`, keys, `.git`, root-level notes, `mcp/`,
+  `debug_scripts/`. Paths are resolved, so `../` and symlinks cannot escape.
+- Output is redacted: the default machine frame key, long random-looking quoted
+  strings, and the default value of any `env('...KEY|SECRET|PASS|TOKEN', ...)`.
+- Audited like every other tool (`source_*` lines in the audit log).
+- `MARK1_MCP_SOURCE_ROOT` overrides the app root (default: the folder above
+  `mcp/`).
+
+Enabled on: IDN (2026-11-17). Not on SG or LSH. Anyone holding a token for a
+server with it on can read that code.
