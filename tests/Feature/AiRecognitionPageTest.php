@@ -103,6 +103,19 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.0.own_ai.result_at', fn ($at) => (bool) preg_match('/^\d\d:\d\d:\d\d$/', (string) $at))
                 // only plain numbers under plain names reach the hover
                 ->where('recognitions.data.0.own_ai.stages', ['export' => 4.3, 'hand_tracking' => 0]));
+
+        // The AI Dashboard box is HappyIce AI vs Zijia (Brian, 2026-11-19): the Mac's answer is ours, and a Claude count
+        // of the same session does not count twice; the mini matched the paid order and was sure, so it would settle.
+        \App\Models\SmartFreezerClaudeRecognition::create(['smart_freezer_recognition_id' => $r->id, 'status' => 'done',
+            'items' => [$magnum->id => 3], 'verdict' => 'took_more', 'needs_review' => true, 'cost_usd_micros' => 139_200]);
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('dashboard.happyice.ours_answered', 1)
+                ->where('dashboard.happyice.by_mac', 1)
+                ->where('dashboard.happyice.by_claude', 0)
+                ->where('dashboard.happyice.ours_match_paid', 1)
+                ->where('dashboard.happyice.together_settle', 1)
+                ->where('dashboard.happyice.together_judged', 1));
     }
 
     public function test_it_needs_its_permission(): void

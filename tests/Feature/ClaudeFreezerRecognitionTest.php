@@ -847,17 +847,17 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $this->actingAs($user)->get('/ai-recognition')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.claude.combined.outcome', CombinedCount::SETTLE)
-                ->where('recognitions.data.0.claude.unusual', [])
-                ->where('dashboard.claude.combined_judged', 1)
-                ->where('dashboard.claude.combined_settle', 1)
-                ->where('dashboard.claude.combined_settle_checked', 0));
+                ->where('recognitions.data.0.claude.unusual', []));
+        // The dashboard box is HappyIce AI vs Zijia now (2026-11-19); the Claude-only figures stay in the command's report.
+        $summary = ClaudeZijiaComparison::summarise(ClaudeRow::with('recognition')->get());
+        $this->assertSame([1, 1, 0], [$summary['combined_judged'], $summary['combined_settle'], $summary['combined_settle_checked']]);
 
         ClaudeRow::query()->update(['answer' => ['notes' => 'x', 'unknown_items' => [], 'unusual' => [['kind' => 'put_back', 'at_seconds' => 4.0, 'description' => 'Put one back.']]]]);
         $this->actingAs($user)->get('/ai-recognition')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('recognitions.data.0.claude.combined.outcome', CombinedCount::PERSON)
-                ->where('recognitions.data.0.claude.unusual.0.kind', 'put_back')
-                ->where('dashboard.claude.claude_unusual', 1));
+                ->where('recognitions.data.0.claude.unusual.0.kind', 'put_back'));
+        $this->assertSame(1, ClaudeZijiaComparison::summarise(ClaudeRow::with('recognition')->get())['claude_unusual']);
     }
 
     public function test_ai_recognition_shows_claude_beside_zijia(): void
@@ -875,8 +875,12 @@ class ClaudeFreezerRecognitionTest extends TestCase
                 ->where('recognitions.data.0.claude.items.0.name', 'Basque Cheesecake')
                 ->where('recognitions.data.0.claude.same_as_zijia', true)
                 ->where('recognitions.data.0.claude.cost_text', 'S$0.18')
-                ->where('dashboard.claude.agree', 1)
-                ->where('dashboard.claude.claude_match_paid', 1));
+                // Claude counted where no Mac did: HappyIce AI's answer is Claude's (2026-11-19)
+                ->where('dashboard.happyice.by_claude', 1)
+                ->where('dashboard.happyice.by_mac', 0)
+                ->where('dashboard.happyice.agree', 1)
+                ->where('dashboard.happyice.ours_match_paid', 1)
+                ->where('dashboard.happyice.cost_text', 'S$0.18'));
     }
 
     public function test_an_admin_picks_the_model_others_only_see_it_and_the_pick_is_what_is_sent(): void

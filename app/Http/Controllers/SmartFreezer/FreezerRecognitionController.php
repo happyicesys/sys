@@ -27,6 +27,7 @@ use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\FreezerDoorTimeline;
 use App\Services\SmartFreezer\FreezerRecognitionService;
 use App\Services\SmartFreezer\FreezerSaleLocator;
+use App\Services\SmartFreezer\OwnAi\HappyIceZijiaComparison;
 use App\Services\SmartFreezer\OwnAi\OwnAiLink;
 use App\Services\SmartFreezer\PersonCount;
 use App\Services\SmartFreezer\RecognitionBadges;
@@ -258,7 +259,7 @@ class FreezerRecognitionController extends Controller
     {
         $rows = $query->reorder()
             ->setEagerLoads(['vendTransaction' => fn ($sale) => $sale->select(['id', 'amount', 'is_refunded', 'settlement_status', 'meta_json', 'vend_transaction_json'])])
-            ->get(['id', 'vend_id', 'session_ref', 'vend_transaction_id', 'verdict', 'verdict_lines']);
+            ->get(['id', 'vend_id', 'session_ref', 'vend_transaction_id', 'verdict', 'verdict_lines', 'created_at']);
         $failed = $this->failedSessions($rows);
         $cards = $this->cardCharges($rows, $failed);
         $doorErrors = $this->doorErrors($rows);
@@ -315,10 +316,9 @@ class FreezerRecognitionController extends Controller
             'invoice_scanned' => $invoiceScanned,
             'invoice_scanned_pct' => $invoiceSales > 0 ? round($invoiceScanned / $invoiceSales * 100, 2) : null,
             'invoice_final_seen' => $invoiceFinalSeen,
-            // Claude beside Zijia on the same sessions (shadow only); null until any session has a Claude row.
-            'claude' => ($claude = SmartFreezerClaudeRecognition::with('recognition')->whereIn('smart_freezer_recognition_id', $rows->pluck('id'))->get())->isEmpty()
-                ? null
-                : ClaudeZijiaComparison::summarise($claude),
+            // HappyIce AI (the office Mac's answer, else Claude's where it counted) beside Zijia on the same sessions
+            // (Brian, 2026-11-19, was "Claude vs Zijia"; shadow only); null until any session has an answer of ours.
+            'happyice' => app(HappyIceZijiaComparison::class)->summarise($rows),
         ];
     }
 

@@ -1946,6 +1946,11 @@ broker. `App\Services\SmartFreezer\OwnAi\OwnAiLink` is the one rule and the only
   the paid order (`OwnAiLink::verdict`, RecognitionVerdict's rule, computed on the page from the TRADE's `transf_info`), the
   items, how sure, auto-accepted or "a person should check", same as Zijia / the person, and which Mac answered; Claude's count
   underneath when Claude was called. The column shows while `FREEZER_AI_LINK` or `CLAUDE_FREEZER_AI` is on.
+- **AI Dashboard box "HappyIce AI vs Zijia (trial)"** (Brian, 2026-11-19, was "Claude vs Zijia"; `HappyIceZijiaComparison`):
+  our side as a whole — the Mac's preferred answer, else Claude's count where Claude counted instead, never both — against
+  Zijia on the same sessions: who answered (Mac / Claude), matches paid, right by a person, same count, and "together would
+  settle" (Zijia matched, or ours matched and was sure), with the Claude cost. The Claude-only figures (Zijia units + Claude
+  names) stay in `smart-freezer:claude-recognition --report` (`ClaudeZijiaComparison`).
 - **Claude only when neither Zijia nor ours settles a session** (Brian, 2026-11-19). With `only_when_needed`, `needed()` skips
   Claude when Zijia matched (`ZIJIA_MATCHED`) or when our AI's preferred answer equals the paid order and was auto-accepted
   (`OWN_AI_MATCHED`, `OwnAiLink::settled`); it waits up to `wait_for_own_ai_minutes` (5) for our answer, as it waits for Zijia.
