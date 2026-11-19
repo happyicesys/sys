@@ -639,12 +639,16 @@
                       <span v-if="row.own_ai.same_as_person === true" class="font-semibold text-green-700">{{ $t('Same as the person\'s count') }}</span>
                       <span v-else-if="row.own_ai.same_as_person === false" class="font-semibold text-red-700">{{ $t('Differs from the person\'s count') }}</span>
                       <span v-if="row.own_ai.auto === false" class="w-fit cursor-help text-amber-800" tabindex="0" v-tooltip="row.own_ai.why_person || ''">{{ $t('Mac AI: a person should check') }}</span>
-                      <span v-if="row.own_ai.compute_seconds !== null" class="w-fit cursor-help text-gray-500" tabindex="0" v-tooltip="ownAiTimeTip(row.own_ai)">{{ $t('Counted in :seconds s', { seconds: row.own_ai.compute_seconds }) }}</span>
-                      <span v-else class="w-fit cursor-help text-gray-400" tabindex="0" v-tooltip="$t('Counted in the nightly run with many other sessions, so it has no time of its own.')">{{ $t('Counted overnight') }}</span>
                       <span class="flex items-baseline justify-between gap-2 text-gray-500">
                         <span v-if="row.own_ai.confidence !== null">{{ $t('sure :pct%', { pct: row.own_ai.confidence }) }}</span>
                         <span class="cursor-help" tabindex="0" v-tooltip="row.own_ai.model || ''">{{ row.own_ai.worker === 'mini' ? $t('Mac mini') : row.own_ai.worker === 'm1' ? $t('MacBook') : row.own_ai.worker }}</span>
                       </span>
+                      <!-- the same shape as the session's own time cell: result time, then Δ = the Mac's counting time in seconds -->
+                      <div class="flex flex-col text-[11px] leading-tight text-gray-500">
+                        <span v-if="row.own_ai.result_at" class="whitespace-nowrap" :title="$t('When the Mac AI answer came back')">{{ $t('result :time', { time: row.own_ai.result_at }) }}</span>
+                        <span v-if="row.own_ai.compute_seconds !== null" class="w-fit cursor-help whitespace-nowrap" tabindex="0" v-tooltip="ownAiTimeTip(row.own_ai)">Δ {{ row.own_ai.compute_seconds }}s</span>
+                        <span v-else class="w-fit cursor-help whitespace-nowrap" tabindex="0" v-tooltip="$t('Counted in the nightly run with many other sessions, so it has no time of its own.')">Δ {{ $t('overnight') }}</span>
+                      </div>
                     </div>
                     <span v-else-if="ownAiColumn" class="text-gray-400" tabindex="0" v-tooltip="$t('Mac AI has not answered this session.')">—</span>
                     <div v-if="row.claude" :class="['flex w-56 flex-col gap-1', row.own_ai || ownAiColumn ? 'mt-2 border-t border-violet-200 pt-2' : '']">
@@ -995,6 +999,7 @@ const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => ({ '&': '&a
 const ownAiTimeTip = (own) => ({
   html: true,
   content: [
+    t('How long the Mac took to count it: :seconds s', { seconds: own.compute_seconds }),
     ...Object.entries(own.stages || {}).map(([name, s]) => `${ownAiStageLabels[name] ? t(ownAiStageLabels[name]) : name}: ${s}s`),
     ...(own.seconds !== null ? [t('Answer reached ConnectVend :time after the videos did', { time: shortDuration(own.seconds) })] : []),
   ].map(escapeHtml).join('<br>'),

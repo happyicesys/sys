@@ -99,6 +99,8 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.0.own_ai.confidence', 88)
                 ->where('recognitions.data.0.own_ai.compute_seconds', 9.1)
                 ->where('recognitions.data.0.own_ai.seconds', 72)
+                // the session's own day: the time alone, like the session cell's "result 12:53:50"
+                ->where('recognitions.data.0.own_ai.result_at', fn ($at) => (bool) preg_match('/^\d\d:\d\d:\d\d$/', (string) $at))
                 // only plain numbers under plain names reach the hover
                 ->where('recognitions.data.0.own_ai.stages', ['export' => 4.3, 'hand_tracking' => 0]));
     }

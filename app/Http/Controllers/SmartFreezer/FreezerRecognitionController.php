@@ -444,6 +444,10 @@ class FreezerRecognitionController extends Controller
             'seconds' => $answer->latency_ms !== null ? (int) round($answer->latency_ms / 1000) : null,
             // how long the Mac took to count it, and the stages that time went on (Brian, 2026-11-19)
             'compute_seconds' => $answer->compute_ms !== null ? round($answer->compute_ms / 1000, 1) : null,
+            // when the answer came back: the time alone on the session's own day, else with its date (catch-ups)
+            'result_at' => $answer->received_at?->format(
+                $r->created_at && $answer->received_at->isSameDay($r->created_at) ? 'H:i:s' : 'Y-m-d H:i:s'
+            ),
             'stages' => $link->stages($answer),
         ];
     }
