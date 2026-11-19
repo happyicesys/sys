@@ -468,7 +468,7 @@
                       <span v-if="row.completed_at" class="text-xs text-gray-500" :title="$t('When the AI result came back')">
                         {{ $t('result :time', { time: row.completed_at.substring(11) }) }}
                       </span>
-                      <span v-if="row.result_seconds !== null" class="text-xs text-gray-500 whitespace-nowrap" tabindex="0" v-tooltip="$t('How long the AI result took, from when the videos reached us')">Δ {{ durationText(row.result_seconds) }}</span>
+                      <span v-if="row.result_seconds !== null" class="text-xs text-gray-500 whitespace-nowrap" tabindex="0" v-tooltip="$t('How long the AI result took, from when the videos reached us')">Δ {{ shortDuration(row.result_seconds) }}</span>
                     </div>
                     <div class="mt-2 flex flex-col space-y-1 text-xs">
                       <a v-for="(url, urlIndex) in row.videos" :key="url" :href="row.video_links?.[url]?.href ?? url" target="_blank" rel="noopener noreferrer"
@@ -891,6 +891,13 @@ const verdictLabels = {
 // What a verdict symbol means, on the line's hover and in the legend.
 // "0d 0h 4m", whole minutes rounded down.
 const durationText = (seconds) => `${Math.floor(seconds / 86400)}d ${Math.floor(seconds % 86400 / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`
+// Δ in seconds (Brian, 2026-11-19: "0d 0h 0m" said nothing for a 47 s result): leading zero units dropped
+const shortDuration = (seconds) => {
+  const s = Math.max(0, Math.round(seconds))
+  const parts = [[Math.floor(s / 86400), 'd'], [Math.floor(s % 86400 / 3600), 'h'], [Math.floor(s % 3600 / 60), 'm'], [s % 60, 's']]
+  const first = parts.findIndex(([n]) => n > 0)
+  return first === -1 ? '0s' : parts.slice(first).map(([n, unit]) => `${n}${unit}`).join(' ')
+}
 
 const CHECK_KINDS = {
   ok: { meaning: tk('Paid and taken') },
@@ -992,9 +999,7 @@ const ownAiStageLabels = {
   v6: tk('Counting'),
   blocked_check: tk('Checking the camera was not blocked'),
 }
-const shortDuration = (seconds) => seconds < 60
-  ? `${seconds}s`
-  : seconds < 3600 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : durationText(seconds)
+
 const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 const ownAiTimeTip = (own) => ({
   html: true,
