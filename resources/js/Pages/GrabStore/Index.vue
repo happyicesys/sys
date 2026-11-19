@@ -584,7 +584,7 @@
             <option v-if="current?.operator && !operatorOptions.some(option => option.id === current.operator_id)" :value="current.operator_id">{{ current.operator.name }}</option>
             <option v-for="option in operatorOptions" :key="option.id" :value="option.id">{{ option.full_name ?? option.name }}</option>
           </select>
-          <p v-if="current?.binding" class="text-xs text-gray-500 mt-1">{{ $t('Take the store off its machine to change the operator: the operator decides which Grab account serves it.') }}</p>
+          <p v-if="current?.binding" class="text-xs text-gray-500 mt-1">{{ $t('The operator follows the machine this store sells from. To change it, put the store on a machine of another operator.') }}</p>
           <InputError :message="editForm.errors.operator_id" />
         </div>
         <div>

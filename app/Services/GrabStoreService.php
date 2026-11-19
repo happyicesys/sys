@@ -8,6 +8,7 @@ use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatformStoreEvent;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
+use App\Models\Operator;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -162,6 +163,8 @@ class GrabStoreService
         $mostUsed = DeliveryProductMappingVend::query()->withoutGlobalScopes()
             ->whereNull('end_date')
             ->whereHas('deliveryPlatformRefNumber', fn ($query) => $query->where('operator_id', $operatorId))
+            // Only the operator's own templates: a store that just took this operator still sits on its old one.
+            ->whereIn('delivery_product_mapping_id', DeliveryProductMapping::query()->withoutGlobalScopes()->where('operator_id', $operatorId)->select('id'))
             ->selectRaw('delivery_product_mapping_id, COUNT(*) AS n')
             ->groupBy('delivery_product_mapping_id')
             ->orderByDesc('n')
@@ -174,13 +177,59 @@ class GrabStoreService
     }
 
     /**
+     * A store's operator follows the machine it sells from (Brian, 2026-11-19): put on, or moved to, a machine of
+     * another operator, the store becomes that operator's, so its menu, prices and staff filters follow the machine.
+     * Every operator shares the one Grab partner account, so Grab sees no change. Refused when the machine's operator
+     * has no Grab account in ConnectVend. The checks bind/move would fail on run first, so a refused bind changes
+     * nothing. Pass the open binding when moving. Returns true when the operator changed.
+     */
+    public function followMachineOperator(DeliveryPlatformRefNumber $ref, Vend $vend, ?int $userId, ?DeliveryProductMappingVend $moving = null): bool
+    {
+        $machineOperator = (int) $vend->operator_id;
+        $storeOperator = (int) $ref->operator_id;
+        if (! $machineOperator || $machineOperator === $storeOperator) {
+            return false;
+        }
+
+        $field = $moving ? 'vend_id' : 'vend_code';
+        $this->assertNotClosedByGrab($ref, $field);
+        if (! $moving) {
+            $this->assertStoreFree($ref);
+        }
+        if (! $moving || (int) $moving->vend_id !== (int) $vend->id) {
+            $this->assertMachineFree($vend, $ref);
+        }
+        $operator = Operator::query()->withoutGlobalScopes()->find($machineOperator);
+        if (! $this->grabAccountFor($machineOperator)) {
+            throw ValidationException::withMessages([
+                $field => __('Machine :code belongs to :operator, which has no Grab account in ConnectVend.', [
+                    'code' => $vend->code,
+                    'operator' => $operator?->code ?? '#'.$machineOperator,
+                ]),
+            ]);
+        }
+
+        $ref->forceFill(['operator_id' => $machineOperator])->save();
+        $this->event($ref, DeliveryPlatformStoreEvent::EVENT_EDITED, $userId, null, __('Operator follows machine :code', ['code' => $vend->code]), [
+            'operator_id' => ['from' => $storeOperator, 'to' => $machineOperator],
+        ]);
+
+        return true;
+    }
+
+    /**
      * Put a store on a machine. Refuses a store already open on a machine (use move)
-     * and a machine already carrying another store.
+     * and a machine already carrying another store. The store takes the machine's operator.
      */
     public function bind(DeliveryPlatformRefNumber $ref, Vend $vend, ?DeliveryProductMapping $template, ?int $userId, ?string $remarks = null): DeliveryProductMappingVend
     {
         $this->assertNotClosedByGrab($ref, 'vend_code');
+        $this->followMachineOperator($ref, $vend, $userId);
         $machineMenu = $this->willUseMachineMenu($ref);
+        // A template picked for the store's old operator does not fit its new one; a machine-menu store takes the usual one.
+        if ($template && $machineMenu && (int) $template->operator_id !== (int) $ref->operator_id) {
+            $template = null;
+        }
         $template ??= $machineMenu ? $this->defaultTemplateFor((int) $ref->operator_id) : null;
         if (! $template) {
             throw ValidationException::withMessages(['delivery_product_mapping_id' => __('Pick a Grab template.')]);
@@ -218,7 +267,16 @@ class GrabStoreService
         if ($ref) {
             $this->assertNotClosedByGrab($ref, 'vend_id');
         }
-        $template ??= $current->deliveryProductMapping;
+        // Onto another operator's machine the store becomes that operator's (the Move window may have done it already).
+        $operatorChanged = $ref && $this->followMachineOperator($ref, $vend, $userId, $current);
+        // Unscoped: HIPL staff move client operators' stores, whose templates their operator scope hides.
+        $template ??= DeliveryProductMapping::query()->withoutGlobalScopes()->find($current->delivery_product_mapping_id);
+        // Its old operator's template no longer fits: a machine-menu store takes the new operator's usual one.
+        if ($ref && $template && (int) $template->operator_id !== (int) $ref->operator_id && $this->willUseMachineMenu($ref->fresh())) {
+            $template = $this->defaultTemplateFor((int) $ref->operator_id) ?? $template;
+        } elseif ($operatorChanged && (int) $template->operator_id !== (int) $ref->operator_id) {
+            throw ValidationException::withMessages(['delivery_product_mapping_id' => __('Pick a Grab template.')]);
+        }
 
         if ((int) $vend->id === (int) $current->vend_id && (int) $template->id === (int) $current->delivery_product_mapping_id) {
             throw ValidationException::withMessages(['vend_id' => __('The store is already on this machine.')]);
@@ -427,7 +485,7 @@ class GrabStoreService
 
         if ($operatorId !== (int) $ref->operator_id && $ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->exists()) {
             throw ValidationException::withMessages([
-                'operator_id' => __('Take the store off its machine first: the operator decides which Grab account serves it.'),
+                'operator_id' => __('Take the store off its machine first: a store on a machine takes the operator of that machine.'),
             ]);
         }
 

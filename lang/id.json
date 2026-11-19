@@ -6003,8 +6003,6 @@
     "Take the before restock photo first": "Ambil foto sebelum isi ulang terlebih dahulu",
     "Take the before restock photo first (open the item)": "Ambil foto sebelum isi ulang terlebih dahulu (buka item)",
     "Take the BEFORE restock photo first — then Open Door.": "Ambil foto SEBELUM isi ulang dulu — lalu Buka Pintu.",
-    "Take the store off its machine first: the operator decides which Grab account serves it.": "Lepas dulu toko dari mesinnya: operator menentukan akun Grab mana yang melayani toko ini.",
-    "Take the store off its machine to change the operator: the operator decides which Grab account serves it.": "Lepas toko dari mesinnya untuk mengganti operator: operator menentukan akun Grab mana yang melayani toko ini.",
     "Take the store off machine :code too? It keeps selling from machine :live, and its promotions stay.": "Lepas juga toko dari mesin :code? Toko tetap menjual dari mesin :live, dan promosinya tetap.",
     "Taken": "Diambil",
     "Taken off by :name": "Dilepas oleh :name",
@@ -7077,5 +7075,10 @@
     "🔁 Re-match Order ID": "🔁 Cocokkan Ulang Order ID",
     "🔗 Auto-matched": "🔗 Cocok otomatis",
     "🔗 Match Order ID": "🔗 Cocokkan Order ID",
-    "🗑 Delete ticket (permanent)": "🗑 Hapus tiket (permanen)"
+    "🗑 Delete ticket (permanent)": "🗑 Hapus tiket (permanen)",
+    "Take the store off its machine first: a store on a machine takes the operator of that machine.": "Lepas dulu toko dari mesinnya: toko di sebuah mesin memakai operator mesin itu.",
+    "The operator follows the machine this store sells from. To change it, put the store on a machine of another operator.": "Operator mengikuti mesin tempat toko ini berjualan. Pasang toko di mesin operator lain untuk menggantinya.",
+    "Machine :code belongs to :operator, which has no Grab account in ConnectVend.": "Mesin :code milik :operator, yang tidak punya akun Grab di ConnectVend.",
+    "Operator follows machine :code": "Operator mengikuti mesin :code",
+    "Grab store :ref is now on machine :code, under its operator :operator.": "Toko Grab :ref sekarang di mesin :code, dengan operator mesin itu, :operator."
 }

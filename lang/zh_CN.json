@@ -6003,8 +6003,6 @@
     "Take the before restock photo first": "请先拍补货前照片",
     "Take the before restock photo first (open the item)": "请先拍摄补货前照片（打开该任务项）",
     "Take the BEFORE restock photo first — then Open Door.": "请先拍补货前（BEFORE）照片 — 再开门。",
-    "Take the store off its machine first: the operator decides which Grab account serves it.": "请先将门店从机器上移除：运营商决定由哪个 Grab 账户服务该门店。",
-    "Take the store off its machine to change the operator: the operator decides which Grab account serves it.": "如需更改运营商，请先将门店从机器上移除：运营商决定由哪个 Grab 账户服务该门店。",
     "Take the store off machine :code too? It keeps selling from machine :live, and its promotions stay.": "也把店铺从机器 :code 取下？它继续由机器 :live 销售，促销保留。",
     "Taken": "取走",
     "Taken off by :name": "由 :name 取下",
@@ -7077,5 +7075,10 @@
     "🔁 Re-match Order ID": "🔁 重新匹配订单 ID",
     "🔗 Auto-matched": "🔗 自动匹配",
     "🔗 Match Order ID": "🔗 匹配订单 ID",
-    "🗑 Delete ticket (permanent)": "🗑 删除申请（永久）"
+    "🗑 Delete ticket (permanent)": "🗑 删除申请（永久）",
+    "Take the store off its machine first: a store on a machine takes the operator of that machine.": "请先将门店从机器上移除：在机器上的门店会采用该机器的运营商。",
+    "The operator follows the machine this store sells from. To change it, put the store on a machine of another operator.": "运营商跟随此门店所在的机器。要更改运营商，请把门店放到另一运营商的机器上。",
+    "Machine :code belongs to :operator, which has no Grab account in ConnectVend.": "机器 :code 属于 :operator，该运营商在 ConnectVend 中没有 Grab 账户。",
+    "Operator follows machine :code": "运营商跟随机器 :code",
+    "Grab store :ref is now on machine :code, under its operator :operator.": "Grab 门店 :ref 现已在机器 :code 上，运营商改为该机器的 :operator。"
 }

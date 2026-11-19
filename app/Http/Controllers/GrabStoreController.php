@@ -283,6 +283,8 @@ class GrabStoreController extends Controller
             (bool) ($validated['skip_grab_check'] ?? false),
         );
         if ($vend) {
+            // The store takes the machine's operator before its prices are set up for that operator.
+            $this->grabStores->followMachineOperator($ref, $vend, auth()->id());
             $this->setup->apply($ref, $setup, auth()->id());
             $this->grabStores->bind($ref, $vend, $template, auth()->id());
         }
@@ -518,6 +520,8 @@ class GrabStoreController extends Controller
         $machineMenu = $this->grabStores->willUseMachineMenu($ref);
         $vend = $this->accessibleVend($validated['vend_code']);
         $template = $this->optionalTemplate($validated['delivery_product_mapping_id'] ?? null, $machineMenu);
+        // The store takes the machine's operator before its prices are set up for that operator.
+        $operatorChanged = $this->grabStores->followMachineOperator($ref, $vend, auth()->id());
         if ($machineMenu) {
             $this->setup->apply($ref, $this->validatedSetup($request), auth()->id());
         }
@@ -529,7 +533,9 @@ class GrabStoreController extends Controller
             $validated['remarks'] ?? null,
         );
 
-        return back()->with('success', __('Grab store :ref is now on machine :code.', ['ref' => $ref->ref_number, 'code' => $validated['vend_code']]));
+        return back()->with('success', $operatorChanged
+            ? __('Grab store :ref is now on machine :code, under its operator :operator.', ['ref' => $ref->ref_number, 'code' => $vend->code, 'operator' => $ref->fresh()->operator?->code])
+            : __('Grab store :ref is now on machine :code.', ['ref' => $ref->ref_number, 'code' => $validated['vend_code']]));
     }
 
     public function move(Request $request, $bindingId)
@@ -544,6 +550,8 @@ class GrabStoreController extends Controller
 
         $vend = $this->accessibleVend($validated['vend_code']);
         $ref = $binding->deliveryPlatformRefNumber;
+        // Onto another operator's machine: the store takes that operator before its prices are set up for it.
+        $this->grabStores->followMachineOperator($ref, $vend, auth()->id(), $binding);
         if ($this->grabStores->willUseMachineMenu($ref)) {
             $this->setup->apply($ref, $this->validatedSetup($request), auth()->id());
         }
@@ -844,9 +852,13 @@ class GrabStoreController extends Controller
             'use_company_rule' => ['nullable', 'boolean'],
             ...GrabPriceRuleRequest::ruleFields(required: false),
         ]);
-        abort_unless(GrabStoreVisibility::allows((int) $validated['operator_id']), 403);
         $ref = ! empty($validated['ref_id']) ? $this->accessibleRef($validated['ref_id']) : null;
         $vend = $this->accessibleVend($validated['vend_code']);
+        // The store will take the machine's operator, so its prices are that operator's (GrabStoreService::followMachineOperator).
+        if ($vend->operator_id && $this->grabStores->grabAccountFor((int) $vend->operator_id)) {
+            $validated['operator_id'] = (int) $vend->operator_id;
+        }
+        abort_unless(GrabStoreVisibility::allows((int) $validated['operator_id']), 403);
         $vend->loadMissing(['customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'name')]);
 
         $useCompany = $request->boolean('use_company_rule', true) || ! $request->filled('pricing_mode');
