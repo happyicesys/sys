@@ -1120,6 +1120,11 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{vend}/remote-card-terminal/check', [RemoteCardTerminalController::class, 'check'])
             ->name('vends.remote-card-terminal.check')
             ->middleware('can:read machine-settings');
+        // The same T05 online history for the Operation Dashboard's Card Terminal badge, under that page's own
+        // gate (the vend's operator scope applies through route binding). Read-only, no Payrallel call.
+        Route::get('/{vend}/remote-card-terminal/history', [RemoteCardTerminalController::class, 'show'])
+            ->name('vends.remote-card-terminal.history')
+            ->middleware('product.unrestricted');
 
         // Smart Freezer remote cabinet controls — Setting > Edit > "Remote controls".
         // JSON only, polled by the panel. Lock/unlock additionally need

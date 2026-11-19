@@ -3320,6 +3320,8 @@
 											<span>
 													{{ vend.card_terminal_name ? vend.card_terminal_name : 'N/A' }}
 											</span>
+											<!-- A bound T05's link as Payrallel last saw it; opens its online history (Brian, 2026-11-19). -->
+											<T05StatusPill v-if="vend.t05_status" :status="vend.t05_status" @open="t05History = { vend_id: vend.vend_id, code: vend.code }" />
 											<a v-if="railIdle(vend, 'card')" :href="railTransactionsUrl(vend, 'card')" target="_blank" rel="noopener" @click.stop
 													class="mt-0.5 inline-flex items-center justify-center whitespace-nowrap rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white hover:bg-red-700">
 													{{ railIdleShort(vend, 'card') }} ↗
@@ -3430,6 +3432,7 @@
 	<div v-if="!hasSearched && !attention.rows && !attention.loading" class="mt-6 rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-gray-500">
 		{{ $t('Use the available filters and click') }} <span class="font-semibold">{{ $t('Search') }}</span> {{ $t('to load customer vending data.') }}
 	</div>
+	<T05HistoryModal :open="!!t05History" :vend="t05History" @close="t05History = null" />
 	<ImagePreviewModal
 		:open="!!screenPreview"
 		:url="screenPreview ? screenPreview.url : ''"
@@ -3665,6 +3668,8 @@ font-size:13px;
 	import DatePicker from '@/Components/DatePicker.vue';
 	import Paginator from '@/Components/Paginator.vue';
 	import ImagePreviewModal from '@/Components/ImagePreviewModal.vue';
+	import T05StatusPill from '@/Components/T05StatusPill.vue';
+	import T05HistoryModal from '@/Components/T05HistoryModal.vue';
 	// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
 	import SearchInput from '@/Components/SearchInput.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
@@ -4139,6 +4144,8 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	const showChannelOverviewModal = ref(false)
 	// Operator column thumbnail enlarged: { url, title } or null.
 	const screenPreview = ref(null)
+	// The T05 whose online history is open ({ vend_id, code }), from the Card Terminal badge.
+	const t05History = ref(null)
 	const showSmartChannelOverviewModal = ref(false)
 	const showChillerChannelOverviewModal = ref(false)
 	const showCreateModal = ref(false)

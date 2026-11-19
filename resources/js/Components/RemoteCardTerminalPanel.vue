@@ -19,7 +19,7 @@
           </span>
           <span v-if="terminal?.is_active && terminal?.last_status_at" class="text-xs text-gray-500">{{ $t('checked :ago', { ago: ago(terminal.last_status_at) }) }}</span>
         </div>
-        <Button v-if="terminal?.is_active" type="button" class="bg-sky-700 hover:bg-sky-800 text-white"
+        <Button v-if="terminal" type="button" class="bg-sky-700 hover:bg-sky-800 text-white"
                 :disabled="busy" @click.prevent="check">
           <ArrowPathIcon class="mr-1 h-4 w-4" :class="busy ? 'animate-spin' : ''" />
           {{ $t('Check terminal') }}
@@ -27,11 +27,15 @@
       </header>
 
       <div class="space-y-2 px-4 py-3 text-sm">
-        <div v-if="terminal?.is_active" class="text-gray-800">
+        <div v-if="terminal" class="text-gray-800">
           <span class="font-medium">{{ $t('SN :sn', { sn: terminal.sn || terminal.label || '—' }) }}</span>
           <span v-if="terminal.from_command" class="ml-2 text-xs text-amber-700">
             {{ $t('bound with the command line — register this T05 under Data Management → Card Terminal and pick it below') }}
           </span>
+        </div>
+        <div v-if="history" class="rounded-lg border border-gray-200 p-3">
+          <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $t('Online history') }}</div>
+          <T05OnlineHistory :history="history" />
         </div>
         <p class="text-xs text-gray-500">
           {{ $t('To use a T05 on this freezer, pick it in') }} <span class="font-medium">{{ $t('Card Terminal (Terminal ID)') }}</span> {{ $t("above and save. Pick another terminal, or Clear, to go back to the wired card reader. The freezer follows within 5 minutes. The T05's SN and access token are kept under Data Management → Card Terminal.") }}
@@ -44,6 +48,7 @@
 
 <script setup>
 import Button from '@/Components/Button.vue'
+import T05OnlineHistory from '@/Components/T05OnlineHistory.vue'
 import { ArrowPathIcon } from '@heroicons/vue/20/solid'
 import moment from 'moment'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -56,6 +61,7 @@ const props = defineProps({
 })
 
 const terminal = ref(null)
+const history = ref(null)
 const busy = ref(false)
 const errors = ref('')
 
@@ -77,7 +83,9 @@ async function call(request) {
   busy.value = true
   errors.value = ''
   try {
-    terminal.value = (await request()).data.terminal
+    const data = (await request()).data
+    terminal.value = data.terminal
+    history.value = data.history
   } catch (e) {
     errors.value = e.response?.data?.message || t('Could not read the terminal status')
   } finally {

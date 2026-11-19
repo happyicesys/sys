@@ -67,6 +67,7 @@ use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\RefundTicket;
 use App\Models\RefundTicketItem;
+use App\Models\RemoteCardTerminal;
 use App\Models\Scopes\OperatorCustomerFilterScope;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SellingPrice;
@@ -1417,6 +1418,10 @@ class VendController extends Controller
                       AND (b.from_at IS NULL OR b.from_at <= NOW())
                       AND (b.until_at IS NULL OR b.until_at > NOW())
                     ORDER BY b.from_at DESC, b.id DESC LIMIT 1) AS card_terminal_will_auto_refund'),
+                // A bound remote card terminal's (T05) last answer from Payrallel: online / offline and when
+                // (TerminalStatusLog, checked about every 30 s). One unique-key lookup on
+                // remote_card_terminals per RETURNED row; never a join (see above).
+                DB::raw(RemoteCardTerminal::dashboardStatusSql().' AS t05_status'),
                 // SimCard package — drives the "SimCard Package" badge in the
                 // Machine Status column.
                 //

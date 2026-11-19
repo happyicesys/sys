@@ -2092,6 +2092,26 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   fallback key is only as private as that key.
 - A new provider = one more `RemoteCardTerminalGateway` + a line in
   `RemoteCardTerminalGatewayFactory`; the rules above do not move.
+- **Each T05's online / offline log** (Brian, 2026-11-19: "keep tracking the online and offline log … upload to
+  mark1 to keep"). A T05 is not wired to the freezer: it has its own SIM and talks to Payrallel's cloud, so its
+  link is known only from Payrallel's `terminal/status` (a read on their server; nothing shows on the terminal, a
+  payment in progress is untouched). `CardPaymentService::statusOf($terminal)` is the one reader (the freezer's
+  readiness poll goes through it, 10 s cache per terminal shared by all callers), and every fresh answer goes to
+  `App\Services\CardTerminal\TerminalStatusLog`, the only writer of `remote_card_terminal_status_spans`: one row per
+  stretch of the same answer (`online` true / false / NULL = the check itself failed, so a Payrallel outage is
+  never read as the T05's), extended while checks agree and are ≤ `GAP_SECONDS` (300) apart; a longer gap is
+  shown as "not checked", never guessed. Rows carry the unit and freezer of the time; the panel reads only the
+  T05 the row holds now (a swap edits `remote_card_terminals` in place). **Only BOUND terminals are watched**
+  (Brian, 2026-11-19): `card-terminals:watch-status` runs every 30 s (background) over active Payrallel rows and
+  skips one answered in the last 25 s (`FRESH_SECONDS`), so a working freezer's own 30 s poll costs no extra call.
+  A sub-minute task keeps `schedule:run` alive the whole minute, so it is registered only where
+  `PAYRALLEL_API_BASE_URL` is set (SG; LSH and IDN unchanged). Change-only, so no prune. Shown in two places:
+  Setting/Edit's Remote card terminal panel (uptime over the CHECKED time, drops and the longest drop for 24 h /
+  7 days, the newest 30 stretches; Check terminal works with the link off too) and the **Operation Dashboard's
+  Card Terminal badge** — a pill "Online · 12 s ago" / "Offline · …" (grey "Last checked …" past 5 min) from
+  `t05_status` (`RemoteCardTerminal::dashboardStatusSql()`, a correlated lookup, never a join), which opens the same
+  history (`GET /vends/{vend}/remote-card-terminal/history`, the dashboard's own `product.unrestricted` gate, no
+  Payrallel call). Regression coverage: `tests/Feature/RemoteTerminalStatusLogTest.php`.
 - **The trial timeline** (`card_payment_events`, file `storage/logs/payrallel.log`):
   `CardTerminalEventLog` is its only writer and never throws. It records every
   Payrallel call with the raw body, every intent state change (model hook, so no

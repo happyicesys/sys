@@ -97,6 +97,8 @@ class VendResource extends JsonResource
             'card_terminal_will_auto_refund' => isset($this->card_terminal_will_auto_refund)
                 ? (bool) $this->card_terminal_will_auto_refund
                 : null,
+            // A bound T05's last answer (Operation Dashboard only): {online, state, checked_at}; null = none bound.
+            't05_status' => isset($this->t05_status) ? self::t05Status((string) $this->t05_status) : null,
             // Card terminal name (Nayax / Nets / Nets-Auresys / PAX / MLS).
             // Comes from the user-defined card_terminals table — replaces the
             // unreliable acb_vmc_pa_json->CSHL_MFG read.
@@ -623,5 +625,24 @@ class VendResource extends JsonResource
         $diff2 = $time2 ? $now->diffInSeconds(Carbon::parse($time2)) : PHP_INT_MAX;
 
         return $diff1 <= $diff2 ? Carbon::parse($time1) : Carbon::parse($time2);
+    }
+
+    /**
+     * The dashboard's packed `t05_status` ("id|online|state|checked at", app timezone) as the badge reads it.
+     *
+     * @return array{online: bool|null, state: string|null, checked_at: string|null}|null
+     */
+    public static function t05Status(string $packed): ?array
+    {
+        $parts = explode('|', $packed);
+        if (count($parts) < 4 || $parts[0] === '') {
+            return null;
+        }
+
+        return [
+            'online' => $parts[1] === '' ? null : $parts[1] === '1',
+            'state' => $parts[2] === '' ? null : $parts[2],
+            'checked_at' => $parts[3] === '' ? null : Carbon::parse($parts[3])->toIso8601String(),
+        ];
     }
 }

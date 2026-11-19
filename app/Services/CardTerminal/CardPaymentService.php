@@ -65,6 +65,7 @@ class CardPaymentService
         private readonly CardTerminalEventLog $events,
         private readonly FreezerSaleLocator $sales,
         private readonly FreezerSaleAudit $audit,
+        private readonly TerminalStatusLog $statusLog,
     ) {}
 
     /**
@@ -281,10 +282,17 @@ class CardPaymentService
     public function terminalStatus(Vend $vend): ?TerminalStatus
     {
         $terminal = RemoteCardTerminal::activeForVend($vend);
-        if (! $terminal) {
-            return null;
-        }
 
+        return $terminal ? $this->statusOf($terminal) : null;
+    }
+
+    /**
+     * What Payrallel says about one terminal, bound or not (the panel's Check terminal works with the link off).
+     * Cached briefly per terminal, so the freezer's poll and mark1's own 30 s check share one provider call;
+     * every fresh answer goes into the terminal's online / offline log ({@see TerminalStatusLog}).
+     */
+    public function statusOf(RemoteCardTerminal $terminal): TerminalStatus
+    {
         $cached = Cache::get($this->statusCacheKey($terminal));
         if ($cached instanceof TerminalStatus) {
             return $cached;
@@ -311,6 +319,7 @@ class CardPaymentService
             'last_state' => $status->state,
             'last_status_at' => Carbon::now(),
         ]);
+        $this->statusLog->record($terminal, $status);
         Cache::put(
             $this->statusCacheKey($terminal),
             $status,

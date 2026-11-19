@@ -48,6 +48,13 @@ class Kernel extends ConsoleKernel
         // (one indexed query) while nothing is open.
         // withoutOverlapping(5): a killed run must not hold the money sweep off for the default 24 h.
         $schedule->command('card-payments:reconcile')->everyMinute()->withoutOverlapping(5);
+        // Every bound T05's online / offline log (Brian, 2026-11-19): every 30 s, skipping a terminal the freezer
+        // asked about in the last 25 s, so a working freezer costs no extra call. In the background, so a slow
+        // Payrallel never delays the minute's other jobs. A sub-minute task keeps `schedule:run` alive for the
+        // whole minute, so it is registered only where Payrallel is set up (SG) — LSH and IDN stay as they were.
+        if (filled(config('payrallel.base_url'))) {
+            $schedule->command('card-terminals:watch-status')->everyThirtySeconds()->withoutOverlapping(2)->runInBackground();
+        }
         // Our own freezer AI's answers from the office Macs (MQTT): 55 s of listening each minute, so no daemon is needed;
         // it returns at once where the link is off (LSH, IDN). withoutOverlapping: one client id, one listener at a time.
         $schedule->command('freezer-ai:listen --seconds=55')->everyMinute()->withoutOverlapping(3)->runInBackground();
