@@ -1257,7 +1257,7 @@ unrecognised). Rules:
   "zijia push names videos the early fetch did not send" (their naming moved); not sent yet → the push's videos
   are the ones sent (`sendableVideos`). Nothing is guessed: no recent push (14 days) to copy, a link off
   `early_video.hosts`, or no file there in 90 s → nothing stored, the push works exactly as before. Off unless
-  `FREEZER_EARLY_VIDEO_VENDS` lists the machine ("50001,50002" or "*") and `auto_submit` is on; an outbox replay
+  `FREEZER_EARLY_VIDEO_VENDS` lists the machine ("50001,50002" or "*"; SG runs "*" since 2026-11-19, Brian: every freezer, future ones too; restart the MQTT subscriber `daemon-808704` after changing it) and `auto_submit` is on; an outbox replay
   (TRADE > 15 min from now) is not looked for. A door that never opened sends no TRADE, so it always waits for
   the push. Regression coverage: `tests/Feature/FreezerEarlyVideoTest.php`.
 - **We keep our own copy of every Zijia video** (Brian, 2026-11-09). Their files sit on Zijia's Alibaba OSS (Hangzhou,
@@ -1907,8 +1907,9 @@ broker. `App\Services\SmartFreezer\OwnAi\OwnAiLink` is the one rule and the only
   (`videosCopied`), or from `schedule()` when the session opens already complete. The copy itself is queued at once
   (`afterCommit`, was 30 s later). `publishJob` claims `freezer-ai:job-sent:<id>` first, so it goes out ONCE (released on a
   broker failure). `PublishFreezerAiJob` (`low`, 3 tries) is only the safety net, `delay_seconds` (180) after the session
-  opens, for one whose copy failed or has no camera 3. On 50001 (early video fetch) the session opens seconds after the door
-  closes; on a freezer without `FREEZER_EARLY_VIDEO_VENDS` it opens only on Zijia's push, ~6 min later. **IDs only — never a
+  opens, for one whose copy failed or has no camera 3. With the early video fetch (SG runs `FREEZER_EARLY_VIDEO_VENDS=*`, every
+  freezer, new ones included, since 2026-11-19) the session opens seconds after the door closes; on a freezer left out of it,
+  only on Zijia's push, ~6 min later. **IDs only — never a
   video link**: the broker is plain TCP. The Mac fetches the session itself (its read-only prod export over ssh).
 - **One answer per Mac.** Each Mac is a WORKER (`m1` = the MacBook, `mini` = the Mac mini) with its own broker client id
   (`fai-<worker>`) and a persistent session, so both get every job (a Mac that was off gets the queued ones on reconnect),
