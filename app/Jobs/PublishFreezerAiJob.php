@@ -11,8 +11,9 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Announces one door session to our own freezer AI on the office Macs ({@see OwnAiLink}). A few tries: the broker may
- * blip, and a missed one is caught up by the Macs' own sweep anyway.
+ * The safety net for announcing one door session to our own freezer AI on the office Macs ({@see OwnAiLink}): the job
+ * normally goes out the moment the session is ready (OwnAiLink::videosCopied); this sends it anyway, once, when that
+ * never happened. A few tries: the broker may blip, and a missed one is caught up by the Macs' own sweep anyway.
  */
 class PublishFreezerAiJob implements ShouldQueue
 {
@@ -34,7 +35,7 @@ class PublishFreezerAiJob implements ShouldQueue
     public function handle(OwnAiLink $link): void
     {
         $recognition = SmartFreezerRecognition::with('vend')->find($this->recognitionId);
-        if ($recognition !== null && $link->enabledFor($recognition)) {
+        if ($recognition !== null && $link->enabledFor($recognition) && ! $link->wasPublished($recognition->id)) {
             $link->publishJob($recognition);
         }
     }

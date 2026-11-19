@@ -16,7 +16,7 @@ class SmartFreezerVideo extends Model
 
     /**
      * Every stored video, pushed by Zijia or found early by mark1, gets our own private copy
-     * (ZijiaVideoCopier, Brian 2026-11-09). Queued, so a slow download never holds up the push;
+     * (ZijiaVideoCopier, Brian 2026-11-09). Queued at once, so a slow download never holds up the push;
      * never allowed to fail the write (the sync driver runs it inline).
      */
     protected static function booted(): void
@@ -26,7 +26,9 @@ class SmartFreezerVideo extends Model
                 return;
             }
             try {
-                \App\Jobs\CopyZijiaVideo::dispatch($video->id)->delay(now()->addSeconds(30));
+                // At once (was 30 s): our own AI counts from this copy, so every second here is a second on its answer
+                // (Brian, 2026-11-19). After commit, so the job always finds the row.
+                \App\Jobs\CopyZijiaVideo::dispatch($video->id)->afterCommit();
             } catch (\Throwable $e) {
                 report($e);
             }

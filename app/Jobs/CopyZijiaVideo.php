@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\SmartFreezerVideo;
+use App\Services\SmartFreezer\OwnAi\OwnAiLink;
 use App\Services\SmartFreezer\ZijiaVideoCopier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -33,11 +34,16 @@ class CopyZijiaVideo implements ShouldQueue
         $this->onQueue('low');
     }
 
-    public function handle(ZijiaVideoCopier $copier): void
+    public function handle(ZijiaVideoCopier $copier, OwnAiLink $ownAi): void
     {
         $video = SmartFreezerVideo::find($this->videoId);
         if ($video !== null) {
-            $copier->copy($video, throw: true);
+            try {
+                $copier->copy($video, throw: true);
+            } finally {
+                // Our own AI is told the moment its camera-3 copy is in (one camera may copy while the other fails).
+                $ownAi->videosCopied($video);
+            }
         }
     }
 }

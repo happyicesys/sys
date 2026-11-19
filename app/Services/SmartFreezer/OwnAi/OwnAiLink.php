@@ -5,8 +5,11 @@ namespace App\Services\SmartFreezer\OwnAi;
 use App\Jobs\PublishFreezerAiJob;
 use App\Models\SmartFreezerOwnAiRecognition;
 use App\Models\SmartFreezerRecognition;
+use App\Models\SmartFreezerVideoCopy;
 use App\Models\VendTransaction;
 use App\Services\Mqtt\MqttPublisher;
+use App\Services\SmartFreezer\Claude\FfmpegDoorFrames;
+use App\Services\SmartFreezer\FreezerRecognitionService;
 use App\Services\SmartFreezer\FreezerSaleLocator;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use Carbon\Carbon;
@@ -53,22 +56,78 @@ class OwnAiLink
         return $vends === [] || in_array((string) $recognition->vend->code, $vends, true);
     }
 
-    /** Called when a door session opens. Never throws: our AI must never hold up Zijia's check. */
+    /**
+     * Called when a door session opens. Never throws: our AI must never hold up Zijia's check.
+     *
+     * The job goes out the moment the Mac can count the session (Brian, 2026-11-19: "as long at the moment of the
+     * transactions come in … don't drag"): the sale's TRADE is in and our copy of camera 3 is stored. That is usually
+     * decided by {@see videosCopied()} a few seconds after the session opens; this only sends at once when both are
+     * already there, and queues a late safety net (`delay_seconds`) for a session whose copy fails or never names
+     * camera 3 — the Mac then says "not yet" and retries on its own.
+     */
     public function schedule(SmartFreezerRecognition $recognition): void
     {
         try {
             if (! $this->enabledFor($recognition)) {
                 return;
             }
-            // One announcement per session, however many pushes it arrives as (one per camera is possible).
-            if (! Cache::add('freezer-ai:job-scheduled:'.$recognition->id, 1, now()->addDay())) {
-                return;
+            // One safety net per session, however many pushes it arrives as (one per camera is possible).
+            if (Cache::add('freezer-ai:job-scheduled:'.$recognition->id, 1, now()->addDay())) {
+                PublishFreezerAiJob::dispatch($recognition->id)
+                    ->delay(now()->addSeconds(max(0, (int) config('smart_freezer.own_ai.delay_seconds'))));
             }
-            PublishFreezerAiJob::dispatch($recognition->id)
-                ->delay(now()->addSeconds(max(0, (int) config('smart_freezer.own_ai.delay_seconds'))));
+            $this->publishIfReady($recognition);
         } catch (Throwable $e) {
             report($e);
         }
+    }
+
+    /** Called when a video's copy is stored ({@see \App\Jobs\CopyZijiaVideo}). Never throws. */
+    public function videosCopied(\App\Models\SmartFreezerVideo $video): void
+    {
+        try {
+            $recognition = $video->smart_freezer_recognition_id
+                ? SmartFreezerRecognition::with('vend')->find($video->smart_freezer_recognition_id)
+                : null;
+            if ($recognition !== null && $this->enabledFor($recognition)) {
+                $this->publishIfReady($recognition);
+            }
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** True when the Mac can count it now: the sale is in and camera 3 is copied (what freezer-ai fast.py checks). */
+    public function readyToCount(SmartFreezerRecognition $recognition): bool
+    {
+        $camera3 = false;
+        foreach (FreezerRecognitionService::sendableVideos($recognition->videos()->get()) as $video) {
+            foreach ((array) $video->video_urls as $url) {
+                if (is_string($url) && FfmpegDoorFrames::cameraOf($url) === 3
+                    && SmartFreezerVideoCopy::where('url_hash', SmartFreezerVideoCopy::hashOf($url))->first()?->isCopied()) {
+                    $camera3 = true;
+                    break 2;
+                }
+            }
+        }
+
+        return $camera3 && $this->saleOf($recognition) !== null;
+    }
+
+    /** Sends the job now when the session is ready and has not been sent. Throws on a broker failure. */
+    public function publishIfReady(SmartFreezerRecognition $recognition): bool
+    {
+        if ($this->wasPublished($recognition->id) || ! $this->readyToCount($recognition)) {
+            return false;
+        }
+        $this->publishJob($recognition);
+
+        return true;
+    }
+
+    public function wasPublished(int $recognitionId): bool
+    {
+        return Cache::has('freezer-ai:job-sent:'.$recognitionId);
     }
 
     /** @return array<string, mixed> */
@@ -87,8 +146,17 @@ class OwnAiLink
     /** Announce one session to every connected Mac. Throws on a broker failure, so the job retries. */
     public function publishJob(SmartFreezerRecognition $recognition): void
     {
-        $this->publisher->publish($this->prefix().'/jobs', json_encode($this->jobPayload($recognition)), 1);
-        Cache::put('freezer-ai:job-sent:'.$recognition->id, Carbon::now()->toIso8601String(), now()->addDays(7));
+        // Claimed first, so the copy job and the safety net never both send it; released again if the broker fails.
+        $key = 'freezer-ai:job-sent:'.$recognition->id;
+        if (! Cache::add($key, Carbon::now()->toIso8601String(), now()->addDays(7))) {
+            return;
+        }
+        try {
+            $this->publisher->publish($this->prefix().'/jobs', json_encode($this->jobPayload($recognition)), 1);
+        } catch (Throwable $e) {
+            Cache::forget($key);
+            throw $e;
+        }
     }
 
     /**

@@ -73,7 +73,7 @@ class FreezerAiLinkTest extends TestCase
         $this->assertFalse(SubscribeMqttService::isFreezerAiTopic('freezer-aix/jobs'));
     }
 
-    public function test_a_session_is_announced_once_after_the_delay_and_only_when_on(): void
+    public function test_the_safety_net_is_queued_once_and_only_when_on(): void
     {
         Queue::fake();
         $r = $this->recognition();
@@ -89,6 +89,62 @@ class FreezerAiLinkTest extends TestCase
         $this->link()->schedule($r);
         $this->link()->schedule($r);   // a second camera's push for the same session
         Queue::assertPushed(PublishFreezerAiJob::class, 1);
+    }
+
+    /**
+     * Brian, 2026-11-19: "the Mac should receive the transaction signal … at the moment the transactions come in. Don't
+     * drag." The job goes out as soon as the sale and our camera-3 copy are in — not after a fixed wait — and only once.
+     */
+    public function test_the_job_goes_out_the_moment_the_sale_and_camera_3_copy_are_in(): void
+    {
+        Queue::fake();
+        $ref = 'SF-50001-1795000000-1';
+        $r = $this->recognition($ref);
+        $url = 'https://jishi1.oss-cn-hangzhou.aliyuncs.com/vid/'.$ref.'-d1c3-1795000005.mp4';
+        $video = \App\Models\SmartFreezerVideo::create(['supplier' => 'zijia', 'vend_id' => $this->vend->id, 'order_no' => $ref,
+            'video_urls' => [$url], 'smart_freezer_recognition_id' => $r->id]);
+        Queue::assertPushed(\App\Jobs\CopyZijiaVideo::class, fn ($job) => $job->delay === null);   // copied at once, no 30 s wait
+
+        $this->link()->schedule($r);             // session opens: no copy, no sale yet -> only the late safety net
+        $this->assertSame([], $this->published);
+        Queue::assertPushed(PublishFreezerAiJob::class, 1);
+
+        $copy = \App\Models\SmartFreezerVideoCopy::forceCreate(['smart_freezer_video_id' => $video->id, 'url' => $url,
+            'url_hash' => \App\Models\SmartFreezerVideoCopy::hashOf($url), 'status' => \App\Models\SmartFreezerVideoCopy::STATUS_COPIED,
+            'path' => 'freezer-videos/x.mp4']);
+        $this->link()->videosCopied($video);     // copy in, but the TRADE is not: still waits
+        $this->assertSame([], $this->published);
+
+        \App\Models\VendTransaction::forceCreate([
+            'order_id' => 'O-1', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 240,
+            'transaction_datetime' => now(), 'gst_vat_rate' => 9, 'operator_id' => 1, 'is_multiple' => false,
+            'vend_transaction_json' => ['SFREF' => $ref],
+        ]);
+        $this->link()->videosCopied($video);     // both in: sent now
+        $this->link()->videosCopied($video);     // a second camera's copy: not again
+        (new PublishFreezerAiJob($r->id))->handle($this->link());   // the safety net finds it sent
+        $this->assertCount(1, $this->published);
+        $this->assertSame($r->id, json_decode($this->published[0][1], true)['session']);
+    }
+
+    public function test_a_camera_4_copy_alone_does_not_send_the_job(): void
+    {
+        Queue::fake();
+        $ref = 'SF-50001-1795000000-2';
+        $r = $this->recognition($ref);
+        \App\Models\VendTransaction::forceCreate([
+            'order_id' => 'O-2', 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 240,
+            'transaction_datetime' => now(), 'gst_vat_rate' => 9, 'operator_id' => 1, 'is_multiple' => false,
+            'vend_transaction_json' => ['SFREF' => $ref],
+        ]);
+        $url = 'https://jishi1.oss-cn-hangzhou.aliyuncs.com/vid/'.$ref.'-d1c4-1795000005.mp4';
+        $video = \App\Models\SmartFreezerVideo::create(['supplier' => 'zijia', 'vend_id' => $this->vend->id, 'order_no' => $ref,
+            'video_urls' => [$url], 'smart_freezer_recognition_id' => $r->id]);
+        \App\Models\SmartFreezerVideoCopy::forceCreate(['smart_freezer_video_id' => $video->id, 'url' => $url,
+            'url_hash' => \App\Models\SmartFreezerVideoCopy::hashOf($url), 'status' => \App\Models\SmartFreezerVideoCopy::STATUS_COPIED,
+            'path' => 'freezer-videos/y.mp4']);
+        $this->link()->videosCopied($video);
+        $this->assertSame([], $this->published);
     }
 
     public function test_the_job_carries_ids_only(): void

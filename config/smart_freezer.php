@@ -214,8 +214,9 @@ return [
         'enabled' => (bool) env('FREEZER_AI_LINK', false),
         // Empty = every smart freezer; else a comma list of machine codes.
         'vends' => array_values(array_filter(array_map('trim', explode(',', (string) env('FREEZER_AI_LINK_VENDS', ''))))),
-        // Waits after the session opens, so both cameras and our own copy are in (the Mac fetches them itself).
-        'delay_seconds' => (int) env('FREEZER_AI_LINK_DELAY', 60),
+        // The job normally goes out the moment the sale and our camera-3 copy are in (OwnAiLink::videosCopied, Brian
+        // 2026-11-19: no waiting). This is only the safety net for a session that never got there.
+        'delay_seconds' => (int) env('FREEZER_AI_LINK_DELAY', 180),
         'topic_prefix' => env('FREEZER_AI_TOPIC_PREFIX', 'freezer-ai'),
         // The listener's own MQTT connection (config/mqtt-client.php): a client id the fleet listener does not share.
         'connection' => env('FREEZER_AI_MQTT_CONNECTION', 'mqtt_freezer_ai'),

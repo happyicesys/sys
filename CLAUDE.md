@@ -1900,10 +1900,16 @@ eventually when the Mac Mini also come into the picture… most of the time ther
 session Zijia is asked about is announced to our own freezer AI (repo `freezer-ai`, on the office Macs) over the fleet
 broker. `App\Services\SmartFreezer\OwnAi\OwnAiLink` is the one rule and the only writer of
 `smart_freezer_own_ai_recognitions`:
-- **Job.** `FreezerRecognitionService::open` calls `schedule()` next to Claude's (never throws, once per session), and
-  `PublishFreezerAiJob` (`low`, 3 tries) publishes `freezer-ai/jobs` {"v":1,"session":<recognition id>,"vend","session_ref",
-  "opened_at","sent_at"} QoS 1, `delay_seconds` (60) later, through `MqttPublisher`. **IDs only — never a video link**: the
-  broker is plain TCP. The Mac fetches the session itself (its read-only prod export over ssh).
+- **Job — sent the moment the Mac can count it, never on a timer** (Brian, 2026-11-19: "at the moment the transactions come
+  in … don't drag"). `freezer-ai/jobs` {"v":1,"session":<recognition id>,"vend","session_ref","opened_at","sent_at"} QoS 1,
+  through `MqttPublisher`, goes out as soon as the sale's TRADE is in AND our copy of camera 3 is stored
+  (`OwnAiLink::readyToCount`, what freezer-ai `fast.py` checks): from `CopyZijiaVideo` the instant a copy lands
+  (`videosCopied`), or from `schedule()` when the session opens already complete. The copy itself is queued at once
+  (`afterCommit`, was 30 s later). `publishJob` claims `freezer-ai:job-sent:<id>` first, so it goes out ONCE (released on a
+  broker failure). `PublishFreezerAiJob` (`low`, 3 tries) is only the safety net, `delay_seconds` (180) after the session
+  opens, for one whose copy failed or has no camera 3. On 50001 (early video fetch) the session opens seconds after the door
+  closes; on a freezer without `FREEZER_EARLY_VIDEO_VENDS` it opens only on Zijia's push, ~6 min later. **IDs only — never a
+  video link**: the broker is plain TCP. The Mac fetches the session itself (its read-only prod export over ssh).
 - **One answer per Mac.** Each Mac is a WORKER (`m1` = the MacBook, `mini` = the Mac mini) with its own broker client id
   (`fai-<worker>`) and a persistent session, so both get every job (a Mac that was off gets the queued ones on reconnect),
   both answer on `freezer-ai/results/<worker>` {session, items {product id: units}, confidence 0–100, auto, why_person,
@@ -1925,7 +1931,7 @@ broker. `App\Services\SmartFreezer\OwnAi\OwnAiLink` is the one rule and the only
   live, else it stands by and takes over every unanswered job the moment the better one goes offline or silent; on standby
   its 03:15 nightly skips itself. mark1 reads `worker_priority` (`FREEZER_AI_WORKER_PRIORITY`, default `mini,m1`):
   `OwnAiLink::preferredAnswer()` takes the mini's row before the M1's, and `--status` shows each Mac's role.
-- **AI Recognition "Mac AI" column** (was "Claude Verdict"; Brian, 2026-11-19; first named "Our Verdict"): our own AI's answer first — its verdict against
+- **AI Recognition "HappyIce AI" column** (was "Claude Verdict"; Brian, 2026-11-19; then "Our Verdict", then "Mac AI"): our own AI's answer first — its verdict against
   the paid order (`OwnAiLink::verdict`, RecognitionVerdict's rule, computed on the page from the TRADE's `transf_info`), the
   items, how sure, auto-accepted or "a person should check", same as Zijia / the person, and which Mac answered; Claude's count
   underneath when Claude was called. The column shows while `FREEZER_AI_LINK` or `CLAUDE_FREEZER_AI` is on.

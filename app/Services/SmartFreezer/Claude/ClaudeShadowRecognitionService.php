@@ -73,6 +73,7 @@ class ClaudeShadowRecognitionService
     public const ZIJIA_MATCHED = 'not needed: Zijia matched the paid order';
 
     /** The reason a row was not sent because our own AI on the Macs had already settled the session (`only_when_needed`). */
+    // Stored on Claude rows and matched against them, so it keeps the old name (shown as "HappyIce AI" since 2026-11-19).
     public const OWN_AI_MATCHED = 'not needed: Mac AI matched the paid order';
 
     /**
@@ -346,7 +347,7 @@ class ClaudeShadowRecognitionService
             return ['outcome' => CombinedCount::SETTLE, 'reason' => __('Zijia matched the paid order')];
         }
         if ($row->status === ClaudeRow::STATUS_SKIPPED && $row->status_reason === self::OWN_AI_MATCHED) {
-            return ['outcome' => CombinedCount::SETTLE, 'reason' => __('Mac AI matched the paid order')];
+            return ['outcome' => CombinedCount::SETTLE, 'reason' => __('HappyIce AI matched the paid order')];
         }
         if ($row->status !== ClaudeRow::STATUS_DONE) {
             return null;
