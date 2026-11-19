@@ -145,6 +145,24 @@ class RemoteCardTerminalBindingTest extends TestCase
         $this->assertNotNull(RemoteCardTerminal::activeForVend($vend), 'a command-line binding survives an unrelated save');
     }
 
+    public function test_a_corrected_t05_serial_keeps_the_freezer_on_its_terminal(): void
+    {
+        // 50002: N622W113239 → N620W342857 on 2026-11-12. The freezer row followed the unit
+        // (syncUnit), the binding did not, and the next machine save took the T05 off.
+        $vend = $this->vend(50002);
+        $unit = $this->t05('N622W113239');
+        $this->bind($vend, $unit);
+
+        $this->post("/card-terminal-units/{$unit->id}/update", ['terminal_id' => 'N620W342857', 'card_terminal_id' => $unit->card_terminal_id])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('N620W342857', CardTerminalBinding::query()->where('vend_id', $vend->id)->whereNull('until_at')->value('terminal_id'));
+        $this->assertSame($unit->id, app(CardTerminalBindingService::class)->currentUnitFor($vend)?->id, 'Setting/Edit opens on it');
+        $remote = RemoteCardTerminal::activeForVend($vend);
+        $this->assertNotNull($remote);
+        $this->assertSame('N620W342857', $remote->label);
+    }
+
     public function test_one_t05_one_machine_by_default_binding_moves_it(): void
     {
         $unit = $this->t05();

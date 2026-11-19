@@ -597,6 +597,77 @@ class CardTerminalUnitTest extends TestCase
         $this->assertSame(1, CardTerminalUnit::count());
     }
 
+    // ------------------------------------- serial corrected, binding follows --
+
+    public function test_a_corrected_serial_moves_the_open_binding_and_keeps_closed_history(): void
+    {
+        // 50002, 2026-11-12: a T05 serial was corrected on this page but its open
+        // binding kept the old one, so Setting/Edit opened with the field blank.
+        $home = $this->makeVend(7020);
+        $before = $this->makeVend(7021);
+        $unit = CardTerminalUnit::create(['terminal_id' => '23009001', 'card_terminal_id' => $this->nets->id]);
+        $closed = CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23009001', 'vend_id' => $before->id,
+            'from_at' => '2026-07-01 00:00:00', 'until_at' => '2026-08-01 00:00:00',
+        ]);
+        $open = CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23009001', 'vend_id' => $home->id, 'from_at' => '2026-08-01 00:00:00',
+        ]);
+
+        $this->actingAs($this->staff(['read card-terminals', 'update card-terminals']))
+            ->post('/card-terminal-units/'.$unit->id.'/update', ['terminal_id' => '23009009', 'card_terminal_id' => $this->nets->id])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('23009009', $open->fresh()->terminal_id, 'the open binding follows the unit');
+        $this->assertNull($open->fresh()->until_at);
+        $this->assertSame('23009001', $closed->fresh()->terminal_id, 'settled history keeps its name');
+
+        // The machine form now opens on the terminal, so saving it changes nothing.
+        $this->actingAs($this->staff(['read machine-settings', 'update machine-settings']))
+            ->post('/vends/'.$home->id.'/update', $this->savePayload($home, ['card_terminal_unit_id' => $unit->id]))
+            ->assertSessionHasNoErrors();
+        $this->assertSame(2, CardTerminalBinding::count());
+        $this->assertNull($open->fresh()->until_at);
+    }
+
+    public function test_a_blank_terminal_never_takes_off_a_binding_the_form_could_not_show(): void
+    {
+        // 50002, 2026-11-18: a SIM-only save posted the blank field and took the T05 off.
+        $vend = $this->makeVend(7022);
+        $orphan = CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23009100', 'vend_id' => $vend->id, 'from_at' => '2026-08-01 00:00:00',
+        ]);
+        $staff = $this->staff(['read machine-settings', 'update machine-settings']);
+
+        $this->actingAs($staff)
+            ->post('/vends/'.$vend->id.'/update', $this->savePayload($vend, ['card_terminal_unit_id' => null]))
+            ->assertSessionHasNoErrors();
+        $this->assertNull($orphan->fresh()->until_at, 'still on the machine');
+
+        // Choosing a terminal still replaces it.
+        $unit = CardTerminalUnit::create(['terminal_id' => '23009101', 'card_terminal_id' => $this->nets->id]);
+        $this->actingAs($staff)
+            ->post('/vends/'.$vend->id.'/update', $this->savePayload($vend, ['card_terminal_unit_id' => $unit->id]))
+            ->assertSessionHasNoErrors();
+        $this->assertNotNull($orphan->fresh()->until_at);
+        $this->assertTrue(CardTerminalBinding::where('terminal_id', '23009101')->whereNull('until_at')->exists());
+    }
+
+    public function test_clearing_a_terminal_the_form_shows_still_takes_it_off(): void
+    {
+        $vend = $this->makeVend(7023);
+        $unit = CardTerminalUnit::create(['terminal_id' => '23009200', 'card_terminal_id' => $this->nets->id]);
+        $binding = CardTerminalBinding::create([
+            'provider' => 'nets', 'terminal_id' => '23009200', 'vend_id' => $vend->id, 'from_at' => '2026-08-01 00:00:00',
+        ]);
+
+        $this->actingAs($this->staff(['read machine-settings', 'update machine-settings']))
+            ->post('/vends/'.$vend->id.'/update', $this->savePayload($vend, ['card_terminal_unit_id' => null]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertNotNull($binding->fresh()->until_at);
+    }
+
     // ------------------------------------------------- binding on Settings --
 
     public function test_settings_save_binds_the_terminal_from_today_when_no_date_given(): void

@@ -265,6 +265,29 @@ class CardTerminalBindingService
         return $this->openBindingsForVend($vend)->first();
     }
 
+    /**
+     * A unit's serial was corrected in Data Management (50002, 2026-11-12: N622W113239 →
+     * N620W342857). Its OPEN bindings follow it, because Setting/Edit finds the fitted
+     * terminal by this string: left behind, the form opens blank and the next save of any
+     * other field took the terminal off the machine (50002's T05, 2026-11-18). Closed rows
+     * keep the name they were bound under — settled history is not rewritten.
+     *
+     * @return int bindings moved
+     */
+    public function renameOpenBindings(string $from, string $to): int
+    {
+        if ($from === '' || $from === $to) {
+            return 0;
+        }
+
+        $rows = CardTerminalBinding::query()->where('terminal_id', $from)->whereNull('until_at')->get();
+        foreach ($rows as $binding) {
+            $binding->update(['terminal_id' => $to]);
+        }
+
+        return $rows->count();
+    }
+
     private function openBindingsForVend(Vend $vend)
     {
         return CardTerminalBinding::query()

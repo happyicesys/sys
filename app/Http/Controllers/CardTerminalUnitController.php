@@ -10,6 +10,7 @@ use App\Models\CardTerminalUnit;
 use App\Models\Customer;
 use App\Models\Simcard;
 use App\Models\Vend;
+use App\Services\CardSettlement\CardTerminalBindingService;
 use App\Services\CardTerminal\RemoteCardTerminalBinder;
 use App\Support\VendCode;
 use App\Traits\ExportOptimizationTrait;
@@ -375,7 +376,12 @@ class CardTerminalUnitController extends Controller
     public function update(Request $request, $id)
     {
         $unit = CardTerminalUnit::findOrFail($id);
+        $oldTerminalId = (string) $unit->terminal_id;
         $unit->update($this->validated($request, $unit->id));
+
+        // A corrected serial takes the machine's open binding with it, or Setting/Edit
+        // can no longer show the fitted terminal (and a blank field reads as "none").
+        app(CardTerminalBindingService::class)->renameOpenBindings($oldTerminalId, (string) $unit->terminal_id);
 
         // A T05's SN or token edited here reaches every freezer row made from it.
         app(RemoteCardTerminalBinder::class)->syncUnit($unit->fresh('company'), auth()->id());

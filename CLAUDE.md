@@ -837,6 +837,16 @@ The standalone `/card-terminal-bindings` page was removed 2026-09-05. Since then
   never overwrites a set value, keeps the remark). Nullable, not unique, no
   behaviour hangs off it yet — it exists so an Auresys report can be matched
   later without parsing free text. Never swap the two.
+- **The form finds the fitted terminal by its ID string, so a blank field is not always "none"**
+  (2026-11-19, 50002's T05). Setting/Edit opens on the open binding's `terminal_id` looked up in
+  `card_terminal_units`. Correcting a serial on the Card Terminal page now moves the unit's OPEN
+  bindings with it (`CardTerminalBindingService::renameOpenBindings`; closed rows keep their name).
+  Before that, the binding kept the old string, the form opened blank, and the next save of any other
+  field ended the binding and switched the freezer's T05 off (LiangBao's SIM change, 2026-11-18).
+  `VendController::syncCardTerminalBinding` also refuses to treat blank as "none" when the open
+  binding names no unit, because the form could not have shown it (logged warning). Choosing another
+  terminal still replaces it. Regression coverage: `tests/Feature/CardTerminalUnitTest.php`,
+  `tests/Feature/RemoteCardTerminalBindingTest.php`.
 - `card-settlement:import-bindings` creates the `card_terminal_units` row
   alongside the binding, or the imported terminal would be invisible in the
   Setting/Edit picker and could never be moved.

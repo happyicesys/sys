@@ -6180,6 +6180,20 @@ class VendController extends Controller
             ]);
         }
 
+        // The form opens on the fitted terminal by looking its ID up in Data Management.
+        // When that lookup finds nothing (the unit's serial was renamed or the unit
+        // deleted), the field opens blank and blank is all the form can send back — it is
+        // not a person choosing "none". Taking the terminal off here is how 50002 lost its
+        // T05 on 2026-11-18 when someone saved only a SIM change. Keep it; choosing
+        // another terminal still replaces it.
+        if (! $unit && $before === null && ($open = $service->currentBindingFor($vend))) {
+            \Illuminate\Support\Facades\Log::warning('Setting/Edit: blank card terminal kept the open binding the form could not show', [
+                'vend_id' => $vend->id, 'binding_id' => $open->id, 'terminal_id' => $open->terminal_id,
+            ]);
+
+            return;
+        }
+
         // A person is fitting this terminal by hand — stamp them on the binding.
         // Everything unattended (the Card Settlement auto-match, the importer)
         // passes no user and shows as "sys".
