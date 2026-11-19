@@ -1895,6 +1895,49 @@ Then Sales Transactions reads a white Confirmed / "Confirmed by", AI Recognition
 where it differs from AI saw, on any row. Regression coverage:
 `tests/Feature/TransactionIndexAiRecognitionColumnTest.php`, `tests/Feature/AiRecognitionPageTest.php`.
 
+**Our own AI on the office Macs — the MQTT link, shadow only** (Brian, 2026-11-19: "start with our MacBook M1 first, then
+eventually when the Mac Mini also come into the picture… most of the time there will be two connections"). Every door
+session Zijia is asked about is announced to our own freezer AI (repo `freezer-ai`, on the office Macs) over the fleet
+broker. `App\Services\SmartFreezer\OwnAi\OwnAiLink` is the one rule and the only writer of
+`smart_freezer_own_ai_recognitions`:
+- **Job.** `FreezerRecognitionService::open` calls `schedule()` next to Claude's (never throws, once per session), and
+  `PublishFreezerAiJob` (`low`, 3 tries) publishes `freezer-ai/jobs` {"v":1,"session":<recognition id>,"vend","session_ref",
+  "opened_at","sent_at"} QoS 1, `delay_seconds` (60) later, through `MqttPublisher`. **IDs only — never a video link**: the
+  broker is plain TCP. The Mac fetches the session itself (its read-only prod export over ssh).
+- **One answer per Mac.** Each Mac is a WORKER (`m1` = the MacBook, `mini` = the Mac mini) with its own broker client id
+  (`fai-<worker>`) and a persistent session, so both get every job (a Mac that was off gets the queued ones on reconnect),
+  both answer on `freezer-ai/results/<worker>` {session, items {product id: units}, confidence 0–100, auto, why_person,
+  model}, and the table keeps one row per (recognition, worker) — re-answers update it (`answers`). Switching a Mac off
+  stops only its rows. mark1 acks on `freezer-ai/ack/<worker>`; a Mac re-sends unacked answers every 5 min.
+- **Listener.** `php artisan freezer-ai:listen` — a Forge daemon of its own on connection `mqtt_freezer_ai` (client id
+  `FREEZER_AI_MQTT_CLIENT_ID`, default `mk1-freezer-ai`, persistent session), subscribed to `freezer-ai/results/+` and
+  `freezer-ai/status/+` only. It handles messages in ONE received-message hook registered before subscribing: on reconnect
+  the broker delivers the answers queued while it was down before the subscriptions are re-made, and php-mqtt drops a
+  message no subscription callback matches (found on a test broker). `--status` lists the Macs (online / offline = its last
+  will / silent = nothing for `worker_offline_after_seconds`) and answers in 24 h; `--send=<id>` re-announces a session.
+- **The fleet listener ignores the prefix** (`SubscribeMqttService::isFreezerAiTopic`): it subscribes to `#`, so before that
+  filter is live and `subscribe:mqtt` restarted, no Mac may connect — its status and answers would be fed to VendDataService.
+- **Mini first** (Brian, 2026-11-19: "when both … are online … choose the Mac Mini … whenever the Mac Mini is offline, then M1
+  will be forced to do the job"). The Macs settle it among themselves: each publishes a RETAINED heartbeat on
+  `freezer-ai/status/<worker>` (its last will, retained, says offline); a worker answers only while no better-ranked one is
+  live, else it stands by and takes over every unanswered job the moment the better one goes offline or silent; on standby
+  its 03:15 nightly skips itself. mark1 reads `worker_priority` (`FREEZER_AI_WORKER_PRIORITY`, default `mini,m1`):
+  `OwnAiLink::preferredAnswer()` takes the mini's row before the M1's, and `--status` shows each Mac's role.
+- **AI Recognition "Mac AI" column** (was "Claude Verdict"; Brian, 2026-11-19; first named "Our Verdict"): our own AI's answer first — its verdict against
+  the paid order (`OwnAiLink::verdict`, RecognitionVerdict's rule, computed on the page from the TRADE's `transf_info`), the
+  items, how sure, auto-accepted or "a person should check", same as Zijia / the person, and which Mac answered; Claude's count
+  underneath when Claude was called. The column shows while `FREEZER_AI_LINK` or `CLAUDE_FREEZER_AI` is on.
+- **Claude only when neither Zijia nor ours settles a session** (Brian, 2026-11-19). With `only_when_needed`, `needed()` skips
+  Claude when Zijia matched (`ZIJIA_MATCHED`) or when our AI's preferred answer equals the paid order and was auto-accepted
+  (`OWN_AI_MATCHED`, `OwnAiLink::settled`); it waits up to `wait_for_own_ai_minutes` (5) for our answer, as it waits for Zijia.
+  The page reads such a skip as "not needed". With the link off for the freezer, Claude behaves exactly as before.
+- Off until `FREEZER_AI_LINK=true`; `FREEZER_AI_LINK_VENDS` narrows to machine codes. SG only (both freezers are SG).
+- Not built yet: broker logins of their own for the Macs (they use the fleet login until then; `FREEZER_AI_MQTT_USERNAME` /
+  `_PASSWORD` let the listener move first), and an "Our AI" box on the AI Dashboard.
+Plan and Mac side: `freezer-ai/MARK1_LINK_PLAN_2026-11-18.md`, `freezer-ai/freezer_ai/link.py` (+ `fast.py`, the one-sale
+path). Regression coverage: `tests/Feature/FreezerAiLinkTest.php`, `tests/Feature/ClaudeFreezerRecognitionTest.php`
+(`…neither_zijia_nor_our_own_ai…`), `tests/Feature/AiRecognitionPageTest.php` (`test_our_verdict_…`).
+
 Integration record, live proofs and open questions for Zijia:
 `apk/smart-freezer/ZIJIA_ALGORITHM_2026-09-27.md` (algorithm) and
 `ZIJIA_VIDEO_WEBHOOK_2026-09-14.md` (push). Regression coverage:

@@ -11,6 +11,7 @@ use App\Models\FreezerFailedSession;
 use App\Models\Product;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SmartFreezerClaudeRecognition;
+use App\Models\SmartFreezerOwnAiRecognition;
 use App\Models\SmartFreezerRecognition;
 use App\Models\Vend;
 use App\Models\VendTransaction;
@@ -26,6 +27,7 @@ use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\FreezerDoorTimeline;
 use App\Services\SmartFreezer\FreezerRecognitionService;
 use App\Services\SmartFreezer\FreezerSaleLocator;
+use App\Services\SmartFreezer\OwnAi\OwnAiLink;
 use App\Services\SmartFreezer\PersonCount;
 use App\Services\SmartFreezer\RecognitionBadges;
 use App\Services\SmartFreezer\RecognitionVerdict;
@@ -180,6 +182,8 @@ class FreezerRecognitionController extends Controller
         $sites = $this->sites($page->getCollection());
         $invoiceScans = $this->invoiceScans($page->getCollection());
         $claude = $this->claudeRows($page->getCollection());
+        // Read only while the link is on, so the page never queries the table before its migration has run (deploy gap).
+        $ownAi = config('smart_freezer.own_ai.enabled') ? $this->ownAiRows($page->getCollection()) : ['rows' => [], 'names' => []];
         $happyHour = CampaignLabelFilter::happyHourLabels($page->getCollection()->map(fn (SmartFreezerRecognition $r) => $r->vendTransaction)->filter()
             ->flatMap(fn (VendTransaction $sale) => $sale->vendTransactionItems->pluck('happy_hour_slot_id')->push($sale->happy_hour_slot_id)));
 
@@ -197,6 +201,7 @@ class FreezerRecognitionController extends Controller
             'invoice' => $this->invoiceScan($r, $invoiceScans),
             'site' => $sites[$r->vendTransaction?->customer_id ?? $r->vend?->customer_id] ?? null,
             'claude' => $this->claudeOf($r, $claude),
+            'own_ai' => $this->ownAiOf($r, $ownAi),
         ]);
 
         return Inertia::render('AiRecognition/Index', [
@@ -205,6 +210,8 @@ class FreezerRecognitionController extends Controller
             'dashboard' => fn () => $this->dashboard($dashboardQuery),
             // The Claude trial's model picker (shadow only).
             'claudeModel' => fn () => ClaudeModelChoice::forPage($request->user()),
+            // Our own AI on the office Macs (shadow only): its answers fill the "Our Verdict" column first.
+            'ownAiColumn' => (bool) config('smart_freezer.own_ai.enabled'),
             // Per freezer, how many of its products the AI is asked about today (SKU Links).
             'aiCoverage' => fn () => array_values(app(ZijiaSkuLinks::class)->coverage(ZijiaSkuLinks::viewerVendIds())),
             'statuses' => [
@@ -368,6 +375,73 @@ class FreezerRecognitionController extends Controller
             'model' => $row->model,
             'seconds' => $row->duration_ms !== null ? (int) round($row->duration_ms / 1000) : null,
             'cost_text' => $row->costText(),
+        ];
+    }
+
+    /**
+     * This page's answers from our own AI on the Macs, the preferred one per session (mini before M1), with the names
+     * of the products they name.
+     *
+     * @return array{rows: array<int, SmartFreezerOwnAiRecognition>, names: array<int, string>}
+     */
+    private function ownAiRows($recognitions): array
+    {
+        $order = array_flip((array) config('smart_freezer.own_ai.worker_priority', []));
+        $rows = SmartFreezerOwnAiRecognition::whereIn('smart_freezer_recognition_id', $recognitions->pluck('id'))->get()
+            ->sortBy([
+                fn ($a, $b) => ($order[$a->worker] ?? PHP_INT_MAX) <=> ($order[$b->worker] ?? PHP_INT_MAX),
+                fn ($a, $b) => $b->received_at <=> $a->received_at,
+            ])
+            ->unique('smart_freezer_recognition_id')->keyBy('smart_freezer_recognition_id')->all();
+        $ids = collect($rows)->flatMap(fn (SmartFreezerOwnAiRecognition $a) => array_keys((array) $a->items))->unique()->values();
+
+        return [
+            'rows' => $rows,
+            'names' => $ids->isEmpty() ? [] : Product::withoutGlobalScopes()->whereIn('id', $ids)->pluck('name', 'id')->all(),
+        ];
+    }
+
+    /**
+     * Our own AI's verdict on this session (Brian, 2026-11-19: "Our Verdict", shown before Claude's). Shadow only.
+     *
+     * @param  array{rows: array<int, SmartFreezerOwnAiRecognition>, names: array<int, string>}  $ownAi
+     */
+    private function ownAiOf(SmartFreezerRecognition $r, array $ownAi): ?array
+    {
+        $answer = $ownAi['rows'][$r->id] ?? null;
+        if ($answer === null) {
+            return null;
+        }
+        $link = app(OwnAiLink::class);
+        $items = array_map('intval', (array) $answer->items);
+        $zijia = null;
+        if ($r->verdict !== null) {
+            $zijia = [];
+            foreach ((array) $r->verdict_lines as $line) {
+                $key = PersonCount::key($line);
+                $zijia[$key] = ($zijia[$key] ?? 0) + (int) ($line['taken'] ?? 0);
+            }
+            $zijia = array_filter($zijia);
+        }
+        $correction = ((array) $r->vendTransaction?->meta_json)['correction'] ?? null;
+        $person = is_array($correction) && isset($correction['basket']) ? array_filter(array_map('intval', (array) $correction['basket'])) : null;
+        $same = fn (?array $other) => $other === null ? null : ClaudeZijiaComparison::same($items, $other);
+
+        return [
+            'worker' => $answer->worker,
+            'verdict' => $link->verdict($answer, $link->saleOf($r)),
+            'items' => collect($items)->map(fn ($n, $id) => [
+                'product_id' => (int) $id,
+                'name' => $ownAi['names'][(int) $id] ?? __('product :id', ['id' => $id]),
+                'number' => (int) $n,
+            ])->values()->all(),
+            'confidence' => $answer->confidence,
+            'auto' => $answer->auto_accept,
+            'why_person' => $answer->why_person,
+            'same_as_zijia' => $same($zijia),
+            'same_as_person' => $same($person),
+            'model' => $answer->model,
+            'seconds' => $answer->latency_ms !== null ? (int) round($answer->latency_ms / 1000) : null,
         ];
     }
 

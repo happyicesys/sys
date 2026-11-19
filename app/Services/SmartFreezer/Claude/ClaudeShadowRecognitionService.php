@@ -8,6 +8,7 @@ use App\Models\SmartFreezerClaudeRecognition as ClaudeRow;
 use App\Models\SmartFreezerRecognition;
 use App\Models\VendChannel;
 use App\Services\SmartFreezer\FreezerSaleLocator;
+use App\Services\SmartFreezer\OwnAi\OwnAiLink;
 use App\Services\SmartFreezer\PersonCount;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use Carbon\Carbon;
@@ -71,6 +72,9 @@ class ClaudeShadowRecognitionService
     /** The reason a row was not sent because Zijia had already matched the paid order (`only_when_needed`). */
     public const ZIJIA_MATCHED = 'not needed: Zijia matched the paid order';
 
+    /** The reason a row was not sent because our own AI on the Macs had already settled the session (`only_when_needed`). */
+    public const OWN_AI_MATCHED = 'not needed: Mac AI matched the paid order';
+
     /**
      * `only_when_needed`: true = count now, false = not needed (the row is marked skipped), null = Zijia has not judged
      * the session yet, ask again later. Off, a person's command, or a wait past `wait_for_zijia_minutes` = true.
@@ -80,20 +84,32 @@ class ClaudeShadowRecognitionService
         if (! (bool) config('smart_freezer.claude_recognition.only_when_needed') || $row->status !== ClaudeRow::STATUS_PENDING) {
             return true;
         }
-        $verdict = SmartFreezerRecognition::whereKey($row->smart_freezer_recognition_id)->value('verdict');
-        if ($verdict === 'match') {
+        $recognition = SmartFreezerRecognition::with(['vend', 'vendTransaction'])->find($row->smart_freezer_recognition_id);
+        $skip = function (string $reason) use ($row) {
             ClaudeRow::whereKey($row->id)->where('status', ClaudeRow::STATUS_PENDING)
-                ->update(['status' => ClaudeRow::STATUS_SKIPPED, 'status_reason' => self::ZIJIA_MATCHED]);
+                ->update(['status' => ClaudeRow::STATUS_SKIPPED, 'status_reason' => $reason]);
 
             return false;
+        };
+        if ($recognition?->verdict === 'match') {
+            return $skip(self::ZIJIA_MATCHED);
         }
-        if ($verdict !== null) {
-            return true;
+        // Our own AI first (Brian, 2026-11-19): Claude only when neither Zijia nor ours can settle the session.
+        $ownAi = app(OwnAiLink::class);
+        $ownAiOn = $recognition !== null && $ownAi->enabledFor($recognition);
+        if ($ownAiOn && $ownAi->settled($recognition)) {
+            return $skip(self::OWN_AI_MATCHED);
+        }
+        $age = fn (string $key) => $row->created_at !== null
+            && $row->created_at->lt(Carbon::now()->subMinutes(max(0, (int) config('smart_freezer.claude_recognition.'.$key))));
+        if ($recognition?->verdict === null && ! $age('wait_for_zijia_minutes')) {
+            return null;
+        }
+        if ($ownAiOn && $ownAi->preferredAnswer($recognition->id) === null && ! $age('wait_for_own_ai_minutes')) {
+            return null;
         }
 
-        return $row->created_at !== null
-            && $row->created_at->lt(Carbon::now()->subMinutes(max(0, (int) config('smart_freezer.claude_recognition.wait_for_zijia_minutes'))))
-            ? true : null;
+        return true;
     }
 
     /** A row for a past session, made by a person (`--backfill`); null when it already has one. */
@@ -328,6 +344,9 @@ class ClaudeShadowRecognitionService
     {
         if ($row->status === ClaudeRow::STATUS_SKIPPED && $row->status_reason === self::ZIJIA_MATCHED) {
             return ['outcome' => CombinedCount::SETTLE, 'reason' => __('Zijia matched the paid order')];
+        }
+        if ($row->status === ClaudeRow::STATUS_SKIPPED && $row->status_reason === self::OWN_AI_MATCHED) {
+            return ['outcome' => CombinedCount::SETTLE, 'reason' => __('Mac AI matched the paid order')];
         }
         if ($row->status !== ClaudeRow::STATUS_DONE) {
             return null;

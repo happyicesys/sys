@@ -200,6 +200,34 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Our own AI beside Zijia's: the link to the office Macs (Brian, 2026-11-19)
+    |--------------------------------------------------------------------------
+    | Every door session Zijia's AI is asked about is also announced to our own freezer AI (freezer-ai, run on the
+    | office Macs) over MQTT: mark1 publishes `<prefix>/jobs` {"session": <recognition id>} — IDs only, never video
+    | links (the broker is not encrypted). Each Mac answers on `<prefix>/results/<worker>` and mark1 keeps ONE answer
+    | PER WORKER per session (`smart_freezer_own_ai_recognitions`), so two Macs (the MacBook M1 now, the Mac mini
+    | later) can run side by side until one is switched off. `freezer-ai:listen` (its own daemon, its own client id)
+    | is the only reader. SHADOW ONLY: nothing reads these answers to charge, release, refund or move stock.
+    | Off until FREEZER_AI_LINK=true.
+    */
+    'own_ai' => [
+        'enabled' => (bool) env('FREEZER_AI_LINK', false),
+        // Empty = every smart freezer; else a comma list of machine codes.
+        'vends' => array_values(array_filter(array_map('trim', explode(',', (string) env('FREEZER_AI_LINK_VENDS', ''))))),
+        // Waits after the session opens, so both cameras and our own copy are in (the Mac fetches them itself).
+        'delay_seconds' => (int) env('FREEZER_AI_LINK_DELAY', 60),
+        'topic_prefix' => env('FREEZER_AI_TOPIC_PREFIX', 'freezer-ai'),
+        // The listener's own MQTT connection (config/mqtt-client.php): a client id the fleet listener does not share.
+        'connection' => env('FREEZER_AI_MQTT_CONNECTION', 'mqtt_freezer_ai'),
+        // Mini first (Brian, 2026-11-19): the Macs decide among themselves who answers (the M1 stands by while the mini
+        // is online); where a session still has answers from several, mark1 reads the first worker of this list.
+        'worker_priority' => array_values(array_filter(array_map('trim', explode(',', (string) env('FREEZER_AI_WORKER_PRIORITY', 'mini,m1'))))),
+        // A worker that has not said anything for this long is shown as offline by `freezer-ai:status`.
+        'worker_offline_after_seconds' => (int) env('FREEZER_AI_WORKER_OFFLINE_AFTER', 180),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Claude's count beside Zijia's (Brian, 2026-11-13)
     |--------------------------------------------------------------------------
     | Every door session Zijia's AI is asked about is also counted by Claude from the same videos (cameras 3
@@ -230,6 +258,9 @@ return [
         // `wait_for_zijia_minutes`, then counts anyway. A person's command always counts.
         'only_when_needed' => (bool) env('CLAUDE_FREEZER_AI_ONLY_WHEN_NEEDED', false),
         'wait_for_zijia_minutes' => (int) env('CLAUDE_FREEZER_AI_WAIT_FOR_ZIJIA', 30),
+        // Our own AI first (Brian, 2026-11-19): with the Mac link on for the freezer, Claude is not called either when our
+        // AI's answer equals the paid order and it was sure (auto-accepted). It waits at most this long for our answer.
+        'wait_for_own_ai_minutes' => (int) env('CLAUDE_FREEZER_AI_WAIT_FOR_OWN_AI', 5),
         // Cameras sent (from the file name "-d1c3-"): 3 Real-Front View, 4 Top View. Camera 5 sees faces.
         'cameras' => array_values(array_filter(array_map('intval', explode(',', (string) env('CLAUDE_FREEZER_AI_CAMERAS', '3,4'))))),
         // The first and last frame of each video (the baskets before and after), the rest spread over the part where

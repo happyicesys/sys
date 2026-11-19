@@ -69,6 +69,34 @@ class AiRecognitionPageTest extends TestCase
         return $recognition;
     }
 
+    public function test_our_verdict_shows_the_mini_answer_first_and_judges_it_against_the_paid_order(): void
+    {
+        // Brian, 2026-11-19: "Our Verdict" = our own AI on the office Macs, the Mac mini's answer before the MacBook's.
+        config(['smart_freezer.own_ai.enabled' => true, 'smart_freezer.own_ai.worker_priority' => ['mini', 'm1']]);
+        $magnum = \App\Models\Product::forceCreate(['code' => 'MG-01', 'name' => 'Magnum Classic', 'operator_id' => 1]);
+        $ref = 'SF-50001-1795000000-1';
+        $r = $this->recognition(['session_ref' => $ref]);
+        VendTransaction::forceCreate([
+            'order_id' => 'O-'.uniqid(), 'vend_id' => $this->vend->id, 'vend_channel_id' => 0, 'amount' => 240,
+            'transaction_datetime' => now(), 'gst_vat_rate' => 9, 'operator_id' => 1, 'is_multiple' => false,
+            'vend_transaction_json' => ['SFREF' => $ref, 'transf_info' => [['goods_id' => $magnum->id, 'Price' => 240]]],
+        ]);
+        foreach (['m1' => 2, 'mini' => 1] as $worker => $units) {
+            \App\Models\SmartFreezerOwnAiRecognition::create(['smart_freezer_recognition_id' => $r->id, 'worker' => $worker,
+                'vend_id' => $this->vend->id, 'items' => [(string) $magnum->id => $units], 'confidence' => 88, 'auto_accept' => true,
+                'received_at' => now()]);
+        }
+
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('ownAiColumn', true)
+                ->where('recognitions.data.0.own_ai.worker', 'mini')
+                ->where('recognitions.data.0.own_ai.verdict', 'match')
+                ->where('recognitions.data.0.own_ai.items.0.name', 'Magnum Classic')
+                ->where('recognitions.data.0.own_ai.items.0.number', 1)
+                ->where('recognitions.data.0.own_ai.confidence', 88));
+    }
+
     public function test_it_needs_its_permission(): void
     {
         $this->actingAs(User::factory()->create(['operator_id' => 1]))->get('/ai-recognition?date_from=')->assertForbidden();

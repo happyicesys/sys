@@ -48,6 +48,9 @@ class Kernel extends ConsoleKernel
         // (one indexed query) while nothing is open.
         // withoutOverlapping(5): a killed run must not hold the money sweep off for the default 24 h.
         $schedule->command('card-payments:reconcile')->everyMinute()->withoutOverlapping(5);
+        // Our own freezer AI's answers from the office Macs (MQTT): 55 s of listening each minute, so no daemon is needed;
+        // it returns at once where the link is off (LSH, IDN). withoutOverlapping: one client id, one listener at a time.
+        $schedule->command('freezer-ai:listen --seconds=55')->everyMinute()->withoutOverlapping(3)->runInBackground();
         // Hourly mirror of their SKU catalog (§5). Same enabled guard inside.
         $schedule->command('citybox:sync-products')->hourly();
         // Their enabled/disabled `status` every minute (Brian, 2026-09-05). It is

@@ -383,8 +383,8 @@
                   <TableHeadSort modelName="verdict" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('verdict')">
                     {{ $t('Verification') }}
                   </TableHeadSort>
-                  <TableHead v-if="claudeColumn">
-                    <span class="text-violet-800" tabindex="0" v-tooltip="$t('Claude counts the same videos as a trial, to compare with Zijia. It never charges, refunds or moves stock.')">{{ $t('Claude Verdict') }}</span>
+                  <TableHead v-if="verdictColumn">
+                    <span class="text-emerald-800" tabindex="0" v-tooltip="$t('Mac AI is our own AI on the office Macs. It counts every session first; Claude counts only when neither Zijia nor Mac AI settled it. Neither charges, refunds or moves stock.')">{{ $t('Mac AI') }}</span>
                   </TableHead>
                   <TableHead>
                     {{ $t('Sale / Card charge') }}
@@ -417,7 +417,7 @@
                     <span v-for="item in sale.items" :key="item.name" class="block">{{ item.qty }} × {{ item.name }}</span>
                     <span class="mt-1 block text-gray-500">{{ $t('The AI check starts when the video arrives.') }}</span>
                   </td>
-                  <td v-if="claudeColumn" class="px-3 py-2"></td>
+                  <td v-if="verdictColumn" class="px-3 py-2"></td>
                   <td class="px-3 py-2 text-center font-medium">{{ formatCents(sale.amount_cents) }}</td>
                   <td class="px-3 py-2"></td>
                 </tr>
@@ -626,10 +626,28 @@
                       <span class="whitespace-nowrap">{{ row.correction.at }}</span>
                     </div>
                   </TableData>
-                  <!-- Claude Verdict (Brian, 2026-11-13): Claude's count of the same videos, a trial beside Zijia's. It decides nothing:
-                       Adjust Qty, the T05 charge and stock still follow Zijia's answer. -->
-                  <TableData v-if="claudeColumn" :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
-                    <div v-if="row.claude" class="flex w-56 flex-col gap-1 text-xs text-violet-900">
+                  <!-- Mac AI (Brian, 2026-11-19): our own AI on the office Macs first (the mini's answer, else the M1's), then
+                       Claude's count, which is called only when neither Zijia nor our AI settled the session. Both decide nothing. -->
+                  <TableData v-if="verdictColumn" :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
+                    <div v-if="row.own_ai" class="flex w-56 flex-col gap-1 text-xs text-emerald-900">
+                      <span v-if="row.own_ai.verdict" :class="['inline-flex w-fit items-center rounded-full px-2 py-0.5 font-semibold', verdictBadgeClass(row.own_ai.verdict)]">{{ $t(verdictLabels[row.own_ai.verdict] || row.own_ai.verdict) }}</span>
+                      <span v-else class="w-fit rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">{{ $t('Waiting for the sale') }}</span>
+                      <span v-for="item in row.own_ai.items" :key="'o' + item.product_id">{{ item.number }} × {{ item.name }}</span>
+                      <span v-if="!row.own_ai.items.length" class="text-gray-600">{{ $t('Nothing taken') }}</span>
+                      <span v-if="row.own_ai.same_as_zijia === true" class="font-semibold text-green-700">{{ $t('Same as Zijia') }}</span>
+                      <span v-else-if="row.own_ai.same_as_zijia === false" class="font-semibold text-red-700">{{ $t('Differs from Zijia') }}</span>
+                      <span v-if="row.own_ai.same_as_person === true" class="font-semibold text-green-700">{{ $t('Same as the person\'s count') }}</span>
+                      <span v-else-if="row.own_ai.same_as_person === false" class="font-semibold text-red-700">{{ $t('Differs from the person\'s count') }}</span>
+                      <span v-if="row.own_ai.auto === false" class="w-fit cursor-help text-amber-800" tabindex="0" v-tooltip="row.own_ai.why_person || ''">{{ $t('Mac AI: a person should check') }}</span>
+                      <span class="flex items-baseline justify-between gap-2 text-gray-500">
+                        <span v-if="row.own_ai.confidence !== null">{{ $t('sure :pct%', { pct: row.own_ai.confidence }) }}</span>
+                        <span class="cursor-help" tabindex="0" v-tooltip="row.own_ai.model || ''">{{ row.own_ai.worker === 'mini' ? $t('Mac mini') : row.own_ai.worker === 'm1' ? $t('MacBook') : row.own_ai.worker }}</span>
+                      </span>
+                    </div>
+                    <span v-else-if="ownAiColumn" class="text-gray-400" tabindex="0" v-tooltip="$t('Mac AI has not answered this session.')">—</span>
+                    <div v-if="row.claude" :class="['flex w-56 flex-col gap-1', row.own_ai || ownAiColumn ? 'mt-2 border-t border-violet-200 pt-2' : '']">
+                      <span v-if="ownAiColumn" class="text-[10px] font-semibold uppercase tracking-wide text-violet-700">{{ $t('Claude') }}</span>
+                      <div v-if="row.claude" class="flex w-56 flex-col gap-1 text-xs text-violet-900">
                       <template v-if="row.claude.status === 'done'">
                         <span v-if="row.claude.verdict" :class="['inline-flex w-fit items-center rounded-full px-2 py-0.5 font-semibold', verdictBadgeClass(row.claude.verdict)]">{{ $t(verdictLabels[row.claude.verdict] || row.claude.verdict) }}</span>
                         <span v-else class="w-fit cursor-help rounded-full bg-gray-100 px-2 py-0.5 text-gray-600" tabindex="0" v-tooltip="row.claude.reason || ''">{{ $t('Waiting for the sale') }}</span>
@@ -648,6 +666,8 @@
                           <span v-if="row.claude.confidence !== null" class="cursor-help" tabindex="0" v-tooltip="row.claude.notes || ''">{{ $t('sure :pct%', { pct: row.claude.confidence }) }}</span>                        </span>
                       </template>
                       <span v-else-if="row.claude.status === 'pending' || row.claude.status === 'running'" class="text-gray-500">{{ $t('counting…') }}</span>
+                      <!-- Skipped on purpose (Zijia or our own AI already settled the session) reads "not needed". -->
+                      <span v-else-if="row.claude.status === 'skipped' && (row.claude.reason || '').startsWith('not needed')" class="w-fit cursor-help text-gray-500" tabindex="0" v-tooltip="row.claude.reason || ''">{{ $t('not needed') }}</span>
                       <span v-else class="w-fit cursor-help text-gray-500" tabindex="0" v-tooltip="row.claude.reason || ''">{{ row.claude.status === 'skipped' ? $t('not sent') : $t('failed') }}</span>
                       <!-- What this session's Claude call cost (a declined or cut-off call is billed too), and the model that answered. -->
                       <div v-if="row.claude.cost_text || row.claude.model" class="mt-0.5 flex items-baseline justify-between gap-2 border-t border-violet-200 pt-1">
@@ -656,7 +676,7 @@
                         <span v-if="row.claude.model" class="text-gray-500">{{ row.claude.model.replace(/^claude-/, '') }}</span>
                       </div>
                     </div>
-                    <span v-else class="text-gray-400" tabindex="0" v-tooltip="$t('Claude did not count this session.')">—</span>
+                    </div>
                   </TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center">
                     <div v-if="row.sale" class="flex flex-col space-y-1 text-xs">
@@ -715,7 +735,7 @@
                   </TableData>
                 </tr>
                 <tr v-if="!recognitions.data.length">
-                  <td :colspan="claudeColumn ? 11 : 10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                  <td :colspan="verdictColumn ? 11 : 10" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                     {{ $t('No Results Found') }}
                   </td>
                 </tr>
@@ -838,6 +858,7 @@ const props = defineProps({
   waitingForVideo: { type: Array, default: () => [] },
   aiCoverage: { type: Array, default: () => [] },
   claudeModel: { type: Object, default: null },
+  ownAiColumn: { type: Boolean, default: false },
   orderStatusLegend: Array,
   doorFaultLegend: { type: Array, default: () => [] },
   filters: Object,
@@ -957,6 +978,9 @@ const unusualLabels = {
 
 // The Claude Verdict column shows while CLAUDE_FREEZER_AI is true on the server (Brian, 2026-11-13).
 const claudeColumn = computed(() => Boolean(props.claudeModel?.enabled))
+// "Mac AI" (2026-11-19): our own AI on the Macs first, Claude underneath when it was called.
+const ownAiColumn = computed(() => Boolean(props.ownAiColumn))
+const verdictColumn = computed(() => claudeColumn.value || ownAiColumn.value)
 
 // The Claude trial's model: saved at once on change; a refused save puts the page's value back.
 const claudeModelPick = ref(props.claudeModel?.current ?? null)

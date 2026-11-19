@@ -24,9 +24,24 @@ class SubscribeMqttService
     {
         $mqtt = MQTT::connection();
         $mqtt->subscribe(self::SUBSCRIBED_TOPIC, function (string $topic, string $message) {
+            if (self::isFreezerAiTopic($topic)) {
+                return;
+            }
             $this->processData($message, self::IP_ADDRESS, self::CONNECTION_TYPE, $topic);
         }, 1);
         $mqtt->loop(true);
+    }
+
+    /**
+     * Our own freezer AI's traffic (mark1 ↔ the office Macs, 2026-11-19) shares this broker but is not machine data:
+     * `freezer-ai:listen` reads it. This listener subscribes to `#`, so without this it would feed every job and answer
+     * to VendDataService as if a machine had sent it.
+     */
+    public static function isFreezerAiTopic(string $topic): bool
+    {
+        $prefix = trim((string) config('smart_freezer.own_ai.topic_prefix', 'freezer-ai'), '/');
+
+        return $prefix !== '' && ($topic === $prefix || str_starts_with($topic, $prefix.'/'));
     }
 
     /**

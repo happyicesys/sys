@@ -1,0 +1,306 @@
+<?php
+
+namespace App\Services\SmartFreezer\OwnAi;
+
+use App\Jobs\PublishFreezerAiJob;
+use App\Models\SmartFreezerOwnAiRecognition;
+use App\Models\SmartFreezerRecognition;
+use App\Models\VendTransaction;
+use App\Services\Mqtt\MqttPublisher;
+use App\Services\SmartFreezer\FreezerSaleLocator;
+use App\Services\SmartFreezer\RecognitionVerdict;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Throwable;
+
+/**
+ * The link between mark1 and our own freezer AI on the office Macs (Brian, 2026-11-19), over the fleet's MQTT broker.
+ *
+ *   mark1 ──<prefix>/jobs {"v":1,"session":<recognition id>,…}──▶ every Mac          (QoS 1, IDs only)
+ *   Mac   ──<prefix>/results/<worker> {"v":1,"session":…,"items":{product id: units},…}──▶ mark1
+ *   mark1 ──<prefix>/ack/<worker> {"session":…,"ok":true}──▶ that Mac
+ *   Mac   ──<prefix>/status/<worker> {"state":"online"|"offline",…}  (its last will says offline)
+ *
+ * Each Mac is a WORKER with its own name and its own broker client id, so the MacBook M1 and the Mac mini can both be
+ * connected: both receive every job, both answer, and mark1 keeps one answer per worker per session. Switching a Mac
+ * off only stops its column. Video links never travel over MQTT (the broker is not encrypted): a Mac fetches the
+ * session itself. SHADOW ONLY — nothing here charges, releases, refunds or moves stock.
+ */
+class OwnAiLink
+{
+    public const WORKER_PATTERN = '/^[a-z0-9][a-z0-9-]{0,31}$/';
+
+    private const WORKERS_KEY = 'freezer-ai:workers';
+
+    public function __construct(
+        private readonly MqttPublisher $publisher,
+        private readonly FreezerSaleLocator $sales,
+    ) {}
+
+    public function prefix(): string
+    {
+        return trim((string) config('smart_freezer.own_ai.topic_prefix', 'freezer-ai'), '/');
+    }
+
+    public function enabledFor(SmartFreezerRecognition $recognition): bool
+    {
+        if (! config('smart_freezer.own_ai.enabled') || $recognition->vend === null) {
+            return false;
+        }
+        $vends = (array) config('smart_freezer.own_ai.vends');
+
+        return $vends === [] || in_array((string) $recognition->vend->code, $vends, true);
+    }
+
+    /** Called when a door session opens. Never throws: our AI must never hold up Zijia's check. */
+    public function schedule(SmartFreezerRecognition $recognition): void
+    {
+        try {
+            if (! $this->enabledFor($recognition)) {
+                return;
+            }
+            // One announcement per session, however many pushes it arrives as (one per camera is possible).
+            if (! Cache::add('freezer-ai:job-scheduled:'.$recognition->id, 1, now()->addDay())) {
+                return;
+            }
+            PublishFreezerAiJob::dispatch($recognition->id)
+                ->delay(now()->addSeconds(max(0, (int) config('smart_freezer.own_ai.delay_seconds'))));
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** @return array<string, mixed> */
+    public function jobPayload(SmartFreezerRecognition $recognition): array
+    {
+        return [
+            'v' => 1,
+            'session' => (int) $recognition->id,
+            'vend' => (string) ($recognition->vend?->code ?? ''),
+            'session_ref' => $recognition->session_ref,
+            'opened_at' => $recognition->created_at?->toIso8601String(),
+            'sent_at' => Carbon::now()->toIso8601String(),
+        ];
+    }
+
+    /** Announce one session to every connected Mac. Throws on a broker failure, so the job retries. */
+    public function publishJob(SmartFreezerRecognition $recognition): void
+    {
+        $this->publisher->publish($this->prefix().'/jobs', json_encode($this->jobPayload($recognition)), 1);
+        Cache::put('freezer-ai:job-sent:'.$recognition->id, Carbon::now()->toIso8601String(), now()->addDays(7));
+    }
+
+    /**
+     * One message the listener received. Returns the [topic, payload] to answer with (an ack for a result), or null.
+     * Never throws: a bad message from one Mac must not stop the listener.
+     *
+     * @return array{0: string, 1: string}|null
+     */
+    public function receive(string $topic, string $message): ?array
+    {
+        $prefix = $this->prefix();
+        if (! preg_match('#^'.preg_quote($prefix, '#').'/(results|status)/([^/]+)$#', $topic, $m)) {
+            return null;
+        }
+        [$kind, $worker] = [$m[1], $m[2]];
+        if (! preg_match(self::WORKER_PATTERN, $worker)) {
+            Log::warning('freezer-ai message from an invalid worker name refused', ['topic' => $topic]);
+
+            return null;
+        }
+        $data = json_decode($message, true);
+        if (! is_array($data)) {
+            Log::warning('freezer-ai message is not JSON', ['topic' => $topic, 'raw' => mb_substr($message, 0, 300)]);
+
+            return $kind === 'results' ? $this->ack($worker, null, false, 'not JSON') : null;
+        }
+        try {
+            if ($kind === 'status') {
+                $this->seen($worker, $data);
+
+                return null;
+            }
+
+            return $this->result($worker, $data);
+        } catch (Throwable $e) {
+            report($e);
+
+            return $kind === 'results' ? $this->ack($worker, $data['session'] ?? null, false, 'server error') : null;
+        }
+    }
+
+    /** @return array{0: string, 1: string} */
+    private function result(string $worker, array $data): array
+    {
+        $this->seen($worker, ['state' => 'online', 'model' => $data['model'] ?? null]);
+        $session = filter_var($data['session'] ?? null, FILTER_VALIDATE_INT);
+        $recognition = $session ? SmartFreezerRecognition::find($session) : null;
+        if ($recognition === null) {
+            return $this->ack($worker, $data['session'] ?? null, false, 'unknown session');
+        }
+        $items = $this->items($data['items'] ?? null);
+        if ($items === null) {
+            return $this->ack($worker, $session, false, 'bad items');
+        }
+        $confidence = $data['confidence'] ?? null;
+        $confidence = is_numeric($confidence) ? max(0, min(100, (int) round((float) $confidence))) : null;
+        $now = Carbon::now();
+        $sent = Cache::get('freezer-ai:job-sent:'.$recognition->id);
+
+        $row = SmartFreezerOwnAiRecognition::firstOrNew(['smart_freezer_recognition_id' => $recognition->id, 'worker' => $worker]);
+        $row->fill([
+            'vend_id' => $recognition->vend_id,
+            'session_ref' => $recognition->session_ref,
+            'items' => $items,
+            'confidence' => $confidence,
+            'auto_accept' => isset($data['auto']) ? (bool) $data['auto'] : null,
+            'why_person' => isset($data['why_person']) ? mb_substr((string) $data['why_person'], 0, 255) : null,
+            'model' => isset($data['model']) ? mb_substr((string) $data['model'], 0, 64) : null,
+            'answer' => array_intersect_key($data, array_flip(['v', 'session', 'items', 'confidence', 'auto', 'why_person', 'model', 'answered_at', 'detail'])),
+            'latency_ms' => $recognition->created_at ? (int) min(4294967295, max(0, $recognition->created_at->diffInMilliseconds($now))) : null,
+            'job_sent_at' => $sent ? Carbon::parse($sent) : null,
+            'received_at' => $now,
+        ]);
+        $row->answers = $row->exists ? $row->answers + 1 : 1;
+        $row->save();
+
+        return $this->ack($worker, $session, true);
+    }
+
+    /** product id => units, ints only; null when malformed. An empty map is a real answer: nothing taken. */
+    private function items(mixed $items): ?array
+    {
+        if ($items === [] || $items === null) {
+            return $items === null ? null : [];
+        }
+        if (! is_array($items)) {
+            return null;
+        }
+        $out = [];
+        foreach ($items as $product => $units) {
+            if (filter_var($product, FILTER_VALIDATE_INT) === false || filter_var($units, FILTER_VALIDATE_INT) === false
+                || (int) $units < 0 || (int) $units > 50) {
+                return null;
+            }
+            if ((int) $units > 0) {
+                $out[(string) (int) $product] = (int) $units;
+            }
+        }
+
+        return $out;
+    }
+
+    /** @return array{0: string, 1: string} */
+    private function ack(string $worker, mixed $session, bool $ok, ?string $error = null): array
+    {
+        return [$this->prefix().'/ack/'.$worker, json_encode(array_filter(
+            ['session' => is_numeric($session) ? (int) $session : null, 'ok' => $ok, 'error' => $error],
+            fn ($v) => $v !== null,
+        ))];
+    }
+
+    private function seen(string $worker, array $data): void
+    {
+        $state = ($data['state'] ?? 'online') === 'offline' ? 'offline' : 'online';
+        Cache::put('freezer-ai:worker:'.$worker, [
+            'state' => $state,
+            'model' => isset($data['model']) ? mb_substr((string) $data['model'], 0, 64) : null,
+            'host' => isset($data['host']) ? mb_substr((string) $data['host'], 0, 64) : null,
+            'role' => in_array($data['role'] ?? null, ['active', 'standby'], true) ? $data['role'] : null,
+            'seen_at' => Carbon::now()->toIso8601String(),
+        ], now()->addDays(30));
+        $workers = (array) Cache::get(self::WORKERS_KEY, []);
+        if (! in_array($worker, $workers, true)) {
+            $workers[] = $worker;
+            Cache::forever(self::WORKERS_KEY, array_slice($workers, -20));
+        }
+    }
+
+    /**
+     * The answer to read for a session: the first worker in `worker_priority` that answered (the mini before the M1),
+     * else the most recent answer. The Macs already keep the M1 quiet while the mini is up; this settles a session both
+     * answered (a takeover overlapping the mini's return).
+     */
+    public function preferredAnswer(int $recognitionId): ?SmartFreezerOwnAiRecognition
+    {
+        $rows = SmartFreezerOwnAiRecognition::where('smart_freezer_recognition_id', $recognitionId)->get();
+        $order = array_flip((array) config('smart_freezer.own_ai.worker_priority', []));
+
+        return $rows->sortBy([
+            fn ($a, $b) => ($order[$a->worker] ?? PHP_INT_MAX) <=> ($order[$b->worker] ?? PHP_INT_MAX),
+            fn ($a, $b) => $b->received_at <=> $a->received_at,
+        ])->first();
+    }
+
+    /** The sale this session paid for: the one the recognition is linked to, else found by its session ref. */
+    public function saleOf(SmartFreezerRecognition $recognition): ?VendTransaction
+    {
+        if ($recognition->vendTransaction !== null) {
+            return $recognition->vendTransaction;
+        }
+        if ($recognition->vend === null || ! $recognition->session_ref) {
+            return null;
+        }
+
+        return $this->sales->find($recognition->vend, (string) $recognition->session_ref, $recognition->created_at);
+    }
+
+    /**
+     * Our answer held against the paid order with Zijia's own rule (RecognitionVerdict): match / took_more / took_less /
+     * mixed, or null while the sale is not in. Shadow only.
+     */
+    public function verdict(SmartFreezerOwnAiRecognition $answer, ?VendTransaction $sale): ?string
+    {
+        if ($sale === null) {
+            return null;
+        }
+        $paid = $this->sales->paidUnits($sale);
+        $taken = $byCode = [];
+        foreach ((array) $answer->items as $productId => $units) {
+            $taken['p'.$productId] = (int) $units;
+            $byCode['p'.$productId] = (int) $productId;
+        }
+        foreach (array_keys($paid) as $productId) {
+            $byCode['p'.$productId] = (int) $productId;
+        }
+
+        return RecognitionVerdict::compare($paid, $taken, $byCode)->outcome;
+    }
+
+    /**
+     * True when our AI settled this session on its own: its answer equals the paid order and it was sure enough to
+     * auto-accept (Brian, 2026-11-19: Claude is called only when neither Zijia nor ours can settle a session).
+     */
+    public function settled(SmartFreezerRecognition $recognition): bool
+    {
+        $answer = $this->preferredAnswer($recognition->id);
+
+        return $answer !== null && $answer->auto_accept !== false
+            && $this->verdict($answer, $this->saleOf($recognition)) === RecognitionVerdict::MATCH;
+    }
+
+    /**
+     * Every worker heard from: name => [state online|offline|silent, model, seen_at]. "silent" = said online but nothing
+     * for `worker_offline_after_seconds` (the Mac sends a status every minute).
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function workers(): array
+    {
+        $out = [];
+        $limit = (int) config('smart_freezer.own_ai.worker_offline_after_seconds', 180);
+        foreach ((array) Cache::get(self::WORKERS_KEY, []) as $w) {
+            $s = Cache::get('freezer-ai:worker:'.$w);
+            if (! is_array($s)) {
+                continue;
+            }
+            if ($s['state'] === 'online' && Carbon::parse($s['seen_at'])->lt(Carbon::now()->subSeconds($limit))) {
+                $s['state'] = 'silent';
+            }
+            $out[$w] = $s;
+        }
+
+        return $out;
+    }
+}

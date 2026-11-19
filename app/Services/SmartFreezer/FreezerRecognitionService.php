@@ -10,6 +10,7 @@ use App\Models\SmartFreezerVideo;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Services\SmartFreezer\Claude\ClaudeShadowRecognitionService;
+use App\Services\SmartFreezer\OwnAi\OwnAiLink;
 use App\Services\SmartFreezer\Zijia\RecognitionRequest;
 use App\Services\SmartFreezer\Zijia\RecognitionResult;
 use App\Services\SmartFreezer\Zijia\ZijiaAlgorithmClient;
@@ -40,6 +41,7 @@ class FreezerRecognitionService
         private readonly ZijiaAlgorithmClient $client,
         private readonly FreezerSaleLocator $sales,
         private readonly ClaudeShadowRecognitionService $claude,
+        private readonly OwnAiLink $ownAi,
     ) {}
 
     /**
@@ -100,6 +102,8 @@ class FreezerRecognitionService
 
         // Claude counts the same session beside Zijia, shadow only; never throws, never holds Zijia's check.
         $this->claude->schedule($recognition);
+        // Our own AI on the office Macs is told about it too (MQTT, IDs only); same promise, shadow only.
+        $this->ownAi->schedule($recognition);
 
         if ($recognition->status_reason === null && config('smart_freezer.zijia.algorithm.auto_submit')) {
             // One job per push; the job waits for the session to go quiet, and the claim in

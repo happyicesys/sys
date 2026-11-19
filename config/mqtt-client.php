@@ -113,6 +113,51 @@ return [
 
         ],
 
+        // freezer-ai:listen only (2026-11-19): the same broker as mqtt_vends, but its OWN client id — the broker drops
+        // a client when another connects with the same id, which would knock the fleet listener off. Persistent session
+        // (clean session off) so answers the Macs sent while the listener was down are delivered when it is back.
+        'mqtt_freezer_ai' => [
+            'host' => env('MQTT_HOST'),
+            'port' => env('MQTT_PORT', 1883),
+            'protocol' => MqttClient::MQTT_3_1,
+            'client_id' => env('FREEZER_AI_MQTT_CLIENT_ID', 'mk1-freezer-ai'),
+            'use_clean_session' => (bool) env('FREEZER_AI_MQTT_CLEAN_SESSION', false),
+            'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
+            'repository' => MemoryRepository::class,
+            'connection_settings' => [
+                'tls' => [
+                    'enabled' => env('MQTT_TLS_ENABLED', false),
+                    'allow_self_signed_certificate' => env('MQTT_TLS_ALLOW_SELF_SIGNED_CERT', false),
+                    'verify_peer' => env('MQTT_TLS_VERIFY_PEER', true),
+                    'verify_peer_name' => env('MQTT_TLS_VERIFY_PEER_NAME', true),
+                    'ca_file' => env('MQTT_TLS_CA_FILE'),
+                    'ca_path' => env('MQTT_TLS_CA_PATH'),
+                    'client_certificate_file' => env('MQTT_TLS_CLIENT_CERT_FILE'),
+                    'client_certificate_key_file' => env('MQTT_TLS_CLIENT_CERT_KEY_FILE'),
+                    'client_certificate_key_passphrase' => env('MQTT_TLS_CLIENT_CERT_KEY_PASSPHRASE'),
+                ],
+                'auth' => [
+                    'username' => env('FREEZER_AI_MQTT_USERNAME', env('MQTT_AUTH_USERNAME')),
+                    'password' => env('FREEZER_AI_MQTT_PASSWORD', env('MQTT_AUTH_PASSWORD')),
+                ],
+                'last_will' => [
+                    'topic' => null,
+                    'message' => null,
+                    'quality_of_service' => 0,
+                    'retain' => false,
+                ],
+                'connect_timeout' => 10,
+                'socket_timeout' => 5,
+                'resend_timeout' => 10,
+                'keep_alive_interval' => 60,
+                'auto_reconnect' => [
+                    'enabled' => true,
+                    'max_reconnect_attempts' => 1000000,
+                    'delay_between_reconnect_attempts' => 5,
+                ],
+            ],
+        ],
+
         'mqtt_modems' => [
 
             // The host and port to which the client shall connect.
