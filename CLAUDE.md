@@ -1909,8 +1909,10 @@ broker. `App\Services\SmartFreezer\OwnAi\OwnAiLink` is the one rule and the only
   both answer on `freezer-ai/results/<worker>` {session, items {product id: units}, confidence 0–100, auto, why_person,
   model}, and the table keeps one row per (recognition, worker) — re-answers update it (`answers`). Switching a Mac off
   stops only its rows. mark1 acks on `freezer-ai/ack/<worker>`; a Mac re-sends unacked answers every 5 min.
-- **Listener.** `php artisan freezer-ai:listen` — a Forge daemon of its own on connection `mqtt_freezer_ai` (client id
-  `FREEZER_AI_MQTT_CLIENT_ID`, default `mk1-freezer-ai`, persistent session), subscribed to `freezer-ai/results/+` and
+- **Listener.** `php artisan freezer-ai:listen --seconds=55`, run EVERY MINUTE by the scheduler (`Kernel`,
+  `withoutOverlapping`) — no daemon (`forge` cannot add supervisor programs), and it returns at once where the link is off
+  (LSH, IDN). Own connection `mqtt_freezer_ai` (client id `FREEZER_AI_MQTT_CLIENT_ID`, default `mk1-freezer-ai`, persistent
+  session, so answers sent in the seconds between runs wait on the broker), subscribed to `freezer-ai/results/+` and
   `freezer-ai/status/+` only. It handles messages in ONE received-message hook registered before subscribing: on reconnect
   the broker delivers the answers queued while it was down before the subscriptions are re-made, and php-mqtt drops a
   message no subscription callback matches (found on a test broker). `--status` lists the Macs (online / offline = its last
@@ -1931,7 +1933,11 @@ broker. `App\Services\SmartFreezer\OwnAi\OwnAiLink` is the one rule and the only
   Claude when Zijia matched (`ZIJIA_MATCHED`) or when our AI's preferred answer equals the paid order and was auto-accepted
   (`OWN_AI_MATCHED`, `OwnAiLink::settled`); it waits up to `wait_for_own_ai_minutes` (5) for our answer, as it waits for Zijia.
   The page reads such a skip as "not needed". With the link off for the freezer, Claude behaves exactly as before.
-- Off until `FREEZER_AI_LINK=true`; `FREEZER_AI_LINK_VENDS` narrows to machine codes. SG only (both freezers are SG).
+- **LIVE on SG since 2026-11-19 13:11** (`969ca4d248`; SG `.env` `FREEZER_AI_LINK=true`, `FREEZER_AI_LINK_VENDS=50001,50002`,
+  backup `/home/forge/.env.backup-before-freezer-ai-2026-11-19`; `subscribe:mqtt` restarted 13:09:44 for the prefix filter).
+  Worker `m1` (MacBook) answers; the Mac mini joins as `mini`. First answers 189/191/193/195 (catch-up) and a prod-sent job
+  for 187, 9 s each. LSH and IDN have the table and code but the link off. To switch off: remove the two env lines, then
+  `php artisan horizon:terminate`. The Macs also sweep the last 24 h every 15 min for sessions they missed.
 - Not built yet: broker logins of their own for the Macs (they use the fleet login until then; `FREEZER_AI_MQTT_USERNAME` /
   `_PASSWORD` let the listener move first), and an "Our AI" box on the AI Dashboard.
 Plan and Mac side: `freezer-ai/MARK1_LINK_PLAN_2026-11-18.md`, `freezer-ai/freezer_ai/link.py` (+ `fast.py`, the one-sale
