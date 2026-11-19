@@ -268,6 +268,7 @@ class FreezerRecognitionController extends Controller
         $charged = $refunded = 0;
         $outcomes = ['successful' => 0, 'void' => 0, 'machine_error' => 0, 'other' => 0];
         $correct = $adjusted = $unchecked = 0;
+        $qtyById = [];
         $invoiceSales = $invoiceScanned = $invoiceFinalSeen = 0;
         foreach ($rows as $r) {
             $sale = $r->vendTransaction;
@@ -287,7 +288,7 @@ class FreezerRecognitionController extends Controller
                 default => 'other',
             }]++;
 
-            [$rowCorrect, $rowAdjusted, $rowUnchecked] = $this->qtyCheck($r, $card);
+            [$rowCorrect, $rowAdjusted, $rowUnchecked] = $qtyById[$r->id] = $this->qtyCheck($r, $card);
             $correct += $rowCorrect;
             $adjusted += $rowAdjusted;
             $unchecked += $rowUnchecked;
@@ -318,7 +319,8 @@ class FreezerRecognitionController extends Controller
             'invoice_final_seen' => $invoiceFinalSeen,
             // HappyIce AI (the office Mac's answer, else Claude's where it counted) beside Zijia on the same sessions
             // (Brian, 2026-11-19, was "Claude vs Zijia"; shadow only); null until any session has an answer of ours.
-            'happyice' => app(HappyIceZijiaComparison::class)->summarise($rows),
+            // Units, beside Zijia's units on the same sessions (Brian, 2026-11-19: accuracy is quantity, not transactions).
+            'happyice' => app(HappyIceZijiaComparison::class)->summarise($rows, fn ($r) => $qtyById[$r->id] ?? [0, 0, 0]),
         ];
     }
 

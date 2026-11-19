@@ -24,6 +24,12 @@ use Illuminate\Support\Collection;
  *  - together would settle: Zijia matched, or ours matched and was sure (the Mac auto-accepted / Claude not flagged) —
  *    the sessions no person would have had to look at; of those a person counted, how many would have been charged
  *    wrongly (the paid order is not what the person counted).
+ *
+ * The box shows UNITS, not sessions (Brian, 2026-11-19 recording: "AI 裡面不要靠 transaction 的 count … 所有的 accuracy
+ * 都是 quantity"), counted by the Zijia box's own rule ({@see \App\Http\Controllers\SmartFreezer\FreezerRecognitionController::qtyCheck}):
+ * a person's Adjust Qty count is the truth (units ours had right / units it got wrong); with no person, units equal to
+ * the paid order are right and any difference is "not checked yet". Zijia's units over the SAME sessions sit beside it.
+ * The session figures above stay in the payload; the page no longer shows them.
  */
 final class HappyIceZijiaComparison
 {
@@ -31,9 +37,11 @@ final class HappyIceZijiaComparison
 
     /**
      * @param  Collection<int, SmartFreezerRecognition>  $recognitions  with `vendTransaction` loaded (meta_json, frame)
+     * @param  (callable(SmartFreezerRecognition): array{int, int, int})|null  $zijiaQty  Zijia's [right, adjusted, not
+     *                                                                                    checked] units for a session, as the Zijia box counts them
      * @return array<string, int|float|string|null>|null null while no session has an answer of ours
      */
-    public function summarise(Collection $recognitions): ?array
+    public function summarise(Collection $recognitions, ?callable $zijiaQty = null): ?array
     {
         $ids = $recognitions->pluck('id');
         if ($ids->isEmpty()) {
@@ -59,6 +67,8 @@ final class HappyIceZijiaComparison
             'person_counted' => 0, 'ours_right' => 0, 'zijia_person_counted' => 0, 'zijia_right' => 0,
             'together_judged' => 0, 'together_settle' => 0, 'together_settle_checked' => 0, 'together_settle_wrong' => 0,
             'cost_usd_micros' => (int) $claude->sum('cost_usd_micros'),
+            'ours_correct_qty' => 0, 'ours_wrong_qty' => 0, 'ours_unchecked_qty' => 0,
+            'zijia_same_correct_qty' => 0, 'zijia_same_total_qty' => 0,
         ];
 
         foreach ($recognitions as $r) {
@@ -71,6 +81,22 @@ final class HappyIceZijiaComparison
                 $s['ours_answered']++;
                 $s[$ours['by'] === 'mac' ? 'by_mac' : 'by_claude']++;
                 $s['ours_match_paid'] += $ours['verdict'] === RecognitionVerdict::MATCH ? 1 : 0;
+
+                // Units, by the Zijia box's rule: a person's count first, else the paid order.
+                if ($person !== null) {
+                    [$right, $wrong] = self::units($ours['items'], $person);
+                    $s['ours_correct_qty'] += $right;
+                    $s['ours_wrong_qty'] += $wrong;
+                } else {
+                    [$right, $differs] = self::units($ours['items'], $this->paid($r));
+                    $s['ours_correct_qty'] += $right;
+                    $s['ours_unchecked_qty'] += $differs;
+                }
+                if ($zijiaQty !== null) {
+                    [$zRight, $zAdjusted, $zUnchecked] = $zijiaQty($r);
+                    $s['zijia_same_correct_qty'] += $zRight;
+                    $s['zijia_same_total_qty'] += $zRight + $zAdjusted + $zUnchecked;
+                }
             }
             if ($zijia !== null) {
                 $s['zijia_answered']++;
@@ -103,11 +129,31 @@ final class HappyIceZijiaComparison
         $pct = fn (int $n, int $of) => $of > 0 ? round($n / $of * 100, 1) : null;
         $s['ours_match_paid_pct'] = $pct($s['ours_match_paid'], $s['ours_answered']);
         $s['zijia_match_paid_pct'] = $pct($s['zijia_match_paid'], $s['zijia_answered']);
+        $s['ours_total_qty'] = $s['ours_correct_qty'] + $s['ours_wrong_qty'] + $s['ours_unchecked_qty'];
+        $s['ours_correct_pct'] = $pct($s['ours_correct_qty'], $s['ours_total_qty']);
+        $s['zijia_same_correct_pct'] = $pct($s['zijia_same_correct_qty'], $s['zijia_same_total_qty']);
         $calls = $claude->filter(fn (ClaudeRow $c) => $c->cost_usd_micros !== null)->count();
         $s['cost_text'] = ClaudeCostMoney::text($s['cost_usd_micros']);
         $s['cost_per_session_text'] = $calls > 0 ? ClaudeCostMoney::text(intdiv($s['cost_usd_micros'], $calls)) : null;
 
         return $s;
+    }
+
+    /**
+     * Units two counts agree on, and the units they differ by (the larger total less the agreed) — PersonCount's arithmetic.
+     *
+     * @param  array<int|string, int>  $ours
+     * @param  array<int|string, int>  $other
+     * @return array{int, int}
+     */
+    private static function units(array $ours, array $other): array
+    {
+        $right = 0;
+        foreach ($ours as $key => $n) {
+            $right += min((int) $n, (int) ($other[$key] ?? 0));
+        }
+
+        return [$right, max(array_sum($ours), array_sum($other)) - $right];
     }
 
     /**

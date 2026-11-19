@@ -115,7 +115,37 @@ class AiRecognitionPageTest extends TestCase
                 ->where('dashboard.happyice.by_claude', 0)
                 ->where('dashboard.happyice.ours_match_paid', 1)
                 ->where('dashboard.happyice.together_settle', 1)
-                ->where('dashboard.happyice.together_judged', 1));
+                ->where('dashboard.happyice.together_judged', 1)
+                // Units, not sessions (Brian, 2026-11-19 recording): the mini's 1 Magnum equals the paid one.
+                ->where('dashboard.happyice.ours_correct_qty', 1)
+                ->where('dashboard.happyice.ours_total_qty', 1)
+                ->where('dashboard.happyice.zijia_same_total_qty', 0)
+                ->where('dashboard.happyice.zijia_same_correct_pct', null));
+
+        // A person counted 1 Magnum: Zijia saw 2 (1 right, 1 adjusted), ours saw 1 (right). The person's count is the truth
+        // for both, on the same session.
+        $r->update(['verdict' => 'took_more', 'status' => SmartFreezerRecognition::STATUS_COMPLETED,
+            'vend_transaction_id' => VendTransaction::where('vend_id', $this->vend->id)->value('id'),
+            'verdict_lines' => [['product_id' => $magnum->id, 'taken' => 2, 'paid' => 1]]]);
+        VendTransaction::where('vend_id', $this->vend->id)->update(['meta_json' => json_encode(['correction' => ['basket' => [$magnum->id => 1]]])]);
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('dashboard.correct_qty', 1)
+                ->where('dashboard.adjusted_qty', 1)
+                ->where('dashboard.happyice.ours_correct_qty', 1)
+                ->where('dashboard.happyice.ours_wrong_qty', 0)
+                ->where('dashboard.happyice.ours_correct_pct', 100)
+                ->where('dashboard.happyice.zijia_same_correct_qty', 1)
+                ->where('dashboard.happyice.zijia_same_total_qty', 2)
+                ->where('dashboard.happyice.zijia_same_correct_pct', 50));
+
+        // The mini said 3: one right, two wrong against the person.
+        \App\Models\SmartFreezerOwnAiRecognition::where('worker', 'mini')->update(['items' => json_encode([(string) $magnum->id => 3])]);
+        $this->actingAs($this->viewer())->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('dashboard.happyice.ours_correct_qty', 1)
+                ->where('dashboard.happyice.ours_wrong_qty', 2)
+                ->where('dashboard.happyice.ours_total_qty', 3));
     }
 
     public function test_it_needs_its_permission(): void

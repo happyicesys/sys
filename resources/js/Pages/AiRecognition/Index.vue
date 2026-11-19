@@ -131,10 +131,12 @@
           </div>
         </div>
 
-        <!-- Totals over everything the filters list. Each session lands in one outcome and its units in one count. -->
-        <dl :class="['mt-4 grid grid-cols-1 gap-2 text-sm', dashboard.happyice ? 'md:grid-cols-5' : 'md:grid-cols-4']">
+        <!-- Totals over everything the filters list. Each session lands in one outcome and its units in one count.
+             Brian, 2026-11-19 recording: the transaction count is the OVERALL picture, so it shares the sales box; every
+             accuracy figure is in units — Zijia AI and HappyIce AI side by side. -->
+        <dl :class="['mt-4 grid grid-cols-1 gap-2 text-sm', dashboard.happyice ? 'md:grid-cols-4' : 'md:grid-cols-3']">
           <div class="overflow-hidden rounded-lg bg-gray-100 px-4 py-3 shadow">
-            <p class="text-base font-bold text-gray-800">{{ $t('Total Sales $') }}</p>
+            <p class="text-base font-bold text-gray-800">{{ $t('Sales & Transactions') }}</p>
             <div class="mt-1 flex justify-between gap-2">
               <dt tabindex="0" v-tooltip="$t('What was collected: T05 charges, and sales paid at the machine.')">{{ $t('Charged $') }}:</dt>
               <dd class="font-semibold tabular-nums text-gray-900">{{ formatCents(dashboard.charged_cents) }}</dd>
@@ -143,10 +145,7 @@
               <dt tabindex="0" v-tooltip="$t('What went back to the card or the gateway. A claim paid by hand is not included.')">{{ $t('Refund $') }}:</dt>
               <dd class="font-semibold tabular-nums text-gray-900">{{ formatCents(dashboard.refunded_cents) }}</dd>
             </div>
-          </div>
-          <div class="overflow-hidden rounded-lg bg-gray-100 px-4 py-3 shadow">
-            <p class="text-base font-bold text-gray-800">{{ $t('Transaction Count') }}</p>
-            <div class="mt-1 flex justify-between gap-2">
+            <div class="mt-1 flex justify-between gap-2 border-t border-gray-300 pt-1">
               <dt tabindex="0" v-tooltip="$t('Money was collected.')">{{ $t('Successful') }}:</dt>
               <dd class="font-semibold tabular-nums text-gray-900">
                 {{ dashboard.successful.toLocaleString() }}
@@ -171,7 +170,7 @@
             </div>
           </div>
           <div class="overflow-hidden rounded-lg bg-gray-100 px-4 py-3 shadow">
-            <p class="text-base font-bold text-gray-800">{{ $t('AI Accuracy') }}</p>
+            <p class="text-base font-bold text-gray-800" tabindex="0" v-tooltip="$t('Zijia\'s AI, counted in units: every product unit it saw, not sessions.')">{{ $t('Zijia AI') }}</p>
             <div class="mt-1 flex justify-between gap-2">
               <dt tabindex="0" v-tooltip="$t('Units the AI counted right: it matched what was paid, or a person\'s count agreed with it.')">{{ $t('Correct qty') }}:</dt>
               <dd class="font-semibold tabular-nums text-gray-900">
@@ -192,6 +191,49 @@
               <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.total_qty.toLocaleString() }}</dd>
             </div>
           </div>
+          <!-- HappyIce AI (Brian, 2026-11-19 recording): our side as a whole — the office Mac's answer, else Claude's where
+               Claude counted instead — in UNITS by the Zijia box's rule, so the two boxes read side by side; Zijia's units on
+               the same sessions beside it. A trial: it decides nothing. -->
+          <div v-if="dashboard.happyice" class="overflow-hidden rounded-lg bg-violet-50 px-4 py-3 shadow">
+            <p class="text-base font-bold text-violet-900" tabindex="0" v-tooltip="$t('HappyIce AI is our own AI: the office Mac counts every session, and Claude counts only when neither Zijia nor the Mac settled it. Counted in units like the Zijia AI box. It never charges, refunds or moves stock.')">{{ $t('HappyIce AI (trial)') }}</p>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Units HappyIce AI counted right: a person\'s count agreed with it, or it matched what was paid.')">{{ $t('Correct qty') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">
+                {{ dashboard.happyice.ours_correct_qty.toLocaleString() }}
+                <span v-if="dashboard.happyice.ours_correct_pct !== null" class="text-xs font-normal text-gray-500">({{ dashboard.happyice.ours_correct_pct.toFixed(2) }}%)</span>
+              </dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Units where a person\'s Adjust Qty count differs from HappyIce AI\'s count. One product swapped for another counts as one.')">{{ $t('Wrong qty') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.happyice.ours_wrong_qty.toLocaleString() }}</dd>
+            </div>
+            <div v-if="dashboard.happyice.ours_unchecked_qty" class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Units where HappyIce AI differs from what was paid and no person has counted the session. They do not count as correct.')">{{ $t('Not checked yet') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.happyice.ours_unchecked_qty.toLocaleString() }}</dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2 border-t border-violet-200 pt-1">
+              <dt>{{ $t('Total Qty') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.happyice.ours_total_qty.toLocaleString() }}</dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('Zijia AI\'s correct units on the same sessions HappyIce AI answered, counted the same way.')">{{ $t('Zijia, same sessions') }}:</dt>
+              <dd class="text-right tabular-nums text-gray-900">
+                <span class="font-semibold">{{ pctText(dashboard.happyice.zijia_same_correct_pct) }}</span>
+                <span class="text-xs text-gray-500"> · {{ $t(':n of :of', { n: dashboard.happyice.zijia_same_correct_qty, of: dashboard.happyice.zijia_same_total_qty }) }}</span>
+              </dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2 border-t border-violet-200 pt-1">
+              <dt tabindex="0" v-tooltip="$t('Sessions HappyIce AI answered, and who answered them.')">{{ $t('Answered by') }}:</dt>
+              <dd class="text-right tabular-nums text-gray-900">
+                <span class="font-semibold">{{ $t('Mac :n', { n: dashboard.happyice.by_mac }) }}</span>
+                <span class="text-xs text-gray-500"> · {{ $t('Claude :n', { n: dashboard.happyice.by_claude }) }}</span>
+              </dd>
+            </div>
+            <div class="mt-1 flex justify-between gap-2">
+              <dt tabindex="0" v-tooltip="$t('What the Claude calls cost, in this site\'s currency. Anthropic bills in US dollars; the rate is in the settings. The Mac costs nothing per session.')">{{ $t('Claude cost') }}:</dt>
+              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.happyice.cost_text || '–' }}<span v-if="dashboard.happyice.cost_per_session_text" class="block text-xs font-normal text-gray-500">{{ $t(':cost a session', { cost: dashboard.happyice.cost_per_session_text }) }}</span></dd>
+            </div>
+          </div>
           <div class="overflow-hidden rounded-lg bg-gray-100 px-4 py-3 shadow">
             <p class="text-base font-bold text-gray-800">{{ $t('Invoice QR') }}</p>
             <div class="mt-1 flex justify-between gap-2">
@@ -208,47 +250,6 @@
             <div class="mt-1 flex justify-between gap-2 border-t border-gray-300 pt-1">
               <dt tabindex="0" v-tooltip="$t('Paid sales from freezer app 41 on. Testing Mode sales are left out.')">{{ $t('Paid sales') }}:</dt>
               <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.invoice_sales.toLocaleString() }}</dd>
-            </div>
-          </div>
-          <!-- HappyIce AI vs Zijia (Brian, 2026-11-19, was "Claude vs Zijia"): our side as a whole — the office Mac's answer,
-               else Claude's where Claude counted instead — beside Zijia on the same sessions. A trial: it decides nothing. -->
-          <div v-if="dashboard.happyice" class="overflow-hidden rounded-lg bg-violet-50 px-4 py-3 shadow">
-            <p class="text-base font-bold text-violet-900" tabindex="0" v-tooltip="$t('HappyIce AI is our own AI: the office Mac counts every session, and Claude counts only when neither Zijia nor the Mac settled it. Compared with Zijia on the same sessions. It never charges, refunds or moves stock.')">{{ $t('HappyIce AI vs Zijia (trial)') }}</p>
-            <div class="mt-1 flex justify-between gap-2">
-              <dt tabindex="0" v-tooltip="$t('Sessions HappyIce AI answered, and who answered them.')">{{ $t('Answered by') }}:</dt>
-              <dd class="text-right tabular-nums text-gray-900">
-                <span class="font-semibold">{{ $t('Mac :n', { n: dashboard.happyice.by_mac }) }}</span>
-                <span class="text-xs text-gray-500"> · {{ $t('Claude :n', { n: dashboard.happyice.by_claude }) }}</span>
-              </dd>
-            </div>
-            <div class="mt-1 flex justify-between gap-2">
-              <dt tabindex="0" v-tooltip="$t('Sessions where the count equals what was paid for.')">{{ $t('Matches paid') }}:</dt>
-              <dd class="text-right tabular-nums text-gray-900">
-                <span class="font-semibold">{{ pctText(dashboard.happyice.ours_match_paid_pct) }}</span>
-                <span class="text-xs text-gray-500"> · {{ $t('Zijia :pct', { pct: pctText(dashboard.happyice.zijia_match_paid_pct) }) }}</span>
-              </dd>
-            </div>
-            <div class="mt-1 flex justify-between gap-2">
-              <dt tabindex="0" v-tooltip="$t('Sessions a person counted with Adjust Qty, where the AI gave the same count. The person is taken as right.')">{{ $t('Right by a person') }}:</dt>
-              <dd class="text-right tabular-nums text-gray-900">
-                <span class="font-semibold">{{ dashboard.happyice.ours_right }}/{{ dashboard.happyice.person_counted }}</span>
-                <span class="text-xs text-gray-500"> · {{ $t('Zijia :n', { n: dashboard.happyice.zijia_right + '/' + dashboard.happyice.zijia_person_counted }) }}</span>
-              </dd>
-            </div>
-            <div class="mt-1 flex justify-between gap-2">
-              <dt tabindex="0" v-tooltip="$t('Sessions both answered with the same products and units.')">{{ $t('Same count') }}:</dt>
-              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.happyice.agree }}/{{ dashboard.happyice.both_answered }}</dd>
-            </div>
-            <div class="mt-1 flex justify-between gap-2">
-              <dt tabindex="0" v-tooltip="$t('Sessions no person would need to check: Zijia matched the paid order, or HappyIce AI matched it and was sure. Of those a person counted, how many would have been charged wrongly. A trial only.')">{{ $t('Together would settle') }}:</dt>
-              <dd class="text-right tabular-nums text-gray-900">
-                <span class="font-semibold">{{ dashboard.happyice.together_settle }}/{{ dashboard.happyice.together_judged }}</span>
-                <span class="text-xs text-gray-500"> · {{ $t(':n wrong of :of checked', { n: dashboard.happyice.together_settle_wrong, of: dashboard.happyice.together_settle_checked }) }}</span>
-              </dd>
-            </div>
-            <div class="mt-1 flex justify-between gap-2 border-t border-violet-200 pt-1">
-              <dt tabindex="0" v-tooltip="$t('What the Claude calls cost, in this site\'s currency. Anthropic bills in US dollars; the rate is in the settings. The Mac costs nothing per session.')">{{ $t('Claude cost') }}:</dt>
-              <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.happyice.cost_text || '–' }}<span v-if="dashboard.happyice.cost_per_session_text" class="block text-xs font-normal text-gray-500">{{ $t(':cost a session', { cost: dashboard.happyice.cost_per_session_text }) }}</span></dd>
             </div>
           </div>
         </dl>
