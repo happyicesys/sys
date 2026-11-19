@@ -442,6 +442,9 @@ class FreezerRecognitionController extends Controller
             'same_as_person' => $same($person),
             'model' => $answer->model,
             'seconds' => $answer->latency_ms !== null ? (int) round($answer->latency_ms / 1000) : null,
+            // how long the Mac took to count it, and the stages that time went on (Brian, 2026-11-19)
+            'compute_seconds' => $answer->compute_ms !== null ? round($answer->compute_ms / 1000, 1) : null,
+            'stages' => $link->stages($answer),
         ];
     }
 

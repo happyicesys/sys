@@ -159,6 +159,7 @@ class OwnAiLink
             'model' => isset($data['model']) ? mb_substr((string) $data['model'], 0, 64) : null,
             'answer' => array_intersect_key($data, array_flip(['v', 'session', 'items', 'confidence', 'auto', 'why_person', 'model', 'answered_at', 'detail'])),
             'latency_ms' => $recognition->created_at ? (int) min(4294967295, max(0, $recognition->created_at->diffInMilliseconds($now))) : null,
+            'compute_ms' => $this->computeMs($data['detail'] ?? null),
             'job_sent_at' => $sent ? Carbon::parse($sent) : null,
             'received_at' => $now,
         ]);
@@ -169,6 +170,34 @@ class OwnAiLink
     }
 
     /** product id => units, ints only; null when malformed. An empty map is a real answer: nothing taken. */
+    /**
+     * How long the Mac took to count it, from its `detail.seconds` (a day at most; anything else = not known).
+     */
+    private function computeMs(mixed $detail): ?int
+    {
+        $seconds = is_array($detail) ? ($detail['seconds'] ?? null) : null;
+
+        return is_numeric($seconds) && $seconds >= 0 && $seconds <= 86400 ? (int) round($seconds * 1000) : null;
+    }
+
+    /**
+     * The Mac's per-stage seconds (`detail.timing`), only plain numbers under known-looking names, for the page's hover.
+     *
+     * @return array<string, float>
+     */
+    public function stages(SmartFreezerOwnAiRecognition $answer): array
+    {
+        $timing = ((array) $answer->answer)['detail']['timing'] ?? null;
+        if (! is_array($timing)) {
+            return [];
+        }
+
+        return collect($timing)
+            ->filter(fn ($s, $name) => is_string($name) && preg_match('/^[a-z_]{1,32}$/', $name) && is_numeric($s) && $s >= 0 && $s <= 86400)
+            ->map(fn ($s) => round((float) $s, 1))
+            ->all();
+    }
+
     private function items(mixed $items): ?array
     {
         if ($items === [] || $items === null) {

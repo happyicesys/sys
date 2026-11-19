@@ -84,6 +84,8 @@ class AiRecognitionPageTest extends TestCase
         foreach (['m1' => 2, 'mini' => 1] as $worker => $units) {
             \App\Models\SmartFreezerOwnAiRecognition::create(['smart_freezer_recognition_id' => $r->id, 'worker' => $worker,
                 'vend_id' => $this->vend->id, 'items' => [(string) $magnum->id => $units], 'confidence' => 88, 'auto_accept' => true,
+                'compute_ms' => 9100, 'latency_ms' => 72000,
+                'answer' => ['detail' => ['seconds' => 9.1, 'timing' => ['export' => 4.26, 'hand_tracking' => 0.0, '<b>' => 1, 'v6' => 'x']]],
                 'received_at' => now()]);
         }
 
@@ -94,7 +96,11 @@ class AiRecognitionPageTest extends TestCase
                 ->where('recognitions.data.0.own_ai.verdict', 'match')
                 ->where('recognitions.data.0.own_ai.items.0.name', 'Magnum Classic')
                 ->where('recognitions.data.0.own_ai.items.0.number', 1)
-                ->where('recognitions.data.0.own_ai.confidence', 88));
+                ->where('recognitions.data.0.own_ai.confidence', 88)
+                ->where('recognitions.data.0.own_ai.compute_seconds', 9.1)
+                ->where('recognitions.data.0.own_ai.seconds', 72)
+                // only plain numbers under plain names reach the hover
+                ->where('recognitions.data.0.own_ai.stages', ['export' => 4.3, 'hand_tracking' => 0]));
     }
 
     public function test_it_needs_its_permission(): void

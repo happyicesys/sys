@@ -639,6 +639,8 @@
                       <span v-if="row.own_ai.same_as_person === true" class="font-semibold text-green-700">{{ $t('Same as the person\'s count') }}</span>
                       <span v-else-if="row.own_ai.same_as_person === false" class="font-semibold text-red-700">{{ $t('Differs from the person\'s count') }}</span>
                       <span v-if="row.own_ai.auto === false" class="w-fit cursor-help text-amber-800" tabindex="0" v-tooltip="row.own_ai.why_person || ''">{{ $t('Mac AI: a person should check') }}</span>
+                      <span v-if="row.own_ai.compute_seconds !== null" class="w-fit cursor-help text-gray-500" tabindex="0" v-tooltip="ownAiTimeTip(row.own_ai)">{{ $t('Counted in :seconds s', { seconds: row.own_ai.compute_seconds }) }}</span>
+                      <span v-else class="w-fit cursor-help text-gray-400" tabindex="0" v-tooltip="$t('Counted in the nightly run with many other sessions, so it has no time of its own.')">{{ $t('Counted overnight') }}</span>
                       <span class="flex items-baseline justify-between gap-2 text-gray-500">
                         <span v-if="row.own_ai.confidence !== null">{{ $t('sure :pct%', { pct: row.own_ai.confidence }) }}</span>
                         <span class="cursor-help" tabindex="0" v-tooltip="row.own_ai.model || ''">{{ row.own_ai.worker === 'mini' ? $t('Mac mini') : row.own_ai.worker === 'm1' ? $t('MacBook') : row.own_ai.worker }}</span>
@@ -975,6 +977,28 @@ const unusualLabels = {
   item_put_in: tk('Put something in'),
   opened_pack: tk('Opened a pack'),
 }
+
+// Mac AI's stages (freezer-ai fast.py `detail.timing`), for the "Counted in" hover (Brian, 2026-11-19).
+const ownAiStageLabels = {
+  export: tk('Reading the session from ConnectVend'),
+  download: tk('Downloading the videos'),
+  models: tk('Loading the models'),
+  hand_tracking: tk('Hand tracking'),
+  evidence: tk('Reading the baskets'),
+  v6: tk('Counting'),
+  blocked_check: tk('Checking the camera was not blocked'),
+}
+const shortDuration = (seconds) => seconds < 60
+  ? `${seconds}s`
+  : seconds < 3600 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : durationText(seconds)
+const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+const ownAiTimeTip = (own) => ({
+  html: true,
+  content: [
+    ...Object.entries(own.stages || {}).map(([name, s]) => `${ownAiStageLabels[name] ? t(ownAiStageLabels[name]) : name}: ${s}s`),
+    ...(own.seconds !== null ? [t('Answer reached ConnectVend :time after the videos did', { time: shortDuration(own.seconds) })] : []),
+  ].map(escapeHtml).join('<br>'),
+})
 
 // The Claude Verdict column shows while CLAUDE_FREEZER_AI is true on the server (Brian, 2026-11-13).
 const claudeColumn = computed(() => Boolean(props.claudeModel?.enabled))
