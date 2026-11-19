@@ -156,6 +156,20 @@ class AppServiceProvider extends ServiceProvider
         // listeners only — NOT a wildcard (see UserLogger note below).
         OptionCacheBuster::listen();
         MachineRefreshTriggers::listen();
+        // A machine leaving its Site pauses its Grab store (GrabSiteGuard). Never fails the save.
+        \Illuminate\Support\Facades\Event::listen('eloquent.updated: '.\App\Models\Vend::class, function (\App\Models\Vend $vend) {
+            if (! $vend->wasChanged('customer_id')) {
+                return;
+            }
+            $from = $vend->getOriginal('customer_id');
+            $to = $vend->customer_id;
+            rescue(fn () => app(\App\Services\Grab\GrabSiteGuard::class)->machineSiteChanged(
+                $vend,
+                $from !== null ? (int) $from : null,
+                $to !== null ? (int) $to : null,
+                auth()->id()
+            ));
+        });
 
         // App-wide user-action audit log (web CRUD only; cron/queue/machine excluded).
         // Re-enabled 2026-07-12: UserLogger::listen() now short-circuits in console

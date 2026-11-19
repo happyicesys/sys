@@ -595,6 +595,7 @@ class VendResource extends JsonResource
             'vm_binding_was' => isset($this->vm_binding_was) ? $this->vm_binding_was : null,
             // Operation Dashboard: newest View Screen picture (VendController::attachLatestScreenshot).
             'latest_screenshot' => isset($this->latest_screenshot) ? $this->latest_screenshot : null,
+            'grab_stores' => isset($this->grab_stores) ? $this->grab_stores : null,
             'this_month_count' => isset($this->this_month_count) ? $this->this_month_count : 0,
             'this_month_revenue' => isset($this->this_month_revenue) ? $this->this_month_revenue / 100 : 0,
             'this_month_gross_profit' => isset($this->this_month_gross_profit) ? $this->this_month_gross_profit / 100 : 0,

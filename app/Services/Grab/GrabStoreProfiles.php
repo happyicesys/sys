@@ -149,6 +149,11 @@ class GrabStoreProfiles
             }
         });
 
+        // Grab now lists the Site the machine is at: a store paused because the machine moved sells again.
+        if ($siteConfirmed && $binding) {
+            app(GrabSiteGuard::class)->resumeIfSettled($binding, $userId, __('Grab shows the new address (GrabMerchant check).'));
+        }
+
         // Grab retired the store ("[CLOSED] …"): it cannot sell again, so ConnectVend switches it off too.
         if (DeliveryPlatformRefNumber::nameMeansClosed($name) && (int) $ref->status !== DeliveryPlatformRefNumber::STATUS_INACTIVE) {
             $this->stores->setStatus($ref, false, $userId, __('Grab shows this store as [CLOSED].'));

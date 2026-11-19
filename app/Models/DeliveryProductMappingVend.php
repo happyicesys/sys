@@ -75,8 +75,9 @@ class DeliveryProductMappingVend extends Model
     /**
      * The Site this link sells from. An OPEN link follows its machine: a machine moved to another Site in
      * Setting/Edit (Unbind Machine & Site → Save Site) keeps its Grab store, and the store is now there (Brian,
-     * 2026-11-11 — 2338 sat at Ferraria Park Condo while the link still said Tampines SAFRA). An ENDED link keeps the
-     * Site it had, for history. A machine with no Site now has none.
+     * 2026-11-11 — 2338 sat at Ferraria Park Condo while the link still said Tampines SAFRA). Since 2026-11-19 the
+     * move also PAUSES the store until Grab shows the new Site (GrabSiteGuard). An ENDED link keeps the Site it had,
+     * for history. A machine with no Site now has none.
      */
     public function currentSite(): ?Customer
     {

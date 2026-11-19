@@ -456,6 +456,12 @@ trait HasFilter
                     }
                 }
             })
+            // Grab Store: selling (green) / problem (red: paused, switched off, machine off or moved Site) / none.
+            ->when($request->grab_store_state, function ($query, $search) {
+                if (in_array($search, [\App\Support\Grab\GrabStoreHealth::SELLING, \App\Support\Grab\GrabStoreHealth::PROBLEM, 'none'], true)) {
+                    \App\Support\Grab\GrabStoreHealth::applyFilter($query, $search);
+                }
+            })
             ->when($request->deviceType, function ($query, $search) {
                 if ($search != 'all') {
                     $query->where('apk_ver_json->deviceType', $search);

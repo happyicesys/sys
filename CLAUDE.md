@@ -2818,6 +2818,21 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
     cannot sell it. It is built with no signed-in user, so the viewer's product / machine limits never drop a line.
   - Grab Platform ID and Machines left the menu 2026-10-30; their pages and controllers were deleted 2026-11-01 and
     their old addresses redirect to `/grab-stores`.
+- **A machine leaving its Site stops its Grab store** (Brian, 2026-11-19; `App\Services\Grab\GrabSiteGuard`, run from
+  a `Vend` `updated` listener in `AppServiceProvider` on any `customer_id` change, never fails the save). Grab lists the
+  store at the Site it was set up at (the binding's `customer_id`), so unbinding the machine from that Site or moving it
+  to another one PAUSES each selling open binding of the machine on Grab — reason "Machine 2338 moved from Site … to …",
+  event data `site_change` {from, to}. It resumes on its own only when the machine is back at that Site, or that Site is
+  updated to where the machine is (Update on Grab → Done, or the GrabMerchant check seeing the new postal code), and
+  only if this rule's pause is the binding's latest pause/resume (a person's pause always stays). A binding with no Site
+  on record takes the one the machine just left. Raw `DB::table('vends')` updates bypass it, like every listener.
+- **Operation Dashboard Grab badge: green sells, red does not** (Brian, 2026-11-19; `App\Support\Grab\GrabStoreHealth`, the
+  ONE rule for the badge and the "Grab Store" filter, request `grab_store_state` = `problem` / `selling` / `none`, in
+  `HasFilter`). Red = an open binding that is paused, whose store is Inactive, whose machine is on no Site, or whose
+  machine is at another Site than the binding's `customer_id`. Rows get `grab_stores` from the MACHINE
+  (`VendController::attachGrabStores`, one query per page), so an unbound machine shows its store too; hover lists the
+  reasons, click opens Grab Stores. `problemSql()` and `forVends()` must agree; `GrabSiteGuardTest` pins it. Regression
+  coverage: `tests/Feature/GrabSiteGuardTest.php`, `tests/Feature/OpsDashboardGrabBadgeTest.php`.
 - **Every failed exchange with Grab is kept 30 days** (Brian, 2026-10-30; Delivery Platform → **Grab Errors**
   `/grab-errors`, a count on each Grab Stores row, the details in the store's History). The ONE writer is
   `App\Support\Grab\GrabApiErrorRecorder` (`delivery_platform_api_errors`, never throws):

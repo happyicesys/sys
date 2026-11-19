@@ -108,12 +108,18 @@ class GrabStoreChangeRequests
             $binding->forceFill(['customer_id' => $binding->vend->customer_id])->save();
         }
 
-        return $this->stores->event($ref, DeliveryPlatformStoreEvent::EVENT_GRAB_CHANGE_DONE, $userId, $binding, null, [
+        $event = $this->stores->event($ref, DeliveryPlatformStoreEvent::EVENT_GRAB_CHANGE_DONE, $userId, $binding, null, [
             'request_id' => $open['id'],
             'kind' => $open['kind'],
             'note' => self::clean($note),
             'site' => $site,
         ]);
+        // Grab now shows the Site the machine is at: a store paused because the machine moved sells again.
+        if ($site && $binding) {
+            app(GrabSiteGuard::class)->resumeIfSettled($binding, $userId, __('Grab shows the new address (Update on Grab done).'));
+        }
+
+        return $event;
     }
 
     /**

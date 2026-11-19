@@ -1771,6 +1771,7 @@ class VendController extends Controller
             $this->attachVmBindingHistory($vends->getCollection());
             $this->attachLatestScreenshot($vends->getCollection());
             $this->attachCampaignSales($vends->getCollection());
+            $this->attachGrabStores($vends->getCollection());
 
             // "Access Product(s)": blank the whole-machine money NOW, before
             // anything reads it. $totals, the per-row location-fee loop and
@@ -2407,6 +2408,19 @@ class VendController extends Controller
             'vendPrefixOptions' => ['data' => $vendPrefixOptions],
             'zoneOptions' => ['data' => $zoneOptions],
         ]);
+    }
+
+    /**
+     * The Grab badge beside the Site (Brian, 2026-11-19): each open Grab store of the row's machine, green while it
+     * sells, red with the reasons when it does not (GrabStoreHealth). From the machine, so an unbound machine shows
+     * its store too. One query per page.
+     */
+    protected function attachGrabStores($rows)
+    {
+        $stores = \App\Support\Grab\GrabStoreHealth::forVends(collect($rows)->pluck('vend_id'));
+        foreach ($rows as $row) {
+            $row->grab_stores = $stores->get((int) $row->vend_id, collect())->all();
+        }
     }
 
     /**

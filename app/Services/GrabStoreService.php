@@ -354,7 +354,7 @@ class GrabStoreService
         return $closed;
     }
 
-    public function pause(DeliveryProductMappingVend $binding, ?int $userId, ?string $reason = null, ?Carbon $until = null): DeliveryProductMappingVend
+    public function pause(DeliveryProductMappingVend $binding, ?int $userId, ?string $reason = null, ?Carbon $until = null, array $data = []): DeliveryProductMappingVend
     {
         $binding->forceFill([
             'is_active' => false,
@@ -365,7 +365,7 @@ class GrabStoreService
 
         $response = $this->safely(fn () => $this->deliveryPlatformService->pauseStore($binding), 'pause');
 
-        $this->event($this->refOf($binding), DeliveryPlatformStoreEvent::EVENT_PAUSED, $userId, $binding, $reason, [
+        $this->event($this->refOf($binding), DeliveryPlatformStoreEvent::EVENT_PAUSED, $userId, $binding, $reason, $data + [
             'until' => $until?->toDateTimeString(),
             'grab' => $response ? 'paused' : 'failed',
         ]);
@@ -373,7 +373,7 @@ class GrabStoreService
         return $binding;
     }
 
-    public function resume(DeliveryProductMappingVend $binding, ?int $userId, ?string $reason = null): DeliveryProductMappingVend
+    public function resume(DeliveryProductMappingVend $binding, ?int $userId, ?string $reason = null, array $data = []): DeliveryProductMappingVend
     {
         if ($ref = $this->refOf($binding)) {
             $this->assertNotClosedByGrab($ref, 'reason');
@@ -393,7 +393,7 @@ class GrabStoreService
             $grab = $this->safely(fn () => $this->deliveryPlatformService->pauseStore($binding, false), 'resume') ? 'resumed' : 'failed';
         }
 
-        $this->event($this->refOf($binding), DeliveryPlatformStoreEvent::EVENT_RESUMED, $userId, $binding, $reason, ['grab' => $grab]);
+        $this->event($this->refOf($binding), DeliveryPlatformStoreEvent::EVENT_RESUMED, $userId, $binding, $reason, $data + ['grab' => $grab]);
 
         return $binding;
     }

@@ -456,6 +456,24 @@
 						mode="tags"
 					></MultiSelect>
 				</div>
+				<!-- Grab Store (Brian, 2026-11-19): pick out the stores whose badge is red — paused, switched off,
+				     machine on no Site or moved Site (GrabStoreHealth). Always shown, not behind "more filters". -->
+				<div v-if="permissions.includes('admin-access vend-customers')">
+					<label for="text" class="block text-sm font-medium text-gray-700">
+							{{ $t('Grab Store') }}
+					</label>
+					<MultiSelect
+							v-model="filters.grab_store_state"
+							:options="grabStoreStateOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							:placeholder="$t('Select')"
+							open-direction="bottom"
+							class="mt-1"
+					>
+					</MultiSelect>
+				</div>
 				<div v-if="showAllFilters && permissions.includes('admin-access vend-customers')">
 					<label for="text" class="block text-sm font-medium text-gray-700">
 							{{ $t('Delivery Platform') }}
@@ -1659,15 +1677,19 @@
 								>
 									{{ $t('CMS') }}
 								</a>
-								<template v-if="vend.customer_id && vend.person_id && vend.vend">
-									<template v-for="(deliveryProductMappingVend, index) in vend.vend.deliveryProductMappingVends" :key="'dpm-' + index">
-										<span
-											class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border text-gray-800 bg-green-400"
-											v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
-										>
-											{{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
-										</span>
-									</template>
+								<!-- Grab store(s) of the machine (GrabStoreHealth, Brian 2026-11-19): green while it sells, red
+								     when paused, switched off, or its machine is on no Site / left the Site the store was set up
+								     at (a Site change pauses it). Hover for the merchant ID and why. -->
+								<template v-for="store in (vend.grab_stores || [])" :key="'grab-' + store.id">
+									<a
+										:href="'/grab-stores?codes=' + (vend.code ?? '') + ','"
+										target="_blank"
+										class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border"
+										:class="store.state === 'problem' ? 'bg-red-500 text-white border-red-600' : 'text-gray-800 bg-green-400'"
+										v-tooltip="{ html: true, content: grabStoreTooltip(store) }"
+									>
+										{{ store.platform }}<span v-if="store.state === 'problem'" class="ml-0.5">!</span>
+									</a>
 								</template>
 								<span
 									class="inline-flex items-center rounded px-0.5 py-0.5 text-xs border bg-gray-100 text-gray-800 border-gray-300"
@@ -4040,6 +4062,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 			coinLessThan: '',
 			channel_codes: '',
 			delivery_platform_id: '',
+			grab_store_state: '',
 			serialNum: '',
 			customer: '',
 			deviceType: '',
@@ -4114,6 +4137,7 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 	const authOperator = usePage().props.auth.operator
 	const baseUrl = ref(props.indexType === 'customers' ? '/vends/customers' : '/vends')
 	const booleanOptions = ref([])
+	const grabStoreStateOptions = ref([])
 	const booleanStrictOptions = ref([])
 	const cardTerminalOptions = ref([])
 	const customerModel = ref([])
@@ -4425,6 +4449,12 @@ lcdMonitorOptions.value = [
 			.filter(([id]) => String(id) !== '99')
 			.map(([id, name]) => ({id: id, value: name}))
 ]
+grabStoreStateOptions.value = [
+		{id: 'all', value: t('All')},
+		{id: 'problem', value: t('Not selling (red)')},
+		{id: 'selling', value: t('Selling (green)')},
+		{id: 'none', value: t('No Grab store')},
+]
 booleanOptions.value = [
 		{id: 'all', value: t('All')},
 		{id: 'true', value: t('Yes')},
@@ -4540,6 +4570,7 @@ filters.value.cashless_mfg = cardTerminalOptions.value[0]
 filters.value.modem_type_id = modemTypeOptions.value[0]
 filters.value.lcd_monitor_id = lcdMonitorOptions.value[0]
 filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
+filters.value.grab_store_state = grabStoreStateOptions.value[0]
 filters.value.is_active = booleanOptions.value[1]
 // Site Status — multi-select default = Active (id=2) + Removed (id=3), matching
 // Customer/Index.vue. Clearing the selection sends ['all'] (every status).
@@ -4608,6 +4639,7 @@ if(urlParams.has('channel_codes')) {
 		if(cleanKey === 'cashless_mfg') filters.value.cashless_mfg = cardTerminalOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.cashless_mfg;
 		if(cleanKey === 'modem_type_id') filters.value.modem_type_id = modemTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.modem_type_id;
 		if(cleanKey === 'lcd_monitor_id') filters.value.lcd_monitor_id = lcdMonitorOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.lcd_monitor_id;
+		if(cleanKey === 'grab_store_state') filters.value.grab_store_state = grabStoreStateOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.grab_store_state;
 		if(cleanKey === 'delivery_platform_id') filters.value.delivery_platform_id = deliveryPlatformOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.delivery_platform_id;
 		if(cleanKey === 'deviceType') filters.value.deviceType = deviceTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.deviceType;
 		if(cleanKey === 'location_type_id') filters.value.locationType = locationTypeOptions.value.find(opt => String(opt.id) === String(value)) || filters.value.locationType;
@@ -5281,6 +5313,19 @@ function avgMthlySales(vend) {
 // 2026-10-17): the Card Terminal, LCD Monitor (QR / Omise) and Coin Float badges get a red frame;
 // hovering says why, clicking opens the machine's last 7 days of Sales Transactions in a new tab.
 const RAIL_IDLE_FRAME = 'relative ring-2 ring-red-500 ring-offset-1 shadow-[0_0_0_4px_rgba(239,68,68,0.15)]'
+// Grab badge hover: merchant ID, Grab's store name, then why it is red.
+function grabStoreTooltip(store) {
+	const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+	const lines = [
+		'<div class="font-semibold">' + esc(store.state === 'problem' ? t('Grab store not selling') : t('Grab store selling')) + '</div>',
+		'<div>' + esc(store.merchant_id) + '</div>',
+	]
+	if (store.store_name) lines.push('<div>' + esc(store.store_name) + '</div>')
+	for (const reason of (store.reasons || [])) lines.push('<div class="mt-1">• ' + esc(reason) + '</div>')
+	lines.push('<div class="mt-1 opacity-80">' + esc(t('Click to open it on Grab Stores')) + '</div>')
+	return lines.join('')
+}
+
 const RAIL_NAMES = { card: tk('card'), qr: 'QR (Omise)', cash: tk('cash') }
 
 function railIdle(vend, rail) {
@@ -5590,6 +5635,7 @@ function onSearchFilterUpdated() {
 			modem_type_id: filters.value.modem_type_id?.id ?? '',
 			lcd_monitor_id: filters.value.lcd_monitor_id?.id ?? '',
 			delivery_platform_id: filters.value.delivery_platform_id.id,
+			grab_store_state: filters.value.grab_store_state?.id ?? '',
 			deviceType: filters.value.deviceType.id,
 			errors: filters.value.errors.map((error) => { return error.id }),
 			fan_rpm: filters.value.fan_rpm.id,
@@ -5812,6 +5858,7 @@ axios({
 				modem_type_id: filters.value.modem_type_id?.id ?? '',
 				lcd_monitor_id: filters.value.lcd_monitor_id?.id ?? '',
 				delivery_platform_id: filters.value.delivery_platform_id.id,
+				grab_store_state: filters.value.grab_store_state?.id ?? '',
 				deviceType: filters.value.deviceType.id,
 				errors: filters.value.errors.map((error) => { return error.id }),
 				frequency_per_week_status: filters.value.frequency_per_week_status.map((frequency) => { return frequency.id }),
