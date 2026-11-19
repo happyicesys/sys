@@ -217,9 +217,9 @@
             </div>
             <div class="mt-1 flex justify-between gap-2">
               <dt tabindex="0" v-tooltip="$t('Zijia AI\'s correct units on the same sessions HappyIce AI answered, counted the same way.')">{{ $t('Zijia, same sessions') }}:</dt>
-              <dd class="text-right tabular-nums text-gray-900">
-                <span class="font-semibold">{{ pctText(dashboard.happyice.zijia_same_correct_pct) }}</span>
-                <span class="text-xs text-gray-500"> · {{ $t(':n of :of', { n: dashboard.happyice.zijia_same_correct_qty, of: dashboard.happyice.zijia_same_total_qty }) }}</span>
+              <dd class="font-semibold tabular-nums text-gray-900">
+                {{ $t(':n of :of', { n: dashboard.happyice.zijia_same_correct_qty.toLocaleString(), of: dashboard.happyice.zijia_same_total_qty.toLocaleString() }) }}
+                <span v-if="dashboard.happyice.zijia_same_correct_pct !== null" class="text-xs font-normal text-gray-500">({{ dashboard.happyice.zijia_same_correct_pct.toFixed(2) }}%)</span>
               </dd>
             </div>
             <div class="mt-1 flex justify-between gap-2 border-t border-violet-200 pt-1">

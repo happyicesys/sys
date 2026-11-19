@@ -130,8 +130,10 @@ final class HappyIceZijiaComparison
         $s['ours_match_paid_pct'] = $pct($s['ours_match_paid'], $s['ours_answered']);
         $s['zijia_match_paid_pct'] = $pct($s['zijia_match_paid'], $s['zijia_answered']);
         $s['ours_total_qty'] = $s['ours_correct_qty'] + $s['ours_wrong_qty'] + $s['ours_unchecked_qty'];
-        $s['ours_correct_pct'] = $pct($s['ours_correct_qty'], $s['ours_total_qty']);
-        $s['zijia_same_correct_pct'] = $pct($s['zijia_same_correct_qty'], $s['zijia_same_total_qty']);
+        // Two decimals, as the Zijia box's own correct_pct, so the two boxes read alike.
+        $pct2 = fn (int $n, int $of) => $of > 0 ? round($n / $of * 100, 2) : null;
+        $s['ours_correct_pct'] = $pct2($s['ours_correct_qty'], $s['ours_total_qty']);
+        $s['zijia_same_correct_pct'] = $pct2($s['zijia_same_correct_qty'], $s['zijia_same_total_qty']);
         $calls = $claude->filter(fn (ClaudeRow $c) => $c->cost_usd_micros !== null)->count();
         $s['cost_text'] = ClaudeCostMoney::text($s['cost_usd_micros']);
         $s['cost_per_session_text'] = $calls > 0 ? ClaudeCostMoney::text(intdiv($s['cost_usd_micros'], $calls)) : null;
