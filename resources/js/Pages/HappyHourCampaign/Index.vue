@@ -16,6 +16,7 @@
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
+      <PromotionTabs active="happy-hour" />
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <p class="text-xs text-gray-500">
           {{ $t('During a campaign\'s hours each machine shows one discounted SKU at a time on its welcome screen (Happy Hour page) and charges the promo price for it. Each slot\'s SKU is picked about 2 minutes before the slot starts, from that machine\'s stock at that moment — by default the highest stock balance % (qty ÷ capacity; a tie goes to the higher stock) — and the top SKUs (the number set below) take turns, slot by slot. A SKU that sells out ends its slot early. Only freezers on app :freezer_version or later and touchscreen vending machines (big board) on app :vending_version or later can run it. On a vending machine the promo price applies to orders placed on the screen only (keypad, cash and coin stay at the machine price), and a machine bound to a UI Setting ignores Happy Hour', { freezer_version: minApkVersion, vending_version: minVendingApkVersion }) }}
@@ -574,6 +575,7 @@ import CampaignStatsCharts from '@/Components/HappyHour/CampaignStatsCharts.vue'
 import MachineIdLink from '@/Components/MachineIdLink.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import PromotionTabs from '@/Components/Promotion/PromotionTabs.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { ChevronDownIcon, ChevronUpDownIcon, ChevronUpIcon, ExclamationCircleIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';

@@ -81,5 +81,6 @@ class Kernel extends HttpKernel
         'grab.callback-errors' => \App\Http\Middleware\RecordGrabCallbackFailures::class,
         // Machine-signed device requests (card rail) - see the class docblock.
         'device.signed' => \App\Http\Middleware\VerifyDeviceSignature::class,
+        'vending.signed' => \App\Http\Middleware\VerifyVendingDeviceSignature::class,
     ];
 }

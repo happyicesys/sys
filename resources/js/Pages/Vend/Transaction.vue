@@ -1122,9 +1122,19 @@
                         >
                         <!-- Happy Hour is a campaign label too (CampaignLabelFilter): its chip leads. A basket
                              carries it on the item row that was discounted, not here. -->
-                        <template v-if="vendTransaction.happy_hour || normalizedLabels(vendTransaction).length">
+                        <template v-if="vendTransaction.happy_hour || vendTransaction.prepaid_voucher || normalizedLabels(vendTransaction).length">
                             <div class="flex flex-wrap gap-1">
                             <HappyHourBadge :hh="vendTransaction.happy_hour" :exponent="operatorCountry.currency_exponent" />
+                            <!-- Next-visit voucher (Brian, 2026-11-20): this sale BOUGHT one (revenue now, nothing dropped),
+                                 or USED one (the item at $0, or the balance paid). -->
+                            <span v-if="vendTransaction.prepaid_voucher"
+                                class="inline-flex items-center rounded px-1.5 py-0.5 text-xs border w-fit font-semibold"
+                                :class="vendTransaction.prepaid_voucher.role === 'purchase' ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300'"
+                                :title="vendTransaction.prepaid_voucher.role === 'purchase'
+                                    ? $t('Voucher #:id bought: paid now, the item is collected on a later visit', { id: vendTransaction.prepaid_voucher.id ?? '' })
+                                    : $t('Voucher #:id used for this item', { id: vendTransaction.prepaid_voucher.id ?? '' })">
+                                {{ vendTransaction.prepaid_voucher.role === 'purchase' ? $t('Voucher sold') : $t('Voucher used') }}
+                            </span>
                             <div
                                 v-for="tag in normalizedLabels(vendTransaction)"
                                 :key="(tag.id ?? tag.slug ?? tag) + '-' + vendTransaction.id"

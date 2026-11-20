@@ -932,6 +932,18 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('can:update machine-settings');
     });
 
+    // Next-visit voucher — the tab beside Happy Hour (PrepaidVoucherProgram).
+    Route::prefix('prepaid-vouchers')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PrepaidVoucherController::class, 'index'])->name('prepaid-vouchers')
+            ->middleware('can:read prepaid-vouchers');
+        Route::post('/settings', [\App\Http\Controllers\PrepaidVoucherController::class, 'save'])
+            ->middleware('can:update prepaid-vouchers');
+        Route::post('/{id}/void', [\App\Http\Controllers\PrepaidVoucherController::class, 'void'])->whereNumber('id')
+            ->middleware('can:update prepaid-vouchers');
+        Route::post('/{id}/extend', [\App\Http\Controllers\PrepaidVoucherController::class, 'extend'])->whereNumber('id')
+            ->middleware('can:update prepaid-vouchers');
+    });
+
     // Happy Hour Campaign — scheduled freezer discounts on slow movers (HappyHourPlanner).
     Route::prefix('happy-hour-campaigns')->group(function () {
         Route::get('/', [HappyHourCampaignController::class, 'index'])->name('happy-hour-campaigns')

@@ -350,6 +350,9 @@ class PaymentController extends Controller
                 CreateGatewayVendTransaction::dispatch($updatedPaymentGatewayLog->id)->onQueue('high');
             }
 
+            // A next-visit voucher bought by QR: written now, while the money is certain (app 329+).
+            app(\App\Services\PrepaidVoucher\PrepaidVoucherSales::class)->fromGatewayApproval($updatedPaymentGatewayLog);
+
             $this->processPayment($updatedPaymentGatewayLog);
         }
     }
@@ -456,6 +459,12 @@ class PaymentController extends Controller
                     'paymentMethod' => $paymentMethod,
                     'txn_src' => $paymentGatewayLog->txn_src,
                 ]);
+            }
+
+            // A voucher purchase: the board confirms the order (CONFIRM sets is_dispensed, so no
+            // no-dispense refund) but must never drop the SKU it names.
+            if (\App\Services\PrepaidVoucher\PrepaidVoucherSales::isPurchaseRequest($paymentGatewayLog)) {
+                $result['pv'] = 1;
             }
 
             $dataArr = [

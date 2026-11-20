@@ -70,6 +70,18 @@ Route::prefix('v1')->group(function () {
         ->where(['sessionRef' => 'SF-[0-9]+-[0-9]+-[0-9]+'])
         ->middleware(['throttle:device-card', 'device.signed']);
 
+    // Device -> mark1: next-visit vouchers on the big board (app 329+). A mobile number is the only key a
+    // voucher has, so every call is signed by the machine and lookups are throttled per machine.
+    Route::prefix('/vends/{code}')
+        ->middleware(['throttle:prepaid-voucher', 'vending.signed'])
+        ->controller(\App\Http\Controllers\Api\V1\PrepaidVoucherMachineController::class)
+        ->group(function () {
+            Route::get('/prepaid-voucher', 'config');
+            Route::post('/prepaid-vouchers/lookup', 'lookup');
+            Route::post('/prepaid-vouchers/{id}/reserve', 'reserve')->whereNumber('id');
+            Route::post('/prepaid-vouchers/{id}/release', 'release')->whereNumber('id');
+        });
+
     // Device -> mark1 card rail for a machine on a remote (cloud) terminal — the smart
     // freezer's Payrallel rail. Moves money, so every call is signed by the machine.
     Route::prefix('/vends/{code}/card')

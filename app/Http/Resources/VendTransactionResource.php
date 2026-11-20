@@ -134,6 +134,9 @@ class VendTransactionResource extends JsonResource
             // Happy Hour slot that priced this single sale (HappyHourSales::badges); null on a
             // multiple purchase, whose promo lines carry it on their item rows.
             'happy_hour' => $this->happy_hour ?? null,
+            // Next-visit voucher bought or used on this sale (PrepaidVoucherSales): {role, id, …} or null.
+            'prepaid_voucher' => is_array($this->meta_json) ? ($this->meta_json['prepaid_voucher'] ?? null)
+                : (json_decode((string) $this->meta_json, true)['prepaid_voucher'] ?? null),
             // What the machine runs NOW, for the label under Site (MachineCampaignLabels).
             'machine_campaigns' => $this->machine_campaigns ?? null,
             'settlement_payout_date' => $this->settlement_payout_date ?? null,

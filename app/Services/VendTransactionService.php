@@ -266,6 +266,8 @@ class VendTransactionService
             // Items were rebuilt inside the ingest transaction, so the sale is whole here. The frame
             // goes along: a vending TRADE names its Happy Hour lines in `HH`.
             app(\App\Services\HappyHour\HappyHourSales::class)->tag($vend, $vendTransaction, is_array($input) ? $input : null);
+            // A next-visit voucher bought or spent (the frame's `PV`, app 329+). Never throws.
+            app(\App\Services\PrepaidVoucher\PrepaidVoucherSales::class)->fromTrade($vend, $vendTransaction, is_array($input) ? $input : null);
 
             SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
 
@@ -346,6 +348,8 @@ class VendTransactionService
             // Which Happy Hour slot priced this sale (needs the items above): a freezer by price, a
             // vending touchscreen sale by the frame's `HH` list.
             app(\App\Services\HappyHour\HappyHourSales::class)->tag($vend, $vendTransaction, is_array($input) ? $input : null);
+            // A next-visit voucher bought or spent (the frame's `PV`, app 329+). Never throws.
+            app(\App\Services\PrepaidVoucher\PrepaidVoucherSales::class)->fromTrade($vend, $vendTransaction, is_array($input) ? $input : null);
         }
 
         if ($processedInput['dcvendUserID']) {

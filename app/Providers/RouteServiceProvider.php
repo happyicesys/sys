@@ -55,6 +55,13 @@ class RouteServiceProvider extends ServiceProvider
 
         // Device card rail: per MACHINE, not per IP — freezers on carrier SIMs can share
         // one NAT address. A card attempt polls ~40/min; 120 leaves room for a retry burst.
+        // Next-visit voucher calls from a machine (lookups by phone number): per MACHINE, low enough that
+        // working through numbers at one machine is slow, high enough for a queue of real customers.
+        RateLimiter::for('prepaid-voucher', function (Request $request) {
+            return Limit::perMinute(max(4, (int) config('prepaid_voucher.lookups_per_minute', 12)) * 3)
+                ->by('prepaid-voucher:'.$request->route('code'));
+        });
+
         RateLimiter::for('device-card', function (Request $request) {
             return Limit::perMinute(120)->by('device-card:'.$request->route('code'));
         });

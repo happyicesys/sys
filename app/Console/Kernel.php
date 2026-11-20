@@ -117,6 +117,8 @@ class Kernel extends ConsoleKernel
         // no env gate needed. A 429 logs a warning and waits for the next run.
         $schedule->command('simcards:sync-usage')->everyTenMinutes()->withoutOverlapping();
         $schedule->command('sync:voucher-status-daily')->daily();
+        // Next-visit vouchers: erase customer numbers once a voucher is long finished (PDPA).
+        $schedule->command('prepaid-vouchers:prune-phones')->dailyAt('03:40');
         $schedule->command('telescope:prune --hours=48')->dailyAt('01:00');
         // Admin > Visitor History retention (default 90 days, VISITOR_HISTORY_RETENTION_DAYS).
         $schedule->command('visitor-history:prune')->dailyAt('01:45')->withoutOverlapping();

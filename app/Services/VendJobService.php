@@ -179,6 +179,20 @@ class VendJobService
     }
 
     /**
+     * Next-visit voucher settings changed: app 329+ re-reads GET /api/v1/vends/{code}/prepaid-voucher only.
+     * Sent only where PrepaidVoucherProgram says the board reads it (older builds would log an unknown type).
+     */
+    public function nudgePrepaidVoucherToVend(Vend $vend): bool
+    {
+        if (\App\Services\PrepaidVoucher\PrepaidVoucherProgram::boardReason($vend) !== null) {
+            return false;
+        }
+        $this->publishBareFrame($vend, 'PREPAIDVOUCHER');
+
+        return true;
+    }
+
+    /**
      * The machine's QR payment menu changed (PushPaymentMenu): app 321+ re-reads its wallet list only — no settings,
      * no menu images, no restart.
      */
