@@ -23,7 +23,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(false);
             $table->boolean('is_redeem_enabled')->default(true);
             // Card (NETS) may pay for the voucher. Off = QR only, without an app update.
-            $table->boolean('is_card_enabled')->default(true);
+            $table->boolean('is_card_enabled')->default(false); // off until bench 2031 proves a voucher card approval leaves no retained credit
             $table->unsignedTinyInteger('discount_pct')->default(10);
             $table->unsignedInteger('price_step_cents')->default(10);
             $table->unsignedSmallInteger('expiry_days')->default(30);
@@ -49,7 +49,7 @@ return new class extends Migration
             $table->unsignedBigInteger('bought_vend_id');
             $table->string('bought_order_id', 64);
             $table->unsignedBigInteger('bought_vend_transaction_id')->nullable();
-            $table->unsignedBigInteger('payment_gateway_log_id')->nullable();
+            $table->unsignedBigInteger('payment_gateway_log_id')->nullable()->index(); // looked up on every Omise refund (voidForRefundedLog)
             // The order whose item was held while the voucher was bought.
             $table->string('first_order_id', 64)->nullable();
             $table->dateTime('issued_at');

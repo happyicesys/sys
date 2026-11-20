@@ -245,9 +245,9 @@ const statusLabels = {
 const c = props.campaign
 const form = useForm({
   name: c?.name ?? t('Next-visit voucher'),
-  is_active: c ? c.is_active : true,
+  is_active: c ? c.is_active : false,
   is_redeem_enabled: c ? c.is_redeem_enabled : true,
-  is_card_enabled: c ? c.is_card_enabled : true,
+  is_card_enabled: c ? c.is_card_enabled : false,
   discount_pct: c?.discount_pct ?? 10,
   price_step_cents: c?.price_step_cents ?? props.priceStep.default,
   expiry_days: c?.expiry_days ?? 30,

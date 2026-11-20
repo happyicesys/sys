@@ -351,7 +351,7 @@ class PaymentController extends Controller
             }
 
             // A next-visit voucher bought by QR: written now, while the money is certain (app 329+).
-            app(\App\Services\PrepaidVoucher\PrepaidVoucherSales::class)->fromGatewayApproval($updatedPaymentGatewayLog);
+            app(\App\Services\PrepaidVoucher\PrepaidVoucherSales::class)->fromGatewayApproval($updatedPaymentGatewayLog, $company);
 
             $this->processPayment($updatedPaymentGatewayLog);
         }

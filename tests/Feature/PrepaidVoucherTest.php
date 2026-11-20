@@ -198,6 +198,9 @@ class PrepaidVoucherTest extends TestCase
         $this->assertSame($v->id, $sale->meta_json['prepaid_voucher']['id']);
         $this->assertSame(0, (int) $sale->unit_cost);
         $this->assertSame(170, (int) $sale->amount); // the purchase IS the sale (Brian, 2026-11-20)
+        // No goods, no cost: gross profit is the whole revenue (ingest had taken the goods' cost off once).
+        $this->assertEqualsWithDelta((float) $sale->revenue, (float) $sale->gross_profit, 0.001);
+        $this->assertEqualsWithDelta(100.0, (float) $sale->gross_profit_margin, 0.001);
     }
 
     public function test_a_qr_purchase_is_issued_at_approval_and_its_dispense_frame_drops_nothing(): void
@@ -228,6 +231,16 @@ class PrepaidVoucherTest extends TestCase
         // Refunded later (dispute, dashboard): the unused voucher is void.
         app(\App\Services\Refund\OmiseRefundRecorder::class)->record($log->fresh(), null, \App\Support\AutoRefundSource::OMISE_EXTERNAL);
         $this->assertSame('voided', $v->fresh()->status);
+
+        // Paid but no voucher can be written (no product named): never marked delivered, and Omise refunds it.
+        \Illuminate\Support\Facades\Queue::fake();
+        $broken = PaymentGatewayLog::forceCreate([
+            'order_id' => 'B1', 'vend_id' => $vend->id, 'vend_code' => '2245', 'amount' => 1.70, 'status' => 2,
+            'request' => ['PRICE' => '1.70', 'SId' => 11, 'PV' => ['role' => 'buy', 'phone' => '91234567', 'pid' => 0]],
+        ]);
+        $this->assertNull(app(PrepaidVoucherSales::class)->fromGatewayApproval($broken, 'omise'));
+        $this->assertFalse((bool) $broken->fresh()->is_dispensed);
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\RefundOmiseJob::class);
 
         $plain = PaymentGatewayLog::forceCreate(['order_id' => 'P1', 'vend_id' => $vend->id, 'vend_code' => '2245', 'amount' => 1.8, 'status' => 2, 'request' => ['PRICE' => '1.80', 'SId' => 11]]);
         $this->assertFalse(PrepaidVoucherSales::isPurchaseRequest($plain));
@@ -275,7 +288,10 @@ class PrepaidVoucherTest extends TestCase
         $this->assertTrue($cfg['offer']);
         $this->assertTrue($cfg['redeem']);
         $this->assertSame(10, $cfg['discount_pct']);
-        $this->assertTrue($cfg['card']);
+        // Card is off until someone ticks it (bench 2031 has to prove no retained credit first).
+        $this->assertFalse($cfg['card']);
+        $campaign->update(['is_card_enabled' => true]);
+        $this->assertTrue($this->signed('GET', $hipl, '/api/v1/vends/2245/prepaid-voucher')->json('card'));
         $this->assertSame([$this->products['C']->id], $cfg['excluded_product_ids']);
         $this->assertSame('65', $cfg['phone']['country_code']);
 
@@ -330,6 +346,8 @@ class PrepaidVoucherTest extends TestCase
         // The wrong number cannot reserve it either.
         $this->signed('POST', $a, "/api/v1/vends/2245/prepaid-vouchers/{$mine->id}/reserve", ['phone' => '98765432'])->assertStatus(409);
 
+        // Without its token a hold is never let go.
+        $this->signed('POST', $b, "/api/v1/vends/2300/prepaid-vouchers/{$mine->id}/release")->assertOk()->assertJson(['ok' => false]);
         $this->signed('POST', $b, "/api/v1/vends/2300/prepaid-vouchers/{$mine->id}/release", ['token' => $token])->assertOk()->assertJson(['ok' => true]);
         $this->assertSame('active', $mine->fresh()->status);
 
@@ -378,6 +396,18 @@ class PrepaidVoucherTest extends TestCase
             'PV' => ['role' => 'redeem', 'id' => $same->id, 'mode' => 'sku']]);
         $this->assertSame('conflict', $dup->fresh()->meta_json['prepaid_voucher']['outcome']);
         $this->assertSame('R1', $same->fresh()->redeemed_order_id);
+
+        // Our hold lapsed and another machine holds it now: our late TRADE neither spends nor frees it.
+        $other = $this->vending(2246);
+        $taken = $this->voucher($vend, ['status' => 'reserved', 'reserved_vend_id' => $other->id, 'reserved_token' => 'NEW', 'reserved_until' => now()->addMinutes(10)]);
+        $late = $this->trade($vend, 'R5', ['PAY_TYPE' => 10, 'Price' => '0.00', 'transf_info' => [['SId' => 11, 'SErr' => 0, 'Price' => 0]],
+            'PV' => ['role' => 'redeem', 'id' => $taken->id, 'token' => 'OLD', 'mode' => 'sku']]);
+        $this->assertSame('conflict', $late->fresh()->meta_json['prepaid_voucher']['outcome']);
+        $this->trade($vend, 'R6', ['PAY_TYPE' => 10, 'Price' => '0.00', 'SErr' => 7, 'transf_info' => [['SId' => 11, 'SErr' => 7, 'Price' => 0]],
+            'PV' => ['role' => 'redeem', 'id' => $taken->id, 'token' => 'OLD', 'mode' => 'sku']]);
+        $taken->refresh();
+        $this->assertSame('reserved', $taken->status);
+        $this->assertSame('NEW', $taken->reserved_token);
     }
 
     public function test_the_settings_tab_saves_pauses_and_nudges_ready_machines(): void

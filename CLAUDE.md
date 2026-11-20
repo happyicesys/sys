@@ -1135,9 +1135,16 @@ permission `prepaid-vouchers`. Rules that are not obvious from the code:
 - **QR purchase**: REQQR carries `PV`; `PrepaidVoucherSales::fromGatewayApproval` writes the voucher at approval AND marks
   the log `is_dispensed` (the voucher is the delivery; the 10-minute no-dispense sweep must never refund it); the dispense
   frame says `pv:1` and the board never drops it. A refund of that charge voids an unused voucher (`OmiseRefundRecorder`).
+  If no voucher can be written, the log stays undelivered and Omise is refunded at once (the board's CONFIRM would
+  otherwise mark it delivered). The purchase row's gross profit is recomputed with no cost (ingest took the cost off once).
 - **Card purchase** has no server-side trigger: the board's TRADE with `PV` role buy writes it. A card approval with no
   vend after it is the retained-credit risk (`apk/mark1-apk/CARD_RETAINED_CREDIT_2026-08-22.md`); "Card can pay for the
-  voucher" turns card off without an app change.
+  voucher" is OFF by default (2026-11-21) until bench 2031 proves no retained credit; it switches without an app change.
+  A new operator's settings also open Paused: nothing offers until a person turns it on.
+- **A redemption TRADE spends only its own hold**: a failed one releases only the reservation its token names, and a
+  dispensed one is a `conflict` when another machine holds the voucher now (ours lapsed) or the voucher belongs to an
+  operator group this machine may not spend. Release needs the token. The machine API checks the signature first,
+  then a per-machine AND per-address limit (every board signs with the same family of keys).
 - **Value redemption = what was PAID**, never the list price; the same SKU is free whatever it costs now; a cheaper item
   loses the rest (no refund). Expiry = end of the local day N days after purchase (1 = end of tomorrow), operator timezone,
   fixed at issue.

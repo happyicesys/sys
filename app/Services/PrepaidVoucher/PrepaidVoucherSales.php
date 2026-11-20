@@ -57,7 +57,7 @@ final class PrepaidVoucherSales
      * A QR purchase is paid: write the voucher now, before the machine reports anything — the money is in.
      * The machine's dispense frame for this order carries `pv: 1`, so the board never drops the SKU.
      */
-    public function fromGatewayApproval(PaymentGatewayLog $log): ?PrepaidVoucher
+    public function fromGatewayApproval(PaymentGatewayLog $log, ?string $company = null): ?PrepaidVoucher
     {
         $request = is_array($log->request) ? $log->request : [];
         $pv = $request['PV'] ?? null;
@@ -70,11 +70,7 @@ final class PrepaidVoucherSales
         }
 
         try {
-            // The voucher IS what this charge bought, delivered now: mark the log dispensed so the 10-minute
-            // "paid, never dispensed" sweep cannot refund it if the board misses the pv frame (restart, MQTT).
-            $log->forceFill(['is_dispensed' => true])->saveQuietly();
-
-            return $this->issuer->issue($vend, [
+            $voucher = $this->issuer->issue($vend, [
                 'order_id' => (string) $log->order_id,
                 'phone' => isset($pv['phone']) ? (string) $pv['phone'] : null,
                 'product_id' => (int) ($pv['pid'] ?? 0),
@@ -87,9 +83,25 @@ final class PrepaidVoucherSales
             ]);
         } catch (\Throwable $e) {
             report($e);
+            $voucher = null;
+        }
+
+        if (! $voucher) {
+            // Paid, but no voucher could be written. The board still CONFIRMs (which marks the log delivered, so the
+            // 10-minute sweep would never refund it): refund Omise now; any other gateway waits for a person.
+            Log::error('prepaid voucher: QR purchase paid but no voucher issued', ['payment_gateway_log_id' => $log->id, 'vend' => $vend->code, 'company' => $company]);
+            if ($company === 'omise') {
+                \App\Jobs\RefundOmiseJob::dispatch($log->order_id, \App\Support\AutoRefundSource::OMISE_NO_DISPENSE);
+            }
 
             return null;
         }
+
+        // The voucher IS what this charge bought, delivered now: mark the log dispensed so the 10-minute
+        // "paid, never dispensed" sweep cannot refund it if the board misses the pv frame (restart, MQTT).
+        $log->forceFill(['is_dispensed' => true])->saveQuietly();
+
+        return $voucher;
     }
 
     /**
@@ -138,8 +150,14 @@ final class PrepaidVoucherSales
             'payment_gateway_log_id' => $sale->payment_gateway_log_id ? (int) $sale->payment_gateway_log_id : null,
         ]);
 
-        // No goods left the machine: no cost on this row (the redemption carries it).
-        $this->stamp($sale, ['role' => 'purchase', 'id' => $voucher?->id], ['unit_cost' => 0]);
+        // No goods left the machine: no cost on this row (the redemption carries it). Ingest already worked out
+        // gross profit with the goods' cost, so it is recomputed here, or the cost would count twice.
+        $revenue = (float) $sale->revenue;
+        $this->stamp($sale, ['role' => 'purchase', 'id' => $voucher?->id], [
+            'unit_cost' => 0,
+            'gross_profit' => $revenue,
+            'gross_profit_margin' => $revenue ? 100 : 0,
+        ]);
     }
 
     private function redemption(Vend $vend, VendTransaction $sale, array $pv): void

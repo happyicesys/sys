@@ -73,7 +73,7 @@ Route::prefix('v1')->group(function () {
     // Device -> mark1: next-visit vouchers on the big board (app 329+). A mobile number is the only key a
     // voucher has, so every call is signed by the machine and lookups are throttled per machine.
     Route::prefix('/vends/{code}')
-        ->middleware(['throttle:prepaid-voucher', 'vending.signed'])
+        ->middleware(['vending.signed', 'throttle:prepaid-voucher'])
         ->controller(\App\Http\Controllers\Api\V1\PrepaidVoucherMachineController::class)
         ->group(function () {
             Route::get('/prepaid-voucher', 'config');

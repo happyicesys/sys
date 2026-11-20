@@ -88,11 +88,16 @@ final class PrepaidVoucherRedeemer
     /** The customer backed out (or the dispense failed): the voucher is usable again. */
     public function release(Vend $vend, int $voucherId, ?string $token): bool
     {
+        // Only the hold this machine was given: no token, no release.
+        if ($token === null || $token === '') {
+            return false;
+        }
+
         return PrepaidVoucher::query()
             ->whereKey($voucherId)
             ->where('status', PrepaidVoucher::STATUS_RESERVED)
             ->where('reserved_vend_id', $vend->id)
-            ->when($token !== null && $token !== '', fn ($q) => $q->where('reserved_token', $token))
+            ->where('reserved_token', $token)
             ->update([
                 'status' => PrepaidVoucher::STATUS_ACTIVE,
                 'reserved_vend_id' => null,
@@ -126,9 +131,14 @@ final class PrepaidVoucherRedeemer
                 return 'conflict';
             }
 
+            $token = (string) ($r['token'] ?? '');
+            $ownHold = $voucher->status === PrepaidVoucher::STATUS_RESERVED && $token !== ''
+                && hash_equals((string) $voucher->reserved_token, $token);
+
             if (! $r['dispensed']) {
-                // Nothing dropped: the customer keeps the voucher. Any balance they paid follows the rail's own refund rules.
-                if ($voucher->status === PrepaidVoucher::STATUS_RESERVED) {
+                // Nothing dropped: the customer keeps the voucher — but only this redemption's own hold is let go,
+                // never one another machine took after ours lapsed. Any balance paid follows the rail's refund rules.
+                if ($ownHold) {
                     $voucher->forceFill([
                         'status' => PrepaidVoucher::STATUS_ACTIVE,
                         'reserved_vend_id' => null,
@@ -138,6 +148,18 @@ final class PrepaidVoucherRedeemer
                 }
 
                 return 'released';
+            }
+
+            // The item dropped. Spend the voucher unless another machine holds it now (our hold lapsed and it
+            // was reserved again), or it belongs to an operator group this machine may not spend from.
+            $heldElsewhere = $voucher->status === PrepaidVoucher::STATUS_RESERVED && ! $ownHold
+                && $voucher->reserved_until && $voucher->reserved_until->isFuture();
+            $campaign = $this->program->campaignFor($vend);
+            $foreign = $campaign && ! in_array((int) $voucher->operator_id, array_map('intval', $this->program->redeemableOperatorIds($campaign)), true);
+            if ($heldElsewhere || $foreign) {
+                Log::warning('prepaid voucher: redemption TRADE refused', ['vend' => $vend->code, 'voucher' => $voucher->id, 'held_elsewhere' => $heldElsewhere, 'foreign' => $foreign]);
+
+                return 'conflict';
             }
 
             $mode = $r['mode'] === PrepaidVoucher::MODE_VALUE ? PrepaidVoucher::MODE_VALUE : PrepaidVoucher::MODE_SKU;
