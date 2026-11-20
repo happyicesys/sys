@@ -520,7 +520,7 @@ class RolePermissionSyncSeeder extends Seeder
                 ['read', 'create', 'update', 'delete'],
                 ['superadmin', 'admin', 'supervisor', 'technician'],
             ],
-            // Next-visit vouchers (tab beside Happy Hour): settings, void, extend. Customer numbers live here.
+            // Next-visit vouchers (Machine Management menu): settings, void, extend. Customer numbers live here.
             [
                 'prepaid-vouchers',
                 ['read', 'update'],

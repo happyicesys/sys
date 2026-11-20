@@ -1127,7 +1127,7 @@ Regression coverage: `tests/Feature/PaymentMenuPushTest.php`.
 Brian, 2026-11-20 (`PrepaidVoucherProgram`, `apk/mark1-apk/UNRELEASED_V329.md`). The big board (app
 `prepaid_voucher.min_vending_apk_version`, 329) holds a single full-price card/QR touchscreen sale and offers a voucher
 for the same SKU at the operator's discount; the customer gives a mobile number and pays again (QR or card). Settings:
-Happy Hour → "Next-visit Voucher" tab (`prepaid_voucher_campaigns`, one per operator; an HIPL row covers the group),
+Machine Management → Next-visit Voucher, its own menu entry below Happy Hour, never a tab on it (Brian, 2026-11-20) (`prepaid_voucher_campaigns`, one per operator; an HIPL row covers the group),
 permission `prepaid-vouchers`. Rules that are not obvious from the code:
 - **The purchase IS the sale** (Brian): its `vend_transactions` row carries the money and `unit_cost` 0; the redemption
   is a $0 Free Vend (or the balance paid) carrying the goods' cost. `meta_json.prepaid_voucher` = {role purchase|redemption,

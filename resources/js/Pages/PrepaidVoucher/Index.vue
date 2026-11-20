@@ -5,7 +5,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ $t('Happy Hour Campaign') }}
+        {{ $t('Next-visit Voucher') }}
         <span class="ml-1 align-middle inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border bg-violet-100 text-violet-800 border-violet-300">
           {{ $t('Vending :version+', { version: minVendingApkVersion }) }}
         </span>
@@ -13,10 +13,8 @@
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-      <PromotionTabs active="prepaid-voucher" />
-
       <!-- Settings -->
-      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-b-md border border-t-0 px-3 py-3">
+      <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 py-3">
         <p class="text-xs text-gray-500">
           {{ $t('After a customer pays for ONE item at its normal price on the screen (no Happy Hour, no promotion, no voucher code), the machine holds the item and offers a voucher for the same item on their next visit, at the discount below. They type their mobile number, confirm it, and pay by QR or card; or they say no and the item drops at once. A voucher is used with the same number on any machine of the group: the same item for free, or what they paid towards another item (a cheaper item loses the difference; a dearer one pays the rest). Using a voucher is a single purchase too, so they are offered the next one. Only touchscreen vending machines (big board) on app :version or later run it.', { version: minVendingApkVersion }) }}
         </p>
@@ -213,7 +211,6 @@ import Button from '@/Components/Button.vue';
 import MachineIdLink from '@/Components/MachineIdLink.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import Paginator from '@/Components/Paginator.vue';
-import PromotionTabs from '@/Components/Promotion/PromotionTabs.vue';
 import TableHead from '@/Components/TableHead.vue';
 import { CheckIcon, MagnifyingGlassIcon, PauseIcon, PlayIcon } from '@heroicons/vue/20/solid';
 import { computed, ref } from 'vue';

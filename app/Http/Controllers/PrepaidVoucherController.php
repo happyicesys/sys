@@ -22,7 +22,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Machine Management → Happy Hour → "Next-visit Voucher" tab (Brian, 2026-11-20): the operator's settings
+ * Machine Management → Next-visit Voucher, its own menu entry below Happy Hour (Brian, 2026-11-20): the operator's settings
  * (discount, expiry, Pause), and every voucher bought, searchable by the customer's full number.
  */
 class PrepaidVoucherController extends Controller

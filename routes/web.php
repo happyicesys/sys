@@ -932,7 +932,7 @@ Route::middleware(['auth', 'cors'])->group(function () {
             ->middleware('can:update machine-settings');
     });
 
-    // Next-visit voucher — the tab beside Happy Hour (PrepaidVoucherProgram).
+    // Next-visit voucher — Machine Management menu, below Happy Hour (PrepaidVoucherProgram).
     Route::prefix('prepaid-vouchers')->group(function () {
         Route::get('/', [\App\Http\Controllers\PrepaidVoucherController::class, 'index'])->name('prepaid-vouchers')
             ->middleware('can:read prepaid-vouchers');

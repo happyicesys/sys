@@ -155,6 +155,8 @@ const navigation = computed(() => [
             // Happy Hour sits directly above UI Setting on purpose: it is the default, and a UI Setting
             // campaign bound to a machine overrides it (HappyHourPause) - the menu reads in that order.
             {name: tk('Happy Hour Campaign'), href: '/happy-hour-campaigns', permission: 'read happy-hour-campaigns'},
+            // Next-visit voucher (Brian, 2026-11-20): its own menu entry, not a tab on Happy Hour.
+            {name: tk('Next-visit Voucher'), href: '/prepaid-vouchers', permission: 'read prepaid-vouchers'},
             {name: tk('UI Setting (Marketing & Campaign Remote Setting)'), href: '/apk-settings', permission: 'read apk-settings'},
             {name: tk('Setting Charts'), href: '/vend-configs', permission: 'read vend-configs'},
             {name: tk('Machine Prefix'), href: '/vend-prefixes', permission: 'read vend-prefixes'},
