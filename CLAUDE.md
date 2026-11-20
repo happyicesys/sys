@@ -1122,6 +1122,31 @@ were hidden). Now:
 
 Regression coverage: `tests/Feature/PaymentMenuPushTest.php`.
 
+## Next-visit vouchers: bought after a full-price sale, kept by phone number
+
+Brian, 2026-11-20 (`PrepaidVoucherProgram`, `apk/mark1-apk/UNRELEASED_V329.md`). The big board (app
+`prepaid_voucher.min_vending_apk_version`, 329) holds a single full-price card/QR touchscreen sale and offers a voucher
+for the same SKU at the operator's discount; the customer gives a mobile number and pays again (QR or card). Settings:
+Happy Hour → "Next-visit Voucher" tab (`prepaid_voucher_campaigns`, one per operator; an HIPL row covers the group),
+permission `prepaid-vouchers`. Rules that are not obvious from the code:
+- **The purchase IS the sale** (Brian): its `vend_transactions` row carries the money and `unit_cost` 0; the redemption
+  is a $0 Free Vend (or the balance paid) carrying the goods' cost. `meta_json.prepaid_voucher` = {role purchase|redemption,
+  id} drives the "Voucher sold / used" badge. A voucher is spent on any machine of its owner's operator group.
+- **QR purchase**: REQQR carries `PV`; `PrepaidVoucherSales::fromGatewayApproval` writes the voucher at approval AND marks
+  the log `is_dispensed` (the voucher is the delivery; the 10-minute no-dispense sweep must never refund it); the dispense
+  frame says `pv:1` and the board never drops it. A refund of that charge voids an unused voucher (`OmiseRefundRecorder`).
+- **Card purchase** has no server-side trigger: the board's TRADE with `PV` role buy writes it. A card approval with no
+  vend after it is the retained-credit risk (`apk/mark1-apk/CARD_RETAINED_CREDIT_2026-08-22.md`); "Card can pay for the
+  voucher" turns card off without an app change.
+- **Value redemption = what was PAID**, never the list price; the same SKU is free whatever it costs now; a cheaper item
+  loses the rest (no refund). Expiry = end of the local day N days after purchase (1 = end of tomorrow), operator timezone,
+  fixed at issue.
+- **Machine API** is signed (`vending.signed`): the board signs with mqtt-config's client id + "A", while
+  `vends.private_key` stores the id without the "A", so the freezer middleware (`device.signed`) refuses big boards.
+- Numbers are shown masked, searched by the full number only, and erased 90 days after a voucher is finished
+  (`prepaid-vouchers:prune-phones`).
+Regression coverage: `tests/Feature/PrepaidVoucherTest.php`.
+
 ## Menu NEW badge: new to THIS machine, no expiry
 
 Brian, 2026-11-15 / 11-16. A SKU is NEW on a machine once it appears in that machine's product mapping after launch —
