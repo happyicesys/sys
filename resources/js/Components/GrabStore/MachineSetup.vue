@@ -61,7 +61,7 @@
                   :placeholder="$t('Price')"
                   class="w-24 rounded-md border-gray-300 text-sm text-right"
                 />
-                <span v-else-if="row.problem === 'no_rp'" class="text-amber-700">{{ $t('No :rp price: set it on Product → Edit', { rp: rpName(rpTypes, previewRuleTier) }) }}</span>
+                <span v-else-if="row.problem === 'no_rp'" class="text-amber-700">{{ $t('No :rp price: set it on Product → Edit', { rp: rpName(rpTypes, row.rp_tier ?? previewRuleTier) }) }}</span>
                 <span v-else>{{ money(row.price) }}</span>
               </td>
             </tr>

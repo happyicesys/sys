@@ -34,7 +34,7 @@ class GrabStoreSetup
     /**
      * What the window shows for $vend: each product Grab would list, with its price and what is missing.
      *
-     * @param  array{use_company_rule?: bool, pricing_mode?: ?string, rp_type?: ?int, multiplier_bp?: ?int, round_up_cents?: ?int}  $choice
+     * @param  array{use_company_rule?: bool, pricing_mode?: ?string, rp_type?: ?int, multiplier_bp?: ?int, tier_multipliers_bp?: ?array, round_up_cents?: ?int}  $choice
      */
     public function preview(int $operatorId, Vend $vend, ?DeliveryPlatformRefNumber $ref, array $choice): array
     {
@@ -50,6 +50,7 @@ class GrabStoreSetup
             'photo' => $line->product->thumbnail?->full_url,
             'sub_category' => $line->subCategory,
             'rp' => $line->rp,
+            'rp_tier' => $line->rpTier,
             'price' => $line->price,
             'available' => $line->available(),
             'problem' => $line->problem(),
@@ -114,6 +115,7 @@ class GrabStoreSetup
             'rp_type' => (int) ($choice['rp_type'] ?? 2),
             'multiplier_bp' => (int) ($choice['multiplier_bp'] ?? 10000),
             'round_up_cents' => (int) ($choice['round_up_cents'] ?? 10),
+            'tier_multipliers_bp' => $choice['tier_multipliers_bp'] ?? null,
         ], $operatorId, $ref?->id ?? 0);
     }
 }

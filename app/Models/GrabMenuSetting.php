@@ -19,6 +19,7 @@ class GrabMenuSetting extends Model
     protected $fillable = [
         'category_json',
         'multiplier_bp',
+        'tier_multipliers_json',
         'operator_id',
         'pricing_mode',
         'round_up_cents',
@@ -29,6 +30,7 @@ class GrabMenuSetting extends Model
     protected $casts = [
         'category_json' => 'json',
         'multiplier_bp' => 'integer',
+        'tier_multipliers_json' => 'array',
         'pricing_mode' => GrabPricingMode::class,
         'round_up_cents' => 'integer',
         'rp_type' => 'integer',

@@ -80,7 +80,7 @@
                       <img v-if="row.photo" :src="row.photo" alt="" class="h-8 w-8 rounded object-contain border bg-white" />
                       <div>
                         <div>{{ row.name }}</div>
-                        <div class="text-xs text-gray-500">{{ row.code }}<template v-if="row.rp !== null"> · {{ $t(':rp :price', { rp: rpName(rpTypes, previewRule.rp_type), price: money(row.rp) }) }}</template></div>
+                        <div class="text-xs text-gray-500">{{ row.code }}<template v-if="row.rp !== null"> · {{ $t(':rp :price', { rp: rpName(rpTypes, row.rp_tier ?? previewRule.rp_type), price: money(row.rp) }) }}</template></div>
                       </div>
                     </div>
                   </td>
@@ -228,7 +228,7 @@ function changeName(row) {
     added: t('New on Grab'),
     removed: t('Leaves Grab (not in the machine)'),
     no_current: t('On Grab'),
-    not_listed: problemName(row.problem, rpName(props.rpTypes, previewRule.value.rp_type)),
+    not_listed: problemName(row.problem, rpName(props.rpTypes, row.rp_tier ?? previewRule.value.rp_type)),
   }[row.change] ?? row.change
 }
 function changeClass(change) {

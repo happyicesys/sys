@@ -46,7 +46,7 @@
             <td v-if="can.update" class="px-2 py-2"><input v-model="picked" type="checkbox" :value="store.ref_id" :aria-label="$t('Tick :code', { code: store.vend_code })" /></td>
             <td class="px-2 py-2"><MachineIdLink v-if="store.vend_code" :code="store.vend_code" /></td>
             <td class="px-2 py-2">
-              <div>{{ store.site ?? '—' }}</div>
+              <div>{{ store.site ?? '—' }} <span v-if="store.site_tier" class="ml-1 rounded bg-gray-100 px-1.5 text-xs text-gray-700" :title="$t('The Site\'s RP tier (Site → RP tier)')">RP{{ store.site_tier }}</span></div>
               <div class="font-mono text-xs text-gray-500">{{ store.merchant_id }}</div>
             </td>
             <td class="px-2 py-2 whitespace-nowrap">

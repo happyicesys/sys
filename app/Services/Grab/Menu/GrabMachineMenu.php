@@ -59,7 +59,7 @@ class GrabMachineMenu
 
         $productIds = $channels->pluck('product_id')->unique()->values()->all();
         $held = self::heldQtyByVendChannel($channels->pluck('id')->all());
-        $prices = new GrabPriceList($rule, $productIds);
+        $prices = new GrabPriceList($rule, $productIds, $rule->usesSiteTier() ? GrabPriceList::siteTier($vendId) : null);
         $subCategories = GrabMenuProduct::query()
             ->where('operator_id', $operatorId)
             ->whereIn('product_id', $productIds)
@@ -86,6 +86,7 @@ class GrabMachineMenu
                     rp: $prices->rp($productId),
                     subCategory: $subCategories[$productId] ?? null,
                     priceProblem: $prices->missingReason($productId),
+                    rpTier: $prices->rule->readsRp() ? $prices->tierOf($productId) : null,
                 );
             })
             ->sortBy(fn (MachineMenuLine $line) => $line->product->code);

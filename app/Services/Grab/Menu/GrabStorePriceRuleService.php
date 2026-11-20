@@ -20,7 +20,7 @@ class GrabStorePriceRuleService
     public function __construct(private GrabStoreService $stores) {}
 
     /**
-     * Give a store its own rule. $values carries pricing_mode, rp_type, multiplier_bp and round_up_cents; an
+     * Give a store its own rule. $values carries pricing_mode, rp_type, multiplier_bp, tier_multipliers_bp and round_up_cents; an
      * impossible rule is refused by GrabPriceRule before anything is written.
      */
     public function useOwnRule(DeliveryPlatformRefNumber $ref, array $values, ?string $note, ?int $userId): GrabStorePriceRule
@@ -34,6 +34,7 @@ class GrabStorePriceRuleService
                 'pricing_mode' => $rule->mode,
                 'rp_type' => $rule->rpType,
                 'multiplier_bp' => $rule->multiplierBp,
+                'tier_multipliers_json' => $rule->tierMultipliersBp ?: null,
                 'round_up_cents' => $rule->roundUpCents,
                 'note' => $note,
             ]);

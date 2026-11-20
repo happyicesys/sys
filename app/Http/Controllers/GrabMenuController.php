@@ -51,6 +51,7 @@ class GrabMenuController extends Controller
                 'pricing_mode' => $setting->pricing_mode->value,
                 'rp_type' => $setting->rp_type,
                 'multiplier' => round($setting->multiplier_bp / 10000, 4),
+                'tier_multipliers' => GrabPriceRule::tierMultipliersForPage($setting->tier_multipliers_json, (int) $setting->multiplier_bp),
                 'round_up_cents' => $setting->round_up_cents,
                 'category' => $setting->category_json,
                 'updated_at' => $setting->updated_at?->toIso8601String(),

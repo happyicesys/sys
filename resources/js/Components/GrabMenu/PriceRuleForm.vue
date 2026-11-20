@@ -18,11 +18,12 @@
       <div v-if="modelValue.pricing_mode !== 'custom'">
         <label class="block font-medium text-gray-700">{{ $t('RP tier') }}</label>
         <select :value="modelValue.rp_type" :disabled="disabled" :class="inputClass" @change="set('rp_type', Number($event.target.value))">
+          <option :value="SITE_TIER">{{ $t('Each store\'s Site RP') }}</option>
           <option v-for="rp in rpTypes" :key="rp.id" :value="rp.id">{{ rp.name }}</option>
         </select>
       </div>
       <template v-if="modelValue.pricing_mode === 'rp_multiplier'">
-        <div>
+        <div v-if="!siteTier">
           <label class="block font-medium text-gray-700">{{ $t('Multiplier') }}</label>
           <input :value="modelValue.multiplier" type="number" min="0.5" max="5" step="0.01" :disabled="disabled" :class="inputClass" @input="set('multiplier', $event.target.value)" />
           <InputError :message="errors?.multiplier" />
@@ -35,9 +36,21 @@
         </div>
       </template>
     </div>
+    <div v-if="siteTier" class="rounded-md border border-gray-200 px-3 py-2">
+      <p class="text-gray-700">{{ $t('Each store is priced from its Site\'s RP tier (Site → RP tier). A product with no price on that tier uses its RP2 price.') }}</p>
+      <div v-if="modelValue.pricing_mode === 'rp_multiplier'" class="mt-2 grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div v-for="rp in rpTypes" :key="rp.id">
+          <label class="block font-medium text-gray-700">{{ $t(':rp multiplier', { rp: rp.name }) }}</label>
+          <input :value="tierMultiplier(modelValue, rp.id)" type="number" min="0.5" max="5" step="0.01" :disabled="disabled" :class="inputClass" @input="setTier(rp.id, $event.target.value)" />
+          <span class="mt-0.5 block text-xs text-gray-500">{{ $t(':normal → :price', { normal: money(320), price: money(examplePrice(modelValue, 320, rp.id)) }) }}</span>
+          <InputError :message="errors?.[`tier_multipliers.${rp.id}`]" />
+        </div>
+      </div>
+    </div>
     <p class="rounded-md bg-gray-50 px-3 py-2 text-gray-700">
       <span class="font-medium">{{ $t('In words:') }}</span> {{ ruleText(modelValue, rpTypes) }}.
-      <template v-if="example !== null">{{ $t('Example: a product with :rp :normal sells on Grab at :price.', { rp: rpName(rpTypes, modelValue.rp_type), normal: money(320), price: money(example) }) }}</template>
+      <template v-if="example !== null && siteTier">{{ $t('Example: a product with RP2 :normal at an RP2 site sells on Grab at :price.', { normal: money(320), price: money(example) }) }}</template>
+      <template v-else-if="example !== null">{{ $t('Example: a product with :rp :normal sells on Grab at :price.', { rp: rpName(rpTypes, modelValue.rp_type), normal: money(320), price: money(example) }) }}</template>
       <template v-else>{{ customHelp }}</template>
     </p>
     <InputError :message="errors?.pricing_mode || errors?.rp_type || errors?.round_up_cents" />
@@ -48,9 +61,10 @@
 import InputError from '@/Components/InputError.vue'
 import { computed } from 'vue'
 import { t } from '@/i18n'
-import { examplePrice, inputClass, money, rpName, ruleText } from './priceRule'
+import { examplePrice, FALLBACK_TIER, inputClass, money, rpName, ruleText, SITE_TIER, tierMultiplier, usesSiteTier } from './priceRule'
 
-// One price rule's fields (company or one store), v-model'd as { pricing_mode, rp_type, multiplier, round_up_cents }.
+// One price rule's fields (company or one store), v-model'd as { pricing_mode, rp_type, multiplier, tier_multipliers,
+// round_up_cents }. rp_type 0 = each store's own Site tier, with one multiplier per tier.
 const props = defineProps({
   modelValue: { type: Object, required: true },
   rpTypes: { type: Array, required: true },
@@ -69,8 +83,19 @@ const modes = [
 ]
 
 const example = computed(() => examplePrice(props.modelValue, 320))
+const siteTier = computed(() => usesSiteTier(props.modelValue))
 
 function set(key, value) {
-  emit('update:modelValue', { ...props.modelValue, [key]: value })
+  const next = { ...props.modelValue, [key]: value }
+  // Picking the Site's own tier starts every tier at the multiplier already typed; RP2's is the rule's own.
+  if (key === 'rp_type' && Number(value) === SITE_TIER && Number(props.modelValue.rp_type) !== SITE_TIER) {
+    next.tier_multipliers = Object.fromEntries(props.rpTypes.map(rp => [rp.id, next.multiplier]))
+  }
+  emit('update:modelValue', next)
+}
+
+function setTier(tier, value) {
+  const tiers = { ...(props.modelValue.tier_multipliers ?? {}), [tier]: value }
+  emit('update:modelValue', { ...props.modelValue, tier_multipliers: tiers, ...(Number(tier) === FALLBACK_TIER ? { multiplier: value } : {}) })
 }
 </script>

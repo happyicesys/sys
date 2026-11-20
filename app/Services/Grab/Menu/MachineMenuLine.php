@@ -24,6 +24,8 @@ final class MachineMenuLine
         public readonly ?int $rp,
         public readonly ?array $subCategory,
         public readonly ?string $priceProblem,
+        // The RP tier $rp is on (1–5); null under a typed-price rule.
+        public readonly ?int $rpTier = null,
     ) {}
 
     public function itemId(): string

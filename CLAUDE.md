@@ -2958,6 +2958,15 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
     `tests/Feature/GrabStorePriceRuleTest.php`. A product with no price under the rule, or no Grab sub-category
     (`grab_menu_products.sub_category_json`), is not listed — never sold at $0. The Grab category is the operator's
     `category_json`, always AVAILABLE.
+  - **"Each store's Site RP" = rp_type 0** (Brian, 2026-11-21: "allow user to set each RP with multiplier" — RP3 is
+    already dearer, so RP3 × 1.25 was too high). The tier is then each store's machine's Site tier
+    (`customers.selling_price_type`, the same column the machine sells by), and an `rp_multiplier` rule carries one
+    multiplier per tier (`tier_multipliers_json`, bp, on both rule tables; `multiplier_bp` = RP2's). A product with no
+    price on the Site's tier, or a machine on no Site, is priced at RP2 × RP2's multiplier, so it stays on Grab
+    (Brian's choice). `GrabPriceRule::tierFor` / `multiplierFor` and `GrabPriceList` (given the store's
+    `siteTier`) are the rule; a rule naming one tier (1–5) is unchanged and ignores the Site. Before this every
+    store was priced from ONE tier whatever its Site's (prod 2026-11-21: HIPL's 63 Grab stores = 46 RP2, 13 RP3,
+    4 RP4 sites). Coverage: `tests/Feature/GrabSiteTierPriceRuleTest.php`.
   - **Writers:** `GrabMenuService` (company rule, products; notifies the operator's machine-menu stores),
     `GrabStorePriceRuleService` (store rules) and
     `GrabStoreService::setMenuSource` (switch a store, event `menu_source`). Product → Edit RP / name changes call

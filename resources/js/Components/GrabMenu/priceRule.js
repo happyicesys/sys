@@ -11,8 +11,23 @@ export function money(cents) {
   return cents === null || cents === undefined ? '—' : '$' + (Number(cents) / 100).toFixed(2)
 }
 
+// rp_type 0: each store reads its own Site's tier (GrabPriceRule::SITE_TIER); a product with no price there uses RP2.
+export const SITE_TIER = 0
+export const FALLBACK_TIER = 2
+
+export function usesSiteTier(rule) {
+  return !!rule && rule.pricing_mode !== 'custom' && Number(rule.rp_type) === SITE_TIER
+}
+
 export function rpName(rpTypes, rpType) {
+  if (Number(rpType) === SITE_TIER) return t('Site\'s own RP')
   return rpTypes.find(rp => rp.id === Number(rpType))?.name ?? 'RP'
+}
+
+// A tier's multiplier in a Site-tier rule (a tier it does not name uses the rule's own multiplier).
+export function tierMultiplier(rule, tier) {
+  const value = rule?.tier_multipliers?.[tier] ?? rule?.tier_multipliers?.[String(tier)]
+  return Number(value ?? rule?.multiplier ?? 1) || 1
 }
 
 function stepName(cents) {
@@ -24,6 +39,10 @@ export function ruleText(rule, rpTypes) {
   if (!rule) return ''
   const rp = rpName(rpTypes, rule.rp_type)
   if (rule.pricing_mode === 'custom') return t('A typed price for each product')
+  if (rule.pricing_mode === 'rp_multiplier' && usesSiteTier(rule)) {
+    const tiers = rpTypes.map(type => `${type.name} × ${tierMultiplier(rule, type.id)}`).join(', ')
+    return t('Each store\'s Site RP × its tier\'s multiplier (:tiers), rounded up to :step', { tiers, step: stepName(rule.round_up_cents) })
+  }
   if (rule.pricing_mode === 'rp_multiplier') {
     return t(':rp × :multiplier, rounded up to :step', { rp, multiplier: Number(rule.multiplier || 1), step: stepName(rule.round_up_cents) })
   }
@@ -38,9 +57,11 @@ export function multiply(cents, multiplier, stepCents) {
 }
 
 // What the rule would charge for a product whose RP is $cents (null when the rule has no example: custom).
-export function examplePrice(rule, cents) {
+// A Site-tier rule is shown at $tier (default RP2).
+export function examplePrice(rule, cents, tier = FALLBACK_TIER) {
   if (!rule || rule.pricing_mode === 'custom') return null
-  return rule.pricing_mode === 'rp_multiplier' ? multiply(cents, rule.multiplier, rule.round_up_cents) : cents
+  if (rule.pricing_mode !== 'rp_multiplier') return cents
+  return multiply(cents, usesSiteTier(rule) ? tierMultiplier(rule, tier) : rule.multiplier, rule.round_up_cents)
 }
 
 export function problemName(problem, rp = 'RP') {
@@ -53,10 +74,14 @@ export function problemName(problem, rp = 'RP') {
 
 // The rule fields a form edits and posts, from a rule the server sent.
 export function ruleFields(rule) {
+  const multiplier = rule?.multiplier ?? 1
+  const tiers = {}
+  for (const tier of [1, 2, 3, 4, 5]) tiers[tier] = rule?.tier_multipliers?.[tier] ?? rule?.tier_multipliers?.[String(tier)] ?? multiplier
   return {
     pricing_mode: rule?.pricing_mode ?? 'rp',
     rp_type: rule?.rp_type ?? 2,
-    multiplier: rule?.multiplier ?? 1,
+    multiplier,
+    tier_multipliers: tiers,
     round_up_cents: rule?.round_up_cents ?? 10,
   }
 }
@@ -66,6 +91,7 @@ export function sameRule(a, b) {
   if (a.pricing_mode === 'custom') return true
   if (Number(a.rp_type) !== Number(b.rp_type)) return false
   if (a.pricing_mode === 'rp') return true
+  if (usesSiteTier(a) && [1, 2, 3, 4, 5].some(tier => tierMultiplier(a, tier) !== tierMultiplier(b, tier))) return false
   return Number(a.multiplier) === Number(b.multiplier) && Number(a.round_up_cents) === Number(b.round_up_cents)
 }
 

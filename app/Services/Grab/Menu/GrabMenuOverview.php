@@ -56,8 +56,14 @@ class GrabMenuOverview
         $saved = GrabMenuProduct::query()->where('operator_id', $this->operatorId)->get()->keyBy('product_id');
         $productIds = $machinesByProduct->keys()->merge($saved->keys())->map(fn ($id) => (int) $id)->unique()->values()->all();
 
-        $prices = new GrabPriceList($rule, $productIds);
-        $rp = GrabPriceList::rpPrices($productIds, $rule->rpType);
+        // A rule on the Site's own tier prices each store by its tier: one price list per tier the stores use, RP2 first.
+        $tiers = $rule->usesSiteTier()
+            ? collect(GrabPriceList::siteTiers($this->bindings->pluck('vend_id')->filter()->all()))
+                ->map(fn ($tier) => $rule->tierFor($tier))->push(GrabPriceRule::FALLBACK_TIER)->unique()->sort()->values()->all()
+            : [null];
+        $lists = collect($tiers)->mapWithKeys(fn ($tier) => [(int) $tier => new GrabPriceList($rule, $productIds, $tier)]);
+        $prices = $rule->usesSiteTier() ? $lists[GrabPriceRule::FALLBACK_TIER] : $lists->first();
+        $rp = $rule->usesSiteTier() ? null : GrabPriceList::rpPrices($productIds, $rule->rpType);
         $products = Product::query()->withoutGlobalScopes()
             ->with('thumbnail:id,full_url,attachments.modelable_type,attachments.modelable_id')
             ->whereIn('id', $productIds)
@@ -66,9 +72,11 @@ class GrabMenuOverview
 
         return collect($productIds)
             ->filter(fn ($id) => $products->has($id))
-            ->map(function ($id) use ($products, $saved, $prices, $rp, $machinesByProduct) {
+            ->map(function ($id) use ($products, $saved, $prices, $rp, $lists, $rule, $machinesByProduct) {
                 $price = $prices->price($id);
-                $normal = $rp[$id] ?? null;
+                $normal = $rp === null ? $prices->rp($id) : ($rp[$id] ?? null);
+                // No price on any tier a store uses = not on Grab anywhere.
+                $missing = $lists->every(fn (GrabPriceList $list) => $list->price($id) === null) ? $rule->missingReason() : null;
                 $sub = $saved[$id]->sub_category_json ?? null;
 
                 return [
@@ -82,8 +90,15 @@ class GrabMenuOverview
                     'grab_price' => $price,
                     // Grab price vs the RP, in whole percent (+10 = 10% above).
                     'vs_rp_pct' => $price !== null && $normal ? (int) round(($price - $normal) * 100 / $normal) : null,
+                    // Under a Site-tier rule: the price at a store on each tier the stores use.
+                    'tier_prices' => $rule->usesSiteTier() ? $lists->map(fn (GrabPriceList $list, $tier) => [
+                        'tier' => $tier,
+                        'rp_tier' => $list->tierOf($id),
+                        'rp' => $list->rp($id),
+                        'grab_price' => $list->price($id),
+                    ])->values()->all() : null,
                     'machines' => (int) ($machinesByProduct[$id] ?? 0),
-                    'problem' => $prices->missingReason($id) ?? (empty($sub['id']) ? MachineMenuLine::NO_SUB_CATEGORY : null),
+                    'problem' => $missing ?? (empty($sub['id']) ? MachineMenuLine::NO_SUB_CATEGORY : null),
                 ];
             })
             ->sortBy([['machines', 'desc'], ['code', 'asc']])
@@ -104,7 +119,9 @@ class GrabMenuOverview
             ->selectRaw('delivery_platform_ref_number_id AS ref_id, COUNT(*) AS n')
             ->pluck('n', 'ref_id');
 
-        return $this->bindings->map(function (DeliveryProductMappingVend $binding) use ($rules, $own, $orders) {
+        $siteTiers = GrabPriceList::siteTiers($this->bindings->pluck('vend_id')->filter()->all());
+
+        return $this->bindings->map(function (DeliveryProductMappingVend $binding) use ($rules, $own, $orders, $siteTiers) {
             $refId = $binding->delivery_platform_ref_number_id;
             $row = $own[$refId] ?? null;
 
@@ -113,6 +130,8 @@ class GrabMenuOverview
                 'merchant_id' => $binding->deliveryPlatformRefNumber?->ref_number,
                 'vend_code' => $binding->vend_code,
                 'site' => $binding->siteName(),
+                // The Site's RP tier: what a rule on the Site's own tier prices this store by.
+                'site_tier' => $siteTiers[$binding->vend_id] ?? null,
                 'selling' => $binding->isSelling(),
                 'machine_menu_since' => $binding->deliveryPlatformRefNumber?->menu_from_machine_at?->toIso8601String(),
                 'orders_30d' => (int) ($orders[$refId] ?? 0),

@@ -66,7 +66,13 @@
                 <option v-for="sub in subCategoryChoices" :key="sub.id" :value="sub.id">{{ sub.name }}</option>
               </select>
             </td>
-            <td class="px-2 py-2 text-right whitespace-nowrap">{{ money(product.rp) }}</td>
+            <td v-if="product.tier_prices" class="px-2 py-2 text-right whitespace-nowrap">
+              <div v-for="line in product.tier_prices" :key="line.tier">
+                <span class="text-xs text-gray-500">{{ $t(':rp sites', { rp: rpName(rpTypes, line.tier) }) }}</span>
+                {{ money(line.rp) }}<span v-if="line.rp !== null && line.rp_tier !== line.tier" class="text-xs text-gray-500"> ({{ rpName(rpTypes, line.rp_tier) }})</span>
+              </div>
+            </td>
+            <td v-else class="px-2 py-2 text-right whitespace-nowrap">{{ money(product.rp) }}</td>
             <td class="px-2 py-2 text-right whitespace-nowrap">
               <input
                 v-if="setting.pricing_mode === 'custom' && can.update"
@@ -77,11 +83,14 @@
                 class="w-24 rounded-md border-gray-300 text-sm text-right"
                 @change="saveCustom(product, $event.target.value)"
               />
+              <template v-else-if="product.tier_prices">
+                <div v-for="line in product.tier_prices" :key="line.tier" class="font-medium">{{ money(line.grab_price) }}</div>
+              </template>
               <span v-else class="font-medium">{{ money(product.grab_price) }}</span>
             </td>
             <td class="px-2 py-2">
               <span v-if="!product.problem" class="text-green-700">{{ product.machines ? $t('On Grab') : $t('In no machine') }}</span>
-              <span v-else class="text-amber-700">{{ problemName(product.problem, rp) }}</span>
+              <span v-else class="text-amber-700">{{ problemName(product.problem, siteTier ? 'RP' : rp) }}</span>
             </td>
           </tr>
           <tr v-if="!shown.length">
@@ -104,7 +113,7 @@
 import { router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import { t } from '@/i18n'
-import { matchesWords, money, primaryClass, problemName, rpName, secondaryClass } from './priceRule'
+import { matchesWords, money, primaryClass, problemName, rpName, secondaryClass, usesSiteTier } from './priceRule'
 
 // Each product's Grab sub-category (shared by every store) and, under a company typed-price rule, its Grab price.
 const props = defineProps({
@@ -118,7 +127,8 @@ const props = defineProps({
 })
 defineEmits(['loadGrabCategories'])
 
-const rp = computed(() => rpName(props.rpTypes, props.setting.rp_type))
+const siteTier = computed(() => usesSiteTier(props.setting))
+const rp = computed(() => siteTier.value ? t('RP (by Site tier)') : rpName(props.rpTypes, props.setting.rp_type))
 const problemCount = computed(() => props.products.filter(p => p.problem && p.machines).length)
 // Open on what needs doing; everything else is one click away.
 const filter = ref(problemCount.value ? 'problem' : 'machines')

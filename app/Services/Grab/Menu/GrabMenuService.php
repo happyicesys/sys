@@ -19,7 +19,18 @@ class GrabMenuService
     public function saveSetting(int $operatorId, array $data, ?int $userId): GrabMenuSetting
     {
         $setting = GrabMenuSetting::forOperator($operatorId);
+        // Checked as a rule first: an impossible one is refused before anything is written.
+        $rule = new GrabPriceRule(
+            mode: GrabPricingMode::from((string) ($data['pricing_mode'] ?? $setting->pricing_mode->value)),
+            rpType: (int) ($data['rp_type'] ?? $setting->rp_type),
+            multiplierBp: (int) ($data['multiplier_bp'] ?? $setting->multiplier_bp),
+            roundUpCents: (int) ($data['round_up_cents'] ?? $setting->round_up_cents),
+            scope: GrabPriceRuleScope::Company,
+            operatorId: $operatorId,
+            tierMultipliersBp: array_key_exists('tier_multipliers_bp', $data) ? $data['tier_multipliers_bp'] : $setting->tier_multipliers_json,
+        );
         $setting->fill(collect($data)->only(['pricing_mode', 'rp_type', 'multiplier_bp', 'round_up_cents', 'category_json'])->all());
+        $setting->tier_multipliers_json = $rule->tierMultipliersBp ?: null;
         $setting->updated_by = $userId;
         $setting->save();
 

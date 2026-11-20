@@ -237,7 +237,7 @@ class GrabStorePriceRuleTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
         try {
-            $this->assertSame(['pricing_mode' => 'rp_multiplier', 'rp_type' => 2, 'multiplier_bp' => 12500, 'round_up_cents' => 10],
+            $this->assertSame(['pricing_mode' => 'rp_multiplier', 'rp_type' => 2, 'multiplier_bp' => 12500, 'tier_multipliers_bp' => null, 'round_up_cents' => 10],
                 GrabPriceRuleRequest::valuesFrom(['pricing_mode' => 'rp_multiplier', 'rp_type' => '2', 'multiplier' => '1.25', 'round_up_cents' => '10']));
             $this->assertSame(10000, GrabPriceRuleRequest::valuesFrom(['pricing_mode' => 'rp', 'rp_type' => 2, 'multiplier' => '1.25', 'round_up_cents' => 10])['multiplier_bp'], 'an RP rule does not multiply');
             $this->assertSame('company', app(GrabPriceRuleResolver::class)->forStore($this->ref(self::BUSY))->toArray()['scope']);

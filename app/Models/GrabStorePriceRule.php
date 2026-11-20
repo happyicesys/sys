@@ -14,6 +14,7 @@ class GrabStorePriceRule extends Model
     protected $fillable = [
         'delivery_platform_ref_number_id',
         'multiplier_bp',
+        'tier_multipliers_json',
         'note',
         'pricing_mode',
         'round_up_cents',
@@ -23,6 +24,7 @@ class GrabStorePriceRule extends Model
 
     protected $casts = [
         'multiplier_bp' => 'integer',
+        'tier_multipliers_json' => 'array',
         'pricing_mode' => GrabPricingMode::class,
         'round_up_cents' => 'integer',
         'rp_type' => 'integer',
