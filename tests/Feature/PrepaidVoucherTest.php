@@ -223,6 +223,12 @@ class PrepaidVoucherTest extends TestCase
         $this->assertSame(1, PrepaidVoucher::count());
         $this->assertSame($sale->id, (int) $v->fresh()->bought_vend_transaction_id);
 
+        // Delivered: the 10-minute "paid, never dispensed" sweep must not refund it.
+        $this->assertTrue((bool) $log->fresh()->is_dispensed);
+        // Refunded later (dispute, dashboard): the unused voucher is void.
+        app(\App\Services\Refund\OmiseRefundRecorder::class)->record($log->fresh(), null, \App\Support\AutoRefundSource::OMISE_EXTERNAL);
+        $this->assertSame('voided', $v->fresh()->status);
+
         $plain = PaymentGatewayLog::forceCreate(['order_id' => 'P1', 'vend_id' => $vend->id, 'vend_code' => '2245', 'amount' => 1.8, 'status' => 2, 'request' => ['PRICE' => '1.80', 'SId' => 11]]);
         $this->assertFalse(PrepaidVoucherSales::isPurchaseRequest($plain));
         $this->assertNull(app(PrepaidVoucherSales::class)->fromGatewayApproval($plain));

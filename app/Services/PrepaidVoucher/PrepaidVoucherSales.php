@@ -70,6 +70,10 @@ final class PrepaidVoucherSales
         }
 
         try {
+            // The voucher IS what this charge bought, delivered now: mark the log dispensed so the 10-minute
+            // "paid, never dispensed" sweep cannot refund it if the board misses the pv frame (restart, MQTT).
+            $log->forceFill(['is_dispensed' => true])->saveQuietly();
+
             return $this->issuer->issue($vend, [
                 'order_id' => (string) $log->order_id,
                 'phone' => isset($pv['phone']) ? (string) $pv['phone'] : null,
@@ -85,6 +89,29 @@ final class PrepaidVoucherSales
             report($e);
 
             return null;
+        }
+    }
+
+    /**
+     * The charge that bought a voucher was refunded (Omise dashboard, a dispute): an unused voucher is void.
+     * A voucher already used stays as it is — the item has gone — and is logged for a person.
+     */
+    public function voidForRefundedLog(PaymentGatewayLog $log, string $source): void
+    {
+        $voucher = PrepaidVoucher::query()->where('payment_gateway_log_id', $log->id)->first();
+        if (! $voucher) {
+            return;
+        }
+        if (in_array($voucher->status, [PrepaidVoucher::STATUS_ACTIVE, PrepaidVoucher::STATUS_RESERVED], true)) {
+            $voucher->forceFill([
+                'status' => PrepaidVoucher::STATUS_VOIDED,
+                'voided_at' => now(),
+                'void_reason' => 'Payment refunded ('.$source.')',
+                'reserved_token' => null,
+                'reserved_until' => null,
+            ])->save();
+        } else {
+            Log::warning('prepaid voucher: its charge was refunded after it was '.$voucher->status, ['voucher' => $voucher->id, 'source' => $source]);
         }
     }
 

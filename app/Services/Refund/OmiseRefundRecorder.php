@@ -61,6 +61,14 @@ class OmiseRefundRecorder
             }
         }
 
+        // A next-visit voucher bought with this charge is void once its money is back (a dispute, a manual
+        // refund). Isolated like the ticket below.
+        try {
+            app(\App\Services\PrepaidVoucher\PrepaidVoucherSales::class)->voidForRefundedLog($log, $source);
+        } catch (\Throwable $e) {
+            Log::error('Voiding the voucher of a refunded charge failed', ['payment_gateway_log_id' => $log->id, 'error' => $e->getMessage()]);
+        }
+
         // Best-effort and isolated: a ticket/email failure must never undo the
         // refund record above.
         try {
