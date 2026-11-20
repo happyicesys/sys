@@ -652,10 +652,10 @@
                         <span v-if="row.own_ai.confidence !== null">{{ $t('sure :pct%', { pct: row.own_ai.confidence }) }}</span>
                         <span class="cursor-help" tabindex="0" v-tooltip="row.own_ai.model || ''">{{ row.own_ai.worker === 'mini' ? $t('Mac mini') : row.own_ai.worker === 'm1' ? $t('MacBook') : row.own_ai.worker }}</span>
                       </span>
-                      <!-- the same shape as the session's own time cell: result time, then Δ = the Mac's counting time in seconds -->
+                      <!-- the same shape as the session's own time cell: result time, then Δ = the counting time, written like Zijia's Δ (1m 50s) -->
                       <div class="flex flex-col text-[11px] leading-tight text-gray-500">
                         <span v-if="row.own_ai.result_at" class="whitespace-nowrap" :title="$t('When the HappyIce AI answer came back')">{{ $t('result :time', { time: row.own_ai.result_at }) }}</span>
-                        <span v-if="row.own_ai.compute_seconds !== null" class="w-fit cursor-help whitespace-nowrap" tabindex="0" v-tooltip="ownAiTimeTip(row.own_ai)">Δ {{ row.own_ai.compute_seconds }}s</span>
+                        <span v-if="row.own_ai.compute_seconds !== null" class="w-fit cursor-help whitespace-nowrap" tabindex="0" v-tooltip="ownAiTimeTip(row.own_ai)">Δ {{ shortDuration(row.own_ai.compute_seconds) }}</span>
                         <span v-else class="w-fit cursor-help whitespace-nowrap" tabindex="0" v-tooltip="$t('Counted in the nightly run with many other sessions, so it has no time of its own.')">Δ {{ $t('overnight') }}</span>
                       </div>
                     </div>
