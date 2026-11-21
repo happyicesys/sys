@@ -3,7 +3,7 @@
 return [
     // First big-board vending APK (mark1-apk, 30x stream) with the next-visit voucher offer and the
     // "My vouchers" redemption (apk/mark1-apk/UNRELEASED_V329.md). Never a freezer number, never a small board.
-    'min_vending_apk_version' => (int) env('PREPAID_VOUCHER_MIN_VENDING_APK', 329),
+    'min_vending_apk_version' => (int) env('PREPAID_VOUCHER_MIN_VENDING_APK', 330),
 
     // A redemption holds its voucher this long; a TRADE that never comes lets it go back to active.
     'reserve_minutes' => (int) env('PREPAID_VOUCHER_RESERVE_MINUTES', 15),

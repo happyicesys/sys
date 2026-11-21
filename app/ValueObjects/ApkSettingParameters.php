@@ -127,6 +127,11 @@ final class ApkSettingParameters implements JsonSerializable
         // ignore the key (Gson drops unknown JSON). Also widens the hourly welcome-sketch sweep to
         // the products of the machines it is on (ProductWelcomeSketchService).
         'enableWelcomeScene' => ['default' => 'false', 'type' => self::TYPE_BOOL, 'group' => 'branding', 'label' => 'Bear welcome screen'],
+        // 2026-11-21 (Brian; mark1-apk 329+): the welcome bear's costume, the big board's copy of the freezer's
+        // event costume (freezer 59, Remote controls). Default Christmas for the season, so every UI Setting
+        // nobody has touched and the Happy Hour bear fallback (defaults()) show it; switch back per UI Setting,
+        // or move the default to 'classic' when the season ends. Older APKs ignore the key.
+        'welcomeCostume' => ['default' => 'christmas', 'type' => self::TYPE_ENUM, 'group' => 'branding', 'label' => 'Bear costume', 'options' => ['classic', 'christmas']],
         // Default corrected 2026-08-13: 23 of 33 production rows and the
         // deployed devices carry 85488897; 87188597 was the stale old number.
         // Existing rows are untouched (the key exists on all of them).

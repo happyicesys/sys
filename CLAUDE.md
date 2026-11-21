@@ -1125,7 +1125,7 @@ Regression coverage: `tests/Feature/PaymentMenuPushTest.php`.
 ## Next-visit vouchers: bought after a full-price sale, kept by phone number
 
 Brian, 2026-11-20 (`PrepaidVoucherProgram`, `apk/mark1-apk/UNRELEASED_V329.md`). The big board (app
-`prepaid_voucher.min_vending_apk_version`, 329) holds a single full-price card/QR touchscreen sale and offers a voucher
+`prepaid_voucher.min_vending_apk_version`, 330 — moved from 329 on 2026-11-21, when 329 became the Christmas bear build) holds a single full-price card/QR touchscreen sale and offers a voucher
 for the same SKU at the operator's discount; the customer gives a mobile number and pays again (QR or card). Settings:
 Machine Management → Next-visit Voucher, its own menu entry below Happy Hour, never a tab on it (Brian, 2026-11-20) (`prepaid_voucher_campaigns`, one per operator; an HIPL row covers the group),
 permission `prepaid-vouchers`. Rules that are not obvious from the code:

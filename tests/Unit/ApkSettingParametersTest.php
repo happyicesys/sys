@@ -133,6 +133,14 @@ class ApkSettingParametersTest extends TestCase
         $this->assertSame('holo-display', $result['bannerKind']);
     }
 
+    /** 2026-11-21: the big board's bear costume (app 329+), Christmas unless a UI Setting says otherwise. */
+    public function test_welcome_costume_defaults_to_christmas_and_refuses_unknown_values(): void
+    {
+        $this->assertSame('christmas', ApkSettingParameters::fromArray([])->toArray()['welcomeCostume']);
+        $this->assertSame('classic', ApkSettingParameters::fromArray(['welcomeCostume' => 'classic'])->toArray()['welcomeCostume']);
+        $this->assertSame('christmas', ApkSettingParameters::defaults()->toArray()['welcomeCostume'], 'the Happy Hour bear fallback serves it too');
+    }
+
     public function test_refund_button_wording_defaults_to_refund(): void
     {
         $this->assertSame('refund', ApkSettingParameters::fromArray([])->toArray()['refund_button_wording']);

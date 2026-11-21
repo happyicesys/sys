@@ -72,7 +72,7 @@ class PrepaidVoucherTest extends TestCase
         return $op;
     }
 
-    private function vending(int $code, int $operatorId = 1, int $apk = 329, string $deviceType = 'ZC-328'): Vend
+    private function vending(int $code, int $operatorId = 1, int $apk = 330, string $deviceType = 'ZC-328'): Vend
     {
         $customer = Customer::create([
             'name' => "Site {$code}", 'code' => "S{$code}", 'operator_id' => $operatorId,
@@ -280,7 +280,7 @@ class PrepaidVoucherTest extends TestCase
         $hipl = $this->vending(2245);
         $leaVend = $this->vending(2300, $lea->id);
         $old = $this->vending(2301, 1, 328);
-        $small = $this->vending(2302, 1, 329, 'ZC-83A');
+        $small = $this->vending(2302, 1, 330, 'ZC-83A');
         $outsider = $this->vending(2303, $other->id);
         $campaign = $this->campaign(1, ['excluded_product_ids' => [$this->products['C']->id]]);
 
@@ -421,7 +421,7 @@ class PrepaidVoucherTest extends TestCase
         $this->actingAs($user);
 
         $this->get('/prepaid-vouchers')->assertOk()
-            ->assertInertia(fn ($page) => $page->component('PrepaidVoucher/Index')->where('campaign', null)->where('minVendingApkVersion', 329));
+            ->assertInertia(fn ($page) => $page->component('PrepaidVoucher/Index')->where('campaign', null)->where('minVendingApkVersion', 330));
 
         $this->post('/prepaid-vouchers/settings', [
             'name' => 'Next visit', 'is_active' => true, 'is_redeem_enabled' => true, 'is_card_enabled' => true, 'discount_pct' => 15,
@@ -436,7 +436,7 @@ class PrepaidVoucherTest extends TestCase
 
             return true;
         });
-        $this->assertCount(1, $frames); // the 329 board only
+        $this->assertCount(1, $frames); // the 330 board only
 
         // A role without the permission is refused.
         $tech = User::factory()->create(['operator_id' => 1]);

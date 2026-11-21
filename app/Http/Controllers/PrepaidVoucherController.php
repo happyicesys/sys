@@ -81,7 +81,7 @@ class PrepaidVoucherController extends Controller
         }
         $campaign->save();
 
-        // Every machine that can run it re-reads its settings now (app 329+ answers PREPAIDVOUCHER).
+        // Every machine that can run it re-reads its settings now (app 330+ answers PREPAIDVOUCHER).
         // Each save is in user_logs (UserLogger records every model write).
         foreach ($this->campaignVends($ownerId) as $vend) {
             if (PrepaidVoucherProgram::boardReason($vend) === null) {

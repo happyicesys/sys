@@ -86,6 +86,26 @@
             </div>
 
             <div class="sm:col-span-3">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+                {{ $t('Bear costume') }}
+              </label>
+              <span class="text-sm text-gray-600">
+                {{ $t('(APK 329+: what the welcome bear wears)') }}
+              </span>
+              <MultiSelect
+                v-model="form.welcomeCostume"
+                :options="welcomeCostumeOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                :placeholder="$t('Select')"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
+            <div class="sm:col-span-3">
               <FormInput v-model="form.poweredBy">
                 <div class="flex flex-col space-y-1">
                   <span class="text-base">
@@ -1478,6 +1498,11 @@ const promoBannerKindOptions = ref([
   {id: 'mixed', value: t('Mixed (Pic + Video)')},
 ])
 
+const welcomeCostumeOptions = ref([
+  {id: 'christmas', value: t('Christmas')},
+  {id: 'classic', value: t('Normal bear')},
+])
+
 const refundButtonWordingOptions = ref([
   {id: 'refund', value: t('Refund')},
   {id: 'complaint', value: t('Complaint')},
@@ -1603,6 +1628,9 @@ onMounted(() => {
     company_url: props.apkSetting.data.settings_parameter_json.company_url,
     company_address: props.apkSetting.data.settings_parameter_json.company_address,
     refund_url: props.apkSetting.data.settings_parameter_json.refund_url,
+    welcomeCostume: welcomeCostumeOptions.value.find(
+      option => option.id == (props.apkSetting.data.settings_parameter_json.welcomeCostume ?? 'christmas')
+    ),
     refund_button_wording: refundButtonWordingOptions.value.find(
       option => option.id == (props.apkSetting.data.settings_parameter_json.refund_button_wording ?? 'refund')
     ) ?? refundButtonWordingOptions.value[0],
@@ -1692,6 +1720,7 @@ function getDefaultForm() {
     company_url: '',
     company_address: '',
     refund_url: '',
+    welcomeCostume: welcomeCostumeOptions.value[0],
     refund_button_wording: refundButtonWordingOptions.value[0],
   }
 }
@@ -1732,6 +1761,7 @@ function submit() {
             company_url: form.value.company_url,
             company_address: [addressLine1.value, addressLine2.value, addressLine3.value].join('\n'),
             refund_url: form.value.refund_url,
+            welcomeCostume: form.value.welcomeCostume?.id,
             refund_button_wording: form.value.refund_button_wording?.id,
             vends: vends.value.map(vend => vend?.id).filter(id => id != null),
           }

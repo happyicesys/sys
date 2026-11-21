@@ -24,7 +24,7 @@ final class PrepaidVoucherProgram
 
     public static function minVendingApk(): int
     {
-        return (int) config('prepaid_voucher.min_vending_apk_version', 329);
+        return (int) config('prepaid_voucher.min_vending_apk_version', 330);
     }
 
     /** Null when the board can run the voucher screens; otherwise why not, in words for the page. */

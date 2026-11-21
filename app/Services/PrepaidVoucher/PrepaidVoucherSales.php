@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Where a TRADE (or a QR approval) meets the voucher ledger. The big board (app 329+) adds a top-level `PV`
+ * Where a TRADE (or a QR approval) meets the voucher ledger. The big board (app 330+) adds a top-level `PV`
  * to two kinds of frame:
  *
  *   purchase:   {"role":"buy","phone":"91234567","pid":<product id>,"list":<cents>,"first":"<held order id>"}
