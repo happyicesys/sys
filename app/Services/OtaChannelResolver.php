@@ -51,7 +51,7 @@ class OtaChannelResolver
      * Config block for one channel.
      *
      * @throws InvalidArgumentException on an unknown key — callers must validate
-     *         user input against exists() first.
+     *                                  user input against exists() first.
      */
     public function config(string $channel): array
     {
@@ -111,6 +111,15 @@ class OtaChannelResolver
             return null;
         }
 
+        // A channel that claims the vend's machine type wins (smart_freezer, 2026-11-21).
+        if ($vend->machine_type !== null) {
+            foreach ($this->all() as $key => $cfg) {
+                if (($cfg['machine_type'] ?? null) !== null && $cfg['machine_type'] === $vend->machine_type) {
+                    return $key;
+                }
+            }
+        }
+
         $modelName = $vend->relationLoaded('vendModel')
             ? $vend->vendModel?->name
             : VendModel::query()->whereKey($vend->vend_model_id)->value('name');
@@ -145,7 +154,7 @@ class OtaChannelResolver
             // reading as "unscoped" there.
             $types = array_values(array_filter((array) ($cfg['device_types'] ?? [])));
 
-            if (($cfg['vend_model'] ?? null) === null && $types === []) {
+            if (($cfg['vend_model'] ?? null) === null && $types === [] && ($cfg['machine_type'] ?? null) === null) {
                 return $key;
             }
         }
@@ -230,6 +239,15 @@ class OtaChannelResolver
         )));
     }
 
+    /** Machine types claimed by a specific channel; the catch-all leaves these machines out. */
+    public function claimedMachineTypes(): array
+    {
+        return array_values(array_filter(array_map(
+            fn ($cfg) => $cfg['machine_type'] ?? null,
+            $this->all()
+        )));
+    }
+
     /**
      * Constrain a Vend query to the fleet belonging to one channel.
      *
@@ -247,6 +265,10 @@ class OtaChannelResolver
     {
         $cfg = $this->config($channel);
 
+        if (($cfg['machine_type'] ?? null) !== null) {
+            return $query->where('machine_type', $cfg['machine_type']);
+        }
+
         $deviceTypes = array_values(array_filter((array) ($cfg['device_types'] ?? [])));
 
         if ($deviceTypes !== []) {
@@ -257,6 +279,12 @@ class OtaChannelResolver
 
         if ($modelName !== null) {
             return $query->whereHas('vendModel', fn ($q) => $q->where('name', $modelName));
+        }
+
+        // The catch-all: everything no other channel claims, by machine type and by vend model.
+        $claimedTypes = $this->claimedMachineTypes();
+        if ($claimedTypes !== []) {
+            $query->where(fn ($q) => $q->whereNull('machine_type')->orWhereNotIn('machine_type', $claimedTypes));
         }
 
         $claimed = $this->claimedVendModels();

@@ -912,16 +912,12 @@ class Vend extends Model
     }
 
     /**
-     * Whether this vend is an AI smart freezer (model = VendModel::SMART_VEND).
-     *
-     * The single gate for smart-vs-default behaviour: branch on this, never on a raw vend_model_id,
-     * so the divergence (its own ProductMapping, smart-only ApkSetting params, future features) is
-     * driven from one place (Open/Closed). Eager-load `vendModel` when calling this in a loop to
-     * avoid N+1 (e.g. Vend::with('vendModel')).
+     * Whether this vend is an AI smart freezer. By machine type, like isSmartFreezer(): no freezer has the
+     * "Smart Vend" model this used to read (they are "SCF 338"), so the old check was never true (2026-11-21).
      */
     public function isSmart(): bool
     {
-        return $this->vendModel?->name === VendModel::SMART_VEND;
+        return $this->isSmartFreezer();
     }
 
     /** Machine ID as people see it: code_prefix + code ("C6003"; "2031" when unprefixed). */
@@ -941,12 +937,10 @@ class Vend extends Model
         return $query->where($query->qualifyColumn('code'), $code)->whereNull($query->qualifyColumn('code_prefix'));
     }
 
-    /** Restricts a query to smart vends only — for admin lists, reports and smart-only jobs. */
+    /** Restricts a query to smart freezers only, by machine type (see isSmart()). */
     public function scopeSmart($query)
     {
-        return $query->whereHas('vendModel', function ($q) {
-            $q->where('name', VendModel::SMART_VEND);
-        });
+        return $query->where($query->qualifyColumn('machine_type'), self::MACHINE_TYPE_SMART_FREEZER);
     }
 
     public function vendPrefix()

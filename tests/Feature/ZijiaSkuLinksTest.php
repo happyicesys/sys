@@ -74,7 +74,9 @@ class ZijiaSkuLinksTest extends TestCase
     private function onFreezer(string $name, ?string $barcode = null, string $code = '', bool $active = true): Product
     {
         $product = $this->product($name, $barcode, $code);
-        DB::table('vend_channels')->insert(['vend_id' => $this->freezer->id, 'code' => random_int(11, 69), 'product_id' => $product->id, 'amount' => 100, 'is_active' => $active]);
+        // The next free code, never a random one: two random codes could collide on (vend, code) and fail the run.
+        $code = 11 + (int) DB::table('vend_channels')->where('vend_id', $this->freezer->id)->count();
+        DB::table('vend_channels')->insert(['vend_id' => $this->freezer->id, 'code' => $code, 'product_id' => $product->id, 'amount' => 100, 'is_active' => $active]);
 
         return $product;
     }

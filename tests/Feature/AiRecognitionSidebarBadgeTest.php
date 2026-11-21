@@ -87,6 +87,28 @@ class AiRecognitionSidebarBadgeTest extends TestCase
         $this->assertSame(5, $this->badge($user));
     }
 
+    // 2026-11-21: Adjust Qty may come before the AI answers; its late verdict is not new work.
+    public function test_a_late_verdict_on_a_session_a_person_already_handled_does_not_count(): void
+    {
+        $user = $this->viewer();
+        $this->seen($user);
+        Carbon::setTestNow(now()->addMinute());
+
+        $adjusted = \App\Models\VendTransaction::withoutGlobalScopes()->create(['vend_id' => $this->vend->id, 'order_id' => 'ADJ-1', 'amount' => 300,
+            'transaction_datetime' => now(), 'meta_json' => ['correction' => ['basket' => [1 => 1], 'by' => ['name' => 'Brian']]]]);
+        $this->recognition(RecognitionVerdict::TOOK_LESS)->update(['vend_transaction_id' => $adjusted->id]);
+
+        $keyedIn = $this->recognition(RecognitionVerdict::MIXED);
+        $keyedIn->update(['session_ref' => 'SF-50001-1-1']);
+        \App\Models\CardPaymentIntent::create(['vend_id' => $this->vend->id, 'remote_card_terminal_id' => \App\Models\RemoteCardTerminal::create(['vend_id' => $this->vend->id, 'provider' => 'payrallel', 'access_token' => 't', 'is_active' => true])->id,
+            'provider' => 'payrallel', 'reference' => 'SF1', 'custom_order_id' => '50001-SF1', 'session_ref' => 'SF-50001-1-1', 'mode' => 'preauth',
+            'amount_cents' => 300, 'state' => 'captured', 'ai_decision' => ['by_person' => ['user_id' => 1, 'name' => 'Brian']]]);
+
+        $this->recognition(RecognitionVerdict::TOOK_MORE);   // nobody has looked at this one
+
+        $this->assertSame(1, $this->badge($user));
+    }
+
     public function test_an_ai_that_could_not_answer_counts_but_a_session_still_waiting_for_its_verdict_does_not(): void
     {
         $user = $this->viewer();

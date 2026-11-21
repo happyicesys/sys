@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\VendModel;
+use App\Models\Vend;
 
 /**
  * APK OTA channels.
@@ -34,6 +34,13 @@ use App\Models\VendModel;
  *                   NOT the catch-all. NOTE: these machines still also appear in
  *                   the catch-all channel's panel (deliberate — zero behaviour
  *                   change for the existing vending tab).
+ *   machine_type    Optional. vends.machine_type that identifies this channel's fleet
+ *                   (e.g. smart_freezer). Wins over vend_model for the fleet panel,
+ *                   push-OTA-check and the no-package fallback, and the catch-all
+ *                   leaves these machines out. A channel with machine_type is NOT the
+ *                   catch-all. (2026-11-21: the freezer channel matched vend model
+ *                   "Smart Vend", which no freezer has — they are "SCF 338" — so its
+ *                   push reached no freezer and they were counted under vending.)
  *   storage_folder  Disk-relative folder the uploaded APK is stored under.
  *
  * NOTE: channel keys are persisted in apk_releases.channel. Renaming a key requires
@@ -119,18 +126,13 @@ return [
 
         'smart_freezer' => [
             'label' => 'Smart Freezer APK',
-            // sg.mark1.freezer — the applicationId documented in
-            // App\Services\SmartFreezerCatalogPush, written from first-hand
-            // knowledge of the supplier APK's PushMessageParser/PushCoordinator.
-            // NOT yet confirmed against the built binary (the freezer APK source
-            // is not in this repo). OtaController logs a warning naming any
-            // applicationId a device reports that matches no channel — check
-            // storage/logs after a freezer polls, then correct this value (or set
-            // OTA_PACKAGE_SMART_FREEZER) if it differs. Until it matches, a
-            // freezer that reports its package is served NOTHING, which is the
-            // safe direction.
+            // sg.mark1.freezer — the applicationId every freezer APK reports (?package=),
+            // confirmed on the fleet since v20.
             'package_name' => env('OTA_PACKAGE_SMART_FREEZER', 'sg.mark1.freezer'),
-            'vend_model' => VendModel::SMART_VEND,
+            // The fleet is every smart freezer by machine type, not by vend model (no
+            // freezer has the "Smart Vend" model this used to name).
+            'vend_model' => null,
+            'machine_type' => Vend::MACHINE_TYPE_SMART_FREEZER,
             'storage_folder' => 'sys/vends/apk/smart-freezer',
         ],
 

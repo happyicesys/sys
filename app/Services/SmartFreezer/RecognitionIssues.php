@@ -30,6 +30,12 @@ final class RecognitionIssues
     /**
      * By `updated_at`, the moment the verdict was written: a TRADE arriving late judges a session
      * long after the AI's answer. No verdict yet is not an issue, since the sweep may still judge it.
+     *
+     * A session a person already dealt with is not new (2026-11-21): Adjust Qty may now come before the
+     * AI answers, and the late verdict would otherwise raise the badge for a sale that reads blue
+     * ("Adjusted") on the page — the same rule as the row's look (RecognitionBadges: a person's
+     * correction on the sale, or a hold a person keyed in). Raw NOT EXISTS, never whereDoesntHave
+     * (operator scopes, CLAUDE.md).
      */
     private function verdictIssues(Carbon $since): int
     {
@@ -38,6 +44,13 @@ final class RecognitionIssues
             ->where(fn ($q) => $q
                 ->where(fn ($q) => $q->whereNotNull('verdict')->where('verdict', '<>', RecognitionVerdict::MATCH))
                 ->orWhere('status', SmartFreezerRecognition::STATUS_FAILED))
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('vend_transactions')
+                ->whereColumn('vend_transactions.id', 'smart_freezer_recognitions.vend_transaction_id')
+                ->whereRaw("JSON_EXTRACT(vend_transactions.meta_json, '$.correction') IS NOT NULL"))
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('card_payment_intents')
+                ->whereColumn('card_payment_intents.vend_id', 'smart_freezer_recognitions.vend_id')
+                ->whereColumn('card_payment_intents.session_ref', 'smart_freezer_recognitions.session_ref')
+                ->whereRaw("JSON_EXTRACT(card_payment_intents.ai_decision, '$.by_person') IS NOT NULL"))
             ->count();
     }
 
