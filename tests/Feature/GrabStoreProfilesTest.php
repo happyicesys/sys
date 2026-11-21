@@ -171,4 +171,37 @@ class GrabStoreProfilesTest extends TestCase
 
         $this->actingAs($reader)->postJson('/grab-stores/grab-profiles', ['stores' => [['merchant_id' => self::STORE, 'text' => self::PAGE]]])->assertForbidden();
     }
+
+    public function test_a_person_types_the_grab_name_and_address_on_edit_and_the_next_website_read_replaces_it(): void
+    {
+        $edit = fn (array $fields) => $this->actingAs($this->user)->post("/grab-stores/{$this->ref->id}/update", [
+            'operator_id' => $this->ref->operator_id, 'remarks' => null, ...$fields,
+        ]);
+
+        // Brian, 2026-11-21: no API gives the name, so a person types it as the GrabMerchant app shows it.
+        $edit(['grab_store_name' => '  Happy Ice  -  Tampines SAFRA ', 'grab_address' => '1A Tampines Street 92, Singapore 999999'])->assertRedirect();
+        $ref = $this->ref->fresh();
+        $this->assertSame('Happy Ice - Tampines SAFRA', $ref->grab_store_name);
+        $this->assertSame('999999', $ref->grab_postal_code);
+        $this->assertSame(GrabStoreProfiles::SOURCE_TYPED, $ref->grab_profile_source);
+        $this->assertSame($this->user->id, $ref->grab_profile_user_id);
+        $event = DeliveryPlatformStoreEvent::query()->where('event', DeliveryPlatformStoreEvent::EVENT_GRAB_PROFILE)->sole();
+        $this->assertSame('typed', $event->data['source']);
+
+        $this->actingAs($this->user)->get('/grab-stores')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('stores.data.0.grab_profile.typed_by', $this->user->name)
+            ->where('stores.data.0.grab_profile.match', false)
+            // A typed name is not a website read.
+            ->where('grabProfilesCheckedAt', null));
+
+        // Saving remarks alone, with the same name and address, changes nothing on Grab's side.
+        $edit(['grab_store_name' => 'Happy Ice - Tampines SAFRA', 'grab_address' => '1A Tampines Street 92, Singapore 999999', 'remarks' => 'checked'])->assertRedirect();
+        $this->assertSame(1, DeliveryPlatformStoreEvent::query()->where('event', DeliveryPlatformStoreEvent::EVENT_GRAB_PROFILE)->count());
+
+        $this->send([['merchant_id' => self::STORE, 'text' => self::PAGE]])->assertOk();
+        $ref = $this->ref->fresh();
+        $this->assertSame(GrabStoreProfiles::SOURCE_WEBSITE, $ref->grab_profile_source);
+        $this->assertNull($ref->grab_profile_user_id);
+        $this->assertSame('528882', $ref->grab_postal_code);
+    }
 }

@@ -3,12 +3,13 @@
 namespace App\Jobs;
 
 use App\Models\DeliveryPlatformMenuRecord;
+use App\Services\Grab\Menu\GrabMenuSyncTracker;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 
 class ProcessGrabMenuWebhook implements ShouldQueue
 {
@@ -46,5 +47,18 @@ class ProcessGrabMenuWebhook implements ShouldQueue
         DeliveryPlatformMenuRecord::updateOrCreate([
             'ref_id' => $this->data['jobID'] ?? null,
         ], $data);
+
+        // Grab's verdict on the menu it pulled: SUCCESS finishes the store's open Grab Menu Sync rows.
+        $at = null;
+        try {
+            $at = isset($this->data['updatedAt']) ? Carbon::parse($this->data['updatedAt'])->setTimezone(config('app.timezone')) : null;
+        } catch (\Throwable) {
+        }
+        app(GrabMenuSyncTracker::class)->grabAnswered(
+            $this->data['merchantID'] ?? null,
+            $this->data['status'] ?? null,
+            $at,
+            (array) ($this->data['errors'] ?? $this->data['errorMessages'] ?? []),
+        );
     }
 }

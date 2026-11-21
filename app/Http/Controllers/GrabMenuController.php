@@ -8,11 +8,13 @@ use App\Http\Requests\Grab\StorePriceRuleRequest;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryProductMapping;
 use App\Models\GrabMenuSetting;
+use App\Models\GrabMenuSync;
 use App\Models\Operator;
 use App\Models\SellingPrice;
 use App\Services\DeliveryPlatformService;
 use App\Services\Grab\Menu\GrabMenuOverview;
 use App\Services\Grab\Menu\GrabMenuService;
+use App\Services\Grab\Menu\GrabMenuSyncTracker;
 use App\Services\Grab\Menu\GrabPriceRule;
 use App\Services\Grab\Menu\GrabPriceRuleResolver;
 use App\Services\Grab\Menu\GrabStorePreview;
@@ -89,9 +91,14 @@ class GrabMenuController extends Controller
 
         $useCompany = $request->boolean('use_company_rule');
         $values = $useCompany ? null : $request->ruleValues();
-        DB::transaction(fn () => $refs->each(fn ($ref) => $useCompany
+        // Several stores at once are one row on Grab Menu Sync.
+        $summary = $refs->count() === 1 ? null : ($useCompany
+            ? "{$refs->count()} stores back on the company price rule"
+            : "{$refs->count()} stores given their own price rule: ".GrabPriceRule::draftForStore($values, $operatorId, (int) $refs->first()->id)->label().($request->note ? " — {$request->note}" : ''));
+        $save = fn () => DB::transaction(fn () => $refs->each(fn ($ref) => $useCompany
             ? $storeRules->useCompanyRule($ref, $request->user()->id)
             : $storeRules->useOwnRule($ref, $values, $request->note, $request->user()->id)));
+        $summary ? app(GrabMenuSyncTracker::class)->record(GrabMenuSync::KIND_STORE_RULE, $operatorId, $request->user()->id, $summary, $save) : $save();
 
         return back()->with('success', $useCompany
             ? trans_choice(':count store now follows the company rule.|:count stores now follow the company rule.', $refs->count(), ['count' => $refs->count()])
@@ -213,7 +220,9 @@ class GrabMenuController extends Controller
 
         $refs = $this->storesOf($operatorId, $request->ref_ids);
 
-        $changed = $refs->filter(fn ($ref) => $stores->setMenuSource($ref, $request->boolean('machine_menu'), $request->user()->id))->count();
+        $switch = fn () => $refs->filter(fn ($ref) => $stores->setMenuSource($ref, $request->boolean('machine_menu'), $request->user()->id))->count();
+        $changed = $refs->count() === 1 ? $switch() : app(GrabMenuSyncTracker::class)->record(GrabMenuSync::KIND_MENU_SOURCE, $operatorId, $request->user()->id,
+            $request->boolean('machine_menu') ? "{$refs->count()} stores put on their machine menu" : "{$refs->count()} stores back on their old Grab menu", $switch);
 
         return back()->with('success', $request->boolean('machine_menu')
             ? trans_choice(':count store now lists its machine. Grab shows the new menu within a few minutes.|:count stores now list their machines. Grab shows the new menus within a few minutes.', $changed, ['count' => $changed])

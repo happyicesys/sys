@@ -96,6 +96,10 @@ class Kernel extends ConsoleKernel
         // Grab Promotions: what Grab has live per store. At :05, :15 … so it never shares a
         // minute with the pause re-assert's Grab calls.
         $schedule->command('grab:mirror-campaigns')->cron('5-55/10 * * * *')->withoutOverlapping(10);
+        // Grab Menu Sync: every store's prices on Grab checked against its price rule, stuck asks moved on.
+        // At :07, :17 … (clear of the :00 / :05 Grab runs); builds menus, asks Grab only where one differs.
+        $schedule->command('grab:check-menu-sync')->cron('7-57/10 * * * *')->withoutOverlapping(15)->runInBackground();
+        $schedule->command('grab:prune-menu-syncs')->dailyAt('03:50')->withoutOverlapping(30);
         if (config('grab.menu_records_keep_days')) {
             $schedule->command('grab:prune-menu-records --apply')->dailyAt('03:40')->withoutOverlapping(60);
         }
@@ -132,6 +136,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('customer-summary:compute')->dailyAt('01:00');
         $schedule->command('vend:retry-jobs')->everyMinute();
         $schedule->command('freezer-logs:prune --hours=72')->hourly();
+        // A mapping whose machines all moved to its upcoming mapping goes inactive 3 days after the last one left
+        // (Brian, 2026-11-21; MappingRetirement).
+        $schedule->command('product-mappings:retire-emptied --apply')->hourlyAt(23)->withoutOverlapping(30);
         // T05 readiness-poll HTTP lines older than 30 days (rows tied to a payment are kept). Audit SF2-02.
         $schedule->command('card-payments:prune-events')->dailyAt('03:50')->withoutOverlapping(30);
         $schedule->command('freezer:run-setpoint-schedules')->everyMinute()->withoutOverlapping();

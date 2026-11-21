@@ -5,8 +5,10 @@ namespace App\Services\Grab\Menu;
 use App\Jobs\NotifyDeliveryPlatformUpdateMenu;
 use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatformStoreEvent;
+use App\Models\GrabMenuSync;
 use App\Models\GrabStoreCustomPrice;
 use App\Models\GrabStorePriceRule;
+use App\Models\Product;
 use App\Services\GrabStoreService;
 use Illuminate\Support\Facades\DB;
 
@@ -17,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  */
 class GrabStorePriceRuleService
 {
-    public function __construct(private GrabStoreService $stores) {}
+    public function __construct(private GrabStoreService $stores, private GrabMenuSyncTracker $tracker) {}
 
     /**
      * Give a store its own rule. $values carries pricing_mode, rp_type, multiplier_bp, tier_multipliers_bp and round_up_cents; an
@@ -49,7 +51,7 @@ class GrabStorePriceRuleService
         });
 
         if ($row->wasChanged() || $row->wasRecentlyCreated) {
-            $this->notify($ref);
+            $this->notify($ref, GrabMenuSync::KIND_STORE_RULE, $userId, "Own price rule for store {$this->storeLabel($ref)}: {$rule->label()}".($note ? " — {$note}" : ''));
         }
 
         return $row;
@@ -68,7 +70,7 @@ class GrabStorePriceRuleService
         });
 
         if ($deleted) {
-            $this->notify($ref);
+            $this->notify($ref, GrabMenuSync::KIND_STORE_RULE, $userId, "Store {$this->storeLabel($ref)} back on the company price rule");
         }
 
         return $deleted;
@@ -80,8 +82,9 @@ class GrabStorePriceRuleService
         $row = GrabStoreCustomPrice::query()->firstOrNew(['delivery_platform_ref_number_id' => $ref->id, 'product_id' => $productId]);
         if ($cents === null) {
             if ($row->exists) {
+                $before = $row->amount;
                 $row->delete();
-                $this->notify($ref);
+                $this->notify($ref, GrabMenuSync::KIND_CUSTOM_PRICE, $userId, "Typed Grab price of {$this->productLabel($productId)} at store {$this->storeLabel($ref)}: ".GrabMenuService::money($before).' → none');
             }
 
             return;
@@ -94,19 +97,39 @@ class GrabStorePriceRuleService
         $row->amount = $cents;
         $row->updated_by = $userId;
         $row->save();
-        $this->notify($ref);
+        $this->notify($ref, GrabMenuSync::KIND_CUSTOM_PRICE, $userId, "Typed Grab price of {$this->productLabel($productId)} at store {$this->storeLabel($ref)}: ".GrabMenuService::money($row->previous_amount).' → '.GrabMenuService::money($cents));
     }
 
-    // A store still on its old Grab menu is not priced by any rule yet; its rule applies once it switches.
-    private function notify(DeliveryPlatformRefNumber $ref): void
+    /**
+     * A store still on its old Grab menu is not priced by any rule yet; its rule applies once it switches. The
+     * change is one row on Grab Menu Sync either way (a store rule with no store asked says why).
+     */
+    private function notify(DeliveryPlatformRefNumber $ref, string $kind, ?int $userId, string $summary): void
     {
-        if (! $ref->usesMachineMenu()) {
-            return;
-        }
-        foreach ($ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->get() as $binding) {
-            if ($binding->isSelling()) {
-                NotifyDeliveryPlatformUpdateMenu::debounced($binding);
+        $this->tracker->record($kind, (int) $ref->operator_id ?: null, $userId, $summary, function () use ($ref) {
+            if (! $ref->usesMachineMenu()) {
+                return;
             }
-        }
+            foreach ($ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->get() as $binding) {
+                if ($binding->isSelling()) {
+                    NotifyDeliveryPlatformUpdateMenu::debounced($binding);
+                }
+            }
+        });
+    }
+
+    // "2338 · 4-C6…" for the log: the machine(s) it is on, then the merchant ID.
+    private function storeLabel(DeliveryPlatformRefNumber $ref): string
+    {
+        $codes = $ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->pluck('vend_code')->filter()->implode('/');
+
+        return trim(($codes !== '' ? $codes.' · ' : '').$ref->ref_number);
+    }
+
+    private function productLabel(int $productId): string
+    {
+        $product = Product::withoutGlobalScopes()->whereKey($productId)->first(['id', 'code', 'name']);
+
+        return $product ? trim($product->code.' '.$product->name) : 'Product '.$productId;
     }
 }

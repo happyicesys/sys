@@ -89,6 +89,8 @@ class FreezerControlController extends Controller
             'supported_demist_fan' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_DEMIST_FAN,
             // Choosing how the demist fan runs (APK 49).
             'supported_demist_mode' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_DEMIST_MODE,
+            // The welcome bear's event costume on / off (APK 59).
+            'supported_event_costume' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_EVENT_COSTUME,
             // Camera clip check (APK 33): records and uploads one of our own door clips.
             'supported_clip' => (int) $vend->apk_version_code >= FreezerControlService::MIN_APK_VERSION_CODE_CLIP,
             // Compressor Off for a chosen time (APK 40).

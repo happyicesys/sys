@@ -257,6 +257,50 @@ class FreezerRemoteControlTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_event_costume_needs_app_59_and_takes_on_true_or_false(): void
+    {
+        // App 58 does not know the op: never send it, say why.
+        $old = $this->freezer(['code' => 50058, 'apk_version_code' => 58]);
+        $this->postJson("/vends/{$old->id}/freezer-controls", ['op' => 'costume', 'args' => ['on' => true]])
+            ->assertStatus(422)->assertJsonFragment(['message' => "This machine's app is too old for this control (needs versionCode 59)."]);
+        $this->assertSame(0, FreezerControlCommand::count());
+        $this->assertFalse($this->getJson("/vends/{$old->id}/freezer-controls")->json('supported_event_costume'));
+
+        $vend = $this->freezer(['code' => 50059, 'apk_version_code' => 59]);
+        $this->assertTrue($this->getJson("/vends/{$vend->id}/freezer-controls")->json('supported_event_costume'));
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'costume', 'args' => ['on' => true]])
+            ->assertStatus(202);
+        $row = FreezerControlCommand::sole();
+        $this->assertSame('costume', $row->op);
+        $this->assertSame(['on' => true], $row->args);
+        [, $body] = $this->publishedFrame();
+        $this->assertSame('costume', $body['op']);
+        $this->assertSame(['on' => true], $body['args']);
+
+        // A real boolean only: "1", 1, "on" or nothing are refused before anything is sent.
+        $other = $this->freezer(['code' => 50060, 'apk_version_code' => 59]);
+        foreach ([['on' => 'true'], ['on' => 1], ['on' => 'on'], []] as $args) {
+            $this->postJson("/vends/{$other->id}/freezer-controls", ['op' => 'costume', 'args' => $args])
+                ->assertStatus(422)->assertJsonValidationErrors(['args.on']);
+        }
+        $this->assertSame(1, FreezerControlCommand::count());
+    }
+
+    public function test_event_costume_is_refused_on_another_operators_machine(): void
+    {
+        $vend = $this->freezer(['code' => 50059, 'apk_version_code' => 59, 'operator_id' => 1]);
+        $outsider = User::factory()->create(['operator_id' => 2]);
+        foreach (['read machine-settings', 'update machine-settings'] as $p) {
+            $outsider->givePermissionTo(Permission::findOrCreate($p, 'web'));
+        }
+        $this->actingAs($outsider);
+
+        $this->postJson("/vends/{$vend->id}/freezer-controls", ['op' => 'costume', 'args' => ['on' => true]])
+            ->assertStatus(404);
+        $this->assertSame(0, FreezerControlCommand::count());
+        Queue::assertNotPushed(PublishMqtt::class);
+    }
+
     public function test_delta_needs_app_22_and_a_whole_number_from_1_to_25(): void
     {
         // App 21 does not know the op: never send it, say why.

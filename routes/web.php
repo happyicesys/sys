@@ -21,6 +21,7 @@ use App\Http\Controllers\DeliveryProductMappingController;
 use App\Http\Controllers\FreezerControlController;
 use App\Http\Controllers\GrabErrorController;
 use App\Http\Controllers\GrabMenuController;
+use App\Http\Controllers\GrabMenuSyncController;
 use App\Http\Controllers\GrabPerformanceController;
 use App\Http\Controllers\GrabPromotionController;
 use App\Http\Controllers\GrabStoreController;
@@ -470,6 +471,15 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::get('/stores/{refId}/preview', [GrabMenuController::class, 'preview'])->name('grab-menu.preview');
         Route::post('/{operatorId}/store-price-rule', [GrabMenuController::class, 'updateStorePriceRule'])->name('grab-menu.store-price-rule');
         Route::post('/stores/{refId}/custom-prices/{productId}', [GrabMenuController::class, 'updateStoreCustomPrice'])->name('grab-menu.store-custom-price');
+    });
+    // Grab Menu Sync (2026-11-21): every change sent to Grab and whether each store has it.
+    Route::prefix('grab-menu-sync')->middleware('can:read delivery-platform-product-mappings')->group(function () {
+        Route::get('/', [GrabMenuSyncController::class, 'index'])->name('grab-menu-sync');
+        Route::get('/latest', [GrabMenuSyncController::class, 'latest'])->name('grab-menu-sync.latest');
+        Route::post('/check', [GrabMenuSyncController::class, 'checkNow'])->name('grab-menu-sync.check');
+        Route::get('/{id}/stores', [GrabMenuSyncController::class, 'stores'])->name('grab-menu-sync.stores');
+        Route::post('/{id}/resend', [GrabMenuSyncController::class, 'resend'])->name('grab-menu-sync.resend');
+        Route::post('/stores/{rowId}/resend', [GrabMenuSyncController::class, 'resendStore'])->name('grab-menu-sync.resend-store');
     });
 
     Route::prefix('grab-promotions')->group(function () {

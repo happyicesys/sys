@@ -1008,6 +1008,7 @@ class ProductController extends Controller
         // price. The form saves every field on each Save, so push only when
         // one of them really changed.
         $menuChanged = $product->wasChanged(self::MENU_COLUMNS);
+        $freezerCapacityChanged = $product->wasChanged('freezer_slot_qty');
         $tagsBefore = $product->tagBindings()->pluck('tag_id')->sort()->values()->all();
 
         $this->tagBindingService->sync($product, Arr::wrap($request->tags));
@@ -1103,6 +1104,9 @@ class ProductController extends Controller
         // Grab stores on the machine menu price and name it from here (Grab Menu & Prices).
         if ($menuChanged || $priceAdded) {
             app(GrabMenuService::class)->productChanged($product->id);
+        }
+        if ($freezerCapacityChanged) {
+            app(\App\Services\ProductMappingService::class)->syncFreezerCapacityForProduct($product->id);
         }
 
         return redirect()->back()->with('success', __('Product updated successfully'));

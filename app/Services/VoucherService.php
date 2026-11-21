@@ -82,7 +82,9 @@ class VoucherService
       $voucher = Voucher::find($model->id);
       $voucher->used_qty += 1;
 
-      if ($voucher->qty <= $voucher->used_qty + 1) {
+      // Fully redeemed only once every claimable use is spent: qty 2 = two
+      // uses. Was `qty <= used_qty + 1`, which closed it one use early.
+      if ($voucher->used_qty >= $voucher->qty) {
         $voucher->status = Voucher::STATUS_REDEEMED;
       }
       $voucher->save();

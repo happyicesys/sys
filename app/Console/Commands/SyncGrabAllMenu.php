@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Jobs\NotifyDeliveryPlatformUpdateMenu;
 use App\Models\DeliveryProductMappingVend;
+use App\Models\GrabMenuSync;
+use App\Services\Grab\Menu\GrabMenuSyncTracker;
 use Illuminate\Console\Command;
 
 class SyncGrabAllMenu extends Command
@@ -38,11 +40,16 @@ class SyncGrabAllMenu extends Command
 
         // The daily full sync Grab recommends: sent even when nothing changed. Spaced
         // apart: all ~63 at 00:00 drew 429 from Grab for 13–16 stores a night (10-31, 11-01).
+        // One row on Grab Menu Sync: each store followed until Grab confirms it took the menu.
         $spacing = (int) config('grab.daily_sync_spacing_seconds', 3);
-        foreach ($deliveryProductMappingVends->values() as $index => $deliveryProductMappingVend) {
-            NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend, true)
-                ->onQueue('high')
-                ->delay(now()->addSeconds($index * $spacing));
-        }
+        $tracker = app(GrabMenuSyncTracker::class);
+        $tracker->record(GrabMenuSync::KIND_NIGHTLY, null, null, 'Nightly full menu sync (every selling Grab store)', function () use ($tracker, $deliveryProductMappingVends, $spacing) {
+            foreach ($deliveryProductMappingVends->values() as $index => $deliveryProductMappingVend) {
+                $tracker->queued($deliveryProductMappingVend);
+                NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend, true)
+                    ->onQueue('high')
+                    ->delay(now()->addSeconds($index * $spacing));
+            }
+        });
     }
 }

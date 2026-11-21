@@ -212,6 +212,7 @@ const OP_LABELS = {
     fan: tk('Demist fan'),
     demistfan: tk('Demist fan (auto)'),
     demistmode: tk('Demist fan mode'),
+    costume: tk('Event costume'),
     light: tk('Light'),
     compressor: tk('Compressor'),
     comprmode: tk('Compressor control'),

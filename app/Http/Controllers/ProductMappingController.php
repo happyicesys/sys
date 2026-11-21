@@ -16,6 +16,7 @@ use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SellingPrice;
 use App\Models\Vend;
 use App\Models\VendPrefix;
+use App\Services\ProductMapping\MappingRetirement;
 use App\Services\ProductMappingService;
 use App\Services\SmartFreezerCatalogPush;
 use App\Services\VendJobService;
@@ -319,7 +320,7 @@ class ProductMappingController extends Controller
         return Inertia::render('ProductMapping/Index', [
             'cmsEndpoint' => env('CMS_URL'),
             'totalBindedVends' => $totalBindedVends,
-            'productMappings' => ProductMappingResource::collection(
+            'productMappings' => ProductMappingResource::collection(tap(
                 (clone $query)
                     // DEPRECATED (2026-07): the "first vend_prefix per mapping"
                     // leftJoin (legacy vend_prefixes.product_mapping_id column) was
@@ -447,9 +448,16 @@ class ProductMappingController extends Controller
                     // away together.
                     ->orderBy($request->sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc')
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
-                    ->withQueryString()
-
-            ),
+                    ->withQueryString(),
+                // Every machine moved off → "Deactivates on …" under the Active badge (MappingRetirement).
+                function ($page) {
+                    $dates = app(MappingRetirement::class)->retireDates($page->getCollection()->pluck('id')->all());
+                    $page->getCollection()->each(fn ($mapping) => $mapping->setAttribute(
+                        'auto_deactivate_on',
+                        isset($dates[$mapping->id]) ? $dates[$mapping->id]->toIso8601String() : null
+                    ));
+                }
+            )),
             'products' => ProductResource::collection(
                 Product::with([
                     'thumbnail',
@@ -1578,6 +1586,15 @@ class ProductMappingController extends Controller
         $vendsToAddIds = array_diff($requestedVendIds, $existingVendIds);
         $vendsToKeepIds = array_intersect($existingVendIds, $requestedVendIds);
 
+        // The mappings the machines being added sit on now: the bulk updates below fire no model event, so the
+        // retirement clock is started by hand (MappingRetirement).
+        $leavingMappingIds = empty($vendsToAddIds) ? [] : Vend::withoutGlobalScopes()
+            ->whereIn('id', $vendsToAddIds)
+            ->whereNotNull('product_mapping_id')
+            ->where('product_mapping_id', '<>', $productMapping->id)
+            ->pluck('product_mapping_id')
+            ->all();
+
         // 1. Unbind removed vends
         if (! empty($vendsToRemoveIds)) {
             $vendsToRemove = Vend::whereIn('id', $vendsToRemoveIds)->get();
@@ -1587,6 +1604,7 @@ class ProductMappingController extends Controller
                 'upcoming_product_mapping_id' => null,
                 'binded_at' => null,
             ]);
+            MappingRetirement::machinesLeft([$productMapping->id]);
         }
 
         // Guard: upcoming must never equal the product mapping's own ID when cascading to vends
@@ -1624,6 +1642,7 @@ class ProductMappingController extends Controller
                 'upcoming_product_mapping_id' => $safeUpcomingId,
                 'binded_at' => now(),
             ]);
+            MappingRetirement::machinesLeft($leavingMappingIds);
         }
 
         // 3. Keep existing vends, only update upcoming mapping in case mapping itself changed

@@ -36,7 +36,8 @@ class SkuPlanogram
         $items = ProductMappingItem::withoutGlobalScopes()
             ->where('product_mapping_id', $productMappingId)
             ->whereNotNull('product_id')
-            ->with('product:id,freezer_slot_qty,chiller_slot_qty')
+            // Unscoped: a viewer who may not see a SKU must not write its capacity as 0 on the machine.
+            ->with(['product' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'freezer_slot_qty', 'chiller_slot_qty')])
             ->get(['id', 'product_mapping_id', 'channel_code', 'product_id', 'capacity_override']);
 
         /** @var array<int,array{codes:list<array{code:int,suffix:?string}>,capacity:int}> $bySku */

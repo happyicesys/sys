@@ -183,6 +183,26 @@ final class GrabPriceRule
         return intdiv($cents * $multiplierBp + $divisor - 1, $divisor) * $step;
     }
 
+    /**
+     * In words for the Grab Menu Sync log: "RP2", "RP2 × 1.25, round up 10¢", "Site RP (RP1 × 1.3, RP2 × 1.25 …),
+     * round up 10¢", "Typed prices". Not translated: it is stored with the log row.
+     */
+    public function label(): string
+    {
+        $times = fn (int $bp) => rtrim(rtrim(number_format($bp / 10000, 4, '.', ''), '0'), '.');
+        $step = ', round up '.($this->roundUpCents >= 100 ? '$'.intdiv($this->roundUpCents, 100) : $this->roundUpCents.'¢');
+        $tiers = collect(SellingPrice::TYPE_MAPPINGS)->keys()
+            ->map(fn ($tier) => 'RP'.$tier.' × '.$times($this->multiplierFor((int) $tier)))->implode(', ');
+
+        return match ($this->mode) {
+            GrabPricingMode::Rp => $this->usesSiteTier() ? 'Site RP' : 'RP'.$this->rpType,
+            GrabPricingMode::RpMultiplier => $this->usesSiteTier()
+                ? 'Site RP ('.$tiers.')'.$step
+                : 'RP'.$this->rpType.' × '.$times($this->multiplierBp).$step,
+            GrabPricingMode::Custom => 'Typed prices',
+        };
+    }
+
     // What the page shows and posts back: the same keys as the forms.
     public function toArray(): array
     {

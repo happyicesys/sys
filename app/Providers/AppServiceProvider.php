@@ -36,6 +36,8 @@ class AppServiceProvider extends ServiceProvider
         // One registry per process: the dirty-day set's per-process dedupe and
         // the in-memory store used by tests both live on the instance.
         $this->app->singleton(\App\Services\Sales\DirtyDayRegistry::class);
+        // Holds the change being recorded while its stores are notified (Grab Menu Sync).
+        $this->app->singleton(\App\Services\Grab\Menu\GrabMenuSyncTracker::class);
 
         // Freezer welcome sketches are redrawn by OpenAI's image edit (inert without OPENAI_API_KEY).
         $this->app->bind(

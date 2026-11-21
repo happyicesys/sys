@@ -30,6 +30,8 @@ class DeliveryPlatformRefNumber extends Model
         'grab_hours',
         'grab_postal_code',
         'grab_profile_checked_at',
+        'grab_profile_source',
+        'grab_profile_user_id',
         'grab_store_name',
         'menu_from_machine_at',
         'operator_id',

@@ -600,13 +600,13 @@ class DeliveryPlatformService
       ? md5(json_encode($deliveryProductMappingVend->last_menu_json))
       : null;
 
-    // Update asynchronously via job to avoid blocking API response (large JSON payload)
-    if ($responseHash !== $existingHash) {
-      \App\Jobs\UpdateDeliveryMenuJson::dispatch(
-        $deliveryProductMappingVend->id,
-        $response
-      )->onQueue('default');
-    }
+    // Update asynchronously via job to avoid blocking API response (large JSON payload). Sent on every pull,
+    // changed or not: the pull itself is what Grab Menu Sync records (the menu is written only when it changed).
+    \App\Jobs\UpdateDeliveryMenuJson::dispatch(
+      $deliveryProductMappingVend->id,
+      $responseHash !== $existingHash ? $response : null,
+      now()->toIso8601String(),
+    )->onQueue('default');
 
     return $response;
   }

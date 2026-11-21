@@ -20,7 +20,30 @@ use Illuminate\Support\Facades\DB;
  */
 class GrabStoreProfiles
 {
+    // Who set a store's Grab name and address: the GrabMerchant website read, or a person on Grab Stores → Edit.
+    public const SOURCE_WEBSITE = 'website';
+
+    public const SOURCE_TYPED = 'typed';
+
     public function __construct(private GrabStoreChangeRequests $changes, private GrabStoreService $stores) {}
+
+    /**
+     * A person typed what Grab shows (Brian, 2026-11-21: no API gives a store's name or address, and the website read
+     * needs a signed-in browser). Saved like a read, so the postal code check and the "Site changed" note follow it;
+     * the next website read replaces it. Returns false when nothing changed.
+     */
+    public function typed(DeliveryPlatformRefNumber $ref, ?string $name, ?string $address, ?int $userId): bool
+    {
+        $name = self::clean($name, 255);
+        $address = self::clean($address, 500);
+        if ($name === $ref->grab_store_name && $address === $ref->grab_address) {
+            return false;
+        }
+
+        $this->save($ref, $name, $address, $ref->grab_hours, now(), $userId, self::SOURCE_TYPED);
+
+        return true;
+    }
 
     /**
      * The Store profile page's text (its `main` element), line by line:
@@ -90,7 +113,7 @@ class GrabStoreProfiles
             }
             $result['read']++;
 
-            $outcome = $this->save($ref, $name, $address, $hours, $checkedAt, $userId);
+            $outcome = $this->save($ref, $name, $address, $hours, $checkedAt, $userId, self::SOURCE_WEBSITE);
             if ($outcome['changed']) {
                 $result['changed']++;
             }
@@ -106,7 +129,7 @@ class GrabStoreProfiles
     }
 
     /** @return array{changed: bool, site_confirmed: bool, match: ?bool} */
-    private function save(DeliveryPlatformRefNumber $ref, ?string $name, string $address, ?string $hours, Carbon $checkedAt, ?int $userId): array
+    private function save(DeliveryPlatformRefNumber $ref, ?string $name, ?string $address, ?string $hours, Carbon $checkedAt, ?int $userId, string $source): array
     {
         $postal = self::postalCode($address);
         $changes = [];
@@ -123,13 +146,15 @@ class GrabStoreProfiles
         $match = self::matches($postal, $binding);
         $siteConfirmed = false;
 
-        DB::transaction(function () use ($ref, $name, $address, $postal, $hours, $checkedAt, $userId, $binding, $match, &$changes, &$siteConfirmed) {
+        DB::transaction(function () use ($ref, $name, $address, $postal, $hours, $checkedAt, $userId, $source, $binding, $match, &$changes, &$siteConfirmed) {
             $ref->forceFill([
                 'grab_store_name' => $name,
                 'grab_address' => $address,
                 'grab_postal_code' => $postal,
                 'grab_hours' => $hours,
                 'grab_profile_checked_at' => $checkedAt,
+                'grab_profile_source' => $source,
+                'grab_profile_user_id' => $source === self::SOURCE_TYPED ? $userId : null,
             ])->save();
 
             // The machine moved Site and Grab already shows the new one: nothing left to ask Grab.
@@ -145,7 +170,7 @@ class GrabStoreProfiles
             }
 
             if ($changes) {
-                $this->stores->event($ref, DeliveryPlatformStoreEvent::EVENT_GRAB_PROFILE, $userId, $binding, null, $changes + ['postal_code' => $postal]);
+                $this->stores->event($ref, DeliveryPlatformStoreEvent::EVENT_GRAB_PROFILE, $userId, $binding, null, $changes + ['postal_code' => $postal, 'source' => $source]);
             }
         });
 

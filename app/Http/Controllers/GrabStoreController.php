@@ -12,7 +12,9 @@ use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryProductMappingVendChannel;
 use App\Models\GrabMenuSetting;
+use App\Models\GrabMenuSync;
 use App\Models\SellingPrice;
+use App\Models\User;
 use App\Models\Vend;
 use App\Services\DeliveryPlatformService;
 use App\Services\DeliveryProductMappingService;
@@ -20,6 +22,7 @@ use App\Services\Grab\GrabStoreChangeRequests;
 use App\Services\Grab\GrabStoreProfiles;
 use App\Services\Grab\GrabStoreSetup;
 use App\Services\Grab\Menu\GrabMachineMenu;
+use App\Services\Grab\Menu\GrabMenuSyncTracker;
 use App\Services\Grab\Menu\MachineMenuLine;
 use App\Services\GrabStoreService;
 use App\Support\Grab\GrabStoreVisibility;
@@ -137,11 +140,14 @@ class GrabStoreController extends Controller
             ->selectRaw('COALESCE(SUM(o.subtotal_amount - o.promo_amount), 0) AS sales_30d')
             ->first();
 
+        // Who typed a store's Grab name and address (the rest were read from the GrabMerchant website).
+        $typers = User::query()->whereIn('id', $refs->getCollection()->pluck('grab_profile_user_id')->filter()->unique())->pluck('name', 'id')->all();
+
         return Inertia::render('GrabStore/Index', [
             // The shape Paginator.vue reads (a resource collection's links + meta).
             'stores' => [
                 'data' => $refs->getCollection()->map(fn ($ref) => [
-                    ...$this->row($ref, $partnerCodes),
+                    ...$this->row($ref, $partnerCodes, $typers),
                     // Asking Grab to change the store (HIPL only: the others do it in the GrabMerchant app themselves).
                     'grab_change' => $openChanges[$ref->id] ?? null,
                     'can_ask_grab' => $this->changeRequests->eligible($ref),
@@ -152,7 +158,9 @@ class GrabStoreController extends Controller
             ],
             'totals' => $totals,
             // The daily GrabMerchant website read: when it last ran for these operators' stores.
-            'grabProfilesCheckedAt' => DeliveryPlatformRefNumber::query()->whereIn('operator_id', $operatorIds)->max('grab_profile_checked_at'),
+            'grabProfilesCheckedAt' => DeliveryPlatformRefNumber::query()->whereIn('operator_id', $operatorIds)
+                ->where(fn ($query) => $query->whereNull('grab_profile_source')->orWhere('grab_profile_source', GrabStoreProfiles::SOURCE_WEBSITE))
+                ->max('grab_profile_checked_at'),
             'salesTotals' => [
                 'sales_7d' => (int) $salesTotals->sales_7d,
                 'sales_30d' => (int) $salesTotals->sales_30d,
@@ -283,10 +291,12 @@ class GrabStoreController extends Controller
             (bool) ($validated['skip_grab_check'] ?? false),
         );
         if ($vend) {
-            // The store takes the machine's operator before its prices are set up for that operator.
-            $this->grabStores->followMachineOperator($ref, $vend, auth()->id());
-            $this->setup->apply($ref, $setup, auth()->id());
-            $this->grabStores->bind($ref, $vend, $template, auth()->id());
+            $this->syncLog($ref, "Grab store {$ref->ref_number} added on machine {$vend->code}", function () use ($ref, $vend, $setup, $template) {
+                // The store takes the machine's operator before its prices are set up for that operator.
+                $this->grabStores->followMachineOperator($ref, $vend, auth()->id());
+                $this->setup->apply($ref, $setup, auth()->id());
+                $this->grabStores->bind($ref, $vend, $template, auth()->id());
+            });
         }
 
         return back()->with('success', $vend
@@ -304,9 +314,21 @@ class GrabStoreController extends Controller
         $validated = $request->validate([
             'operator_id' => ['required', 'exists:operators,id'],
             'remarks' => ['nullable', 'string', 'max:1000'],
+            // What Grab shows, typed by a person when the GrabMerchant website read is not there (Brian, 2026-11-21).
+            'grab_store_name' => ['nullable', 'string', 'max:255'],
+            'grab_address' => ['nullable', 'string', 'max:500'],
         ]);
         if (! GrabStoreVisibility::allows((int) $validated['operator_id'])) {
             abort(403);
+        }
+
+        if ($request->has('grab_store_name') || $request->has('grab_address')) {
+            app(GrabStoreProfiles::class)->typed(
+                $ref,
+                $request->has('grab_store_name') ? ($validated['grab_store_name'] ?? null) : $ref->grab_store_name,
+                $request->has('grab_address') ? ($validated['grab_address'] ?? null) : $ref->grab_address,
+                auth()->id(),
+            );
         }
 
         $this->grabStores->editStore(
@@ -521,17 +543,22 @@ class GrabStoreController extends Controller
         $vend = $this->accessibleVend($validated['vend_code']);
         $template = $this->optionalTemplate($validated['delivery_product_mapping_id'] ?? null, $machineMenu);
         // The store takes the machine's operator before its prices are set up for that operator.
-        $operatorChanged = $this->grabStores->followMachineOperator($ref, $vend, auth()->id());
-        if ($machineMenu) {
-            $this->setup->apply($ref, $this->validatedSetup($request), auth()->id());
-        }
-        $this->grabStores->bind(
-            $ref,
-            $vend,
-            $template,
-            auth()->id(),
-            $validated['remarks'] ?? null,
-        );
+        $setup = $machineMenu ? $this->validatedSetup($request) : null;
+        $operatorChanged = $this->syncLog($ref, "Grab store {$ref->ref_number} put on machine {$vend->code}", function () use ($ref, $vend, $template, $setup, $validated) {
+            $operatorChanged = $this->grabStores->followMachineOperator($ref, $vend, auth()->id());
+            if ($setup !== null) {
+                $this->setup->apply($ref, $setup, auth()->id());
+            }
+            $this->grabStores->bind(
+                $ref,
+                $vend,
+                $template,
+                auth()->id(),
+                $validated['remarks'] ?? null,
+            );
+
+            return $operatorChanged;
+        });
 
         return back()->with('success', $operatorChanged
             ? __('Grab store :ref is now on machine :code, under its operator :operator.', ['ref' => $ref->ref_number, 'code' => $vend->code, 'operator' => $ref->fresh()->operator?->code])
@@ -550,19 +577,24 @@ class GrabStoreController extends Controller
 
         $vend = $this->accessibleVend($validated['vend_code']);
         $ref = $binding->deliveryPlatformRefNumber;
-        // Onto another operator's machine: the store takes that operator before its prices are set up for it.
-        $this->grabStores->followMachineOperator($ref, $vend, auth()->id(), $binding);
-        if ($this->grabStores->willUseMachineMenu($ref)) {
-            $this->setup->apply($ref, $this->validatedSetup($request), auth()->id());
-        }
-        $moved = $this->grabStores->move(
-            $binding,
-            $vend,
-            ! empty($validated['delivery_product_mapping_id']) ? $this->accessibleTemplate($validated['delivery_product_mapping_id']) : null,
-            auth()->id(),
-            $validated['reason'],
-            $validated['remarks'] ?? null,
-        );
+        $setup = $this->grabStores->willUseMachineMenu($ref) ? $this->validatedSetup($request) : null;
+        $template = ! empty($validated['delivery_product_mapping_id']) ? $this->accessibleTemplate($validated['delivery_product_mapping_id']) : null;
+        $moved = $this->syncLog($ref, "Grab store {$ref->ref_number} moved from machine {$binding->vend_code} to {$vend->code}", function () use ($ref, $vend, $binding, $setup, $template, $validated) {
+            // Onto another operator's machine: the store takes that operator before its prices are set up for it.
+            $this->grabStores->followMachineOperator($ref, $vend, auth()->id(), $binding);
+            if ($setup !== null) {
+                $this->setup->apply($ref, $setup, auth()->id());
+            }
+
+            return $this->grabStores->move(
+                $binding,
+                $vend,
+                $template,
+                auth()->id(),
+                $validated['reason'],
+                $validated['remarks'] ?? null,
+            );
+        });
 
         $siteMoved = (int) $moved->customer_id !== (int) $binding->customer_id;
 
@@ -625,7 +657,7 @@ class GrabStoreController extends Controller
         return back()->with('success', $validated['active'] ? __('Grab store switched on.') : __('Grab store switched off.'));
     }
 
-    private function row(DeliveryPlatformRefNumber $ref, array $partnerCodes): array
+    private function row(DeliveryPlatformRefNumber $ref, array $partnerCodes, array $typers = []): array
     {
         $open = $ref->openDeliveryProductMappingVends;
         $binding = $open->first();
@@ -683,6 +715,8 @@ class GrabStoreController extends Controller
                 'postal_code' => $ref->grab_postal_code,
                 'hours' => $ref->grab_hours,
                 'checked_at' => $ref->grab_profile_checked_at->toIso8601String(),
+                // Typed by a person on Edit (who), or read from the GrabMerchant website.
+                'typed_by' => $ref->grab_profile_source === GrabStoreProfiles::SOURCE_TYPED ? ($typers[$ref->grab_profile_user_id] ?? __('a person')) : null,
                 'site_postal_code' => GrabStoreProfiles::sitePostalCode($binding),
                 'match' => GrabStoreProfiles::matches($ref->grab_postal_code, $binding),
             ] : null,
@@ -923,5 +957,11 @@ class GrabStoreController extends Controller
         }
 
         return $template;
+    }
+
+    // A store set up, put on or moved to a machine is one row on Grab Menu Sync, with the menu sync it starts.
+    private function syncLog(DeliveryPlatformRefNumber $ref, string $summary, callable $work): mixed
+    {
+        return app(GrabMenuSyncTracker::class)->record(GrabMenuSync::KIND_STORE_SETUP, (int) $ref->operator_id ?: null, auth()->id(), $summary, $work);
     }
 }

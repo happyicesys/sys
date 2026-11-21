@@ -1181,6 +1181,22 @@ mapping / returned):
   reached a freezer only at its next reconnect or reboot (bench 2009). `PushMappingMenuSync` stays vending-only.
 Regression coverage: `tests/Feature/NewSkuBadgeTest.php`.
 
+## Emptied mappings deactivate themselves 3 days after the last machine left
+
+Brian, 2026-11-21: ops deactivated old mappings by hand once every machine had moved to the upcoming one.
+`App\Services\ProductMapping\MappingRetirement` (hourly `product-mappings:retire-emptied --apply`, :23; without
+`--apply` it lists) deactivates — never deletes — an ACTIVE mapping that has its own upcoming mapping, no machine
+bound in ANY status (an inactive or factory machine still on it has not moved), no machine waiting to move ONTO it
+(the "at upcoming stage" rule: the vend's own upcoming, else its mapping's), and whose last machine left
+`RETIRE_AFTER_DAYS` (3) ago. "Left" needs proof: `product_mappings.last_machine_left_at`, stamped on every rebind (a
+`Vend` `updated` hook for Eloquent saves, and by hand in `bindVends`, whose bulk update fires no event — a new bulk
+writer of `vends.product_mapping_id` must call `MappingRetirement::machinesLeft()` too), or the `user_logs` audit
+(Vend `product_mapping_id` [from, to], since 2026-07-01). A mapping no machine was seen leaving (a fresh or replicated
+copy) is never touched. Each deactivation writes a `user_logs` row (source `mapping-retire`, "Auto: all machines
+moved"). The Product Mapping list shows "All machines moved · deactivates <date>" under an emptied mapping's Active
+badge. Switched on again and left empty, a mapping goes again on the next run (its stamp is old): to keep an empty
+mapping, clear its upcoming mapping. Regression coverage: `tests/Feature/ProductMappingRetirementTest.php`.
+
 ## Txn, Revenue & Settlement: one sale, three sources, one line
 
 Transactions → **Txn, Revenue & Settlement** (`/vends/txn-revenue-settlement`,
@@ -1744,6 +1760,11 @@ host is down, because they are read through it. **Test lock** is three ordinary 
 关锁成功, or refused 开锁超时(损坏,锁舌卡住) for a jammed latch) plus the lock state read back (`lockTestVerdict`: ok /
 stuck_locked / stuck_open / busy / no_answer / unclear). A lock is sent even after a failed unlock. No new op, no app change;
 the three rows show on the command timeline under the user's name.
+
+**Event costume** (Brian, 2026-11-20; Remote controls row, app 59+). Op `costume` `{on: bool}` switches the welcome bear's
+event costume: off = the normal bear, on = the costume the app build carries (the art ships in the app, mark1 sends only the
+switch). The app reports `eventCostume: {on, name}` in its status (`name` null when the build has none). Not disruptive,
+not refused mid-sale. Coverage: `tests/Feature/FreezerRemoteControlTest.php`.
 
 **Advance Control (Vend/Edit) on a freezer** (Brian, 2026-11-10). The freezer app ignores the vending frames `RESET`,
 `REBOOTANDROID` and `UPDATELOG` (it logs "unhandled command"), so for a freezer the page hides Restart VMC, Remote Modem and
@@ -2408,6 +2429,9 @@ never on "not a vending machine" at the call site.
   In freezer baskets 1 and 4 the default is half the product's number, rounded
   down (Brian, 2026-11-04, `ProductMappingItem::productDefaultCapacity`); a number
   typed on the mapping still wins. Default Capacity keeps showing the listed number.
+  **A new number on Product → Edit reaches the machines at once** (Brian, 2026-11-04): a freezer through
+  `ProductMappingService::syncFreezerCapacityForProduct` on the save, a chiller through its 3-minute poll. A slot with a
+  Real Capacity (the amber box) keeps its own number, and a freezer with no rows yet waits for its first sync.
 - **Writers.** `FreezerChannelSync` (qty carried by product — our ledger) and
   `ChannelFrameAdapter` (qty from `device_product` per SKU) build a frame with
   `product_id` + `suffix` per entry; `SyncVendChannels` upserts by product,
@@ -2937,6 +2961,46 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   ended stores are never notified. Never `dispatchSync` a notify again: it ran before the channel sync and sent
   ~750 full syncs a day. Stock / price changes belong in Grab's Update Menu Record / Batch (Phase 2).
 - **Menu prices are stored cents** (`getRawOriginal('amount')`), integers on the wire; never `round($dollars * 100)`.
+- **Grab Menu Sync: every change sent to Grab is followed to Grab's own SUCCESS** (Brian, 2026-11-21: "one tab which
+  will record every action and whether it is fully synced … the details on each of the machines"; "should self check
+  if Grab already has the price rule"). That night two company-rule saves drew 429 "too many requests" for 30 and 16 of
+  63 stores, nothing asked again, and Grab's prices ended up mixed. Page Grab → **Grab Menu Sync** `/grab-menu-sync`
+  (permission `read delivery-platform-product-mappings`; Ask again / Check now need `update`), plus the **On Grab**
+  column on Menu & Prices' store list (each store's latest row, polled every 15 s while one moves).
+  `App\Services\Grab\Menu\GrabMenuSyncTracker` (container singleton) is the ONLY writer of `grab_menu_syncs` (one
+  row per change: who, operator, kind, summary in words) and `grab_menu_sync_stores` (one per store it reached):
+  - **A writer wraps its change in `record()`**; every `NotifyDeliveryPlatformUpdateMenu::debounced()` inside it adds the
+    store, and asks of one change are spaced `grab.daily_sync_spacing_seconds` (3 s) apart. Nested `record()` calls
+    ride on the outer one. Wrapped today: company rule, product sub-category / typed price, fill from templates,
+    Product → Edit (`productChanged`), store own rule / back to company / typed price, menu switch, Grab Stores
+    add / put on / move, the nightly `grab:sync-all-menu`. A NEW path that notifies Grab after a price or menu change
+    wraps itself the same way, or its change reaches Grab unlogged.
+  - **Statuses**: waiting → sent (Grab took the ask) → pulled (Grab's GET /merchant/menu, recorded on EVERY pull by
+    `UpdateDeliveryMenuJson`) → synced (Grab's menu sync webhook SUCCESS, `ProcessGrabMenuWebhook`). turned_away =
+    refused, asked again at `retry_at`; failed = given up / Grab's job FAILED; skipped = store not selling. A notify
+    job reports for EVERY open row of its store, so a change that rode along on another job is followed too.
+  - **Retries**: 409 as before (Grab's wait + 15 s, 3 times); **429, 5xx or no answer: 1, 2, 4, 8, 15 min (+ ≤30 s),
+    5 times** (`MAX_BUSY_RETRIES`). Before 2026-11-21 a 429 was dropped.
+  - **`grab:check-menu-sync`** (every 10 min at :07): sent > 20 min with no pull → asked again (twice, then failed);
+    pulled > 20 min with no SUCCESS → synced ("confirmation never came"); a waiting row idle 30 min → queued again.
+    Then each selling Grab store's prices + items on Grab (`last_menu_json`, stock ignored) are compared with
+    `buildMenu()` now; a store that differs on TWO checks in a row (a planogram change is on its way through its own
+    unlogged notify for a few minutes), or whose last row failed, is sent again, forced, under one "System check" row,
+    at most once an hour; matching stores get `last_checked_at`. 403-refused stores are left out.
+  - Kept 90 days (`grab:prune-menu-syncs`, 03:50). Coverage: `tests/Feature/GrabMenuSyncTest.php`.
+  - **When each part last changed on Grab** (Brian, 2026-11-21: nobody can open a store's live menu on Grab). Each pull
+    stamps the store link (`delivery_product_mapping_vend`): `grab_menu_pulled_at`, and when what Grab took changed
+    from the copy before it, `grab_prices_changed_at` (`prices()`) and `grab_items_changed_at` (`listing()`: the
+    categories without price, stock, availability or the selling-time date, KEYS SORTED — `last_menu_json` is a MySQL
+    JSON column, which reorders keys, so an unsorted compare reads every pull as a change). Plain table updates. Menu &
+    Prices' store list shows them, the rule's set time (own rule or company rule), the store's Grab name + address and
+    its Grab orders over L30d / L7d / yesterday / today. Tracking began 2026-11-21, so older stores read "no change seen yet".
+- **A store's Grab name and address: website read, or typed by a person** (Brian, 2026-11-21). No Grab API gives
+  them. `App\Services\Grab\GrabStoreProfiles` is the one writer of `delivery_platform_ref_numbers.grab_*`: the
+  GrabMerchant website read (`POST /grab-stores/grab-profiles`, the desktop scheduled task `grab-store-address-check`,
+  every 3 days since 2026-11-21) or Grab Stores → Edit (`typed()`: `grab_profile_source` = typed +
+  `grab_profile_user_id`, same postal-code check and Site-changed follow-up as a read). The next website read replaces a
+  typed one; `grabProfilesCheckedAt` counts website reads only. Coverage: `tests/Feature/GrabStoreProfilesTest.php`.
 - **Grab Menu & Prices: the machine is the menu** (Brian, 2026-11-01: "use back the original product mapping from
   the machine … disable the remover of any SKU"; page `/grab-menu`, plan §10). A store whose ref has
   `menu_from_machine_at` set lists every product on its machine's active slots — one Grab item per product, id

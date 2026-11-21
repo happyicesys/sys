@@ -416,6 +416,14 @@ class Vend extends Model
                 $vend->is_using_server_price = true;
             }
         });
+
+        // A machine moving off a mapping starts that mapping's retirement clock (MappingRetirement: an emptied
+        // mapping with an upcoming one is deactivated 3 days after its last machine left).
+        static::updated(function (Vend $vend) {
+            if ($vend->wasChanged('product_mapping_id') && $vend->getOriginal('product_mapping_id')) {
+                \App\Services\ProductMapping\MappingRetirement::machinesLeft([$vend->getOriginal('product_mapping_id')]);
+            }
+        });
     }
 
     /**

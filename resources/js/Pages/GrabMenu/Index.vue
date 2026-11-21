@@ -46,9 +46,10 @@
 
         <StoreList
           ref="storeList"
-          :stores="stores"
+          :stores="storesLive"
           :rp-types="rpTypes"
           :can="can"
+          :company-rule="setting"
           @open="store => openRefId = store.ref_id"
           @switch="askSwitch"
           @set-rule="list => ruleStores = list"
@@ -110,9 +111,10 @@ import StorePanel from '@/Components/GrabMenu/StorePanel.vue'
 import StoreRuleModal from '@/Components/GrabMenu/StoreRuleModal.vue'
 import SwitchMenuModal from '@/Components/GrabMenu/SwitchMenuModal.vue'
 import { inputClass } from '@/Components/GrabMenu/priceRule'
+import { MOVING } from '@/Components/GrabMenu/syncStatus'
 import { Head, router, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { t } from '@/i18n'
 
 // Grab Menu & Prices: how it works, the company price rule, every store (its menu and price rule), products to fix.
@@ -147,6 +149,22 @@ const counts = computed(() => {
     toFix: props.products.filter(product => product.problem && product.machines).length,
   }
 })
+
+// "On Grab" (Grab Menu Sync): while any store's latest change is still on its way, read the states again every 15 s.
+const liveOnGrab = ref({})
+watch(() => props.stores, () => { liveOnGrab.value = {} })
+const storesLive = computed(() => props.stores.map(store => ({ ...store, on_grab: liveOnGrab.value[store.binding_id] ?? store.on_grab })))
+const syncTimer = setInterval(async () => {
+  const moving = storesLive.value.filter(store => store.on_grab && MOVING.includes(store.on_grab.status))
+  if (!moving.length || document.hidden) return
+  try {
+    const { data } = await axios.get('/grab-menu-sync/latest', { params: { binding_ids: storesLive.value.map(store => store.binding_id) } })
+    liveOnGrab.value = data
+  } catch (e) {
+    // The next round tries again.
+  }
+}, 15000)
+onBeforeUnmount(() => clearInterval(syncTimer))
 
 // The open store follows the page's data, so it shows a saved rule or a switch at once.
 const openRefId = ref(null)

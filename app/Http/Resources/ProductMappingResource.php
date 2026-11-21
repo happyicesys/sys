@@ -28,6 +28,8 @@ class ProductMappingResource extends JsonResource
                 : null,
             'upcoming_product_mapping_name' => $this->relationLoaded('upcomingProductMapping') ? ($this->upcomingProductMapping ? $this->upcomingProductMapping->name : null) : null,
             'is_active' => $this->is_active ? true : false,
+            // Set by the Product Mapping index only: when MappingRetirement deactivates this emptied mapping.
+            'auto_deactivate_on' => $this->resource->getAttribute('auto_deactivate_on'),
             'remarks' => $this->remarks,
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),

@@ -462,11 +462,19 @@ class GrabStoreService
 
         $ref->update(['menu_from_machine_at' => $machineMenu ? now() : null]);
 
-        foreach ($ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->get() as $binding) {
-            if ($binding->isSelling()) {
-                NotifyDeliveryPlatformUpdateMenu::debounced($binding);
-            }
-        }
+        app(\App\Services\Grab\Menu\GrabMenuSyncTracker::class)->record(
+            \App\Models\GrabMenuSync::KIND_MENU_SOURCE,
+            (int) $ref->operator_id ?: null,
+            $userId,
+            $machineMenu ? "Store {$ref->ref_number} put on its machine menu" : "Store {$ref->ref_number} back on its old Grab menu",
+            function () use ($ref) {
+                foreach ($ref->openDeliveryProductMappingVends()->withoutGlobalScopes()->get() as $binding) {
+                    if ($binding->isSelling()) {
+                        NotifyDeliveryPlatformUpdateMenu::debounced($binding);
+                    }
+                }
+            },
+        );
 
         $this->event($ref, DeliveryPlatformStoreEvent::EVENT_MENU_SOURCE, $userId, null, null, ['machine_menu' => $machineMenu]);
 

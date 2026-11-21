@@ -44,6 +44,8 @@ class FreezerControlService
         'clip',
         // APK v49
         'demistmode',
+        // APK v59
+        'costume',
     ];
 
     /** Ops that end or restart the app / the box: confirmed in the UI, refused by the device mid-sale. */
@@ -103,6 +105,16 @@ class FreezerControlService
     public const DEMIST_MODE_OPS = ['demistmode'];
 
     public const MIN_APK_VERSION_CODE_DEMIST_MODE = 49;
+
+    /**
+     * `costume` needs APK 59: the welcome bear's event costume on or off (Brian, 2026-11-20). Off is the
+     * normal bear; On is whatever costume that app build carries (Christmas first) — mark1 sends no art,
+     * only the switch. An app setting: not disruptive, not refused mid-sale. App 59+ reports it in its
+     * status as `eventCostume: {on, name}`, `name` null when the build carries no costume.
+     */
+    public const EVENT_COSTUME_OPS = ['costume'];
+
+    public const MIN_APK_VERSION_CODE_EVENT_COSTUME = 59;
 
     /** Modes as the APK names them (DemistFanMode.wire). */
     public const DEMIST_MODES = ['always', 'cycle5'];
@@ -392,6 +404,7 @@ class FreezerControlService
     public static function minApkVersionFor(string $op): int
     {
         return match (true) {
+            in_array($op, self::EVENT_COSTUME_OPS, true) => self::MIN_APK_VERSION_CODE_EVENT_COSTUME,
             in_array($op, self::DEMIST_MODE_OPS, true) => self::MIN_APK_VERSION_CODE_DEMIST_MODE,
             in_array($op, self::CLIP_OPS, true) => self::MIN_APK_VERSION_CODE_CLIP,
             in_array($op, self::DELTA_OPS, true) => self::MIN_APK_VERSION_CODE_DELTA,
@@ -436,7 +449,7 @@ class FreezerControlService
                 : throw ValidationException::withMessages(['args.probe' => __('Choose one of the listed diagnostics.')]),
             'sdkcall' => $this->sdkCall($args['action'] ?? null, $args['params'] ?? null),
             'compressor' => $this->compressor($args),
-            'fan', 'light', 'comprmode', 'fanmode' => is_bool($args['on'] ?? null)
+            'fan', 'light', 'comprmode', 'fanmode', 'costume' => is_bool($args['on'] ?? null)
                 ? ['on' => $args['on']]
                 : throw ValidationException::withMessages(['args.on' => __('Choose on or off.')]),
             'demistmode' => in_array($args['mode'] ?? null, self::DEMIST_MODES, true)

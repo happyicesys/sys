@@ -107,7 +107,7 @@
                 <div class="text-xs text-gray-500">{{ store.operator?.code }}</div>
                 <div v-if="store.remarks" class="text-xs text-gray-500 whitespace-pre-wrap">{{ store.remarks }}</div>
                 <!-- What customers see on Grab: the daily GrabMerchant website read. -->
-                <div v-if="store.grab_profile" class="mt-1 max-w-xs text-xs text-gray-600" :title="$t('Read from the GrabMerchant website :time', { time: formatDateTime(store.grab_profile.checked_at) })">
+                <div v-if="store.grab_profile" class="mt-1 max-w-xs text-xs text-gray-600" :title="profileSource(store.grab_profile)">
                   <div class="font-medium">{{ store.grab_profile.name }}</div>
                   <div :class="store.grab_profile.match === false ? 'text-red-700' : ''">
                     <CheckCircleIcon v-if="store.grab_profile.match" class="inline h-3.5 w-3.5 text-green-600 -mt-0.5" />
@@ -544,7 +544,7 @@
                 <div><span class="text-xs text-gray-500">{{ $t('Grab store name') }}</span><div class="text-gray-800">{{ current.grab_profile.name ?? '—' }}</div></div>
                 <div><span class="text-xs text-gray-500">{{ $t('Address') }}</span><div :class="current.grab_profile.match === false ? 'text-red-700 font-medium' : 'text-gray-800'">{{ current.grab_profile.address ?? '—' }}</div></div>
                 <div v-if="current.grab_profile.hours"><span class="text-xs text-gray-500">{{ $t('Delivery hours') }}</span><div class="text-gray-800">{{ current.grab_profile.hours }}</div></div>
-                <div class="text-xs text-gray-400">{{ $t('Read from the GrabMerchant website :time', { time: formatDateTime(current.grab_profile.checked_at) }) }}</div>
+                <div class="text-xs text-gray-400">{{ profileSource(current.grab_profile) }}</div>
               </template>
               <p v-else class="text-gray-500">{{ $t('Not read from the GrabMerchant website yet.') }}</p>
             </div>
@@ -591,6 +591,18 @@
           <label class="block font-medium text-gray-700">{{ $t('Grab merchant ID') }}</label>
           <div class="mt-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-gray-800 select-all">{{ current?.ref_number }}</div>
           <p class="text-xs text-gray-500 mt-1">{{ $t('The merchant ID is the store on Grab, so it cannot be changed here.') }}</p>
+        </div>
+        <!-- What customers see on Grab, typed by a person: no API gives it, and the GrabMerchant website read needs a signed-in browser. -->
+        <div>
+          <label class="block font-medium text-gray-700">{{ $t('Grab store name') }}</label>
+          <input v-model="editForm.grab_store_name" type="text" maxlength="255" :class="inputClass" :placeholder="$t('As customers see it on Grab')" />
+          <InputError :message="editForm.errors.grab_store_name" />
+        </div>
+        <div>
+          <label class="block font-medium text-gray-700">{{ $t('Address on Grab') }}</label>
+          <textarea v-model="editForm.grab_address" rows="2" maxlength="500" :class="inputClass" :placeholder="$t('As customers see it on Grab, with the postal code')"></textarea>
+          <InputError :message="editForm.errors.grab_address" />
+          <p class="text-xs text-gray-500 mt-1">{{ $t('Grab gives no way to read these, so type them as the GrabMerchant app shows them. The GrabMerchant website check replaces them when it runs.') }}</p>
         </div>
         <div>
           <label class="block font-medium text-gray-700">{{ $t('Remarks') }}</label>
@@ -976,7 +988,7 @@ const addForm = useForm({
 const moveForm = useForm({ vend_code: '', delivery_product_mapping_id: null, reason: 'moved', remarks: '', setup: null })
 const pauseForm = useForm({ reason: '', until: '' })
 const unbindForm = useForm({ reason: 'removed', remarks: '' })
-const editForm = useForm({ operator_id: null, remarks: '' })
+const editForm = useForm({ operator_id: null, remarks: '', grab_store_name: '', grab_address: '' })
 
 const ok = { preserveScroll: true, onSuccess: () => closeAll() }
 
@@ -1075,7 +1087,17 @@ function openEdit(store) {
   editForm.clearErrors()
   editForm.operator_id = store.operator_id
   editForm.remarks = store.remarks ?? ''
+  editForm.grab_store_name = store.grab_profile?.name ?? ''
+  editForm.grab_address = store.grab_profile?.address ?? ''
   modal.value = 'edit'
+}
+
+// Where a store's Grab name and address came from: the GrabMerchant website read, or a person on Edit.
+function profileSource(profile) {
+  const time = formatDateTime(profile.checked_at)
+  return profile.typed_by
+    ? t('Typed by :name :time', { name: profile.typed_by, time })
+    : t('Read from the GrabMerchant website :time', { time })
 }
 
 function submitEdit() {
@@ -1266,6 +1288,7 @@ function eventText(event) {
     if (event.data?.name) parts.push(event.data.name.to ?? '—')
     if (event.data?.address) parts.push(event.data.address.to ?? '—')
     if (event.data?.site) parts.push(t('new Site confirmed'))
+    if (event.data?.source === 'typed') parts.push(t('typed by a person'))
     return `${name}: ${parts.join(' · ')}`
   }
   if (event.event === 'renamed') {

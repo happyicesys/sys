@@ -185,6 +185,16 @@
                                @click="ask('fanmode', { on: true }, $t('Take remote control of the fan?'), $t('The controller stops running it off the door switch. Hand it back when you are done. From app v21 the machine hands it back by itself after :minutes minutes.', { minutes: REMOTE_LEASE_MINUTES }))">{{ $t('Remote') }}</ControlButton>
               </ControlRow>
 
+              <!--
+                The welcome bear's event costume (app 59+, Brian 2026-11-20): Off = the normal bear, On = the
+                costume this app build carries. The costume's name comes from the machine's own status.
+              -->
+              <ControlRow v-if="data.supported_event_costume" :label="$t('Event costume')" :busy="busyOp === 'costume'" :state="onOff(status.eventCostume.on)"
+                          :tone="boolTone(status.eventCostume.on)" :note="costumeName" :reason="blockedReason">
+                <ControlButton :disabled="!canSend" :active="status.eventCostume.on === true" @click="send('costume', { on: true })">{{ $t('On') }}</ControlButton>
+                <ControlButton :disabled="!canSend" :active="status.eventCostume.on === false" @click="send('costume', { on: false })">{{ $t('Off') }}</ControlButton>
+              </ControlRow>
+
               <ControlRow :label="$t('Light')" :busy="busyOp === 'light'" :state="status.lightState || $t('not reported')" :tone="status.lightState ? 'info' : 'unknown'" :reason="blockedReason">
                 <ControlButton :disabled="!canSend" @click="send('light', { on: true })">{{ $t('On') }}</ControlButton>
                 <ControlButton :disabled="!canSend" @click="send('light', { on: false })">{{ $t('Off') }}</ControlButton>
@@ -715,6 +725,12 @@ const fanModeHint = computed(() => (status.value.fanStoppedByDoor
   : t('In both modes the fan stops while the door is unlocked or open.')))
 const canSendDemistMode = computed(() => canSend.value && !!data.value.supported_demist_mode)
 const demistModeBlocked = computed(() => (blockedReason.value ? blockedReason.value : data.value.supported_demist_mode ? '' : t("This machine's app is older than v49; choosing the fan mode needs the update.")))
+
+/** The costume this machine's app build carries, capitalised ("Christmas"); "—" when it carries none. */
+const costumeName = computed(() => {
+  const name = status.value.eventCostume.name
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : '—'
+})
 
 /** The chosen mode is inert, as on the panel: pressing it again would only restart the cycle. */
 function chooseFanMode(mode) {

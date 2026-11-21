@@ -8,6 +8,7 @@ use App\Models\ProductMappingItem;
 use App\Models\SellingPrice;
 use App\Models\Vend;
 use App\Models\VendChannel;
+use Illuminate\Support\Facades\Log;
 
 class ProductMappingService
 {
@@ -63,6 +64,46 @@ class ProductMappingService
                 }
             }
         }
+    }
+
+    /**
+     * A freezer's vend_channels.capacity is a copy of its mapping's number, and only a sync
+     * writes it, so a new Pieces per freezer slot on Product → Edit showed on the machine only
+     * after someone saved the mapping (Brian, 2026-11-04). Re-sync the freezers whose slot follows
+     * this product's default; a slot with a Real Capacity keeps its own number either way.
+     *
+     * A chiller needs none of this: its 3-minute poll rebuilds the rows from the mapping. A freezer
+     * with no rows yet is skipped, because a sync would create them all (test machine 2015).
+     *
+     * @return int the number of freezers re-synced
+     */
+    public function syncFreezerCapacityForProduct(int $productId): int
+    {
+        $mappingIds = ProductMappingItem::withoutGlobalScopes()
+            ->where('product_id', $productId)
+            ->whereNull('capacity_override')
+            ->distinct()
+            ->pluck('product_mapping_id');
+
+        // Not limited to the operators of whoever is editing the product.
+        $vends = Vend::withoutGlobalScopes()
+            ->whereIn('product_mapping_id', $mappingIds)
+            ->where('machine_type', Vend::MACHINE_TYPE_SMART_FREEZER)
+            ->whereHas('vendChannels')
+            ->get();
+
+        $synced = 0;
+        foreach ($vends as $vend) {
+            // The product is already saved, so one machine's failure must not fail that save.
+            try {
+                app(\App\Services\Freezer\FreezerChannelSync::class)->sync($vend);
+                $synced++;
+            } catch (\Throwable $e) {
+                Log::warning('Freezer capacity re-sync failed', ['vend_id' => $vend->id, 'product_id' => $productId, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return $synced;
     }
 
     public function syncSingleChannel($vendChannelID, $productMappingItemID)

@@ -254,6 +254,18 @@ export class FreezerStatus {
         return this.raw?.fanMode ?? null;
     }
 
+    /**
+     * The welcome bear's event costume (app 59+): `on` true/false, null before 59. `name` is the costume
+     * that app build carries ("christmas"), null when it carries none.
+     */
+    get eventCostume() {
+        const costume = this.raw?.eventCostume;
+        return {
+            on: typeof costume?.on === 'boolean' ? costume.on : null,
+            name: typeof costume?.name === 'string' && costume.name !== '' ? costume.name : null,
+        };
+    }
+
     /** The app stops the demist fan in either mode while the lock is unlocked or the lid is open. */
     get fanStoppedByDoor() {
         return this.door.lockState === 'unlocked' || this.door.doorState === 'opened';

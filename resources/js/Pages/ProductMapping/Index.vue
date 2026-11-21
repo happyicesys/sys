@@ -349,6 +349,13 @@
                                   </span>
                               </div>
                           </div>
+                          <span
+                            v-if="productMapping.is_active && productMapping.auto_deactivate_on"
+                            class="text-xs text-amber-700"
+                            :title="$t('Every machine has moved to the upcoming mapping. This mapping turns inactive 3 days after the last one left; bind a machine to keep it.')"
+                          >
+                            {{ $t('All machines moved · deactivates :date', { date: moment(productMapping.auto_deactivate_on).format('D MMM HH:mm') }) }}
+                          </span>
                           <span class="text-gray-500 text-xs whitespace-pre-wrap" v-if="productMapping.remarks">
                             {{ productMapping.remarks }}
                           </span>
