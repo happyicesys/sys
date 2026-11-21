@@ -43,7 +43,7 @@
             <th rowspan="2" class="px-2 py-2">{{ $t('Price rule') }}</th>
             <th rowspan="2" class="px-2 py-2">
               {{ $t('On Grab') }}
-              <a href="/grab-menu-sync" class="ml-1 text-xs font-normal text-indigo-700 underline">{{ $t('Sync log') }}</a>
+              <a href="/grab-logs/menu-sync" class="ml-1 text-xs font-normal text-indigo-700 underline">{{ $t('Sync log') }}</a>
             </th>
             <th colspan="4" class="px-2 pt-2 pb-0 text-center whitespace-nowrap">{{ $t('Grab orders') }}</th>
             <th rowspan="2" class="px-2 py-2"></th>

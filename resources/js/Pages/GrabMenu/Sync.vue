@@ -1,14 +1,15 @@
 <template>
-  <Head :title="$t('Grab Menu Sync')" />
+  <Head :title="$t('Grab Logs')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ $t('Grab Menu Sync') }}
+        {{ $t('Grab Logs') }}
       </h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3 space-y-3">
+      <GrabLogsTabs current="menu-sync" />
       <div v-if="message" class="rounded-md border px-3 py-2 text-sm" :class="messageError ? 'border-red-200 bg-red-50 text-red-800' : 'border-green-200 bg-green-50 text-green-800'">{{ message }}</div>
 
       <section class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border px-3 py-3 text-sm">
@@ -133,6 +134,7 @@
 </template>
 
 <script setup>
+import GrabLogsTabs from '@/Components/Grab/GrabLogsTabs.vue'
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import MachineIdLink from '@/Components/MachineIdLink.vue'
 import Paginator from '@/Components/Paginator.vue'
@@ -185,7 +187,7 @@ function kindName(kind) {
 }
 
 function go(change) {
-  router.get('/grab-menu-sync', { ...props.filters, ...change, page: undefined }, { preserveState: false, replace: true })
+  router.get('/grab-logs/menu-sync', { ...props.filters, ...change, page: undefined }, { preserveState: false, replace: true })
 }
 
 function anyMoving(stores) {

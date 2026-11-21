@@ -454,8 +454,21 @@ Route::middleware(['auth', 'cors'])->group(function () {
     Route::redirect('/delivery-product-mapping-vends', '/grab-stores')->name('delivery-product-mapping-vends');
     Route::redirect('/delivery-platform-ref-numbers/{any?}', '/grab-stores')->where('any', '.*')->name('delivery-platform-ref-numbers');
 
-    // Grab Errors: every failed exchange with Grab, both ways, last 30 days.
-    Route::get('/grab-errors', [GrabErrorController::class, 'index'])->name('grab-errors')->middleware('can:read delivery-platform-vends');
+    // Grab Logs (Brian, 2026-11-21): one menu entry, two tabs: Menu Sync (every change sent to Grab and whether each
+    // store has it) and Errors (every failed exchange with Grab, both ways, last 30 days). /grab-logs opens the first tab
+    // the user may see; the old addresses carry their filters over.
+    Route::get('/grab-logs', function () {
+        $user = auth()->user();
+        abort_unless($user->can('read delivery-platform-product-mappings') || $user->can('read delivery-platform-vends'), 403);
+
+        return redirect($user->can('read delivery-platform-product-mappings') ? '/grab-logs/menu-sync' : '/grab-logs/errors');
+    })->name('grab-logs');
+    Route::get('/grab-logs/errors', [GrabErrorController::class, 'index'])->name('grab-errors')->middleware('can:read delivery-platform-vends');
+    Route::get('/grab-logs/menu-sync', [GrabMenuSyncController::class, 'index'])->name('grab-menu-sync')->middleware('can:read delivery-platform-product-mappings');
+    Route::get('/grab-errors', fn () => redirect()->to('/grab-logs/errors'.(request()->getQueryString() ? '?'.request()->getQueryString() : '')))
+        ->name('grab-errors.old')->middleware('can:read delivery-platform-vends');
+    Route::get('/grab-menu-sync', fn () => redirect()->to('/grab-logs/menu-sync'.(request()->getQueryString() ? '?'.request()->getQueryString() : '')))
+        ->name('grab-menu-sync.old')->middleware('can:read delivery-platform-product-mappings');
 
     // Grab Promotions (2026-10-31): what Grab runs, read from Grab, and New / Edit / End,
     // sent to Grab store by store. ConnectVend keeps only the log of what it asked.
@@ -472,9 +485,8 @@ Route::middleware(['auth', 'cors'])->group(function () {
         Route::post('/{operatorId}/store-price-rule', [GrabMenuController::class, 'updateStorePriceRule'])->name('grab-menu.store-price-rule');
         Route::post('/stores/{refId}/custom-prices/{productId}', [GrabMenuController::class, 'updateStoreCustomPrice'])->name('grab-menu.store-custom-price');
     });
-    // Grab Menu Sync (2026-11-21): every change sent to Grab and whether each store has it.
+    // Grab Menu Sync (2026-11-21): what its tab on Grab Logs reads and does.
     Route::prefix('grab-menu-sync')->middleware('can:read delivery-platform-product-mappings')->group(function () {
-        Route::get('/', [GrabMenuSyncController::class, 'index'])->name('grab-menu-sync');
         Route::get('/latest', [GrabMenuSyncController::class, 'latest'])->name('grab-menu-sync.latest');
         Route::post('/check', [GrabMenuSyncController::class, 'checkNow'])->name('grab-menu-sync.check');
         Route::get('/{id}/stores', [GrabMenuSyncController::class, 'stores'])->name('grab-menu-sync.stores');

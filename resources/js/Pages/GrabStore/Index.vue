@@ -194,7 +194,7 @@
                 <div class="text-xs text-gray-500">{{ store.last_order_at ? $t('Last :time', { time: formatDateTime(store.last_order_at) }) : $t('No orders') }}</div>
                 <a
                   v-if="store.errors_7d"
-                  :href="`/grab-errors?search=${encodeURIComponent(store.ref_number)}`"
+                  :href="`/grab-logs/errors?search=${encodeURIComponent(store.ref_number)}`"
                   class="mt-1 inline-block rounded bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-700 hover:underline"
                   @click.stop
                 >{{ $tc(':count Grab error / 7d|:count Grab errors / 7d', store.errors_7d) }}</a>

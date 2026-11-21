@@ -2890,8 +2890,8 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   (`VendController::attachGrabStores`, one query per page), so an unbound machine shows its store too; hover lists the
   reasons, click opens Grab Stores. `problemSql()` and `forVends()` must agree; `GrabSiteGuardTest` pins it. Regression
   coverage: `tests/Feature/GrabSiteGuardTest.php`, `tests/Feature/OpsDashboardGrabBadgeTest.php`.
-- **Every failed exchange with Grab is kept 30 days** (Brian, 2026-10-30; Delivery Platform → **Grab Errors**
-  `/grab-errors`, a count on each Grab Stores row, the details in the store's History). The ONE writer is
+- **Every failed exchange with Grab is kept 30 days** (Brian, 2026-10-30; Grab → **Grab Logs** → Errors
+  `/grab-logs/errors` (was `/grab-errors`, which still redirects), a count on each Grab Stores row, the details in the store's History). The ONE writer is
   `App\Support\Grab\GrabApiErrorRecorder` (`delivery_platform_api_errors`, never throws):
   - **Outgoing:** any call to a `*.grab.com` host answered ≥ 400 or not at all. It is caught from Laravel's HTTP
     client events in `AppServiceProvider`, so a new Grab call is covered with no work. The account comes from the
@@ -2965,7 +2965,7 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
 - **Grab Menu Sync: every change sent to Grab is followed to Grab's own SUCCESS** (Brian, 2026-11-21: "one tab which
   will record every action and whether it is fully synced … the details on each of the machines"; "should self check
   if Grab already has the price rule"). That night two company-rule saves drew 429 "too many requests" for 30 and 16 of
-  63 stores, nothing asked again, and Grab's prices ended up mixed. Page Grab → **Grab Menu Sync** `/grab-menu-sync`
+  63 stores, nothing asked again, and Grab's prices ended up mixed. Page Grab → **Grab Logs** → Menu Sync `/grab-logs/menu-sync` (one menu entry with an Errors tab, Brian 2026-11-21; `/grab-logs` opens the first tab the user may see, the old `/grab-menu-sync` redirects with its filters; the page's own `/grab-menu-sync/*` calls are unchanged)
   (permission `read delivery-platform-product-mappings`; Ask again / Check now need `update`), plus the **On Grab**
   column on Menu & Prices' store list (each store's latest row, polled every 15 s while one moves).
   `App\Services\Grab\Menu\GrabMenuSyncTracker` (container singleton) is the ONLY writer of `grab_menu_syncs` (one

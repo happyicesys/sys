@@ -259,6 +259,28 @@ class GrabApiErrorsTest extends TestCase
         $this->assertNull(DeliveryPlatformApiError::find($old->id));
     }
 
+    public function test_grab_logs_opens_the_first_tab_the_user_may_see_and_old_addresses_keep_their_filters(): void
+    {
+        // Brian, 2026-11-21: Grab Menu Sync and Grab Errors became the two tabs of Grab Logs.
+        foreach (['read delivery-platform-vends', 'read delivery-platform-product-mappings'] as $name) {
+            Permission::findOrCreate($name, 'web');
+        }
+        $both = User::factory()->create(['operator_id' => $this->grabMapping->operator_id]);
+        $both->givePermissionTo(['read delivery-platform-vends', 'read delivery-platform-product-mappings']);
+        $errorsOnly = User::factory()->create(['operator_id' => $this->grabMapping->operator_id]);
+        $errorsOnly->givePermissionTo('read delivery-platform-vends');
+        $neither = User::factory()->create(['operator_id' => $this->grabMapping->operator_id]);
+
+        $this->actingAs($both)->get('/grab-logs')->assertRedirect('/grab-logs/menu-sync');
+        $this->actingAs($errorsOnly)->get('/grab-logs')->assertRedirect('/grab-logs/errors');
+        $this->actingAs($neither)->get('/grab-logs')->assertForbidden();
+
+        $this->actingAs($both)->get('/grab-errors?search=4-C7AF')->assertRedirect('/grab-logs/errors?search=4-C7AF');
+        $this->actingAs($both)->get('/grab-menu-sync?state=attention')->assertRedirect('/grab-logs/menu-sync?state=attention');
+        $this->actingAs($errorsOnly)->get('/grab-logs/menu-sync')->assertForbidden();
+        $this->actingAs($errorsOnly)->get('/grab-logs/errors')->assertOk();
+    }
+
     public function test_the_page_shows_a_client_only_its_own_stores_errors(): void
     {
         $binding = $this->store();
@@ -269,7 +291,7 @@ class GrabApiErrorsTest extends TestCase
         Permission::findOrCreate('read delivery-platform-vends', 'web');
         $hipl = User::factory()->create(['operator_id' => $this->grabMapping->operator_id]);
         $hipl->givePermissionTo('read delivery-platform-vends');
-        $this->actingAs($hipl)->get('/grab-errors')
+        $this->actingAs($hipl)->get('/grab-logs/errors')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->component('GrabError/Index')->has('errors.data', 2)
                 ->where('errors.data.1.vend_code', 4754));
@@ -279,7 +301,7 @@ class GrabApiErrorsTest extends TestCase
         ]);
         $clientUser = User::factory()->create(['operator_id' => $client->id]);
         $clientUser->givePermissionTo('read delivery-platform-vends');
-        $this->actingAs($clientUser)->get('/grab-errors')
+        $this->actingAs($clientUser)->get('/grab-logs/errors')
             ->assertInertia(fn ($page) => $page->has('errors.data', 0));
 
         // And the Grab Stores row counts it, with the details in the store's history.

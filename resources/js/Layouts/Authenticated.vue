@@ -276,11 +276,10 @@ const navigation = computed(() => [
             {name: tk('Grab Performance'), href: '/grab-performance', permission: 'read delivery-platform-vends'},
             // Grab Menu & Prices (2026-11-01): the menu follows each machine; the old templates stay read-only below.
             {name: tk('Grab Menu & Prices'), href: '/grab-menu', permission: 'read delivery-platform-product-mappings'},
-            // Grab Menu Sync (2026-11-21): every change sent to Grab and whether each store has it.
-            {name: tk('Grab Menu Sync'), href: '/grab-menu-sync', permission: 'read delivery-platform-product-mappings'},
             // The old Grab Campaign pages are gone (2026-10-31): Grab Promotions makes, changes and ends promotions on Grab.
             {name: tk('Grab Promotions'), href: '/grab-promotions', permission: 'read delivery-platform-campaigns'},
-            {name: tk('Grab Errors'), href: '/grab-errors', permission: 'read delivery-platform-vends'},
+            // Grab Logs (2026-11-21): Menu Sync and Errors, one entry with a tab each.
+            {name: tk('Grab Logs'), href: '/grab-logs', permission: ['read delivery-platform-product-mappings', 'read delivery-platform-vends']},
             {name: tk('Grab Product Mapping (old menus)'), href: '/delivery-product-mappings', permission: 'read delivery-platform-product-mappings'},
         ]
     },

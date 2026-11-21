@@ -346,15 +346,15 @@ class GrabMenuSyncTest extends TestCase
         $this->notify($this->a, false, NotifyDeliveryPlatformUpdateMenu::MAX_BUSY_RETRIES);
         $user = $this->staff();
 
-        $this->actingAs($user)->get('/grab-menu-sync')->assertOk()
+        $this->actingAs($user)->get('/grab-logs/menu-sync')->assertOk()
             ->assertInertia(fn ($page) => $page->component('GrabMenu/Sync')
                 ->where('syncs.data.0.id', $sync->id)
                 ->where('syncs.data.0.state', 'failed')
                 ->where('syncs.data.0.counts.failed', 1)
                 ->where('syncs.data.0.counts.moving', 1));
 
-        $this->actingAs($user)->get('/grab-menu-sync?state=attention')->assertInertia(fn ($page) => $page->has('syncs.data', 1));
-        $this->actingAs($user)->get('/grab-menu-sync?state=synced')->assertInertia(fn ($page) => $page->has('syncs.data', 0));
+        $this->actingAs($user)->get('/grab-logs/menu-sync?state=attention')->assertInertia(fn ($page) => $page->has('syncs.data', 1));
+        $this->actingAs($user)->get('/grab-logs/menu-sync?state=synced')->assertInertia(fn ($page) => $page->has('syncs.data', 0));
 
         $this->actingAs($user)->getJson("/grab-menu-sync/{$sync->id}/stores")->assertOk()
             ->assertJsonPath('stores.0.vend_code', '4754')
@@ -377,7 +377,7 @@ class GrabMenuSyncTest extends TestCase
         $other = Operator::forceCreate(['name' => 'Kumoyo', 'code' => 'KMY', 'country_id' => Operator::query()->value('country_id'), 'created_by' => 1]);
         $user = $this->staff($other->id);
 
-        $this->actingAs($user)->get('/grab-menu-sync')->assertInertia(fn ($page) => $page->has('syncs.data', 0));
+        $this->actingAs($user)->get('/grab-logs/menu-sync')->assertInertia(fn ($page) => $page->has('syncs.data', 0));
         $this->actingAs($user)->getJson("/grab-menu-sync/{$sync->id}/stores")->assertForbidden();
         $this->actingAs($user)->postJson("/grab-menu-sync/{$sync->id}/resend")->assertForbidden();
     }

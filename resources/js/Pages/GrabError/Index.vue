@@ -1,14 +1,15 @@
 <template>
-  <Head :title="$t('Grab Errors')" />
+  <Head :title="$t('Grab Logs')" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ $t('Grab Errors') }}
+        {{ $t('Grab Logs') }}
       </h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
+      <GrabLogsTabs current="errors" />
       <div class="-mx-3 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 py-3">
         <p class="text-sm text-gray-600 mb-3">
           {{ $t('Problems talking to Grab: a menu, order, pause or promotion that did not go through, or an order Grab has that never reached ConnectVend. Each row is one failed try, so one problem can show many times. Kept :days days.', { days: keepDays }) }}
@@ -128,6 +129,7 @@
 </template>
 
 <script setup>
+import GrabLogsTabs from '@/Components/Grab/GrabLogsTabs.vue'
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import MachineIdLink from '@/Components/MachineIdLink.vue';
@@ -160,7 +162,7 @@ const filters = ref({ ...props.filters })
 const open = ref({})
 
 function search() {
-  router.get('/grab-errors', filters.value, { preserveState: true, replace: true })
+  router.get('/grab-logs/errors', filters.value, { preserveState: true, replace: true })
 }
 
 function toggle(id) {
