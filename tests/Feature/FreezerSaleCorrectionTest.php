@@ -13,6 +13,7 @@ use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
+use App\Services\CardTerminal\CardPaymentService;
 use App\Services\CardTerminal\Payrallel\PayrallelGateway;
 use App\Services\Freezer\FreezerStockLedger;
 use App\Services\SmartFreezer\FreezerReceipt;
@@ -252,15 +253,44 @@ class FreezerSaleCorrectionTest extends TestCase
                 ->where('recognitions.data.0.correction.value_cents', 0));
     }
 
-    public function test_a_hold_the_ai_may_still_answer_cannot_be_corrected(): void
+    // Brian, 2026-11-21 (50001 #222: paid 2 Samanco, only 1 was left): a person's count is final, so
+    // it is charged while the AI still has time to answer, and the AI's verdict moves nothing after it.
+    public function test_a_hold_the_ai_may_still_answer_is_charged_by_the_persons_count(): void
     {
-        $this->holdOpen()->update(['door_closed_at' => Carbon::now()]);
+        $intent = $this->holdOpen();
+        $intent->update(['door_closed_at' => Carbon::now()]);
         $sale = $this->heldSale();
         $recognition = $this->recognition($sale, ['verdict' => null, 'verdict_lines' => null, 'order_status' => null]);
 
-        $this->correct($recognition, [$this->cone->id => 2, $this->bar->id => 1], 700)
-            ->assertStatus(422)->assertJsonFragment(['message' => __('The AI still has time to answer this session.')]);
-        $this->assertSame([], $this->gateway->callsOf('capture'));
+        $this->correct($recognition, [$this->cone->id => 1, $this->bar->id => 1], 500)
+            ->assertOk()->assertJsonPath('ok', true)->assertJsonPath('mode', 'hold');
+
+        $this->assertSame([['capture', '50001-SF1', 500]], $this->gateway->callsOf('capture'));
+        $decision = (array) $intent->fresh()->ai_decision;
+        $this->assertSame('Admin One', $decision['by_person']['name']);
+        $this->assertStringContainsString('counted by a person before the AI answered', $decision['reason']);
+
+        // The AI answers afterwards, with a match on the paid cart: nothing more is charged.
+        $recognition->update(['order_status' => 0, 'verdict' => 'match', 'verdict_lines' => [
+            ['product_id' => $this->cone->id, 'code' => '1', 'paid' => 2, 'taken' => 2, 'delta' => 0],
+            ['product_id' => $this->bar->id, 'code' => '2', 'paid' => 1, 'taken' => 1, 'delta' => 0],
+        ]]);
+        app(CardPaymentService::class)->settleAwaitingAi($intent->fresh());
+
+        $this->assertCount(1, $this->gateway->callsOf('capture'));
+        $this->assertSame(500, (int) $intent->fresh()->captured_cents);
+        $this->assertSame(500, (int) $sale->fresh()->amount);
+        $this->assertSame([11, 10], [$this->qty($this->cone), $this->qty($this->bar)], 'the stock follows the person, once');
+    }
+
+    public function test_key_in_charge_still_waits_for_the_ai(): void
+    {
+        $intent = $this->holdOpen();
+        $intent->update(['door_closed_at' => Carbon::now()]);
+        $this->heldSale();
+
+        $this->expectException(\DomainException::class);
+        app(CardPaymentService::class)->chargeByPerson($intent, 500, $this->admin);
     }
 
     /**
@@ -539,9 +569,10 @@ class FreezerSaleCorrectionTest extends TestCase
         $this->assertSame(9, $this->qty($this->lolly));
     }
 
-    public function test_a_session_the_ai_may_still_answer_is_not_offered_adjust_qty(): void
+    public function test_adjust_qty_is_offered_before_the_ai_answers_and_its_count_is_final(): void
     {
-        $this->holdOpen()->update(['door_closed_at' => Carbon::now()]);
+        $intent = $this->holdOpen();
+        $intent->update(['door_closed_at' => Carbon::now()]);
         $sale = $this->heldSale();
         $recognition = $this->recognition($sale, [
             'status' => SmartFreezerRecognition::STATUS_SUBMITTED, 'order_status' => null, 'completed_at' => null,
@@ -550,10 +581,61 @@ class FreezerSaleCorrectionTest extends TestCase
 
         $this->actingAs($this->admin)->get('/ai-recognition?date_from=')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('recognitions.data.0.can_correct', false)
+                ->where('recognitions.data.0.can_correct', true)
+                ->where('recognitions.data.0.card.awaits_person', false)
                 ->where('recognitions.data.0.sale.id', $sale->id));
 
-        $this->correct($recognition, [$this->cone->id => 2, $this->bar->id => 1], 700)
+        $editor = $this->actingAs($this->admin)->getJson("/ai-recognition/{$recognition->id}/correction")->assertOk()->json('editor');
+        $this->assertNull($editor['blocked_reason']);
+        $this->assertTrue($editor['ai_pending']);
+        $this->assertFalse($editor['can_key_in'], 'Key in charge still waits for the AI; only a count is final');
+
+        $this->correct($recognition, [$this->cone->id => 1, $this->bar->id => 1], 500)->assertOk()->assertJsonPath('mode', 'hold');
+        $this->assertSame([['capture', '50001-SF1', 500]], $this->gateway->callsOf('capture'));
+        $this->assertSame($sale->id, $recognition->fresh()->vend_transaction_id);
+
+        // Zijia's result lands later: it is stored beside the count, and moves no money or stock.
+        $recognition->update(['status' => SmartFreezerRecognition::STATUS_COMPLETED, 'order_status' => 0, 'completed_at' => Carbon::now(),
+            'verdict' => 'match', 'verdict_lines' => [
+                ['product_id' => $this->cone->id, 'code' => '1', 'paid' => 2, 'taken' => 2, 'delta' => 0],
+                ['product_id' => $this->bar->id, 'code' => '2', 'paid' => 1, 'taken' => 1, 'delta' => 0],
+            ]]);
+        app(CardPaymentService::class)->settleAwaitingAi($intent->fresh());
+
+        $this->assertCount(1, $this->gateway->callsOf('capture'));
+        $this->assertSame([$this->cone->id => 1, $this->bar->id => 1], $this->rows($sale));
+        $this->assertSame([11, 10], [$this->qty($this->cone), $this->qty($this->bar)]);
+        $this->assertSame(500, (int) ((array) $sale->fresh()->meta_json)['correction']['value_cents']);
+
+        $this->actingAs($this->admin)->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.correction.by', 'Admin One')
+                ->where('recognitions.data.0.card.state', CardPaymentIntent::STATE_CAPTURED));
+    }
+
+    public function test_a_paynow_sale_can_be_adjusted_before_the_ai_answers(): void
+    {
+        $sale = $this->sale([], 0);
+        $recognition = $this->recognition($sale, [
+            'status' => SmartFreezerRecognition::STATUS_SUBMITTED, 'order_status' => null, 'completed_at' => null,
+            'vend_transaction_id' => null, 'verdict' => null, 'verdict_lines' => null,
+        ]);
+
+        $this->correct($recognition, [$this->cone->id => 1, $this->bar->id => 1], 500)->assertOk()->assertJsonPath('mode', 'paid');
+
+        $this->assertSame($sale->id, $recognition->fresh()->vend_transaction_id);
+        $this->assertSame([11, 10], [$this->qty($this->cone), $this->qty($this->bar)]);
+    }
+
+    public function test_a_door_try_that_did_not_open_is_never_offered_adjust_qty(): void
+    {
+        $sale = $this->sale([], 0);
+        $recognition = $this->recognition($sale, [
+            'status' => SmartFreezerRecognition::STATUS_SKIPPED, 'order_status' => null, 'completed_at' => null,
+            'vend_transaction_id' => null, 'verdict' => null, 'verdict_lines' => null,
+        ]);
+
+        $this->correct($recognition, [$this->cone->id => 1], 200)
             ->assertStatus(422)->assertJsonFragment(['message' => __('This session has no freezer sale matched to it yet.')]);
         $this->assertNull($recognition->fresh()->vend_transaction_id);
     }

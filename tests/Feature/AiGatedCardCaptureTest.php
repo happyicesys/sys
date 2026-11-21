@@ -161,20 +161,27 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame([['capture', '50001-SF1', 460]], $this->gateway->callsOf('capture'));
     }
 
-    /** Door never opened, or opened and nothing left: the same door close and the same empty answer. */
-    public function test_nothing_taken_releases_the_whole_hold_on_its_own(): void
+    /**
+     * Door never opened, or opened and nothing left: the same door close and the same empty answer.
+     * Brian, 2026-11-21: it waits for a person (a release cannot be undone), who may release it at $0.
+     */
+    public function test_nothing_taken_waits_for_a_person_who_may_release_the_hold(): void
     {
         $this->doorClosed();
         $this->verdict('took_less', []);
         $this->service->reconcile();
 
         $intent = CardPaymentIntent::sole();
-        $this->assertSame(CardPaymentIntent::STATE_VOIDED, $intent->state);
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->state);
         $this->assertSame([], $this->gateway->callsOf('capture'));
+        $this->assertSame([], $this->gateway->callsOf('void'));
+        $this->assertSame(CardPaymentService::PERSON_AI_MISMATCH, $this->service->personNeededBecause($intent));
+        $this->assertSame(0, $this->service->personSuggestedCents($intent), 'the AI count comes to $0: a release');
+
+        $intent = $this->service->chargeByPerson($intent, 0, \App\Models\User::factory()->create(['name' => 'Checker']));
+        $this->assertSame(CardPaymentIntent::STATE_VOIDED, $intent->state);
         $this->assertCount(1, $this->gateway->callsOf('void'));
-        $this->assertArrayNotHasKey('by_person', $intent->ai_decision);
-        $this->assertSame('AI saw nothing taken: hold released', $intent->ai_decision['reason']);
-        $this->assertNull($this->service->personNeededBecause($intent));
+        $this->assertSame('Checker', $intent->ai_decision['by_person']['name']);
     }
 
     public function test_some_taken_never_releases_on_its_own(): void
@@ -581,7 +588,7 @@ class AiGatedCardCaptureTest extends TestCase
     {
         $this->doorClosed();
         for ($i = 0; $i < $copies; $i++) {
-            $this->verdict('took_less', [], $sale, $recognition); // "nothing taken" would release the hold
+            $this->verdict('took_less', [], $sale, $recognition); // a trusted "nothing taken" would suggest a release
         }
         $this->service->reconcile();
 

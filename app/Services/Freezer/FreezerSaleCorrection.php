@@ -90,6 +90,9 @@ class FreezerSaleCorrection
             'recognition_id' => $recognition->id,
             'order_id' => $sale?->order_id,
             'mode' => $mode,
+            'ai_pending' => self::aiPending($recognition),
+            // Key in charge settles only a hold the AI left to a person; before that only a count does.
+            'can_key_in' => $intent !== null && $this->payments->personNeededBecause($intent) !== null,
             'blocked_reason' => $blocked,
             'hold_cents' => $intent ? (int) $intent->amount_cents : null,
             'collected_cents' => $sale ? $this->collected($sale, $intent) : null,
@@ -114,7 +117,7 @@ class FreezerSaleCorrection
         if ($this->mode($intent) === self::MODE_HOLD) {
             $this->assertCorrectable($sale, $vend, $intent);
             [$cents, $prices] = $this->value($basket, $sale, $vend, $intent, $confirmedCents);
-            $intent = $this->payments->chargeByPerson($intent, $cents, $by, $basket, $prices);
+            $intent = $this->payments->chargeByPerson($intent, $cents, $by, $basket, $prices, beforeAi: true);
             // The charge or the release is done: record the count on the sale too, or the row shows
             // no adjustment and the person has to adjust a second time. A count of nothing releases
             // the hold, and that is an adjustment as much as a charge (50002, 2026-11-06: released at
@@ -238,10 +241,12 @@ class FreezerSaleCorrection
             if (isset($decision['uncertain'])) {
                 return __('A charge on this hold may have gone through. Check Payrallel\'s portal and settle it first.');
             }
+            // While the AI is still working a person's count is final (Brian, 2026-11-21): it is
+            // charged now and the verdict, when it comes, moves nothing.
             $reason = match ($intent->state) {
                 CardPaymentIntent::STATE_AWAITING_AI => isset($decision['action'])
                     ? __('This charge has been decided and is being sent. Try again in a moment.')
-                    : ($this->payments->personNeededBecause($intent) === null ? __('The AI still has time to answer this session.') : null),
+                    : null,
                 CardPaymentIntent::STATE_CAPTURED, CardPaymentIntent::STATE_VOIDED => null,
                 default => __('This card payment is not finished, so there is nothing to adjust yet.'),
             };
@@ -334,18 +339,23 @@ class FreezerSaleCorrection
     }
 
     /**
-     * A session no AI verdict will ever link to its sale, so a person counts it from the sale found
-     * the way the verdict finds it (Brian, 2026-11-16, 50001 SF-50001-1794744521-21: Zijia answered
-     * 501 "503 goods not listed", and the row offered only Key in charge). That is an answer with
-     * no verdict (`failed`), or a T05 hold already waiting for a person (the AI never answered). Not
-     * a door try that did not open (`skipped`): its sale belongs to the try that opened.
+     * Whether a person may count this session from its sale before any verdict linked it, found the
+     * way the verdict finds it. Every session but a door try that did not open (`skipped`), whose
+     * sale belongs to the try that opened. First for sessions no verdict will ever link (Brian,
+     * 2026-11-16: Zijia answered 501 with no verdict, and the row offered only Key in charge); since
+     * 2026-11-21 also while the AI is still working (Brian: Adjust Qty is the final word, so it is
+     * offered before the AI's result arrives, and that result changes nothing once a person counted).
      */
-    public static function judgedByPersonOnly(SmartFreezerRecognition $recognition, bool $holdAwaitsPerson): bool
+    public static function countableBeforeVerdict(SmartFreezerRecognition $recognition): bool
     {
-        return $recognition->vend_transaction_id === null
-            && $recognition->verdict === null
-            && $recognition->status !== SmartFreezerRecognition::STATUS_SKIPPED
-            && ($recognition->status === SmartFreezerRecognition::STATUS_FAILED || $holdAwaitsPerson);
+        return $recognition->status !== SmartFreezerRecognition::STATUS_SKIPPED;
+    }
+
+    /** No answer from the AI yet (and one may still come): the screen says the count is final. */
+    public static function aiPending(SmartFreezerRecognition $recognition): bool
+    {
+        return $recognition->verdict === null && $recognition->order_status === null
+            && in_array($recognition->status, [SmartFreezerRecognition::STATUS_PENDING, SmartFreezerRecognition::STATUS_SUBMITTING, SmartFreezerRecognition::STATUS_SUBMITTED], true);
     }
 
     private function saleOf(SmartFreezerRecognition $recognition): ?VendTransaction
@@ -354,11 +364,7 @@ class FreezerSaleCorrection
             return VendTransaction::withoutGlobalScopes()->find($recognition->vend_transaction_id);
         }
         $vend = $this->vendOf($recognition);
-        if ($vend === null || $recognition->session_ref === null) {
-            return null;
-        }
-        $intent = $this->intentOf($recognition);
-        if (! self::judgedByPersonOnly($recognition, $intent !== null && $this->payments->personNeededBecause($intent) !== null)) {
+        if ($vend === null || $recognition->session_ref === null || ! self::countableBeforeVerdict($recognition)) {
             return null;
         }
 
@@ -366,9 +372,9 @@ class FreezerSaleCorrection
     }
 
     /**
-     * A person's count of a session the AI never judged links its sale, as a verdict would have, so
+     * A person's count of a session no verdict linked yet links its sale, as a verdict would have, so
      * the row, the AI Dashboard and the money rules read the sale from now on. A later verdict finds
-     * the same sale and keeps the link.
+     * the same sale and keeps the link; it is stored beside the count and moves no money or stock.
      */
     private function linkSale(SmartFreezerRecognition $recognition, VendTransaction $sale): void
     {

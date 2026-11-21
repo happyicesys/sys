@@ -7,16 +7,16 @@ use App\Services\SmartFreezer\RecognitionVerdict;
 /**
  * What a T05 hold is charged once the kiosk session's AI verdict is in (Brian, 2026-10-03).
  *
- * TEMPORARY, while people audit the AI on this new rollout (Brian, 2026-11-04): only three outcomes
- * settle on their own, a match, and nothing taken for either reason (the door never opened, or it
- * opened and nothing left). Mark1 cannot tell those two apart: the lid-never-lifted session reaches
- * it as the same door close, and the AI answers it with the same empty list. Everything else is
- * {@see PERSON}: nothing is charged or stored, and the hold waits for a person
- * (CardPaymentService::chargeByPerson; Brian, 2026-11-03: "once have any dispute or not sure from AI,
- * we should not let AI to finalize the charge"):
+ * Only a match settles on its own (Brian, 2026-11-21). Nothing taken (the door never opened, or it
+ * opened and nothing left; the AI answers both with the same empty list) released the hold on its
+ * own from 2026-11-04 to 2026-11-21; it now waits for a person like any difference, because a release
+ * cannot be undone if the AI missed goods. Everything else is {@see PERSON}: nothing is charged or
+ * stored, and the hold waits for a person (CardPaymentService::chargeByPerson; Brian, 2026-11-03:
+ * "once have any dispute or not sure from AI, we should not let AI to finalize the charge"). A
+ * person's Adjust Qty may settle the hold before the AI answers, and is final (2026-11-21):
  *
  *   match                         → the cart total, charged
- *   took_less, nothing taken      → the whole hold released
+ *   took_less, nothing taken      → a person decides; suggestion $0 (release)
  *   took_less / mixed / took_more → a person decides; what the AI saw is only a suggestion, in
  *                                   judgedCents + basket
  *   anything the AI cannot judge  → a person decides, no suggestion: cannot judge, unrecognised,
@@ -69,8 +69,10 @@ final class AiCaptureDecision
         if ($verdict === RecognitionVerdict::MATCH) {
             return new self(self::CAPTURE, $cart, null, $cart, 'AI matched the paid cart');
         }
+        // Brian, 2026-11-21: nothing taken is released by a person, never on its own (a release cannot
+        // be undone if the AI missed goods). The AI's empty count is offered as the suggestion: $0.
         if ($verdict === RecognitionVerdict::TOOK_LESS && self::nothingTaken($lines)) {
-            return new self(self::VOID, 0, null, 0, 'AI saw nothing taken: hold released', []);
+            return self::person('AI saw nothing taken: a person checks before the hold is released', 0, []);
         }
         if (! in_array($verdict, [RecognitionVerdict::TOOK_LESS, RecognitionVerdict::TOOK_MORE, RecognitionVerdict::MIXED], true)) {
             return self::person("AI could not judge the session ({$verdict})");

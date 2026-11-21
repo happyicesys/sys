@@ -323,13 +323,14 @@ class FreezerSaleAuditTest extends TestCase
         $this->assertArrayNotHasKey('basket_charged', $sale->fresh()->meta_json['audit']);
     }
 
-    public function test_nothing_taken_releases_the_hold_and_the_row_stops_being_a_sale(): void
+    public function test_nothing_taken_released_by_a_person_stops_the_row_being_a_sale(): void
     {
         $this->doorClosed();
         $sale = $this->trade();
         $this->verdict('took_less', 0, $sale);
 
-        $this->service->reconcile();
+        // Nothing taken waits for a person (2026-11-21), who releases it at the AI's $0.
+        $this->personChargesTheAiCount();
 
         $sale->refresh();
         $this->assertSame(0, (int) $sale->amount);
@@ -377,7 +378,8 @@ class FreezerSaleAuditTest extends TestCase
         $sale = $this->trade();
         $this->verdict('took_less', 0, $sale);
 
-        $this->service->reconcile();
+        // Nothing taken waits for a person (2026-11-21), who releases it at the AI's $0.
+        $this->personChargesTheAiCount();
 
         $this->assertSame(VendTransaction::SETTLEMENT_REFUNDED, (int) $sale->fresh()->settlement_status);
         $this->assertSame(5, $this->stockOnShelf());
@@ -525,7 +527,8 @@ class FreezerSaleAuditTest extends TestCase
         $this->assertSame([0, 0], $todayCount(), 'held for its audit: no amount and no qty');
 
         $this->verdict('took_less', 0, $sale);
-        $this->service->reconcile();
+        // Nothing taken waits for a person (2026-11-21), who releases it at the AI's $0.
+        $this->personChargesTheAiCount();
         $this->assertSame(VendTransaction::SETTLEMENT_REFUNDED, (int) $sale->fresh()->settlement_status);
         $this->assertGreaterThan(0, (int) $sale->fresh()->success_qty, 'precondition: a released hold keeps its qty');
         $this->assertSame([0, 0], $todayCount(), 'released hold: never a sale');

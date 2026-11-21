@@ -656,8 +656,8 @@ class FreezerRecognitionController extends Controller
      * 2026-11-15: Zijia answered SF-50001-1794744521-21 with a recognition error and no verdict).
      * For display only, a row with no verdict is shown with its sale, found the way evaluate finds it.
      * Nothing is written: the dashboard and every money rule still wait for the real link, which a
-     * verdict writes, or a person's Adjust Qty on a session the AI will not judge
-     * (FreezerSaleCorrection::judgedByPersonOnly, 2026-11-16).
+     * verdict writes, or a person's Adjust Qty, before the result too
+     * (FreezerSaleCorrection::countableBeforeVerdict, 2026-11-16 and 2026-11-21).
      */
     private function showSalesBeforeTheResult($recognitions): void
     {
@@ -758,11 +758,10 @@ class FreezerRecognitionController extends Controller
             // No AI answer yet: how long it has been waiting since it was sent (or since the videos came, before that).
             'ai_waiting' => $this->aiWaiting($r),
             // The Adjust Qty button (FreezerSaleCorrection, which says why when it refuses). It reads the
-            // linked sale; a sale shown before the result (showSalesBeforeTheResult) counts only once
-            // the AI will not judge it (Brian, 2026-11-16: Zijia answered 501 with no verdict and the
-            // row offered Key in charge alone).
+            // linked sale, or the sale shown before the result (showSalesBeforeTheResult): a person's
+            // count is final, so it is offered while the AI is still working too (Brian, 2026-11-21).
             'can_correct' => $sale !== null && $r->vend?->isSmartFreezer()
-                && ($r->vend_transaction_id !== null || FreezerSaleCorrection::judgedByPersonOnly($r, $personReason !== null)),
+                && ($r->vend_transaction_id !== null || FreezerSaleCorrection::countableBeforeVerdict($r)),
             'correction' => $this->correctionOf($r, $sale, $card),
             // A T05 hold this session's verdict charges (CardPaymentService::settleAwaitingAi).
             'card' => $card ? [

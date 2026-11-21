@@ -216,6 +216,9 @@ class FreezerReceiptTest extends TestCase
         $sale = $this->trade(units: 1);
         $this->verdict('took_less', 1, 0, $sale);
         $this->service->reconcile();
+        // Nothing taken waits for a person (2026-11-21): the page says so until they release it.
+        $this->assertSame(FreezerReceipt::REVIEW, $this->receipt()['status']);
+        $this->service->chargeByPerson(CardPaymentIntent::sole(), 0, \App\Models\User::factory()->create());
 
         $this->assertSame(FreezerReceipt::NOTHING, $this->receipt()['status']);
         $this->get($this->link())->assertOk()->assertSee("You didn't take anything", false)->assertSee('not charging you anything');

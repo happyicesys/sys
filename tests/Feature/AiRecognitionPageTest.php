@@ -1022,8 +1022,8 @@ class AiRecognitionPageTest extends TestCase
             ->where('recognitions.data.0.ai_check.0.state', 'pending')
             ->where('recognitions.data.0.ai_waiting.seconds', 3305)
             ->where('recognitions.data.0.ai_waiting.long', true)
-            // Adjust Qty reads the linked sale, which only the AI's result writes.
-            ->where('recognitions.data.0.can_correct', false));
+            // Adjust Qty is offered before the AI answers (Brian, 2026-11-21: a person's count is final).
+            ->where('recognitions.data.0.can_correct', true));
         $this->assertNull($waiting->fresh()->vend_transaction_id, 'showing the sale links nothing');
 
         // A short wait is not called long.

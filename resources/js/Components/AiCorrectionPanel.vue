@@ -7,6 +7,8 @@
         {{ $t('Check the videos, then set how many of each product really left the cabinet.') }}
       </p>
       <p v-if="editor.blocked_reason" class="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{{ editor.blocked_reason }}</p>
+      <!-- Brian, 2026-11-21: a person's count is the final word, before the AI's result too. -->
+      <p v-else-if="editor.ai_pending" class="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">{{ $t('The AI has not answered yet. Your count is final: the AI result that comes later is only shown beside it and changes nothing.') }}</p>
       <p v-if="message" class="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">{{ message }}</p>
 
       <div class="mt-4 overflow-x-auto rounded-xl border border-gray-200">
@@ -80,7 +82,7 @@
         </p>
 
         <div v-if="!confirming" class="mt-4 flex items-center justify-end gap-2">
-          <button v-if="editor.mode === 'hold'" type="button" class="mr-auto text-xs text-blue-600 hover:underline" @click="$emit('key-in')">{{ $t('Key in an amount instead') }}</button>
+          <button v-if="editor.mode === 'hold' && editor.can_key_in" type="button" class="mr-auto text-xs text-blue-600 hover:underline" @click="$emit('key-in')">{{ $t('Key in an amount instead') }}</button>
           <button type="button" class="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700" @click="confirming = true">{{ $t('Next') }}</button>
         </div>
         <div v-else class="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3">

@@ -1344,9 +1344,9 @@ unrecognised). Rules:
   (every 10 min, last 7 days) judges it once the sale arrives.
 - **The verdict moves money and stock only on a T05 hold.** A sale paid on a
   Payrallel (T05) terminal by a freezer on app 26+ is charged when its session's verdict is a
-  match, released when the AI saw nothing taken, else a person keys in the charge
+  match, else a person decides (nothing taken included, since 2026-11-21)
   (`CardPaymentService::settleAwaitingAi`, see the Remote card terminals section). Its stock follows
-  the AI only once a person accepts its count (Brian, 2026-11-03) or the AI releases the hold: the
+  the AI only once a person accepts its count (Brian, 2026-11-03) or a person releases the hold: the
   TRADE takes off the paid cart, then charging exactly the AI count or a person's own count on Correct
   moves the difference to that basket, or puts it all back when the count is nothing taken and the
   hold is released (`FreezerSaleAudit::stockBasket`,
@@ -1921,8 +1921,13 @@ only when a person presses it; too little goes to `owed_cents` (a T05 charge can
 lists it); **QR / NETS** → items and stock only, a refund goes through Refund Request. The AI's verdict is never
 overwritten: the count sits beside it in `meta_json.correction`, each one kept in `meta_json.corrections`. Refused
 while a claim other than a rejected one is on the sale (its rows point at the rows a correction rebuilds), after an item
-or full refund, while a refund or charge has no answer, and while the AI may still answer. A stale page is refused by
-the confirmed amount. Key in charge stays for a hold with no sale, and as "Key in an amount instead" (moves no stock). The screens say "adjust" ("Correct" is Sales Transactions' badge for an AI match); the code still says correction.
+or full refund, and while a refund or charge has no answer. A stale page is refused by the confirmed amount.
+**A person's count is final, before the AI's result too** (Brian, 2026-11-21, 50001 #222: paid 2 Samanco, only 1 was
+left). Adjust Qty is offered as soon as the session's sale is found (`FreezerSaleCorrection::countableBeforeVerdict`:
+any session but a skipped door try), and on an undecided hold it charges at once (`chargeByPerson(..., beforeAi: true)`,
+reason "counted by a person before the AI answered"). The verdict that lands later is still stored and shown as "AI saw",
+but moves nothing: the sweep (`settleAwaitingAiLocked`) acts only on a hold still `awaiting_ai`, and a person's decision
+is kept on the intent. Key in charge (no count) still waits for the AI to answer or for its 30 minutes (`can_key_in`). Key in charge stays for a hold with no sale, and as "Key in an amount instead" (moves no stock). The screens say "adjust" ("Correct" is Sales Transactions' badge for an AI match); the code still says correction.
 Regression coverage: `tests/Feature/FreezerSaleCorrectionTest.php`. It reads `smart_freezer_recognitions` only — the sale
 link is its `vend_transaction_id`; nothing is added to `vend_transactions`. The table has
 no global scope: an operator-restricted viewer gets only its own freezers' rows, and a
@@ -2069,14 +2074,13 @@ terminals are `card_terminal_units`, reconciled from the NETS CSV.
   The per-intent lock lives `CardPaymentService::lockSeconds()` = 3 × (timeout +
   connect timeout) + 10 s, the longest call chain under it; a device request that
   cannot get it answers 409 "busy — retry", never 500 (audit CARD-04).
-- **TEMPORARY rule while people audit the AI on this new rollout (Brian, 2026-11-04): a T05 hold
-  settles on its own in three outcomes only.** All ticks = charged. Door never opened, or opened and
-  nothing taken = the whole hold released: mark1 cannot tell these two apart and does not need to,
-  because the app settles a lid-never-lifted visit through the same door close and the AI answers both
-  with an empty list as `took_less` (`AiCaptureDecision`; 3 real never-opened sessions, 2026-11-02/03).
-  The safety rules below still apply, so an unverified answer or a paid product the AI was not asked
-  about (`incomplete`) waits. **A release cannot be undone**: if the AI missed goods that did leave,
-  Adjust Qty only records them as owed. **A hold the device never confirmed** used to be captured in
+- **Only a match settles a T05 hold on its own** (Brian, 2026-11-21, narrowing 2026-11-04's temporary three
+  outcomes). All ticks = charged. **Nothing taken now waits for a person too**: door never opened, or opened and nothing
+  taken (mark1 cannot tell these apart: the app settles a lid-never-lifted visit through the same door close and the AI
+  answers both with an empty list as `took_less`, `AiCaptureDecision`) is a `PERSON_AI_MISMATCH` with a $0 suggestion,
+  so a person checks the video and releases it (Adjust Qty to nothing, or "Use the AI count"). From 2026-11-04 to
+  2026-11-21 it released on its own; it no longer does because **a release cannot be undone**: if the AI missed goods
+  that did leave, Adjust Qty only records them as owed. **A hold the device never confirmed** used to be captured in
   full after the void window; it now goes `awaiting_ai` with no session ref, is listed above the table
   and in the health email, and a late door close names its session (it had never fired on prod;
   `PAYRALLEL_AI_CAPTURE=false` keeps the old capture). If such a TRADE arrives with no session on the

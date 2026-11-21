@@ -428,8 +428,8 @@ class CardPaymentService
                 }));
             });
 
-        // Holds waiting on their AI verdict: a match is charged and nothing taken released as soon as
-        // it is in. Anything else is never settled on its own — a person keys it in (chargeByPerson). A decided charge the provider
+        // Holds waiting on their AI verdict: a match is charged as soon as it is in (nothing taken waits
+        // for a person since 2026-11-21). Anything else is never settled on its own — a person keys it in (chargeByPerson). A decided charge the provider
         // refused is retried every AUTO_CAPTURE_RETRY_MINUTES (inside settleAwaitingAiLocked).
         CardPaymentIntent::query()
             ->where('state', CardPaymentIntent::STATE_AWAITING_AI)
@@ -493,8 +493,8 @@ class CardPaymentService
 
     /**
      * Settles a hold whose door has closed once the kiosk session's AI verdict in
-     * smart_freezer_recognitions is a match (charged) or nothing taken (released)
-     * ({@see AiCaptureDecision}). Anything else is never settled on its own (Brian, 2026-11-04; no
+     * smart_freezer_recognitions is a match (charged) ({@see AiCaptureDecision}; nothing taken waits
+     * for a person since 2026-11-21). Anything else is never settled on its own (Brian, 2026-11-04; no
      * verdict: 2026-10-10, no 72 h backstop any more) — a person keys in the charge ({@see chargeByPerson}). A charge is always ONE capture: above the
      * hold too, since Payrallel increments the authorisation on their backend (Brian, 2026-10-04); if
      * they refuse that increase, the hold itself is captured and the rest recorded in `owed_cents`.
@@ -715,15 +715,35 @@ class CardPaymentService
     /** The AI's count differs from what was paid; it is only a suggestion ({@see personSuggestedCents}). */
     public const PERSON_AI_MISMATCH = 'ai_mismatch';
 
+    /**
+     * A person counted the session on Adjust Qty while the AI still had time to answer (Brian,
+     * 2026-11-21): their count is final, so the hold is charged now and a later verdict changes nothing.
+     * Never returned by personNeededBecause — nothing waits for a person here.
+     */
+    public const PERSON_BEFORE_AI = 'before_ai';
+
     /** The words for a PERSON_AI_* reason, in the health email and on a keyed-in charge. */
     public static function personReasonText(string $because): string
     {
         return match ($because) {
+            self::PERSON_BEFORE_AI => 'counted by a person before the AI answered',
             self::PERSON_AI_NO_ANSWER => 'the AI never answered',
             self::PERSON_AI_UNSURE => 'the AI could not judge',
             self::PERSON_AI_MISMATCH => 'the AI count differs from what was paid',
             default => 'the AI gave no verdict',
         };
+    }
+
+    /**
+     * Still waiting and nothing decided: no charge or release chosen (by the AI or a person), none in
+     * flight and none that may have gone through. Only then may a person's count settle it.
+     */
+    public function undecided(CardPaymentIntent $intent): bool
+    {
+        $decision = (array) $intent->ai_decision;
+
+        return $intent->state === CardPaymentIntent::STATE_AWAITING_AI
+            && ! isset($decision['action']) && ! isset($decision['uncertain']) && ! isset($decision['inflight']);
     }
 
     /**
@@ -734,8 +754,7 @@ class CardPaymentService
     public function personNeededBecause(CardPaymentIntent $intent): ?string
     {
         $decision = (array) $intent->ai_decision;
-        if ($intent->state !== CardPaymentIntent::STATE_AWAITING_AI
-            || isset($decision['action']) || isset($decision['uncertain']) || isset($decision['inflight'])) {
+        if (! $this->undecided($intent)) {
             return null;
         }
         $answers = $intent->session_ref === null ? collect() : SmartFreezerRecognition::query()
@@ -782,17 +801,23 @@ class CardPaymentService
      *
      * @param  array<int, int>|null  $basket  what the person says left the cabinet
      * @param  array<int, int>  $unitPrices  the prices that count was valued at
+     * @param  bool  $beforeAi  a person's count (Adjust Qty) may also settle a hold the AI has not
+     *                          decided yet, a matching verdict the sweep has not sent included: the
+     *                          person's count is final (Brian, 2026-11-21). Key in charge never passes it.
      *
      * @throws DomainException when the hold is not (or no longer) waiting for a person
      */
-    public function chargeByPerson(CardPaymentIntent $intent, int $cents, User $by, ?array $basket = null, array $unitPrices = []): CardPaymentIntent
+    public function chargeByPerson(CardPaymentIntent $intent, int $cents, User $by, ?array $basket = null, array $unitPrices = [], bool $beforeAi = false): CardPaymentIntent
     {
         if ($cents < 0) {
             throw new DomainException('the charge cannot be negative');
         }
 
-        return $this->locked($intent, function (CardPaymentIntent $intent) use ($cents, $by, $basket, $unitPrices) {
+        return $this->locked($intent, function (CardPaymentIntent $intent) use ($cents, $by, $basket, $unitPrices, $beforeAi) {
             $because = $this->personNeededBecause($intent);
+            if ($because === null && $beforeAi && $this->undecided($intent)) {
+                $because = self::PERSON_BEFORE_AI;
+            }
             if ($because === null) {
                 throw new DomainException('this hold is no longer waiting for a person — reload the page');
             }
