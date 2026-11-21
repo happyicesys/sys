@@ -39,7 +39,7 @@ class FreezerAiListen extends Command
 
                 return self::FAILURE;
             }
-            $link->publishJob($recognition);
+            $link->publishJob($recognition, resend: true);   // a person's resend: sent again even if sent before
             $this->info("Sent session {$recognition->id} to {$link->prefix()}/jobs");
 
             return self::SUCCESS;

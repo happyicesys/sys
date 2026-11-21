@@ -221,6 +221,38 @@ class FreezerAiLinkTest extends TestCase
         $this->assertSame(0, SmartFreezerOwnAiRecognition::count());
     }
 
+    /** 2026-11-21 review: a list is not {product: units} (it was stored as products 0 and 1), nor is product 0. */
+    public function test_items_as_a_list_or_product_zero_are_refused(): void
+    {
+        $r = $this->recognition();
+        foreach ([[2, 1], ['0' => 1]] as $items) {
+            $ack = $this->link()->receive('freezer-ai/results/m1', json_encode(['session' => $r->id, 'items' => $items]));
+            $this->assertSame('bad items', json_decode($ack[1], true)['error']);
+        }
+        $this->assertSame(0, SmartFreezerOwnAiRecognition::count());
+    }
+
+    /** 2026-11-21 review: a job goes out once on its own, but a person's resend (`--send`) really sends it again. */
+    public function test_a_job_is_sent_once_but_a_person_can_resend_it(): void
+    {
+        $r = $this->recognition();
+        $this->assertTrue($this->link()->publishJob($r));
+        $this->assertFalse($this->link()->publishJob($r));
+        $this->assertCount(1, $this->published);
+
+        $this->artisan('freezer-ai:listen', ['--send' => $r->id])->assertSuccessful();
+        $this->assertCount(2, $this->published);
+        $this->assertSame('freezer-ai/jobs', $this->published[1][0]);
+    }
+
+    /** 2026-11-21 review: php-mqtt reads the delay in MILLISECONDS; 5 meant ~200 reconnects a second for ever. */
+    public function test_the_listener_reconnects_seconds_apart_and_gives_up_within_its_run(): void
+    {
+        $auto = config('mqtt-client.connections.mqtt_freezer_ai.connection_settings.auto_reconnect');
+        $this->assertGreaterThanOrEqual(1000, $auto['delay_between_reconnect_attempts']);
+        $this->assertLessThanOrEqual(10, $auto['max_reconnect_attempts']);
+    }
+
     public function test_a_mac_that_goes_quiet_reads_silent_and_its_last_will_reads_offline(): void
     {
         $this->link()->receive('freezer-ai/status/m1', json_encode(['state' => 'online', 'model' => 'v6']));

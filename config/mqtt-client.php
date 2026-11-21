@@ -150,10 +150,13 @@ return [
                 'socket_timeout' => 5,
                 'resend_timeout' => 10,
                 'keep_alive_interval' => 60,
+                // Milliseconds (php-mqtt). It was 5 = 5 ms with a million tries: a broker outage spun the 55 s listener
+                // ~200 reconnects a second and it never exited, so a new one started every 3 min (2026-11-21 review).
+                // Now 6 tries 5 s apart; then the run fails and the every-minute scheduler starts the next one.
                 'auto_reconnect' => [
                     'enabled' => true,
-                    'max_reconnect_attempts' => 1000000,
-                    'delay_between_reconnect_attempts' => 5,
+                    'max_reconnect_attempts' => 6,
+                    'delay_between_reconnect_attempts' => 5000,
                 ],
             ],
         ],

@@ -143,13 +143,19 @@ class OwnAiLink
         ];
     }
 
-    /** Announce one session to every connected Mac. Throws on a broker failure, so the job retries. */
-    public function publishJob(SmartFreezerRecognition $recognition): void
+    /**
+     * Announce one session to every connected Mac. Throws on a broker failure, so the job retries. Returns false when
+     * it was already sent (nothing published); `$resend` (a person's `--send`) publishes it again anyway.
+     */
+    public function publishJob(SmartFreezerRecognition $recognition, bool $resend = false): bool
     {
         // Claimed first, so the copy job and the safety net never both send it; released again if the broker fails.
         $key = 'freezer-ai:job-sent:'.$recognition->id;
         if (! Cache::add($key, Carbon::now()->toIso8601String(), now()->addDays(7))) {
-            return;
+            if (! $resend) {
+                return false;
+            }
+            Cache::put($key, Carbon::now()->toIso8601String(), now()->addDays(7));
         }
         try {
             $this->publisher->publish($this->prefix().'/jobs', json_encode($this->jobPayload($recognition)), 1);
@@ -157,6 +163,8 @@ class OwnAiLink
             Cache::forget($key);
             throw $e;
         }
+
+        return true;
     }
 
     /**
@@ -271,12 +279,12 @@ class OwnAiLink
         if ($items === [] || $items === null) {
             return $items === null ? null : [];
         }
-        if (! is_array($items)) {
-            return null;
+        if (! is_array($items) || array_is_list($items)) {
+            return null;                           // [2, 1] is not {product: units}: it would be stored as products 0 and 1
         }
         $out = [];
         foreach ($items as $product => $units) {
-            if (filter_var($product, FILTER_VALIDATE_INT) === false || filter_var($units, FILTER_VALIDATE_INT) === false
+            if (filter_var($product, FILTER_VALIDATE_INT) === false || (int) $product <= 0 || filter_var($units, FILTER_VALIDATE_INT) === false
                 || (int) $units < 0 || (int) $units > 50) {
                 return null;
             }
