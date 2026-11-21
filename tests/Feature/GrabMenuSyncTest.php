@@ -382,7 +382,7 @@ class GrabMenuSyncTest extends TestCase
         $this->actingAs($user)->postJson("/grab-menu-sync/{$sync->id}/resend")->assertForbidden();
     }
 
-    public function test_the_store_list_shows_when_grab_last_took_the_menu_and_when_its_items_and_prices_changed(): void
+    public function test_the_store_list_shows_when_grab_last_took_the_menu_and_when_and_by_whom_its_items_and_prices_changed(): void
     {
         $user = $this->staff();
         $times = fn () => DB::table('delivery_product_mapping_vend')->where('id', $this->a->id)->first(['grab_menu_pulled_at', 'grab_items_changed_at', 'grab_prices_changed_at']);
@@ -403,7 +403,7 @@ class GrabMenuSyncTest extends TestCase
 
         // A new rule moves prices, not the items listed; stock and the selling-time date never count.
         $this->travel(10)->minutes();
-        $this->saveRule(12500);
+        $this->saveRule(12500, $user->id);
         $this->grabPulls($this->a);
         $priced = $times();
         $this->assertNotSame($first->grab_prices_changed_at, $priced->grab_prices_changed_at);
@@ -421,6 +421,12 @@ class GrabMenuSyncTest extends TestCase
                 ->where('stores.0.grab_times.prices_changed_at', fn ($at) => $at !== null)
                 ->where('stores.0.grab_times.pulled_at', fn ($at) => $at !== null)
                 ->where('stores.0.grab_times.items_changed_at', fn ($at) => $at !== null)
+                // Who: the rule's saver caused the price change and is the store's last change; the first menu
+                // Grab took came with no change sent before it, so nobody is named.
+                ->where('stores.0.grab_times.prices_changed_by', ['by' => $user->name, 'kind' => GrabMenuSync::KIND_COMPANY_RULE])
+                ->where('stores.0.grab_times.items_changed_by', null)
+                ->where('stores.0.on_grab.sync_by', $user->name)
+                ->where('stores.0.on_grab.sync_kind', GrabMenuSync::KIND_COMPANY_RULE)
                 ->where('stores.0.orders', ['d30' => 3, 'd7' => 2, 'yesterday' => 1, 'today' => 1])
                 ->where('stores.1.grab_times.pulled_at', null));
     }

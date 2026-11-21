@@ -93,6 +93,7 @@
             </td>
             <td class="px-2 py-2" :title="store.on_grab ? [store.on_grab.sync_summary, store.on_grab.last_message].filter(Boolean).join(' — ') : ''">
               <SyncStatus v-if="store.on_grab" :row="store.on_grab" compact />
+              <div v-if="store.on_grab?.sync_at" class="mt-1 whitespace-nowrap text-xs text-gray-400">{{ $t('Last change :at by :name', { at: when(store.on_grab.sync_at), name: byName(store.on_grab.sync_by, store.on_grab.sync_kind) }) }}</div>
               <span v-else class="text-xs text-gray-400">{{ $t('Not checked yet') }}</span>
             </td>
             <td class="px-2 py-2 text-right">{{ store.orders?.d30 ?? store.orders_30d }}</td>
@@ -148,15 +149,39 @@ const pickedOld = computed(() => pickedStores.value.filter(store => !store.machi
 const pickedMachine = computed(() => pickedStores.value.filter(store => store.machine_menu_since))
 
 // "Items changed on Grab 21 Nov 01:05". Tracking began 2026-11-21: a store Grab took since then with no change says so.
+// "… by Brian": the change mark1 sent before Grab took it (none = it came another way, e.g. a mapping edit).
 const CHANGED = {
-  items: { at: 'items_changed_at', changed: at => t('Items changed on Grab :at', { at }), same: () => t('Items on Grab: no change seen yet'), unknown: () => t('Items on Grab: not known yet') },
-  prices: { at: 'prices_changed_at', changed: at => t('Prices changed on Grab :at', { at }), same: () => t('Prices on Grab: no change seen yet'), unknown: () => t('Prices on Grab: not known yet') },
+  items: {
+    at: 'items_changed_at',
+    by: 'items_changed_by',
+    changed: at => t('Items changed on Grab :at', { at }),
+    changedBy: (at, name) => t('Items changed on Grab :at by :name', { at, name }),
+    same: () => t('Items on Grab: no change seen yet'),
+    unknown: () => t('Items on Grab: not known yet'),
+  },
+  prices: {
+    at: 'prices_changed_at',
+    by: 'prices_changed_by',
+    changed: at => t('Prices changed on Grab :at', { at }),
+    changedBy: (at, name) => t('Prices changed on Grab :at by :name', { at, name }),
+    same: () => t('Prices on Grab: no change seen yet'),
+    unknown: () => t('Prices on Grab: not known yet'),
+  },
 }
 function changedLine(kind, times) {
   const line = CHANGED[kind]
   const at = times?.[line.at]
-  if (at) return line.changed(when(at))
+  const cause = times?.[line.by]
+  if (at) return cause ? line.changedBy(when(at), byName(cause.by, cause.kind)) : line.changed(when(at))
   return times?.pulled_at ? line.same() : line.unknown()
+}
+
+// A person's name, else what the system did it as.
+function byName(name, kind) {
+  if (name) return name
+  if (kind === 'nightly') return t('the nightly sync')
+  if (kind === 'self_check' || kind === 'resend') return t('the system check')
+  return t('the system')
 }
 
 function setLine(at, by) {

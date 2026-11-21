@@ -131,8 +131,12 @@ class GrabMenuOverview
         $siteTiers = GrabPriceList::siteTiers($this->bindings->pluck('vend_id')->filter()->all());
         // Grab Menu Sync: each store's latest change and whether Grab has it ("On Grab" column).
         $onGrab = GrabMenuSyncView::latestByBinding($this->bindings->pluck('id')->all());
+        $causes = GrabMenuSyncView::causesByBinding($this->bindings->mapWithKeys(fn (DeliveryProductMappingVend $binding) => [$binding->id => [
+            'items' => self::iso($binding->grab_items_changed_at),
+            'prices' => self::iso($binding->grab_prices_changed_at),
+        ]])->all());
 
-        return $this->bindings->map(function (DeliveryProductMappingVend $binding) use ($rules, $own, $orders, $siteTiers, $onGrab, $typers) {
+        return $this->bindings->map(function (DeliveryProductMappingVend $binding) use ($rules, $own, $orders, $siteTiers, $onGrab, $typers, $causes) {
             $refId = $binding->delivery_platform_ref_number_id;
             $row = $own[$refId] ?? null;
             $ref = $binding->deliveryPlatformRefNumber;
@@ -162,6 +166,9 @@ class GrabMenuOverview
                     'pulled_at' => self::iso($binding->grab_menu_pulled_at),
                     'items_changed_at' => self::iso($binding->grab_items_changed_at),
                     'prices_changed_at' => self::iso($binding->grab_prices_changed_at),
+                    // Who sent the change behind each: {by: name or NULL, kind}; NULL = not known.
+                    'items_changed_by' => $causes[$binding->id]['items'] ?? null,
+                    'prices_changed_by' => $causes[$binding->id]['prices'] ?? null,
                 ],
                 // What customers see on Grab: the GrabMerchant website read, or typed by a person on Grab Stores → Edit.
                 'grab_profile' => $ref?->grab_profile_checked_at ? [
