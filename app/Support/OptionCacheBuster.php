@@ -111,10 +111,7 @@ class OptionCacheBuster
         // product_mapping_options_{operator_id} — the plain "Mapping" filter
         // list on the same page, keyed the same way since 2026-09-15 (it used to
         // be ONE entry shared by every operator — audit M2-09).
-        self::onChange(ProductMapping::class, function () {
-            self::forgetPerOperator('upcoming_product_mapping_options_');
-            self::forgetPerOperator('product_mapping_options_');
-        });
+        self::onChange(ProductMapping::class, fn () => self::forgetProductMappingOptions());
 
         // categories_{classname} / category_groups_{classname} — bust the
         // changed row's classname plus every classname still in the table
@@ -198,6 +195,16 @@ class OptionCacheBuster
     {
         Event::listen('eloquent.saved: '.$modelClass, $callback);
         Event::listen('eloquent.deleted: '.$modelClass, $callback);
+    }
+
+    /**
+     * The Operation Dashboard's "Mapping" and "Upcoming Mapping" lists. Public for writers that change
+     * product_mappings without an Eloquent event (MappingRetirement's conditional update).
+     */
+    public static function forgetProductMappingOptions(): void
+    {
+        self::forgetPerOperator('upcoming_product_mapping_options_');
+        self::forgetPerOperator('product_mapping_options_');
     }
 
     /**

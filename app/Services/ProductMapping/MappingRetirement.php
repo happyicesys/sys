@@ -3,6 +3,7 @@
 namespace App\Services\ProductMapping;
 
 use App\Models\ProductMapping;
+use App\Support\OptionCacheBuster;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -126,8 +127,12 @@ class MappingRetirement
             return $due;
         }
 
-        return $due->filter(function ($m) use ($now) {
-            // Conditional on everything still holding: a machine bound or a person's change since the read wins.
+        $retired = $due->filter(function ($m) use ($now) {
+            // Read again just before the write: a machine bound, or set to move onto it, since the first read wins.
+            if (! $this->emptied([$m->id])->has($m->id)) {
+                return false;
+            }
+            // And conditional on the plain facts in the write itself.
             $updated = DB::table('product_mappings as pm')
                 ->where('pm.id', $m->id)
                 ->where('pm.is_active', true)
@@ -160,6 +165,14 @@ class MappingRetirement
 
             return true;
         })->values();
+
+        // The write above fires no Eloquent event, so clear the mapping dropdowns the saved hook would have cleared
+        // (Operation Dashboard "Mapping" / "Upcoming Mapping", 24 h cache).
+        if ($retired->isNotEmpty()) {
+            OptionCacheBuster::forgetProductMappingOptions();
+        }
+
+        return $retired;
     }
 
     /**

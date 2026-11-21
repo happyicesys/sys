@@ -159,6 +159,21 @@ class ProductMappingRetirementTest extends TestCase
         $this->assertNull(DB::table('product_mappings')->where('id', $new->id)->value('last_machine_left_at'));
     }
 
+    public function test_a_run_that_deactivates_clears_the_dashboard_mapping_dropdowns(): void
+    {
+        $new = $this->mapping('2611');
+        $old = $this->mapping('2610', $new->id);
+        DB::table('product_mappings')->where('id', $old->id)->update(['last_machine_left_at' => now()->subDays(4)]);
+        \Illuminate\Support\Facades\Cache::put('product_mapping_options_1', ['stale'], 3600);
+        \Illuminate\Support\Facades\Cache::put('upcoming_product_mapping_options_1', ['stale'], 3600);
+
+        $this->retire();
+
+        $this->assertFalse($this->isActive($old));
+        $this->assertNull(\Illuminate\Support\Facades\Cache::get('product_mapping_options_1'));
+        $this->assertNull(\Illuminate\Support\Facades\Cache::get('upcoming_product_mapping_options_1'));
+    }
+
     public function test_index_shows_when_an_emptied_mapping_will_deactivate(): void
     {
         $new = $this->mapping('2611');

@@ -289,6 +289,56 @@ class GrabMenuSyncTest extends TestCase
         $this->assertStringContainsString('confirmation never came', $b->last_message);
     }
 
+    public function test_a_store_grab_keeps_failing_is_sent_again_by_the_system_check_at_most_once_a_day(): void
+    {
+        Http::fake(['*/partner/v1/merchant/menu/notification' => Http::response([], 200)]);
+        $this->saveRule(12500);
+        $this->notify($this->a);
+        $this->grabSays(self::A, 'FAILED', ['errors' => ["subCategories shouldn't be empty"]]);
+        $pushesFor = fn () => collect(Queue::pushed(NotifyDeliveryPlatformUpdateMenu::class))
+            ->filter(fn ($job) => (fn () => $this->deliveryProductMappingVend->id)->call($job) === $this->a->id)->count();
+
+        // The first check sends it again, and Grab fails it again.
+        Queue::fake();
+        app(GrabMenuSyncTracker::class)->check();
+        $this->assertSame(1, $pushesFor());
+        // Grab fails it again (the same menu, the same refusal).
+        $this->row($this->a)->update(['status' => GrabMenuSyncStore::STATUS_FAILED, 'last_message' => "Grab could not take the menu: subCategories shouldn't be empty"]);
+        $this->assertSame(GrabMenuSyncStore::STATUS_FAILED, $this->row($this->a)->status);
+
+        // Hourly checks the same day leave it alone.
+        foreach ([2, 6, 12] as $hours) {
+            $this->travelTo(now()->addHours($hours));
+            Queue::fake();
+            app(GrabMenuSyncTracker::class)->check();
+            $this->assertSame(0, $pushesFor(), "sent again after {$hours} h");
+            $this->travelBack();
+        }
+
+        // A day later it is tried once more.
+        $this->travel(25)->hours();
+        Queue::fake();
+        app(GrabMenuSyncTracker::class)->check();
+        $this->assertSame(1, $pushesFor());
+    }
+
+    public function test_a_queued_ask_that_never_runs_is_given_up_instead_of_queued_forever(): void
+    {
+        $sync = $this->saveRule(12500); // the jobs are faked, so neither ask ever runs
+
+        $this->travel(31)->minutes();
+        Queue::fake();
+        app(GrabMenuSyncTracker::class)->check();
+        $this->assertSame(GrabMenuSyncStore::STATUS_WAITING, $this->row($this->a, $sync)->status, 'queued again first');
+        Queue::assertPushed(NotifyDeliveryPlatformUpdateMenu::class);
+
+        $this->travel(3)->hours();
+        app(GrabMenuSyncTracker::class)->check();
+        $row = $this->row($this->a, $sync);
+        $this->assertSame(GrabMenuSyncStore::STATUS_FAILED, $row->status);
+        $this->assertStringContainsString('never ran', $row->last_message);
+    }
+
     public function test_the_page_lists_changes_opens_their_stores_and_asks_again(): void
     {
         Http::fake(['*/partner/v1/merchant/menu/notification' => Http::response('', 429)]);

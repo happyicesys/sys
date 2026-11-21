@@ -52,6 +52,13 @@ class GrabMenuSyncTracker
     // The system check sends a store again at most this often.
     const RECHECK_MINUTES = 60;
 
+    // A store whose last ask failed is sent again by the system check at most this often.
+    const FAILED_RECHECK_MINUTES = 24 * 60;
+
+    // A queued ask that still has not run this long after its change gives up (its job keeps throwing before it
+    // reaches Grab, e.g. an operator with no Grab token, or the store link is gone) instead of being queued forever.
+    const STALE_GIVE_UP_MINUTES = 180;
+
     // A difference is acted on only when the previous check saw it too: a planogram change is on its way to
     // Grab through its own (unlogged) notify for a few minutes, and must not be sent twice.
     const DIFFER_SEEN_MINUTES = 8;
@@ -335,8 +342,12 @@ class GrabMenuSyncTracker
             if (! $grabFailed && (! $firstSeen || $firstSeen > now()->subMinutes(self::DIFFER_SEEN_MINUTES)->getTimestamp())) {
                 continue;
             }
+            // The store's last ask failed (Grab refused the menu, e.g. "subCategories shouldn't be empty", or the ask
+            // never reached Grab, e.g. no token): the system check tries it again at most once a day, not hourly. A
+            // person's own change is its own record and still goes out at once.
+            $recheckMinutes = $grabFailed ? self::FAILED_RECHECK_MINUTES : self::RECHECK_MINUTES;
             $recent = GrabMenuSyncStore::query()->where('delivery_product_mapping_vend_id', $binding->id)
-                ->where('created_at', '>=', now()->subMinutes(self::RECHECK_MINUTES))
+                ->where('created_at', '>=', now()->subMinutes($recheckMinutes))
                 ->whereHas('sync', fn ($sync) => $sync->where('kind', GrabMenuSync::KIND_SELF_CHECK))
                 ->exists();
             if (! $recent) {
@@ -404,10 +415,18 @@ class GrabMenuSyncTracker
         foreach ($stale->groupBy('delivery_product_mapping_vend_id') as $rows) {
             $binding = $rows->first()->binding;
             $moved += $rows->count();
-            GrabMenuSyncStore::query()->whereIn('id', $rows->pluck('id'))->update(['updated_at' => now()]);
-            if ($binding) {
-                NotifyDeliveryPlatformUpdateMenu::dispatch($binding, true)->onQueue('default');
+            $givenUp = $rows->filter(fn ($row) => $row->created_at < now()->subMinutes(self::STALE_GIVE_UP_MINUTES));
+            if (! $binding || $givenUp->isNotEmpty()) {
+                GrabMenuSyncStore::query()->whereIn('id', $rows->pluck('id'))->update([
+                    'status' => GrabMenuSyncStore::STATUS_FAILED,
+                    'last_message' => $binding ? 'The ask to Grab never ran (its job kept failing before reaching Grab)' : 'The store link no longer exists',
+                    'updated_at' => now(),
+                ]);
+
+                continue;
             }
+            GrabMenuSyncStore::query()->whereIn('id', $rows->pluck('id'))->update(['updated_at' => now()]);
+            NotifyDeliveryPlatformUpdateMenu::dispatch($binding, true)->onQueue('default');
         }
 
         return $moved;

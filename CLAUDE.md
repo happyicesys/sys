@@ -1193,7 +1193,8 @@ bound in ANY status (an inactive or factory machine still on it has not moved), 
 writer of `vends.product_mapping_id` must call `MappingRetirement::machinesLeft()` too), or the `user_logs` audit
 (Vend `product_mapping_id` [from, to], since 2026-07-01). A mapping no machine was seen leaving (a fresh or replicated
 copy) is never touched. Each deactivation writes a `user_logs` row (source `mapping-retire`, "Auto: all machines
-moved"). The Product Mapping list shows "All machines moved · deactivates <date>" under an emptied mapping's Active
+moved") and clears the Operation Dashboard mapping dropdowns (`OptionCacheBuster::forgetProductMappingOptions`; the
+raw update fires no Eloquent event). The Product Mapping list shows "All machines moved · deactivates <date>" under an emptied mapping's Active
 badge. Switched on again and left empty, a mapping goes again on the next run (its stamp is old): to keep an empty
 mapping, clear its upcoming mapping. Regression coverage: `tests/Feature/ProductMappingRetirementTest.php`.
 
@@ -2982,11 +2983,13 @@ open). Every credential on prod is `mart.partner_api`. Config: `config/grab.php`
   - **Retries**: 409 as before (Grab's wait + 15 s, 3 times); **429, 5xx or no answer: 1, 2, 4, 8, 15 min (+ ≤30 s),
     5 times** (`MAX_BUSY_RETRIES`). Before 2026-11-21 a 429 was dropped.
   - **`grab:check-menu-sync`** (every 10 min at :07): sent > 20 min with no pull → asked again (twice, then failed);
-    pulled > 20 min with no SUCCESS → synced ("confirmation never came"); a waiting row idle 30 min → queued again.
+    pulled > 20 min with no SUCCESS → synced ("confirmation never came"); a waiting row idle 30 min → queued again,
+    and failed once it is 3 h old (its job keeps throwing before Grab, e.g. no token) or its store link is gone.
     Then each selling Grab store's prices + items on Grab (`last_menu_json`, stock ignored) are compared with
     `buildMenu()` now; a store that differs on TWO checks in a row (a planogram change is on its way through its own
     unlogged notify for a few minutes), or whose last row failed, is sent again, forced, under one "System check" row,
-    at most once an hour; matching stores get `last_checked_at`. 403-refused stores are left out.
+    at most once an hour — once a DAY for a store whose last row failed (GFSBPOS-800-085 has failed nightly on "subCategories
+    shouldn't be empty" since 11-11; hourly would ask Grab 24 times a day for nothing); matching stores get `last_checked_at`. 403-refused stores are left out.
   - Kept 90 days (`grab:prune-menu-syncs`, 03:50). Coverage: `tests/Feature/GrabMenuSyncTest.php`.
   - **When each part last changed on Grab** (Brian, 2026-11-21: nobody can open a store's live menu on Grab). Each pull
     stamps the store link (`delivery_product_mapping_vend`): `grab_menu_pulled_at`, and when what Grab took changed
