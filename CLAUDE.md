@@ -2472,6 +2472,12 @@ never on "not a vending machine" at the call site.
   and returned; an arriving SKU gets one `is_upcoming_product` row hung on its
   (reused or new, inactive, position-less) channel row. The post-swap sync
   (`rebuildChannels` / `FreezerChannelSync`) assigns the real codes.
+  **The job is picked to the NEW mapping's capacity** (Brian, 2026-11-21, 50001 job 60785): a staying SKU's To
+  Pick Qty = its new capacity − what the machine holds (negative = take the extra out), an arriving SKU's = its
+  new capacity (not the vending default of 10), a pick frozen under the old capacity goes back to live. The page
+  reads the capacities from the `upcomingSkuCapacities` prop and tells staying from leaving rows by the mapping
+  item's `product_id`, which `ProductMappingItemResource` did not send until that day, so every current row of a
+  freezer read as leaving (struck out, picked and stocked in at −qty).
 - **Suffix codes are chiller-only, by decision** (Brian, 2026-09-24: a freezer
   basket does not need 11A/11B). `assertValidChannelCode` keeps freezer codes
   whole numbers; the APK constraint (`MqttPaymentClient.slotIds` drops a
