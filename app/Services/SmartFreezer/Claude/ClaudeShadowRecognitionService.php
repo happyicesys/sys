@@ -8,7 +8,6 @@ use App\Models\SmartFreezerClaudeRecognition as ClaudeRow;
 use App\Models\SmartFreezerRecognition;
 use App\Models\VendChannel;
 use App\Services\SmartFreezer\FreezerSaleLocator;
-use App\Services\SmartFreezer\OwnAi\OwnAiLink;
 use App\Services\SmartFreezer\PersonCount;
 use App\Services\SmartFreezer\RecognitionVerdict;
 use Carbon\Carbon;
@@ -95,18 +94,13 @@ class ClaudeShadowRecognitionService
         if ($recognition?->verdict === 'match') {
             return $skip(self::ZIJIA_MATCHED);
         }
-        // Our own AI first (Brian, 2026-11-19): Claude only when neither Zijia nor ours can settle the session.
-        $ownAi = app(OwnAiLink::class);
-        $ownAiOn = $recognition !== null && $ownAi->enabledFor($recognition);
-        if ($ownAiOn && $ownAi->settled($recognition)) {
-            return $skip(self::OWN_AI_MATCHED);
-        }
+        // Our own AI decides nothing (Brian, 2026-11-21, reversing 11-19): it is still learning and runs alongside on its
+        // own, so Claude follows Zijia alone -- whenever Zijia cannot settle a session, Claude counts. Neither skipped nor
+        // waited for because of our AI (#222: Zijia failed, ours was wrong, and Claude was skipped). OWN_AI_MATCHED stays
+        // only to read rows skipped before.
         $age = fn (string $key) => $row->created_at !== null
             && $row->created_at->lt(Carbon::now()->subMinutes(max(0, (int) config('smart_freezer.claude_recognition.'.$key))));
         if ($recognition?->verdict === null && ! $age('wait_for_zijia_minutes')) {
-            return null;
-        }
-        if ($ownAiOn && $ownAi->preferredAnswer($recognition->id) === null && ! $age('wait_for_own_ai_minutes')) {
             return null;
         }
 

@@ -374,18 +374,6 @@ class OwnAiLink
     }
 
     /**
-     * True when our AI settled this session on its own: its answer equals the paid order and it was sure enough to
-     * auto-accept (Brian, 2026-11-19: Claude is called only when neither Zijia nor ours can settle a session).
-     */
-    public function settled(SmartFreezerRecognition $recognition): bool
-    {
-        $answer = $this->preferredAnswer($recognition->id);
-
-        return $answer !== null && $answer->auto_accept !== false
-            && $this->verdict($answer, $this->saleOf($recognition)) === RecognitionVerdict::MATCH;
-    }
-
-    /**
      * Every worker heard from: name => [state online|offline|silent, model, seen_at]. "silent" = said online but nothing
      * for `worker_offline_after_seconds` (the Mac sends a status every minute).
      *

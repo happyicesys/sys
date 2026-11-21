@@ -259,9 +259,7 @@ return [
         // `wait_for_zijia_minutes`, then counts anyway. A person's command always counts.
         'only_when_needed' => (bool) env('CLAUDE_FREEZER_AI_ONLY_WHEN_NEEDED', false),
         'wait_for_zijia_minutes' => (int) env('CLAUDE_FREEZER_AI_WAIT_FOR_ZIJIA', 30),
-        // Our own AI first (Brian, 2026-11-19): with the Mac link on for the freezer, Claude is not called either when our
-        // AI's answer equals the paid order and it was sure (auto-accepted). It waits at most this long for our answer.
-        'wait_for_own_ai_minutes' => (int) env('CLAUDE_FREEZER_AI_WAIT_FOR_OWN_AI', 5),
+        // Our own AI never decides whether Claude runs (Brian, 2026-11-21): Claude follows Zijia alone.
         // Cameras sent (from the file name "-d1c3-"): 3 Real-Front View, 4 Top View. Camera 5 sees faces.
         'cameras' => array_values(array_filter(array_map('intval', explode(',', (string) env('CLAUDE_FREEZER_AI_CAMERAS', '3,4'))))),
         // The first and last frame of each video (the baskets before and after), the rest spread over the part where

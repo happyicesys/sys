@@ -163,9 +163,11 @@ class ClaudeFreezerRecognitionTest extends TestCase
         Queue::assertPushed(RunClaudeFreezerRecognition::class, 1);
     }
 
-    public function test_claude_is_called_only_when_neither_zijia_nor_our_own_ai_settled_the_session(): void
+    public function test_our_own_ai_never_decides_whether_claude_runs(): void
     {
-        // Brian, 2026-11-19: our own AI on the Macs first; Claude only when neither Zijia nor ours can settle a session.
+        // Brian, 2026-11-21 (reversing 11-19): our AI is still learning and runs alongside on its own. Whenever Zijia cannot
+        // settle a session Claude counts, whatever ours said, and Claude never waits for ours (#222: Zijia failed, ours
+        // matched the paid order wrongly, and Claude was skipped).
         config(['smart_freezer.claude_recognition.only_when_needed' => true, 'queue.default' => 'redis',
             'smart_freezer.own_ai.enabled' => true, 'smart_freezer.own_ai.vends' => [], 'smart_freezer.own_ai.worker_priority' => ['mini', 'm1']]);
         Queue::fake();
@@ -173,45 +175,27 @@ class ClaudeFreezerRecognitionTest extends TestCase
         $link = app(\App\Services\SmartFreezer\OwnAi\OwnAiLink::class);
         $ours = fn (SmartFreezerRecognition $r, array $items, bool $auto = true) => $link->receive('freezer-ai/results/mini',
             json_encode(['session' => $r->id, 'items' => $items, 'confidence' => 90, 'auto' => $auto]));
-        $session = fn (string $trade) => $this->zijia(['trade_id' => $trade, 'verdict' => 'took_less']);   // Zijia could not settle it
 
-        // Our answer is not in yet: Claude waits for it.
-        $a = $session('SDK-a');
-        $rowA = ClaudeRow::create(['smart_freezer_recognition_id' => $a->id, 'status' => 'pending']);
-        (new RunClaudeFreezerRecognition($rowA->id))->handle($this->service());
-        $this->assertSame(ClaudeRow::STATUS_PENDING, $rowA->fresh()->status);
-        Queue::assertPushed(RunClaudeFreezerRecognition::class, 1);
-
-        // Our AI matched the paid order and was sure: no Claude call.
+        // Zijia could not settle it and ours matched the paid order, sure of it: Claude counts anyway.
+        $a = $this->zijia(['trade_id' => 'SDK-a', 'verdict' => 'took_less']);
         $ours($a, [(string) $this->basque->id => 1]);
+        $rowA = ClaudeRow::create(['smart_freezer_recognition_id' => $a->id, 'status' => 'pending']);
+        $this->counter->answers[] = $this->counted([]);
         (new RunClaudeFreezerRecognition($rowA->id))->handle($this->service());
-        $this->assertSame([], $this->counter->catalogs);
-        $this->assertSame([ClaudeRow::STATUS_SKIPPED, ClaudeShadowRecognitionService::OWN_AI_MATCHED], [$rowA->fresh()->status, $rowA->fresh()->status_reason]);
-        $this->assertSame(CombinedCount::SETTLE, ClaudeShadowRecognitionService::combined($rowA->fresh(), $a, ['claude' => null, 'zijia' => null])['outcome']);
+        $this->assertSame(ClaudeRow::STATUS_DONE, $rowA->fresh()->status);
 
-        // Ours matched but was not sure (a person should check): Claude counts.
-        $b = $session('SDK-b');
-        $ours($b, [(string) $this->basque->id => 1], false);
+        // Zijia failed outright and ours has not answered: Claude does not wait for ours.
+        $b = $this->zijia(['trade_id' => 'SDK-b', 'verdict' => 'unrecognised']);
         $rowB = ClaudeRow::create(['smart_freezer_recognition_id' => $b->id, 'status' => 'pending']);
         $this->counter->answers[] = $this->counted([]);
         (new RunClaudeFreezerRecognition($rowB->id))->handle($this->service());
         $this->assertSame(ClaudeRow::STATUS_DONE, $rowB->fresh()->status);
 
-        // Ours differs from the paid order: Claude counts.
-        $c = $session('SDK-c');
-        $ours($c, [(string) $this->magnum->id => 1]);
-        $rowC = ClaudeRow::create(['smart_freezer_recognition_id' => $c->id, 'status' => 'pending']);
-        $this->counter->answers[] = $this->counted([]);
-        (new RunClaudeFreezerRecognition($rowC->id))->handle($this->service());
-        $this->assertSame(ClaudeRow::STATUS_DONE, $rowC->fresh()->status);
-
-        // Our AI never answered within its wait: Claude counts anyway.
-        $d = $session('SDK-d');
-        $rowD = ClaudeRow::create(['smart_freezer_recognition_id' => $d->id, 'status' => 'pending']);
-        $rowD->forceFill(['created_at' => now()->subMinutes(6)])->save();
-        $this->counter->answers[] = $this->counted([]);
-        (new RunClaudeFreezerRecognition($rowD->id))->handle($this->service());
-        $this->assertSame(ClaudeRow::STATUS_DONE, $rowD->fresh()->status);
+        // A row skipped under the old rule still reads as settled by our AI on the page.
+        $c = $this->zijia(['trade_id' => 'SDK-c', 'verdict' => 'took_less']);
+        $rowC = ClaudeRow::create(['smart_freezer_recognition_id' => $c->id, 'status' => ClaudeRow::STATUS_SKIPPED,
+            'status_reason' => ClaudeShadowRecognitionService::OWN_AI_MATCHED]);
+        $this->assertSame(CombinedCount::SETTLE, ClaudeShadowRecognitionService::combined($rowC, $c, ['claude' => null, 'zijia' => null])['outcome']);
     }
 
     public function test_only_when_needed_claude_waits_for_zijia_and_skips_a_session_zijia_matched(): void

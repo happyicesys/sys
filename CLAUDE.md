@@ -2034,10 +2034,11 @@ broker. `App\Services\SmartFreezer\OwnAi\OwnAiLink` is the one rule and the only
   SAME sessions (`zijia_same_*`, fed by the controller's per-session `qtyCheck`), then who answered and the Claude cost. The
   session figures (matches paid, right by a person, same count, together would settle) stay in the payload, not on screen. The Claude-only figures (Zijia units + Claude
   names) stay in `smart-freezer:claude-recognition --report` (`ClaudeZijiaComparison`).
-- **Claude only when neither Zijia nor ours settles a session** (Brian, 2026-11-19). With `only_when_needed`, `needed()` skips
-  Claude when Zijia matched (`ZIJIA_MATCHED`) or when our AI's preferred answer equals the paid order and was auto-accepted
-  (`OWN_AI_MATCHED`, `OwnAiLink::settled`); it waits up to `wait_for_own_ai_minutes` (5) for our answer, as it waits for Zijia.
-  The page reads such a skip as "not needed". With the link off for the freezer, Claude behaves exactly as before.
+- **Claude follows Zijia alone; our AI decides nothing** (Brian, 2026-11-21, reversing 11-19's "Claude only when neither
+  Zijia nor ours settles a session"). Our AI is still learning and runs alongside on its own: with `only_when_needed`,
+  `needed()` skips Claude only when Zijia matched (`ZIJIA_MATCHED`), never because of our answer, and never waits for it.
+  Under the old rule #222 (Zijia failed, ours matched the paid order wrongly) got no Claude count. Rows skipped before as
+  `OWN_AI_MATCHED` keep reading "not needed" on the page.
 - **LIVE on SG since 2026-11-19 13:11** (`969ca4d248`; SG `.env` `FREEZER_AI_LINK=true`, `FREEZER_AI_LINK_VENDS=50001,50002`,
   backup `/home/forge/.env.backup-before-freezer-ai-2026-11-19`; `subscribe:mqtt` restarted 13:09:44 for the prefix filter).
   Worker `m1` (MacBook) answers; the Mac mini joins as `mini`. First answers 189/191/193/195 (catch-up) and a prod-sent job
