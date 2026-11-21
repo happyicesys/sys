@@ -288,4 +288,86 @@ class FreezerStockLedgerTest extends TestCase
         $this->artisan('freezer:rebuild-stock', ['vend' => 50091, '--apply' => true])->assertSuccessful();
         $this->assertSame(2, (int) $this->channel->fresh()->qty);
     }
+
+    /** A person's count, through the same writer AI Recognition's Adjust Qty uses. */
+    private function adjust(string $orderId, int $units): void
+    {
+        $sale = VendTransaction::withoutGlobalScopes()->where('order_id', $orderId)->sole();
+        app(\App\Services\Freezer\FreezerSaleAudit::class)->applyCorrection($sale, $units ? [$this->cheesecake->id => $units] : [],
+            [$this->cheesecake->id => 430], ['value_cents' => 430 * $units, 'basket' => $units ? [$this->cheesecake->id => $units] : [], 'lines' => [],
+                'by' => ['user_id' => 1, 'name' => 'Brian'], 'at' => now()->toIso8601String()]);
+    }
+
+    // 50001 #222, 2026-11-21: the count held 1 Samanco, 2 were paid, the count stopped at 0; adjusting the sale to the 1
+    // really taken then put 1 back on an empty basket.
+    public function test_a_sale_beyond_the_count_records_the_shortfall_and_a_correction_pays_it_off_first(): void
+    {
+        $this->channel->update(['qty' => 1]);
+
+        $this->trade('26112115550450001', [0, 0]);
+        $sale = VendTransaction::withoutGlobalScopes()->where('order_id', '26112115550450001')->sole();
+        $this->assertSame(0, (int) $this->channel->fresh()->qty);
+        $this->assertSame([$this->cheesecake->id => 1], array_map('intval', (array) $sale->meta_json[FreezerStockLedger::SHORT]));
+
+        $this->adjust('26112115550450001', 1);
+        $this->assertSame(0, (int) $this->channel->fresh()->qty, 'the one taken was the one the count held: nothing comes back');
+
+        $this->adjust('26112115550450001', 0);
+        $this->assertSame(1, (int) $this->channel->fresh()->qty, 'nothing taken after all: the count is back to the 1 it held');
+
+        $this->adjust('26112115550450001', 1);
+        $this->assertSame(0, (int) $this->channel->fresh()->qty, 're-adjusting moves only the difference');
+
+        $this->assertSame(1, app(FreezerStockLedger::class)->unitsOut($sale->fresh())[$this->cheesecake->id], 'the sale still took 1 for the rebuild');
+    }
+
+    public function test_a_sale_within_the_count_is_corrected_as_before(): void
+    {
+        $this->channel->update(['qty' => 5]);
+
+        $this->trade('26112115560450001', [0, 0]);
+        $sale = VendTransaction::withoutGlobalScopes()->where('order_id', '26112115560450001')->sole();
+        $this->assertSame(3, (int) $this->channel->fresh()->qty);
+        $this->assertArrayNotHasKey(FreezerStockLedger::SHORT, (array) $sale->meta_json);
+
+        $this->adjust('26112115560450001', 1);
+        $this->assertSame(4, (int) $this->channel->fresh()->qty);
+    }
+
+    public function test_a_stock_change_has_a_capped_freezer_re_read_its_menu_once(): void
+    {
+        config(['smart_freezer.stock_cap.vends' => ['*']]);
+        $this->channel->update(['qty' => 3]);
+
+        $this->trade('26112115570450001', [0]);
+        $this->trade('26112115580450001', [0]);
+
+        Bus::assertDispatchedTimes(\App\Jobs\NudgeFreezerMenu::class, 1);
+    }
+
+    public function test_no_menu_nudge_when_the_cap_is_off(): void
+    {
+        config(['smart_freezer.stock_cap.vends' => []]);
+        $this->channel->update(['qty' => 3]);
+
+        $this->trade('26112115590450001', [0]);
+
+        Bus::assertNotDispatched(\App\Jobs\NudgeFreezerMenu::class);
+    }
+
+    public function test_the_menu_carries_each_products_stock_for_a_capped_freezer(): void
+    {
+        config(['smart_freezer.stock_cap.vends' => ['*']]);
+        $this->channel->update(['qty' => 2]);
+        $bar = Product::create(['code' => 'BAR-9', 'name' => 'Bar']);
+        ProductMappingItem::create(['product_mapping_id' => $this->vend->product_mapping_id, 'channel_code' => '42', 'product_id' => $bar->id]);
+
+        $rows = collect($this->getJson('/api/vends/50091/menu')->assertOk()->json())->keyBy('product_code');
+        $this->assertSame(2, $rows['CC-01']['stock']);
+        $this->assertArrayNotHasKey('stock', $rows['BAR-9'], 'no stock row yet: no cap rather than sold out');
+
+        config(['smart_freezer.stock_cap.vends' => ['50001']]);
+        $rows = collect($this->getJson('/api/vends/50091/menu')->assertOk()->json())->keyBy('product_code');
+        $this->assertArrayNotHasKey('stock', $rows['CC-01'], 'a freezer not listed is not capped');
+    }
 }

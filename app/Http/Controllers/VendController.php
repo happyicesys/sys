@@ -3557,6 +3557,15 @@ class VendController extends Controller
         // Menu NEW badge (2026-11-15): SKUs new to THIS machine carry `new_until` (freezer app 58+).
         $newUntil = \App\Services\Menu\NewSkuBadge::newUntilByProduct($vend);
 
+        // Stock cap (Brian, 2026-11-21, 50001 #222): a freezer under `smart_freezer.stock_cap` gets each product's
+        // `stock` = mark1's ledger count over its active slots, and freezer app 59+ never sells more. A product with
+        // no stock row gets no key (no cap), so a mapping not synced yet cannot read as sold out.
+        $stockByProduct = \App\Services\Freezer\FreezerStockLedger::capsStock($vend)
+            ? VendChannel::where('vend_id', $vend->id)->where('is_active', true)->whereNotNull('product_id')
+                ->groupBy('product_id')->selectRaw('product_id, SUM(qty) AS stock')->pluck('stock', 'product_id')
+                ->map(fn ($n) => max(0, (int) $n))->all()
+            : [];
+
         $dataArr = [];
 
         foreach ($sortedItems as $item) {
@@ -3599,6 +3608,9 @@ class VendController extends Controller
             }
             if (isset($newUntil[(int) $item->product_id])) {
                 $data['new_until'] = \App\Services\Menu\NewSkuBadge::wire($newUntil[(int) $item->product_id]);
+            }
+            if (array_key_exists((int) $item->product_id, $stockByProduct)) {
+                $data['stock'] = $stockByProduct[(int) $item->product_id];
             }
 
             if ($product?->translated_names_json) {

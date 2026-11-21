@@ -693,6 +693,7 @@ class HappyHourVendingTest extends TestCase
             'vend_code', 'channel_code', 'product_id', 'product_code', 'product_name', 'product_desc', 'product_is_halal',
             'product_is_healthier_choice', 'product_nutri_grade', 'product_sub_category', 'product_volumn_weight', 'sequence',
             'thumbnail', 'server_price', 'labels', 'welcome_sketch', 'happy_hour',
+            'stock',   // the stock cap (2026-11-21): a freezer under smart_freezer.stock_cap carries its count
         ], array_keys($row));
         $this->assertSame([[
             'slot_id' => $slot->id, 'starts_at' => '2026-10-09T14:00:00+08:00', 'ends_at' => '2026-10-09T15:00:00+08:00',

@@ -2,6 +2,7 @@
 
 namespace App\Services\Freezer;
 
+use App\Jobs\NudgeFreezerMenu;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Models\OpsJobItem;
 use App\Models\Vend;
@@ -9,6 +10,7 @@ use App\Models\VendChannel;
 use App\Models\VendTransaction;
 use App\Support\DispenseVerdict;
 use App\Support\FreezerTestSale;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -120,12 +122,73 @@ class FreezerStockLedger
             return;
         }
 
+        $short = [];
         foreach ($this->unitsDispensed($sale) as $productId => $units) {
+            // What the count could not give (it never goes below 0): the shelf had less than was paid for,
+            // or the count was already wrong. Kept on the sale, so a later correction pays that off first
+            // instead of putting back stock the count never took (#222, 2026-11-21: 1 Samanco counted,
+            // 2 paid, the count stopped at 0; adjusting to 1 then put 1 back on an empty basket).
+            $had = (int) VendChannel::where('vend_id', $vend->id)->where('product_id', $productId)->lockForUpdate()->max('qty');
+            if ($units > $had) {
+                $short[$productId] = $units - $had;
+            }
             VendChannel::where('vend_id', $vend->id)->where('product_id', $productId)
                 ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) - '.(int) $units.', 0)')]);
         }
+        if ($short !== []) {
+            ksort($short);
+            $sale->forceFill(['meta_json' => array_merge((array) $sale->meta_json, [self::SHORT => $short])])->saveQuietly();
+        }
 
         $this->refreshJson($vend);
+    }
+
+    /** `meta_json` key: product id => units the sale's TRADE asked for beyond what the count held. */
+    public const SHORT = 'stock_short';
+
+    /** `meta_json` key, on a sale with SHORT only: product id => units its corrections put back so far. */
+    public const APPLIED = 'stock_applied';
+
+    /**
+     * Move the stock for a sale's corrected movement `$moved` (against the TRADE, + back / − off), given
+     * what earlier corrections already moved. A sale the count fell short on puts back only what the
+     * count really took: its shortfall is paid off first. Any other sale moves exactly as before.
+     *
+     * @param  array<int, int>  $moved  the movement the sale should have now, against the TRADE
+     * @param  array<int, int>  $before  the movement recorded before (`audit.stock_moved`)
+     */
+    private function applyMovement(Vend $vend, VendTransaction $sale, array $moved, array $before): void
+    {
+        $meta = (array) $sale->meta_json;
+        $short = array_map('intval', (array) ($meta[self::SHORT] ?? []));
+        if ($short === []) {
+            foreach (array_keys($moved + $before) as $productId) {
+                $this->shift($vend, (int) $productId, ($moved[$productId] ?? 0) - ($before[$productId] ?? 0));
+            }
+
+            return;
+        }
+
+        $applied = array_map('intval', (array) ($meta[self::APPLIED] ?? []));
+        $target = [];
+        foreach (array_keys($moved + $short + $applied) as $productId) {
+            $want = ($moved[$productId] ?? 0) - ($short[$productId] ?? 0);
+            $this->shift($vend, (int) $productId, $want - ($applied[$productId] ?? 0));
+            if ($want !== 0) {
+                $target[$productId] = $want;
+            }
+        }
+        ksort($target);
+        // On the model only: the caller saves meta_json in the same transaction.
+        $sale->meta_json = array_merge($meta, [self::APPLIED => $target]);
+    }
+
+    private function shift(Vend $vend, int $productId, int $delta): void
+    {
+        if ($delta !== 0) {
+            VendChannel::where('vend_id', $vend->id)->where('product_id', $productId)
+                ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) + '.$delta.', 0)')]);
+        }
     }
 
     /**
@@ -142,10 +205,7 @@ class FreezerStockLedger
         }
 
         $moved = $this->chargeDifference($sale, $taken);
-        foreach ($moved as $productId => $back) {
-            VendChannel::where('vend_id', $vend->id)->where('product_id', $productId)
-                ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) + '.(int) $back.', 0)')]);
-        }
+        $this->applyMovement($vend, $sale, $moved, []);
 
         if ($moved !== []) {
             $this->refreshJson($vend);
@@ -170,13 +230,7 @@ class FreezerStockLedger
 
         $before = array_map('intval', (array) (((array) $sale->meta_json)['audit']['stock_moved'] ?? []));
         $moved = $this->chargeDifference($sale, $taken);
-        foreach (array_keys($moved + $before) as $productId) {
-            $delta = ($moved[$productId] ?? 0) - ($before[$productId] ?? 0);
-            if ($delta !== 0) {
-                VendChannel::where('vend_id', $vend->id)->where('product_id', $productId)
-                    ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) + '.$delta.', 0)')]);
-            }
-        }
+        $this->applyMovement($vend, $sale, $moved, $before);
         $this->refreshJson($vend);
 
         return $moved;
@@ -250,9 +304,41 @@ class FreezerStockLedger
         return $units;
     }
 
-    /** After commit: the dashboard JSON must read the committed qty. */
+    /** After commit: the dashboard JSON must read the committed qty, and the freezer its new `stock`. */
     private function refreshJson(Vend $vend): void
     {
         DB::afterCommit(fn () => SaveVendChannelsJson::dispatch($vend->id)->onQueue('default'));
+        self::nudgeMenu($vend);
+    }
+
+    /**
+     * Whether this freezer's `/menu` carries `stock` and its app caps a cart by it
+     * (`smart_freezer.stock_cap.vends`, "*" = every freezer; Brian, 2026-11-21).
+     */
+    public static function capsStock(Vend $vend): bool
+    {
+        if (! $vend->isSmartFreezer()) {
+            return false;
+        }
+        $listed = array_map('strval', (array) config('smart_freezer.stock_cap.vends'));
+
+        return in_array('*', $listed, true) || in_array((string) $vend->code, $listed, true);
+    }
+
+    /**
+     * The freezer re-reads `/menu` (its `stock`) shortly after a stock change: once per freezer per delay,
+     * after commit. The app also takes its own paid units off at once, so this only has to catch up.
+     */
+    public static function nudgeMenu(Vend $vend): void
+    {
+        if (! self::capsStock($vend)) {
+            return;
+        }
+        DB::afterCommit(function () use ($vend) {
+            $delay = max(1, (int) config('smart_freezer.stock_cap.nudge_delay_seconds', 15));
+            if (Cache::add('freezer-stock-nudge:'.$vend->id, 1, $delay)) {
+                NudgeFreezerMenu::dispatch($vend->id)->onQueue('default')->delay(now()->addSeconds($delay));
+            }
+        });
     }
 }

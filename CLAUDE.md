@@ -1181,6 +1181,26 @@ mapping / returned):
   reached a freezer only at its next reconnect or reboot (bench 2009). `PushMappingMenuSync` stays vending-only.
 Regression coverage: `tests/Feature/NewSkuBadgeTest.php`.
 
+## Freezer stock cap: the kiosk never sells more than mark1 counts
+
+Brian, 2026-11-21 (50001 #222: mark1's ledger held 1 Samanco, the kiosk sold 2, the customer found 1). Two halves:
+- **The ledger remembers a shortfall.** `FreezerStockLedger::sale()` never takes the count below 0; when a TRADE asks for
+  more than the count holds it records the gap on the sale (`meta_json.stock_short`, product => units). A later correction
+  (AI charge or a person's Adjust Qty) pays that off first (`applyMovement`, cumulative `meta_json.stock_applied`), so
+  adjusting such a sale to what was really taken no longer puts back stock the count never took. A sale with no shortfall
+  moves exactly as before. `audit.stock_moved` stays against the TRADE, so `unitsOut()` and `freezer:rebuild-stock` (the
+  last Stock In's count minus each sale's final units) are unchanged.
+- **The menu carries the count.** For a freezer listed in `smart_freezer.stock_cap.vends` (`FREEZER_STOCK_CAP_VENDS`,
+  default `*`; empty = off everywhere with no app update) `/menu` rows carry `stock` = the SKU's active slots' qty; a
+  product with no stock row carries no key (no cap rather than "Sold out"). Freezer app 59+ greys a product at 0 ("Sold
+  out"), stops "+" at the count, trims an open cart when a refresh lowers it, takes its own paid units off at once, and
+  ignores the cap in Testing Mode. Every ledger change (sale, Stock In / undo, correction, a manual qty edit through
+  `ChannelQtyAdjuster`) has the freezer re-read `/menu` (`FreezerStockLedger::nudgeMenu`: `NudgeFreezerMenu` on the
+  `default` queue, `nudge_delay_seconds` 15, once per freezer per window).
+- **Our AI** (freezer-ai) reads `stock_short` from its export and never auto-accepts such a sale ("paid for more than was
+  in stock").
+Regression coverage: `tests/Feature/FreezerStockLedgerTest.php`.
+
 ## Emptied mappings deactivate themselves 3 days after the last machine left
 
 Brian, 2026-11-21: ops deactivated old mappings by hand once every machine had moved to the upcoming one.

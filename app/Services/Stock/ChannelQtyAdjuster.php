@@ -100,6 +100,8 @@ class ChannelQtyAdjuster
         });
 
         SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
+        // A freezer that caps carts by stock re-reads it (FreezerStockLedger::capsStock).
+        \App\Services\Freezer\FreezerStockLedger::nudgeMenu($vend);
 
         return $log;
     }

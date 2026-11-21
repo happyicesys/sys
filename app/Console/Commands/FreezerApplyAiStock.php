@@ -93,6 +93,7 @@ class FreezerApplyAiStock extends Command
                 return [];
             }
             $moved = $ledger->followCharge($vend, $row, $taken);
+            $meta = (array) $row->meta_json;            // followCharge may have noted what it put back (stock_applied)
             $meta['audit']['stock_moved'] = $moved;
             $row->forceFill(['meta_json' => $meta])->saveQuietly();
 

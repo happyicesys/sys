@@ -397,4 +397,14 @@ return [
             'MYR' => (float) env('CLAUDE_FREEZER_AI_USD_MYR', 4.08),
         ],
     ],
+    // The stock cap (Brian, 2026-11-21, 50001 #222: mark1 said 1 Samanco was left, the kiosk sold 2). For a freezer listed
+    // here `/menu` carries each product's `stock` (FreezerStockLedger's count), and freezer app 59+ never lets a cart hold
+    // more than that ("Sold out" at 0; Testing Mode ignores it). A freezer not listed gets no `stock`: no cap, as before.
+    // Comma list of machine codes, "*" = every smart freezer; empty = off everywhere, with no app update.
+    'stock_cap' => [
+        'vends' => array_values(array_filter(array_map('trim', explode(',', (string) env('FREEZER_STOCK_CAP_VENDS', '*'))))),
+        // A stock change (sale, Stock In, adjustment) has the freezer re-read /menu this many seconds later,
+        // debounced per freezer; the app also takes its own paid units off at once.
+        'nudge_delay_seconds' => (int) env('FREEZER_STOCK_NUDGE_SECONDS', 15),
+    ],
 ];
