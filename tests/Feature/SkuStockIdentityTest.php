@@ -306,6 +306,59 @@ class SkuStockIdentityTest extends TestCase
     }
 
     /**
+     * 50001, job 60785 (Brian, 2026-11-21): Implement New Mapping showed only the arriving SKUs to pick.
+     * The page matched staying SKUs by `product_id`, which the mapping item never sent, so every current
+     * row read as leaving (struck out, picked and stocked in at -qty). And a staying SKU whose capacity
+     * changes (Basque Cheesecake 10 -> 5) must be picked to the NEW capacity, an arriving one to its own.
+     */
+    public function test_a_freezer_changeover_picks_staying_and_arriving_skus_to_the_new_capacity(): void
+    {
+        foreach (['update operations', 'read operations'] as $perm) {
+            Permission::findOrCreate($perm, 'web');
+        }
+        [$vend, , $a, $b] = $this->freezer(['21' => 'A', '51' => 'B']);
+        app(FreezerChannelSync::class)->sync($vend);
+        $this->rows($vend)->firstWhere('product_id', $a->id)->update(['qty' => 7]);
+        $this->rows($vend)->firstWhere('product_id', $b->id)->update(['qty' => 3]);
+        $c = Product::create(['code' => 'F-C', 'name' => 'Capybara Cake', 'freezer_slot_qty' => 20, 'is_active' => true]);
+        // Layout B: A stays on 21 but holds only 5 now, B stays unchanged, C arrives holding 1.
+        $upcoming = $this->freezerMapping('Layout B', ['21' => 'A', '51' => 'B', '22' => 'C'], ['A' => $a, 'B' => $b, 'C' => $c]);
+        ProductMappingItem::where('product_mapping_id', $upcoming->id)->where('product_id', $a->id)->update(['capacity_override' => 5]);
+        ProductMappingItem::where('product_mapping_id', $upcoming->id)->where('product_id', $c->id)->update(['capacity_override' => 1]);
+        $vend->forceFill(['upcoming_product_mapping_id' => $upcoming->id])->save();
+
+        $operator = \App\Models\Operator::find(1) ?? \App\Models\Operator::create(['id' => 1, 'code' => 'HIPL', 'name' => 'HIPL', 'country_id' => 1]);
+        $driver = User::factory()->create(['operator_id' => $operator->id]);
+        $driver->givePermissionTo(['update operations', 'read operations']);
+        $job = OpsJob::create(['code' => 900202, 'date' => now()->toDateString(), 'status' => 1, 'delivered_by' => $driver->id, 'operator_id' => 1]);
+        $item = OpsJobItem::create(['ops_job_id' => $job->id, 'vend_id' => $vend->id, 'customer_id' => $vend->customer_id, 'status' => OpsJob::STATUS_PENDING]);
+        foreach ($vend->fresh()->vendChannels as $vc) {
+            // A's To Pick Qty was frozen under the old capacity (24 - 7 = 17).
+            $frozen = (int) $vc->product_id === $a->id ? 17 : null;
+            OpsJobItemChannel::create(['ops_job_id' => $job->id, 'ops_job_item_id' => $item->id, 'vend_channel_id' => $vc->id, 'vend_channel_code' => $vc->code, 'vend_code' => $vend->code, 'product_id' => $vc->product_id, 'qty' => $vc->qty, 'capacity' => $vc->capacity, 'picked_qty' => $frozen, 'saved_picked_qty' => $frozen]);
+        }
+
+        $this->actingAs($driver)->post("/ops-jobs/items/{$item->id}/update/stock-action", ['stock_action_type' => 'implement_new_mapping'])->assertSessionHasNoErrors();
+
+        $current = $item->opsJobItemChannels()->where('is_upcoming_product', false)->get()->keyBy('product_id');
+        $this->assertNull($current[$a->id]->saved_picked_qty, 'a To Pick Qty frozen under the old capacity goes back to live');
+        $this->assertNull($current[$b->id]->saved_picked_qty, 'an unchanged SKU is left as it was');
+        $staged = $item->opsJobItemChannels()->where('is_upcoming_product', true)->sole();
+        $this->assertSame($c->id, (int) $staged->product_id);
+        $this->assertSame(1, (int) $staged->capacity);
+        $this->assertSame(1, (int) $staged->saved_picked_qty, 'an arriving SKU is filled to its new capacity, not 10');
+
+        $this->actingAs($driver)->get("/ops-jobs/items/{$item->id}/edit")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('OpsJob/EditItem')
+                ->where('upcomingSkuCapacities.'.$a->id, 5)
+                ->where('upcomingSkuCapacities.'.$b->id, 12)
+                ->where('upcomingSkuCapacities.'.$c->id, 1)
+                // The page tells staying from leaving SKUs by product_id.
+                ->where('opsJobItem.data.vend.upcomingProductMapping.productMappingItems', fn ($items) => collect($items)->pluck('product_id')->map(fn ($id) => (int) $id)->sort()->values()->all() === collect([$a->id, $b->id, $c->id])->sort()->values()->all()));
+    }
+
+    /**
      * 50001, job 60255 (2026-11-10): the first Stock In of an "implement new mapping" visit swapped the
      * machine to its new mapping; Undo Stock In leaves the swap in place, so every later Stock In of the
      * same job found no upcoming mapping, and the empty "keep" list returned EVERY SKU to zero.

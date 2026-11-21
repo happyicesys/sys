@@ -1772,7 +1772,32 @@ class OpsJobController extends Controller
                 ? null
                 : (SellingPrice::TYPE_MAPPINGS[$referencePriceType] ?? ('RP'.$referencePriceType)),
             'referencePrices' => $referencePrices,
+            'upcomingSkuCapacities' => $this->upcomingSkuCapacities($opsJobItem),
         ]);
+    }
+
+    /**
+     * Capacity of each SKU in the mapping an "implement new mapping" job moves a SKU-stocked machine
+     * (freezer, chiller) to, keyed by product id. The job page picks a SKU that stays to THIS capacity,
+     * not the current mapping's (Brian, 2026-11-21). Empty unless the job is that stock action and the
+     * upcoming mapping is in effect (gateUpcomingMappingByStartDate has already hidden a future one).
+     *
+     * @return array<int,int>
+     */
+    private function upcomingSkuCapacities(OpsJobItem $opsJobItem): array
+    {
+        $vend = $opsJobItem->vend;
+        if ($opsJobItem->stock_action_type !== 'implement_new_mapping' || ! $vend || ! $vend->isSkuStocked()) {
+            return [];
+        }
+        $upcoming = $vend->upcomingProductMapping ?: $vend->productMapping?->upcomingProductMapping;
+        if (! $upcoming) {
+            return [];
+        }
+
+        return collect(app(\App\Services\Stock\SkuPlanogram::class)->forMapping($upcoming->id, (string) $vend->machine_type))
+            ->map(fn ($slot) => (int) $slot->capacity)
+            ->all();
     }
 
     /**
@@ -2798,9 +2823,18 @@ class OpsJobController extends Controller
         $upcoming = app(\App\Services\Stock\SkuPlanogram::class)->forMapping($upcomingMapping->id, (string) $vend->machine_type);
         $currentProducts = $currentItems->pluck('product_id')->map(fn ($id) => (int) $id)->unique()->flip()->all();
 
-        foreach ($opsJobItem->opsJobItemChannels()->where('is_upcoming_product', false)->get() as $ojic) {
+        foreach ($opsJobItem->opsJobItemChannels()->where('is_upcoming_product', false)->with('vendChannel:id,capacity')->get() as $ojic) {
             if (! isset($upcoming[(int) $ojic->product_id])) {
                 $ojic->update(['picked_qty' => -$ojic->qty, 'saved_picked_qty' => -$ojic->qty]);
+
+                continue;
+            }
+            // A SKU that stays but whose capacity changes (Brian, 2026-11-21, 50001 job 60785: Basque
+            // Cheesecake 10 -> 5) must be picked to the NEW capacity. A To Pick Qty frozen under the old
+            // capacity would over- or under-pick, so it goes back to live; the job page then reads the
+            // new capacity from `upcomingSkuCapacities`.
+            if ((int) $upcoming[(int) $ojic->product_id]->capacity !== (int) ($ojic->vendChannel?->capacity ?? $ojic->capacity)) {
+                $ojic->update(['picked_qty' => null, 'saved_picked_qty' => null]);
             }
         }
 
@@ -2827,7 +2861,10 @@ class OpsJobController extends Controller
                 });
             }
             $product = \App\Models\Product::find($productId);
-            $defaultPickedQty = $this->upcomingDefaultPickedQty($opsJobItem, $product);
+            // A SKU-stocked machine fills a new SKU to its capacity in the new mapping, never the
+            // vending default of 10 (50001, 2026-11-21: a 1-unit cake came up as 10, outside the
+            // 0..1 the page offers, so the box showed blank).
+            $defaultPickedQty = $this->upcomingDefaultPickedQty($opsJobItem, $product, (int) $slot->capacity);
             $opsJobItem->opsJobItemChannels()->create([
                 'ops_job_id' => $opsJobItem->ops_job_id,
                 'ops_job_item_id' => $opsJobItem->id,
@@ -2853,9 +2890,9 @@ class OpsJobController extends Controller
      *     (machine qty for a NEW product is 0, so cap = limit itself)
      *   * is_ignore_limit on the item            -> limit not applied
      */
-    private function upcomingDefaultPickedQty($opsJobItem, $product): int
+    private function upcomingDefaultPickedQty($opsJobItem, $product, ?int $default = null): int
     {
-        $defaultPickedQty = self::UPCOMING_DEFAULT_PICKED_QTY;
+        $defaultPickedQty = max(0, $default ?? self::UPCOMING_DEFAULT_PICKED_QTY);
         if ($product && ! $product->is_available) {
             return 0;
         }

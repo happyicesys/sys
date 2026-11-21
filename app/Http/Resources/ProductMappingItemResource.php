@@ -17,6 +17,8 @@ class ProductMappingItemResource extends JsonResource
         return [
             'id' => $this->id,
             'channel_code' => $this->channel_code,
+            // The job page's "implement new mapping" diff for a freezer / chiller matches by product.
+            'product_id' => $this->product_id,
             'product' => ProductResource::make($this->whenLoaded('product')),
             'productMapping' => ProductMappingResource::make($this->whenLoaded('productMapping')),
             'selling_price_id' => $this->selling_price_id,

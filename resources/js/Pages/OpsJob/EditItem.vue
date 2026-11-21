@@ -1838,6 +1838,9 @@ const props = defineProps({
   // for that type - see OpsJobController::editItem.
   referencePriceType: { type: String, default: null },
   referencePrices: { type: Object, default: () => ({}) },
+  // Implement New Mapping on a freezer / chiller: { product_id: capacity } in the mapping the
+  // machine moves to (OpsJobController::upcomingSkuCapacities). A SKU that stays is picked to it.
+  upcomingSkuCapacities: { type: Object, default: () => ({}) },
   // Chiller channels whose SKU is not loaded on the machine in CityBox: the driver
   // can fill them, but their AI will not recognise them (Brian, 2026-09-21).
   cityboxUnrecognisable: { type: Array, default: () => [] },
@@ -1981,7 +1984,10 @@ function loadingData() {
         const skuMapping = skuVend.upcomingProductMapping || skuVend.productMapping?.upcomingProductMapping;
         if (!skuMapping) return false;
         const skuItems = skuMapping.productMappingItems || [];
-        return !skuItems.some(i => i.product_id == opsJobItemChannel.product_id);
+        // product_id is on the item since 2026-11-21; before that only product.id was sent, so
+        // every row read as "leaving" (struck out, picked and stocked in at -qty).
+        const rowProductId = opsJobItemChannel.product_id ?? opsJobItemChannel.vendChannel?.product?.id;
+        return !skuItems.some(i => (i.product_id ?? i.product?.id) == rowProductId);
       }
 
       // 1. Is there an upcoming row for this slot in the DB snapshot?
@@ -2034,7 +2040,20 @@ function loadingData() {
     const is_manually_replaced = !opsJobItemChannel.is_upcoming_product &&
                                   !!opsJobItemChannel.is_manually_replaced;
 
-    // picked logic
+    // Implement New Mapping on a freezer / chiller: a SKU that stays is filled to its capacity in
+    // the NEW mapping (Brian, 2026-11-21), and a new SKU's row carries its own capacity (its
+    // vend_channels row may be a retired one with an old capacity). Before Stock In only; after it
+    // the row's stored capacity is used, as for every row.
+    const isSkuSwap = opsJobItem.value.stock_action_type === 'implement_new_mapping'
+      && ['smart_freezer', 'smart_chiller'].includes(opsJobItem.value.vend?.machine_type)
+      && props.opsJobItem.data.status < 3;
+    const swapCapacity = (() => {
+      if (!isSkuSwap || is_replaced) return null;
+      if (opsJobItemChannel.is_upcoming_product) return Number(opsJobItemChannel.capacity) || 0;
+      const cap = props.upcomingSkuCapacities?.[opsJobItemChannel.product_id ?? opsJobItemChannel.vendChannel?.product?.id];
+      return cap == null ? null : Number(cap);
+    })();
+
     // picked logic
     const finalProduct = opsJobItemChannel.product || opsJobItemChannel.vendChannel.product;
     let pickedQty = 0;
@@ -2053,7 +2072,11 @@ function loadingData() {
         pickedQty = -opsJobItemChannel.qty;
       } else {
         const activeProduct = opsJobItemChannel.product || opsJobItemChannel.vendChannel.product;
-        const initialDefault = opsJobItemChannel.is_upcoming_product ? UPCOMING_DEFAULT_PICKED_QTY : (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty);
+        // A SKU that stays may now hold fewer than it has: the pick is then negative (take the
+        // extra out), so the machine ends at the new capacity.
+        const initialDefault = swapCapacity != null
+          ? (opsJobItemChannel.is_upcoming_product ? swapCapacity : swapCapacity - opsJobItemChannel.vendChannel.qty)
+          : (opsJobItemChannel.is_upcoming_product ? UPCOMING_DEFAULT_PICKED_QTY : (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty));
         pickedQty = initialDefault;
 
         if (opsJobItemChannel.saved_picked_qty != null) {
@@ -2063,7 +2086,8 @@ function loadingData() {
           pickedQty = opsJobItemChannel.saved_picked_qty;
         } else if (activeProduct) {
           if (!activeProduct.is_available) {
-            pickedQty = 0;
+            // Nothing comes from the warehouse, but units over a smaller new capacity still come out.
+            pickedQty = swapCapacity != null ? Math.min(0, initialDefault) : 0;
           } else if (activeProduct.max_ops_job_pick_limit != null && !opsJobItem.value.is_ignore_limit) {
             let maxLimit = activeProduct.max_ops_job_pick_limit;
             let currentQty = opsJobItemChannel.is_upcoming_product ? 0 : opsJobItemChannel.vendChannel.qty;
@@ -2174,7 +2198,7 @@ function loadingData() {
       vmc_after_qty: opsJobItemChannel.vmc_after_qty,
       blind_children: blindKids,
       // set static capacity and qty once opsJobItem status is more than 3 (stocked in)
-      capacity: props.opsJobItem.data.status >= 3 ? opsJobItemChannel.capacity : opsJobItemChannel.vendChannel.capacity,
+      capacity: swapCapacity != null ? swapCapacity : (props.opsJobItem.data.status >= 3 ? opsJobItemChannel.capacity : opsJobItemChannel.vendChannel.capacity),
       qty: opsJobItemChannel.is_upcoming_product ? 0 : (props.opsJobItem.data.vendChannelRecord ? opsJobItemChannel.vmc_before_qty : (props.opsJobItem.data.status >= 3 ? opsJobItemChannel.qty : opsJobItemChannel.vendChannel.qty)),
       virtual_is_error: opsJobItemChannel.virtual_is_error,
     }
