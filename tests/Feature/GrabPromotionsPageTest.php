@@ -289,4 +289,40 @@ class GrabPromotionsPageTest extends TestCase
             ->where('deals.7.key', 'delivery:order')
             ->where('deals.5.eater_types', ['all', 'new']));
     }
+
+    public function test_each_store_of_a_promotion_shows_its_site_grab_name_and_address(): void
+    {
+        // Brian, 2026-11-21: the store list names the machine, its Site, and the store as customers see it on Grab.
+        $site = Customer::create(['name' => 'Carissa Park Condo', 'code' => '15653', 'operator_id' => $this->grabMapping->operator_id, 'status_id' => Customer::STATUS_ACTIVE]);
+        DeliveryProductMappingVend::query()->withoutGlobalScopes()->where('platform_ref_id', self::STORE_A)->update(['customer_id' => $site->id]);
+        DeliveryPlatformRefNumber::query()->where('ref_number', self::STORE_A)->update([
+            'grab_store_name' => 'Ice Cream Vending Machine (Unmanned Store) - Carissa Park',
+            'grab_address' => '12 Tampines Ave 9, Tampines, 529555',
+        ]);
+
+        $this->actingAs($this->user)->post('/grab-promotions', $this->promotion())->assertSessionHasNoErrors();
+        $sends = DeliveryPlatformCampaignSend::query()->orderBy('id')->get();
+        $this->grabLists(self::STORE_A, 'NEW-'.self::STORE_A, $sends[0]->request_json);
+        $this->grabLists(self::STORE_B, 'NEW-'.self::STORE_B, $sends[1]->request_json);
+        $this->runQueuedSends();
+
+        $this->actingAs($this->user)->get('/grab-promotions')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('promotions.data.0.stores', 2)
+            ->where('promotions.data.0.stores.0.vend_code', 4754)
+            ->where('promotions.data.0.stores.0.site', '15653 Carissa Park Condo')
+            ->where('promotions.data.0.stores.0.store_name', 'Ice Cream Vending Machine (Unmanned Store) - Carissa Park')
+            ->where('promotions.data.0.stores.0.address', '12 Tampines Ave 9, Tampines, 529555')
+            ->where('promotions.data.0.stores.1.vend_code', 4755)
+            ->where('promotions.data.0.stores.1.site', null)
+            ->where('promotions.data.0.stores.1.store_name', null)
+            ->where('promotions.data.0.stores.1.address', null));
+
+        // Searchable by Site, Grab name and address too.
+        foreach (['carissa park condo', 'unmanned store', '529555'] as $search) {
+            $this->actingAs($this->user)->get('/grab-promotions?search='.urlencode($search))->assertOk()
+                ->assertInertia(fn (AssertableInertia $page) => $page->has('promotions.data', 1)->has('promotions.data.0.stores', 1));
+        }
+        $this->actingAs($this->user)->get('/grab-promotions?search=nowhere')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('promotions.data', 0));
+    }
 }

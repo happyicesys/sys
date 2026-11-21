@@ -114,7 +114,7 @@
 
         <div class="mt-3 flex flex-wrap items-end gap-2">
           <div class="w-full md:w-80">
-            <SearchInput :placeholderStr="$t('Store, machine or promotion name')" v-model="filters.search" @keyup.enter="search()">
+            <SearchInput :placeholderStr="$t('Machine, Site, store name, address or promotion')" v-model="filters.search" @keyup.enter="search()">
               {{ $t('Search') }}
             </SearchInput>
           </div>
@@ -166,8 +166,9 @@
                 </TableData>
                 <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-left text-sm">
                   <template v-if="promotion.stores.length === 1">
-                    <div class="font-mono whitespace-nowrap">{{ promotion.stores[0].merchant_id }}</div>
                     <MachineIdLink v-if="promotion.stores[0].vend_code" :code="promotion.stores[0].vend_code" />
+                    <div v-if="promotion.stores[0].site" class="text-xs text-gray-700">{{ promotion.stores[0].site }}</div>
+                    <div class="font-mono text-xs text-gray-500 whitespace-nowrap">{{ promotion.stores[0].merchant_id }}</div>
                   </template>
                   <template v-else>
                     <div class="font-medium">{{ $tc(':count store|:count stores', promotion.stores.length, { count: promotion.stores.length }) }}</div>
@@ -198,11 +199,13 @@
               </tr>
               <tr v-if="open[promotion.key]" class="bg-white">
                 <td colspan="7" class="px-3 py-2 border-b border-gray-200">
-                  <table class="text-sm mb-2">
+                  <div class="overflow-x-auto mb-2">
+                  <table class="text-sm">
                     <thead>
                       <tr class="text-left text-xs text-gray-500">
-                        <th class="pr-4 py-1 font-medium">{{ $t('Grab store') }}</th>
                         <th class="pr-4 py-1 font-medium">{{ $t('Machine') }}</th>
+                        <th class="pr-4 py-1 font-medium">{{ $t('Site') }}</th>
+                        <th class="pr-4 py-1 font-medium">{{ $t('Grab store') }}</th>
                         <th class="pr-4 py-1 font-medium">{{ $t('Status') }}</th>
                         <th class="pr-4 py-1 font-medium">{{ $t('Grab promotion ID') }}</th>
                         <th class="pr-4 py-1 font-medium">{{ $t('Last seen on Grab') }}</th>
@@ -210,9 +213,15 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <tr v-for="store in promotion.stores" :key="store.id" class="border-t">
-                        <td class="pr-4 py-1 font-mono">{{ store.merchant_id }} <span v-if="store.operator_code" class="text-xs text-gray-500 font-sans">{{ store.operator_code }}</span></td>
+                      <tr v-for="store in promotion.stores" :key="store.id" class="border-t align-top">
                         <td class="pr-4 py-1"><MachineIdLink v-if="store.vend_code" :code="store.vend_code" /><span v-else class="text-xs text-gray-500">{{ $t('No machine') }}</span></td>
+                        <td class="pr-4 py-1">{{ store.site ?? '—' }}</td>
+                        <td class="pr-4 py-1 min-w-[14rem] max-w-md">
+                          <div v-if="store.store_name" class="font-medium">{{ store.store_name }}</div>
+                          <div v-if="store.address" class="text-xs text-gray-600">{{ store.address }}</div>
+                          <div v-if="!store.store_name && !store.address" class="text-xs text-gray-500">{{ $t('Name and address not read from Grab yet') }}</div>
+                          <div class="text-xs text-gray-500"><span class="font-mono">{{ store.merchant_id }}</span> <span v-if="store.operator_code">{{ store.operator_code }}</span></div>
+                        </td>
                         <td class="pr-4 py-1 text-xs">{{ store.gone_at ? $t('Gone :time', { time: formatDateTime(store.gone_at) }) : (store.state === 'ongoing' ? $t('Live now') : $t('Upcoming')) }}</td>
                         <td class="pr-4 py-1 font-mono text-xs">{{ store.grab_campaign_id }}</td>
                         <td class="pr-4 py-1 text-xs">{{ formatDateTime(store.last_seen_at) }}</td>
@@ -223,6 +232,7 @@
                       </tr>
                     </tbody>
                   </table>
+                  </div>
                   <div v-if="promotion.objects.length > 3" class="text-xs text-gray-700 mb-2">
                     <span v-for="object in promotion.objects" :key="object.id" class="inline-block mr-3">{{ object.name || object.id }}</span>
                   </div>

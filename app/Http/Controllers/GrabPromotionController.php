@@ -68,6 +68,7 @@ class GrabPromotionController extends Controller
         $refIds = $this->visibleRefIds();
         $bindings = $this->openBindings($refIds);
         $machines = $bindings->pluck('vend_code', 'delivery_platform_ref_number_id');
+        $details = $this->storeDetails($refIds, $bindings);
 
         $campaigns = DeliveryPlatformLiveCampaign::query()
             ->whereIn('delivery_platform_ref_number_id', $refIds)
@@ -88,7 +89,8 @@ class GrabPromotionController extends Controller
             $needle = mb_strtolower($search);
             $campaigns = $campaigns->filter(fn ($campaign) => str_contains(mb_strtolower($campaign->merchant_id), $needle)
                 || str_contains(mb_strtolower((string) $campaign->name), $needle)
-                || str_contains(mb_strtolower((string) ($machines[$campaign->delivery_platform_ref_number_id] ?? '')), $needle));
+                || str_contains(mb_strtolower((string) ($machines[$campaign->delivery_platform_ref_number_id] ?? '')), $needle)
+                || str_contains(mb_strtolower(implode(' ', $details[$campaign->delivery_platform_ref_number_id] ?? [])), $needle));
         }
 
         $groups = $this->group($campaigns);
@@ -120,7 +122,7 @@ class GrabPromotionController extends Controller
 
         return Inertia::render('GrabPromotion/Index', [
             'promotions' => [
-                'data' => $pageGroups->map(fn ($group) => $this->groupRow($group, $machines, $bindings, $names, $menuItems))->values(),
+                'data' => $pageGroups->map(fn ($group) => $this->groupRow($group, $machines, $details, $bindings, $names, $menuItems))->values(),
                 'links' => ['prev' => $paginator->previousPageUrl(), 'next' => $paginator->nextPageUrl()],
                 'meta' => ['from' => $paginator->firstItem(), 'to' => $paginator->lastItem(), 'total' => $paginator->total()],
             ],
@@ -342,7 +344,7 @@ class GrabPromotionController extends Controller
             ->values();
     }
 
-    private function groupRow(array $group, $machines, Collection $bindings, array $names, array $menuItems): array
+    private function groupRow(array $group, $machines, array $details, Collection $bindings, array $names, array $menuItems): array
     {
         $first = $group['first'];
         $json = $first->campaign_json ?? [];
@@ -379,6 +381,7 @@ class GrabPromotionController extends Controller
                 'ref_id' => $campaign->delivery_platform_ref_number_id,
                 'operator_code' => $campaign->deliveryPlatformRefNumber?->operator?->code,
                 'vend_code' => $machines[$campaign->delivery_platform_ref_number_id] ?? null,
+                ...($details[$campaign->delivery_platform_ref_number_id] ?? ['site' => null, 'store_name' => null, 'address' => null]),
                 'state' => $campaign->state,
                 'source' => $campaign->source(),
                 'first_seen_at' => $campaign->first_seen_at?->toIso8601String(),
@@ -425,11 +428,6 @@ class GrabPromotionController extends Controller
             ->get()
             ->keyBy('id');
         $items = app(GrabPromotionService::class)->menuItemIds($bindings->pluck('delivery_platform_ref_number_id'));
-        $bindings->load([
-            'customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code'),
-            'vend' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'customer_id'),
-            'vend.customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code'),
-        ]);
         $grabStores = app(GrabStoreService::class);
         $accounts = [];
 
@@ -448,6 +446,31 @@ class GrabPromotionController extends Controller
                 'has_account' => $accounts[$operatorId],
             ];
         })->sortBy('vend_code')->values()->all();
+    }
+
+    /**
+     * What the store list of a promotion shows besides the machine (Brian, 2026-11-21): the machine's Site and the
+     * store's name and address as Grab shows them (read from the GrabMerchant website or typed on Grab Stores), keyed
+     * by store. Loads the bindings' Sites, which the New form's store list reads too.
+     */
+    private function storeDetails($refIds, Collection $bindings): array
+    {
+        $bindings->load([
+            'customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code'),
+            'vend' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'customer_id'),
+            'vend.customer' => fn ($query) => $query->withoutGlobalScopes()->select('id', 'code', 'name', 'virtual_customer_prefix', 'virtual_customer_code'),
+        ]);
+        $sites = $bindings->mapWithKeys(fn ($binding) => [$binding->delivery_platform_ref_number_id => $binding->siteName()]);
+
+        return DeliveryPlatformRefNumber::query()
+            ->whereIn('id', $refIds)
+            ->get(['id', 'grab_store_name', 'grab_address'])
+            ->mapWithKeys(fn ($ref) => [$ref->id => [
+                'site' => $sites[$ref->id] ?? null,
+                'store_name' => $ref->grab_store_name ?: null,
+                'address' => $ref->grab_address ?: null,
+            ]])
+            ->all();
     }
 
     // The store's open machine binding (one per store), newest first.
