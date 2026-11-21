@@ -327,7 +327,9 @@ class SkuStockIdentityTest extends TestCase
         ProductMappingItem::where('product_mapping_id', $upcoming->id)->where('product_id', $c->id)->update(['capacity_override' => 1]);
         $vend->forceFill(['upcoming_product_mapping_id' => $upcoming->id])->save();
 
-        $operator = \App\Models\Operator::find(1) ?? \App\Models\Operator::create(['id' => 1, 'code' => 'HIPL', 'name' => 'HIPL', 'country_id' => 1]);
+        // The job, vend and site belong to operator 1; the viewer must too, or the scoped job lookup hides it.
+        // forceFill: `id` is not fillable, and auto-increment is not reset between tests.
+        $operator = \App\Models\Operator::find(1) ?? tap((new \App\Models\Operator)->forceFill(['id' => 1, 'code' => 'HIPL', 'name' => 'HIPL', 'country_id' => 1]))->save();
         $driver = User::factory()->create(['operator_id' => $operator->id]);
         $driver->givePermissionTo(['update operations', 'read operations']);
         $job = OpsJob::create(['code' => 900202, 'date' => now()->toDateString(), 'status' => 1, 'delivered_by' => $driver->id, 'operator_id' => 1]);
@@ -338,7 +340,9 @@ class SkuStockIdentityTest extends TestCase
             OpsJobItemChannel::create(['ops_job_id' => $job->id, 'ops_job_item_id' => $item->id, 'vend_channel_id' => $vc->id, 'vend_channel_code' => $vc->code, 'vend_code' => $vend->code, 'product_id' => $vc->product_id, 'qty' => $vc->qty, 'capacity' => $vc->capacity, 'picked_qty' => $frozen, 'saved_picked_qty' => $frozen]);
         }
 
-        $this->actingAs($driver)->post("/ops-jobs/items/{$item->id}/update/stock-action", ['stock_action_type' => 'implement_new_mapping'])->assertSessionHasNoErrors();
+        $this->actingAs($driver)->post("/ops-jobs/items/{$item->id}/update/stock-action", ['stock_action_type' => 'implement_new_mapping'])
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame('implement_new_mapping', $item->fresh()->stock_action_type);
 
         $current = $item->opsJobItemChannels()->where('is_upcoming_product', false)->get()->keyBy('product_id');
         $this->assertNull($current[$a->id]->saved_picked_qty, 'a To Pick Qty frozen under the old capacity goes back to live');
