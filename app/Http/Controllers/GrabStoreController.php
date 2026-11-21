@@ -42,8 +42,11 @@ class GrabStoreController extends Controller
 {
     public const STATUSES = ['selling', 'paused', 'off', 'no_machine'];
 
-    // Grab sales columns, sortable (Brian, 2026-11-01: which machines to keep on Grab).
-    public const SORTS = ['sales_7d', 'sales_30d'];
+    // Sortable columns (Brian, 2026-11-01 the sales: which machines to keep on Grab; 2026-11-21 every header that can,
+    // both ways, like the Operation Dashboard). A figure opens highest first, a name A–Z.
+    public const SORTS = ['grab_store', 'machine', 'status', 'orders_30d', 'sales_30d', 'sales_7d', 'sales_yesterday', 'sales_today'];
+
+    public const SORTS_ASCENDING_FIRST = ['grab_store', 'machine', 'status'];
 
     public function __construct(
         protected GrabStoreService $grabStores,
@@ -58,6 +61,8 @@ class GrabStoreController extends Controller
         $search = trim((string) $request->search);
         $codes = trim((string) $request->codes);
         $sort = in_array($request->sort, self::SORTS, true) ? $request->sort : null;
+        $direction = in_array($request->direction, ['asc', 'desc'], true) ? $request->direction
+            : (in_array($sort, self::SORTS_ASCENDING_FIRST, true) ? 'asc' : 'desc');
 
         $base = DeliveryPlatformRefNumber::query()->whereIn('operator_id', $operatorIds);
         // What the search box, the Machine ID box and the status chips narrow the list to.
@@ -106,7 +111,7 @@ class GrabStoreController extends Controller
                     ->whereNull('gone_at'),
             ])
             ->tap($listed)
-            ->when($sort, fn ($query, $sort) => $query->orderByDesc($sort))
+            ->when($sort, fn ($query, $sort) => $this->sortBy($query, $sort, $direction))
             ->orderByRaw('status = ? DESC', [DeliveryPlatformRefNumber::STATUS_ACTIVE])
             ->orderBy('ref_number')
             ->paginate($request->numberPerPage === 'All' ? 10000 : (int) ($request->numberPerPage ?: 100))
@@ -138,6 +143,8 @@ class GrabStoreController extends Controller
             ->where('o.order_created_at', '>=', Carbon::now()->subDays(30))
             ->selectRaw('COALESCE(SUM(CASE WHEN o.order_created_at >= ? THEN o.subtotal_amount - o.promo_amount END), 0) AS sales_7d', [Carbon::now()->subDays(7)])
             ->selectRaw('COALESCE(SUM(o.subtotal_amount - o.promo_amount), 0) AS sales_30d')
+            ->selectRaw('COALESCE(SUM(CASE WHEN o.order_created_at >= ? AND o.order_created_at < ? THEN o.subtotal_amount - o.promo_amount END), 0) AS sales_yesterday', [Carbon::yesterday(), Carbon::today()])
+            ->selectRaw('COALESCE(SUM(CASE WHEN o.order_created_at >= ? THEN o.subtotal_amount - o.promo_amount END), 0) AS sales_today', [Carbon::today()])
             ->first();
 
         // Who typed a store's Grab name and address (the rest were read from the GrabMerchant website).
@@ -164,6 +171,8 @@ class GrabStoreController extends Controller
             'salesTotals' => [
                 'sales_7d' => (int) $salesTotals->sales_7d,
                 'sales_30d' => (int) $salesTotals->sales_30d,
+                'sales_yesterday' => (int) $salesTotals->sales_yesterday,
+                'sales_today' => (int) $salesTotals->sales_today,
             ],
             'filters' => [
                 'operators' => $request->operators,
@@ -171,6 +180,7 @@ class GrabStoreController extends Controller
                 'codes' => $codes,
                 'status' => $status,
                 'sort' => $sort,
+                'direction' => $sort ? $direction : null,
                 'numberPerPage' => $request->numberPerPage ?: 100,
             ],
             'templateOptions' => DeliveryProductMapping::query()
@@ -744,6 +754,26 @@ class GrabStoreController extends Controller
             'selling' => $query->where('status', '!=', $inactive)->whereExists($this->openBinding(fn ($b) => $b->where('b.is_active', true))),
             default => $query,
         };
+    }
+
+    // A store with nothing to sort by (no machine, no name read) always goes last, whichever way.
+    private function sortBy($query, string $sort, string $direction): void
+    {
+        $column = match ($sort) {
+            'grab_store' => DB::raw('COALESCE(grab_store_name, ref_number)'),
+            'machine' => DB::table('delivery_product_mapping_vend as b')
+                ->join('vends as v', 'v.id', '=', 'b.vend_id')
+                ->whereColumn('b.delivery_platform_ref_number_id', 'delivery_platform_ref_numbers.id')
+                ->whereNull('b.end_date')
+                ->selectRaw('MIN(CAST(v.code AS UNSIGNED))'),
+            default => $sort,
+        };
+        if ($sort === 'machine') {
+            $query->orderByRaw('('.$column->toSql().') IS NULL', $column->getBindings())->orderBy($column, $direction);
+
+            return;
+        }
+        $query->orderBy($column, $direction);
     }
 
     private function openBinding(?callable $also = null): \Closure

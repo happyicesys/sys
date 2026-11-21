@@ -71,7 +71,7 @@
               {{ grabProfilesCheckedAt ? $t('Names and addresses on Grab read :time from the GrabMerchant website', { time: formatDateTime(grabProfilesCheckedAt) }) : $t('Names and addresses on Grab not read yet') }}
             </p>
             <p class="text-sm text-gray-700">
-              {{ $t('Grab sales of these stores: :week last 7 days · :month last 30 days', { week: money(salesTotals?.sales_7d), month: money(salesTotals?.sales_30d) }) }}
+              {{ $t('Grab sales of these stores: L30d :month · L7d :week · Y\'day :yesterday · Today :today', { month: money(salesTotals?.sales_30d), week: money(salesTotals?.sales_7d), yesterday: money(salesTotals?.sales_yesterday), today: money(salesTotals?.sales_today) }) }}
             </p>
           </div>
         </div>
@@ -82,16 +82,26 @@
           <thead class="bg-gray-100">
             <tr class="divide-x divide-gray-200">
               <TableHead>#</TableHead>
-              <TableHead>{{ $t('Grab store') }}</TableHead>
-              <TableHead>{{ $t('Machine') }}</TableHead>
-              <TableHead>{{ $t('Status') }}</TableHead>
+              <!-- Every header that can sorts, both ways, like the Operation Dashboard (Brian, 2026-11-21). -->
+              <TableHead>
+                <SingleSortItem modelName="grab_store" :sortKey="filters.sort" :sortBy="filters.direction === 'asc'" @sort-table="sortTable">{{ $t('Grab store') }}</SingleSortItem>
+              </TableHead>
+              <TableHead>
+                <SingleSortItem modelName="machine" :sortKey="filters.sort" :sortBy="filters.direction === 'asc'" @sort-table="sortTable">{{ $t('Machine') }}</SingleSortItem>
+              </TableHead>
+              <TableHead>
+                <SingleSortItem modelName="status" :sortKey="filters.sort" :sortBy="filters.direction === 'asc'" @sort-table="sortTable">{{ $t('Status') }}</SingleSortItem>
+              </TableHead>
               <TableHead>{{ $t('Machine ID on Grab') }}</TableHead>
-              <TableHead>{{ $t('Orders') }}</TableHead>
-              <TableHead v-for="column in salesColumns" :key="column.key">
-                <button type="button" class="inline-flex items-center gap-1 hover:text-indigo-700" :title="$t('Sort by this, highest first')" @click="sortBy(column.key)">
-                  <span>{{ column.name }}</span>
-                  <span :class="filters.sort === column.key ? 'text-indigo-700' : 'text-gray-300'">▼</span>
-                </button>
+              <TableHead>
+                <SingleSortItem modelName="orders_30d" :sortKey="filters.sort" :sortBy="filters.direction === 'asc'" @sort-table="sortTable">{{ $t('Orders') }}</SingleSortItem>
+              </TableHead>
+              <!-- Grab sales L30d, L7d, yesterday and today in one column, like the Operation Dashboard's Sales (Brian, 2026-11-21). -->
+              <TableHead>
+                {{ $t('Grab sales') }}
+                <div class="grid grid-cols-[auto_auto] justify-center gap-x-2 gap-y-0.5 whitespace-nowrap">
+                  <SingleSortItem v-for="column in salesColumns" :key="column.key" :modelName="column.key" :sortKey="filters.sort" :sortBy="filters.direction === 'asc'" @sort-table="sortTable">{{ column.short }}</SingleSortItem>
+                </div>
               </TableHead>
               <TableHead>{{ $t('Grab sales per day') }}</TableHead>
               <TableHead></TableHead>
@@ -195,17 +205,15 @@
                   @click.stop
                 >{{ $tc(':count promotion on Grab|:count promotions on Grab', store.promotions_live) }}</a>
               </TableData>
-              <TableData
-                v-for="column in salesColumns"
-                :key="column.key"
-                :currentIndex="index"
-                :totalLength="rows.length"
-                inputClass="text-right whitespace-nowrap"
-              >
+              <TableData :currentIndex="index" :totalLength="rows.length" inputClass="text-right whitespace-nowrap">
                 <template v-if="store.binding">
-                  <div class="font-semibold">{{ money(store[column.key]) }}</div>
-                  <div class="text-xs text-gray-500">{{ $tc(':count order|:count orders', store[column.key + '_orders']) }}</div>
-                  <div v-if="daysOnMachine(store) < column.days" class="text-xs text-amber-700">
+                  <div v-for="column in salesColumns" :key="column.key" class="grid grid-cols-[2.5rem_auto] items-baseline gap-x-2" :title="$tc(':count order|:count orders', store[column.key + '_orders'])">
+                    <span class="text-left text-xs text-gray-500">{{ column.short }}</span>
+                    <span :class="store[column.key] ? 'text-gray-900' : 'text-gray-400'">
+                      {{ money(store[column.key]) }} <span class="text-xs text-gray-500">({{ store[column.key + '_orders'] }})</span>
+                    </span>
+                  </div>
+                  <div v-if="daysOnMachine(store) < 30" class="mt-1 text-xs text-amber-700">
                     {{ $tc('Only :count day on this machine|Only :count days on this machine', daysOnMachine(store)) }}
                   </div>
                 </template>
@@ -234,7 +242,7 @@
               </TableData>
             </tr>
             <tr v-if="!rows.length">
-              <td colspan="10" class="py-6 text-center text-sm text-gray-500">{{ $t('No Grab stores match.') }}</td>
+              <td colspan="9" class="py-6 text-center text-sm text-gray-500">{{ $t('No Grab stores match.') }}</td>
             </tr>
           </tbody>
         </table>
@@ -778,6 +786,7 @@ import Modal from '@/Components/Modal.vue';
 import OperatorFilter from '@/Components/OperatorFilter.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
+import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TrendSparkline from '@/Components/OpsDashboard/TrendSparkline.vue';
@@ -887,12 +896,16 @@ const filters = ref({
   status: props.filters.status ?? 'all',
   numberPerPage: props.filters.numberPerPage ?? 100,
   sort: props.filters.sort ?? null,
+  direction: props.filters.direction ?? null,
 })
 
 // Grab sales of the store's machine now: delivered orders less Grab promo.
+// L30d, L7d, yesterday, today; "(n)" = orders.
 const salesColumns = [
-  { key: 'sales_7d', days: 7, name: t('Grab sales, last 7 days') },
-  { key: 'sales_30d', days: 30, name: t('Grab sales, last 30 days') },
+  { key: 'sales_30d', short: t('L30d') },
+  { key: 'sales_7d', short: t('L7d') },
+  { key: 'sales_yesterday', short: t("Y'day") },
+  { key: 'sales_today', short: t('Today') },
 ]
 
 // The row's daily sales graph: L30d and L7d as a daily average, then yesterday and today (dollars).
@@ -914,8 +927,15 @@ function salesPoints(store) {
   ]
 }
 
-function sortBy(key) {
-  filters.value.sort = filters.value.sort === key ? null : key
+// The same header again turns the order round; a new one opens a figure highest first and a name A–Z.
+const ASCENDING_FIRST = ['grab_store', 'machine', 'status']
+function sortTable(key) {
+  if (filters.value.sort === key) {
+    filters.value.direction = filters.value.direction === 'asc' ? 'desc' : 'asc'
+  } else {
+    filters.value.sort = key
+    filters.value.direction = ASCENDING_FIRST.includes(key) ? 'asc' : 'desc'
+  }
   search()
 }
 
@@ -935,6 +955,7 @@ function search() {
     status: filters.value.status,
     numberPerPage: filters.value.numberPerPage,
     sort: filters.value.sort,
+    direction: filters.value.direction,
   }, { preserveState: true, replace: true })
 }
 

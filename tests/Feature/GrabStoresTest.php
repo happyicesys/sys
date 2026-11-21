@@ -319,7 +319,7 @@ class GrabStoresTest extends TestCase
             ->assertJsonPath('store.ref_number', self::MERCHANT);
     }
 
-    public function test_each_store_shows_its_machines_grab_sales_over_7_and_30_days_and_sorts_by_them(): void
+    public function test_each_store_shows_its_machines_grab_sales_l30d_l7d_yesterday_today_and_sorts_by_any_header(): void
     {
         $slow = $this->bindGrabStore(2867, self::MERCHANT, [11 => ['qty' => 5, 'capacity' => 10]]);
         $busy = $this->bindGrabStore(2868, '4-BUSY', [11 => ['qty' => 5, 'capacity' => 10]]);
@@ -360,7 +360,22 @@ class GrabStoresTest extends TestCase
                 ->where('stores.data.1.sales_30d_orders', 2)
                 ->where('filters.sort', 'sales_7d')
                 ->where('salesTotals.sales_7d', 3800)
-                ->where('salesTotals.sales_30d', 8300));
+                ->where('salesTotals.sales_30d', 8300)
+                ->where('salesTotals.sales_yesterday', 2800)
+                ->where('salesTotals.sales_today', 0)
+                ->where('stores.data.0.sales_yesterday', 2800)
+                ->where('filters.direction', 'desc'));
+
+        // Every sortable header turns round on a second click, and a name opens A–Z (Brian, 2026-11-21).
+        $this->actingAs($this->user)->get('/grab-stores?sort=sales_7d&direction=asc')
+            ->assertInertia(fn ($page) => $page->where('stores.data.0.ref_number', self::MERCHANT)->where('filters.direction', 'asc'));
+        $this->actingAs($this->user)->get('/grab-stores?sort=machine')
+            ->assertInertia(fn ($page) => $page->where('stores.data.0.ref_number', self::MERCHANT)->where('filters.direction', 'asc'));
+        $this->actingAs($this->user)->get('/grab-stores?sort=machine&direction=desc')
+            ->assertInertia(fn ($page) => $page->where('stores.data.0.ref_number', '4-BUSY'));
+        foreach (['grab_store', 'status', 'orders_30d', 'sales_30d', 'sales_yesterday', 'sales_today'] as $sort) {
+            $this->actingAs($this->user)->get("/grab-stores?sort={$sort}")->assertOk()->assertInertia(fn ($page) => $page->where('filters.sort', $sort));
+        }
 
         // A store moved to another machine counts only the machine it is on now.
         $this->service()->move($slow, $this->machine(2869), null, $this->user->id);

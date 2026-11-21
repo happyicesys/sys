@@ -2872,6 +2872,7 @@
     "Grab said :code · asked :count times · next at :at": "Grab 返回 :code · 已请求 :count 次 · 下次 :at",
     "Grab sales": "Grab 销售额",
     "Grab sales of these stores: :week last 7 days · :month last 30 days": "这些店铺的 Grab 销售额：近 7 天 :week · 近 30 天 :month",
+    "Grab sales of these stores: L30d :month · L7d :week · Y'day :yesterday · Today :today": "这些店铺的 Grab 销售额：近30天 :month · 近7天 :week · 昨天 :yesterday · 今天 :today",
     "Grab sales per day": "Grab 每日销售额",
     "Grab sales, last 30 days": "Grab 销售额（近 30 天）",
     "Grab sales, last 7 days": "Grab 销售额（近 7 天）",
