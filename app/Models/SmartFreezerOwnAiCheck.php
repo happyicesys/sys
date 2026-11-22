@@ -16,6 +16,9 @@ class SmartFreezerOwnAiCheck extends Model
 
     public const WRONG = 'wrong';
 
+    /** Brian, 2026-11-22: the video cannot show what left the cabinet (lost frames, camera down). Never trained or scored on. */
+    public const UNCLEAR = 'unclear';
+
     protected $guarded = ['id'];
 
     protected $casts = [

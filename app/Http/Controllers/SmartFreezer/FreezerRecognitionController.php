@@ -105,7 +105,7 @@ class FreezerRecognitionController extends Controller
     public function ownAiCheck(Request $request, SmartFreezerRecognition $recognition, OwnAiCheck $checks): JsonResponse
     {
         $data = $request->validate([
-            'outcome' => ['required', 'in:'.SmartFreezerOwnAiCheck::RIGHT.','.SmartFreezerOwnAiCheck::WRONG],
+            'outcome' => ['required', 'in:'.SmartFreezerOwnAiCheck::RIGHT.','.SmartFreezerOwnAiCheck::WRONG.','.SmartFreezerOwnAiCheck::UNCLEAR],
             'taken' => ['present_if:outcome,'.SmartFreezerOwnAiCheck::WRONG, 'array'],
             'taken.*' => ['integer', 'min:0', 'max:'.OwnAiCheck::MAX_UNITS],
             'note' => ['nullable', 'string', 'max:2000'],
@@ -120,9 +120,11 @@ class FreezerRecognitionController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => $check->outcome === SmartFreezerOwnAiCheck::RIGHT
-                ? __('Saved: HappyIce AI was right. The office Mac learns from it at 03:15.')
-                : __('Saved: HappyIce AI was wrong, with the right count. The office Mac learns from it at 03:15.'),
+            'message' => match ($check->outcome) {
+                SmartFreezerOwnAiCheck::RIGHT => __('Saved: HappyIce AI was right. The office Mac learns from it at 03:15.'),
+                SmartFreezerOwnAiCheck::UNCLEAR => __('Saved: the video cannot show what was taken. This sale is left out of HappyIce AI\'s training and score.'),
+                default => __('Saved: HappyIce AI was wrong, with the right count. The office Mac learns from it at 03:15.'),
+            },
         ]);
     }
 

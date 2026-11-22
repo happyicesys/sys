@@ -120,6 +120,27 @@ class OwnAiCheckTest extends TestCase
         $this->assertEquals([$this->musang->id => 2, $this->grape->id => 1], $check->items);
     }
 
+    public function test_cant_tell_keeps_no_truth_and_is_left_out_of_the_score(): void
+    {
+        $this->actingAs($this->checker())->postJson("/ai-recognition/{$this->r->id}/happyice-check", [
+            'outcome' => 'unclear', 'note' => 'camera 3 stopped before the lid opened',
+        ])->assertOk();
+
+        $check = SmartFreezerOwnAiCheck::sole();
+        $this->assertSame('unclear', $check->outcome);
+        $this->assertEquals([], (array) $check->items);
+        $this->assertEquals([$this->musang->id => 2, $this->grape->id => 1], $check->ai_items);
+
+        // The form starts from HappyIce AI's count again, and the score box judges by the paid order as if unchecked.
+        $lines = collect($this->getJson("/ai-recognition/{$this->r->id}/happyice-check")->json('editor.lines'))->keyBy('product_id');
+        $this->assertSame(1, $lines[$this->grape->id]['taken']);
+        $this->actingAs($this->checker())->get('/ai-recognition?date_from=')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('recognitions.data.0.own_ai.check.outcome', 'unclear')
+                ->where('dashboard.happyice.ours_wrong_qty', 0)
+                ->where('dashboard.happyice.ours_unchecked_qty', 1));
+    }
+
     public function test_wrong_with_happyice_own_count_is_refused(): void
     {
         $this->actingAs($this->checker())->postJson("/ai-recognition/{$this->r->id}/happyice-check", [

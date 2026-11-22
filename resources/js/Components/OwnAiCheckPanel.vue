@@ -10,10 +10,12 @@
         <InformationCircleIcon class="mt-0.5 h-4 w-4 flex-none text-violet-500" aria-hidden="true" />
         <span>{{ $t('Only HappyIce AI learns from this, at 03:15 each night. It changes no sale, money or stock: use Adjust Qty for that.') }}</span>
       </p>
-      <p v-if="editor.check" class="mt-2 rounded-lg border px-3 py-2 text-xs" :class="editor.check.outcome === 'right' ? 'border-green-300 bg-green-50 text-green-900' : 'border-rose-300 bg-rose-50 text-rose-900'">
+      <p v-if="editor.check" class="mt-2 rounded-lg border px-3 py-2 text-xs" :class="editor.check.outcome === 'right' ? 'border-green-300 bg-green-50 text-green-900' : editor.check.outcome === 'unclear' ? 'border-gray-300 bg-gray-50 text-gray-800' : 'border-rose-300 bg-rose-50 text-rose-900'">
         {{ editor.check.outcome === 'right'
           ? $t('Checked by :name on :at: HappyIce AI was right.', { name: editor.check.by || '?', at: editor.check.at })
-          : $t('Checked by :name on :at: HappyIce AI was wrong.', { name: editor.check.by || '?', at: editor.check.at }) }}
+          : editor.check.outcome === 'unclear'
+            ? $t('Checked by :name on :at: the video cannot show what was taken.', { name: editor.check.by || '?', at: editor.check.at })
+            : $t('Checked by :name on :at: HappyIce AI was wrong.', { name: editor.check.by || '?', at: editor.check.at }) }}
         {{ $t('Saving again replaces that check.') }}
       </p>
       <p v-if="message" class="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">{{ message }}</p>
@@ -73,6 +75,9 @@
       </label>
       <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
         <button v-if="changed" type="button" class="mr-auto text-xs text-gray-600 hover:underline" @click="reset">{{ $t('Back to HappyIce AI\'s count') }}</button>
+        <button type="button" class="inline-flex items-center gap-1 rounded-lg border border-gray-400 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-40" :disabled="sending" @click="save('unclear')">
+          <QuestionMarkCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t('Can\'t tell from the video') }}
+        </button>
         <button type="button" class="inline-flex items-center gap-1 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:opacity-40" :disabled="sending || changed" @click="save('right')">
           <CheckCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t('HappyIce AI is right') }}
         </button>
@@ -89,7 +94,7 @@
 <script setup>
 import axios from 'axios';
 import { computed, onMounted, ref } from 'vue';
-import { CheckCircleIcon, InformationCircleIcon, PhotoIcon, PlusIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, InformationCircleIcon, PhotoIcon, PlusIcon, QuestionMarkCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { t, tk } from '@/i18n';
 
 // Brian, 2026-11-22: a person checks HappyIce AI's count; the office Macs train on it at 03:15. Moves nothing.

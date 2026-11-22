@@ -58,7 +58,8 @@ final class HappyIceZijiaComparison
         $claude = ClaudeRow::whereIn('smart_freezer_recognition_id', $ids)->get()->keyBy('smart_freezer_recognition_id');
         // A person's check of HappyIce AI's count (OwnAiCheck, Brian 2026-11-22): the truth for OUR units where no Adjust Qty
         // count exists. Zijia's units keep the Zijia box's own rule.
-        $checks = SmartFreezerOwnAiCheck::whereIn('smart_freezer_recognition_id', $ids)->get(['smart_freezer_recognition_id', 'items'])
+        $checks = SmartFreezerOwnAiCheck::whereIn('smart_freezer_recognition_id', $ids)->where('outcome', '!=', SmartFreezerOwnAiCheck::UNCLEAR)
+            ->get(['smart_freezer_recognition_id', 'items'])
             ->mapWithKeys(fn (SmartFreezerOwnAiCheck $c) => [$c->smart_freezer_recognition_id => array_filter(array_map('intval', (array) $c->items))]);
         if ($mac->isEmpty() && $claude->isEmpty()) {
             return null;

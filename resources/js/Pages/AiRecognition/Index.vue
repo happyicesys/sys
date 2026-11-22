@@ -659,11 +659,12 @@
                         <span v-else class="w-fit cursor-help whitespace-nowrap" tabindex="0" v-tooltip="$t('Counted in the nightly run with many other sessions, so it has no time of its own.')">Δ {{ $t('overnight') }}</span>
                       </div>
                       <!-- Brian, 2026-11-22: a person's check of this count, which HappyIce AI trains on at 03:15 (moves nothing) -->
-                      <div v-if="row.own_ai.check" class="mt-1 rounded border px-1.5 py-1" :class="row.own_ai.check.outcome === 'right' ? 'border-green-300 bg-green-50 text-green-900' : 'border-rose-300 bg-rose-50 text-rose-900'">
+                      <div v-if="row.own_ai.check" class="mt-1 rounded border px-1.5 py-1" :class="row.own_ai.check.outcome === 'right' ? 'border-green-300 bg-green-50 text-green-900' : row.own_ai.check.outcome === 'unclear' ? 'border-gray-300 bg-gray-50 text-gray-800' : 'border-rose-300 bg-rose-50 text-rose-900'">
                         <span class="flex items-center gap-1 font-semibold">
                           <CheckCircleIcon v-if="row.own_ai.check.outcome === 'right'" class="h-4 w-4 flex-none text-green-600" aria-hidden="true" />
+                          <QuestionMarkCircleIcon v-else-if="row.own_ai.check.outcome === 'unclear'" class="h-4 w-4 flex-none text-gray-500" aria-hidden="true" />
                           <XCircleIcon v-else class="h-4 w-4 flex-none text-rose-600" aria-hidden="true" />
-                          {{ row.own_ai.check.outcome === 'right' ? $t('Right, checked by :name', { name: row.own_ai.check.by || '?' }) : $t('Wrong, checked by :name', { name: row.own_ai.check.by || '?' }) }}
+                          {{ row.own_ai.check.outcome === 'right' ? $t('Right, checked by :name', { name: row.own_ai.check.by || '?' }) : row.own_ai.check.outcome === 'unclear' ? $t('Can\'t tell, checked by :name', { name: row.own_ai.check.by || '?' }) : $t('Wrong, checked by :name', { name: row.own_ai.check.by || '?' }) }}
                         </span>
                         <template v-if="row.own_ai.check.outcome === 'wrong'">
                           <span class="block">{{ $t('Really taken:') }}</span>

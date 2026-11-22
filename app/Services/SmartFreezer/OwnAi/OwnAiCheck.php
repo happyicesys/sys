@@ -50,7 +50,7 @@ class OwnAiCheck
         }
         $sale = $this->link->saleOf($r);
         $paid = $sale ? array_map('intval', $this->audit->paidUnits($sale)) : [];
-        $start = $check ? $this->units((array) $check->items) : $own;
+        $start = $check && $check->outcome !== SmartFreezerOwnAiCheck::UNCLEAR ? $this->units((array) $check->items) : $own;
 
         $machine = $r->vend_id ? VendChannel::where('vend_id', $r->vend_id)->where('is_active', true)->whereNotNull('product_id')
             ->pluck('product_id')->map(fn ($id) => (int) $id)->all() : [];
@@ -96,7 +96,11 @@ class OwnAiCheck
             throw new DomainException(__('HappyIce AI has not answered this session yet.'));
         }
         $own = $this->units((array) $answer->items);
-        $truth = $outcome === SmartFreezerOwnAiCheck::RIGHT ? $own : $this->units($taken);
+        $truth = match ($outcome) {
+            SmartFreezerOwnAiCheck::RIGHT => $own,
+            SmartFreezerOwnAiCheck::UNCLEAR => [],          // no truth: the office Macs leave the session out
+            default => $this->units($taken),
+        };
         if ($outcome === SmartFreezerOwnAiCheck::WRONG && $truth == $own) {
             throw new DomainException(__('That is the same count HappyIce AI gave. Press "HappyIce AI is right" instead, or change the count.'));
         }
