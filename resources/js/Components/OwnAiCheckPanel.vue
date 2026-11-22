@@ -19,6 +19,9 @@
         {{ $t('Saving again replaces that check.') }}
       </p>
       <p v-if="message" class="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">{{ message }}</p>
+      <p v-if="saved" class="mt-3 flex items-center gap-2 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm font-semibold text-green-800" role="status">
+        <CheckCircleIcon class="h-5 w-5 flex-none text-green-600" aria-hidden="true" />{{ saved }}
+      </p>
       <div class="mt-3 overflow-x-auto rounded-xl border border-gray-200">
         <table class="min-w-full">
           <thead class="bg-gray-50 text-xs font-semibold text-gray-500">
@@ -75,13 +78,13 @@
       </label>
       <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
         <button v-if="changed" type="button" class="mr-auto text-xs text-gray-600 hover:underline" @click="reset">{{ $t('Back to HappyIce AI\'s count') }}</button>
-        <button type="button" class="inline-flex items-center gap-1 rounded-lg border border-gray-400 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-40" :disabled="sending" @click="save('unclear')">
+        <button type="button" class="inline-flex items-center gap-1 rounded-lg border border-gray-400 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-40" :disabled="sending || saved" @pointerdown="down" @pointerup="up('unclear', $event)" @click="keyboardClick('unclear', $event)">
           <QuestionMarkCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t('Can\'t tell from the video') }}
         </button>
-        <button type="button" class="inline-flex items-center gap-1 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:opacity-40" :disabled="sending || changed" @click="save('right')">
+        <button type="button" class="inline-flex items-center gap-1 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:opacity-40" :disabled="sending || saved || changed" @pointerdown="down" @pointerup="up('right', $event)" @click="keyboardClick('right', $event)">
           <CheckCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t('HappyIce AI is right') }}
         </button>
-        <button type="button" class="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-40" :disabled="sending || !changed" @click="save('wrong')">
+        <button type="button" class="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-40" :disabled="sending || saved || !changed" @pointerdown="down" @pointerup="up('wrong', $event)" @click="keyboardClick('wrong', $event)">
           <XCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t('Wrong: save the right count') }}
         </button>
       </div>
@@ -111,6 +114,7 @@ const picking = ref(false);
 const loading = ref(true);
 const sending = ref(false);
 const message = ref('');
+const saved = ref('');            // the server's confirmation, shown in the form before it closes
 
 const url = () => `/ai-recognition/${props.recognitionId}/happyice-check`;
 const inPlay = (line) => line.paid > 0 || line.zijia > 0 || line.happyice > 0 || line.taken > 0 || added.value.includes(line.product_id);
@@ -145,14 +149,35 @@ function reset() {
   lines.value.forEach((line) => { line.taken = line.happyice; });
 }
 
+// Brian, 2026-11-22: on a phone a save took two taps. With the keyboard up (after typing a note), the first tap only
+// closed it and the form jumped, so the click landed nowhere. The buttons now act on pointerup, which comes before the
+// keyboard moves anything; a press that slid away (a scroll) is ignored, and click still serves keyboard users.
+let pressAt = null;
+function down(e) {
+  pressAt = { x: e.clientX, y: e.clientY };
+}
+function up(outcome, e) {
+  const start = pressAt;
+  pressAt = null;
+  if (!start || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 12) return;
+  e.preventDefault();
+  save(outcome);
+}
+function keyboardClick(outcome, e) {
+  if (e.detail === 0) save(outcome);   // Enter / Space; a pointer press was handled on pointerup
+}
+
 async function save(outcome) {
+  if (sending.value || saved.value) return;
   sending.value = true;
   message.value = '';
   const taken = {};
   lines.value.forEach((line) => { taken[line.product_id] = line.taken; });
   try {
     const { data } = await axios.post(url(), { outcome, taken, note: note.value });
-    emit('saved', data);
+    saved.value = data.message || t(tk('Saved.'));
+    setTimeout(() => emit('saved', data), 1200);   // long enough to read; the row shows the check after
   } catch (e) {
     if (e.response?.data?.editor) load(e.response.data.editor);
     message.value = e.response?.data?.message || t(tk('The request did not complete. Reload the page and check this sale before trying again.'));
