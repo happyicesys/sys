@@ -318,7 +318,7 @@ class ProductMappingController extends Controller
             ->toBase();
 
         return Inertia::render('ProductMapping/Index', [
-            'cmsEndpoint' => env('CMS_URL'),
+            'cmsEndpoint' => config('app.cms_url'),
             'totalBindedVends' => $totalBindedVends,
             'productMappings' => ProductMappingResource::collection(tap(
                 (clone $query)

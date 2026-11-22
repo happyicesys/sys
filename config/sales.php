@@ -35,4 +35,9 @@ return [
     'dirty_days_store' => env('SALES_DIRTY_DAYS_STORE', 'redis'),
     'dirty_days_connection' => env('SALES_DIRTY_DAYS_REDIS_CONNECTION', 'default'),
     'dirty_days_key' => 'sales:rollups:dirty-days',
+    /*
+     * The nightly RemoveOddTransactions sweep deletes sales at test-rig amounts only when this is on.
+     */
+    'delete_odd_transactions' => env('DELETE_ODD_TRANSACTIONS', false),
+
 ];

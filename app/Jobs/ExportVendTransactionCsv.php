@@ -122,8 +122,8 @@ class ExportVendTransactionCsv implements ShouldQueue
         try {
             $request = new Request($this->requestData);
             $request->merge([
-                'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone(env('APP_TIMEZONE'))->startOfDay() : Carbon::today()->setTimezone(env('APP_TIMEZONE'))->startOfDay(),
-                'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone(env('APP_TIMEZONE'))->endOfDay() : Carbon::today()->setTimezone(env('APP_TIMEZONE'))->endOfDay(),
+                'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone(config('app.timezone'))->startOfDay() : Carbon::today()->setTimezone(config('app.timezone'))->startOfDay(),
+                'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone(config('app.timezone'))->endOfDay() : Carbon::today()->setTimezone(config('app.timezone'))->endOfDay(),
                 'sortKey' => $request->sortKey ?? 'transaction_datetime',
                 'sortBy' => $request->sortBy ?? false,
             ]);

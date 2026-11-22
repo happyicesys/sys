@@ -1614,7 +1614,7 @@ class OpsJobController extends Controller
             });
 
         return Inertia::render('OpsJob/Edit', [
-            'cmsBaseUrl' => env('CMS_URL'),
+            'cmsBaseUrl' => config('app.cms_url'),
             'mapApiKey' => fn () => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'opsJob' => new OpsJobResource($opsJob),
             // Wrapped in { data: [...] } to preserve the envelope the frontend

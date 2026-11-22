@@ -218,7 +218,7 @@ class SettingController extends Controller
             'categoryGroups' => CategoryGroupResource::collection(
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
-            'cmsEndpoint' => env('CMS_URL'),
+            'cmsEndpoint' => config('app.cms_url'),
             'deliveryPlatformOptions' => DeliveryPlatformResource::collection(
                 DeliveryPlatform::orderBy('name')->get()
             ),

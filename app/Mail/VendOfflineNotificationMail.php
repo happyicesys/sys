@@ -33,7 +33,7 @@ class VendOfflineNotificationMail extends Mailable implements ShouldQueue
      */
     public function __construct(int $vendId, int $thresholdMinutes, ?string $label = null)
     {
-        $this->baseUrl = env('APP_URL');
+        $this->baseUrl = config('app.url');
         $this->now = Carbon::now();
         $this->vendId = $vendId;
         $this->thresholdMinutes = $thresholdMinutes;

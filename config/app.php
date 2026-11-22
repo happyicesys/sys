@@ -62,6 +62,13 @@ return [
     // absent CMS_URL look like a configured CMS.
     'cms_url' => env('CMS_URL'),
 
+    // Read through config, never env() in app code: env() returns null once config is cached
+    // (SG 2026-11-22: a config:cache blanked the logo, CMS link and map provider).
+    'logo_url' => env('APP_LOGO_URL'),
+    'small_logo_url' => env('APP_SMALL_LOGO_URL'),
+    'map_provider' => env('MAP_PROVIDER'),
+    'vend_init_binded' => env('VEND_INIT_BINDED'),
+
     // Public base URL of CMS file storage (DigitalOcean Spaces), used to turn
     // a CMS file_person `path` (e.g. /person_asset/file/x.pdf) into a fetchable
     // URL when backfilling Customer "Attachment(s)". e.g.

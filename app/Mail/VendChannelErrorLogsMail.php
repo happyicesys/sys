@@ -15,10 +15,14 @@ class VendChannelErrorLogsMail extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public ?Operator $operator;
-    /** @var Collection  // keyed by vend_id => Collection<VendChannelErrorLog> */
+
+    /** @var Collection // keyed by vend_id => Collection<VendChannelErrorLog> */
     public Collection $vendErrorsByVend;
+
     public Carbon $now;
+
     public int $intervalHours;
+
     public ?string $baseUrl;
 
     public function __construct(?Operator $operator, Collection $vendErrorsByVend, int $intervalHours = 24)
@@ -27,7 +31,7 @@ class VendChannelErrorLogsMail extends Mailable implements ShouldQueue
         $this->vendErrorsByVend = $vendErrorsByVend;
         $this->now = Carbon::now();
         $this->intervalHours = $intervalHours;
-        $this->baseUrl = rtrim(config('app.url') ?? env('APP_URL', ''), '/');
+        $this->baseUrl = rtrim(config('app.url') ?? '', '/');
     }
 
     public function build()
@@ -36,7 +40,7 @@ class VendChannelErrorLogsMail extends Mailable implements ShouldQueue
         $vendChannelErrorLogs = $this->vendErrorsByVend->values()->flatten(1);
 
         return $this
-            ->subject('Channel Error Logs - ' . ($this->operator?->name ?? 'Global') . ' (' . $this->now->format('Y-m-d') . ')')
+            ->subject('Channel Error Logs - '.($this->operator?->name ?? 'Global').' ('.$this->now->format('Y-m-d').')')
             ->view('emails.vend-channel-error-logs')
             ->with([
                 'vendChannelErrorLogs' => $vendChannelErrorLogs,

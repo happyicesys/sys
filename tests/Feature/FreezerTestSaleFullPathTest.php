@@ -32,9 +32,7 @@ class FreezerTestSaleFullPathTest extends TestCase
     {
         parent::setUp();
 
-        putenv('DELETE_ODD_TRANSACTIONS=true');
-        $_ENV['DELETE_ODD_TRANSACTIONS'] = 'true';
-        $_SERVER['DELETE_ODD_TRANSACTIONS'] = 'true';
+        config(['sales.delete_odd_transactions' => true]);
 
         $this->operator = Operator::withoutGlobalScopes()->create(['code' => 'TSTOP', 'name' => 'Test Operator', 'is_active' => true]);
         $customerId = DB::table('customers')->insertGetId([
@@ -44,13 +42,6 @@ class FreezerTestSaleFullPathTest extends TestCase
             'code' => 50002, 'name' => 'Freezer 50002', 'operator_id' => $this->operator->id, 'customer_id' => $customerId,
             'machine_type' => 'smart_freezer', 'is_testing' => 0, 'created_at' => now(), 'updated_at' => now(),
         ]);
-    }
-
-    protected function tearDown(): void
-    {
-        putenv('DELETE_ODD_TRANSACTIONS');
-        unset($_ENV['DELETE_ODD_TRANSACTIONS'], $_SERVER['DELETE_ODD_TRANSACTIONS']);
-        parent::tearDown();
     }
 
     private function sale(string $orderId, int $cents, bool $test, ?int $operatorId = null): VendTransaction

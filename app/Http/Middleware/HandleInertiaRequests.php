@@ -50,7 +50,7 @@ class HandleInertiaRequests extends Middleware
             ->unique()
             ->values();
 
-        $defaultLogoUrl = env('APP_LOGO_URL');
+        $defaultLogoUrl = config('app.logo_url');
         $logoUrl = $defaultLogoUrl;
         $canOverrideLogo = false;
 
@@ -61,7 +61,7 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
-        $smallLogoUrl = env('APP_SMALL_LOGO_URL');
+        $smallLogoUrl = config('app.small_logo_url');
 
         return array_merge(parent::share($request), [
             // Smart Chiller (CityBox) integration switch — the vend Create page enables its radio branch on this.
@@ -148,7 +148,7 @@ class HandleInertiaRequests extends Middleware
             // unsupported value) the address search API is disabled and the
             // Building/Street fields fall back to manual entry. Only 'onemap'
             // is wired into the frontend SearchAddressInput today.
-            'mapProvider' => env('MAP_PROVIDER'),
+            'mapProvider' => config('app.map_provider'),
             // App-wide reporting floor (data genesis). Frontend derived figures
             // — e.g. CustomerIndex "Avg Mthly Sales $" month count — must use
             // the same floor as the backend. See config/reporting.php.

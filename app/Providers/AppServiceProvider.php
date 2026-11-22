@@ -134,7 +134,7 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-        Inertia::share('initBinded', env('VEND_INIT_BINDED'));
+        Inertia::share('initBinded', config('app.vend_init_binded'));
 
         // Blind SKU: keep per-product blended unit costs in sync.
         UnitCost::observe(UnitCostObserver::class);

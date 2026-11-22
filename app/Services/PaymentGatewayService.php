@@ -226,7 +226,7 @@ class PaymentGatewayService
                     $operatorPaymentGateway->paymentGateway->defaultPaymentMethod->type_name :
                     ''
                 ),
-            'return_uri' => $params['return_uri'] ?? env('APP_URL'),
+            'return_uri' => $params['return_uri'] ?? config('app.url'),
             'callback_url' => $params['callback_url'] ?? null,
             'cancel_url' => $params['cancel_url'] ?? null,
             'country' => $params['country'] ?? optional($operatorPaymentGateway->paymentGateway->country)->code ?? 'MY',

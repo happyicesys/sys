@@ -36,7 +36,7 @@ class RemoveOddTransactions implements ShouldQueue
      */
     public function handle(): void
     {
-        if (! filter_var(env('DELETE_ODD_TRANSACTIONS', false), FILTER_VALIDATE_BOOLEAN)) {
+        if (! filter_var(config('sales.delete_odd_transactions', false), FILTER_VALIDATE_BOOLEAN)) {
             return;
         }
 

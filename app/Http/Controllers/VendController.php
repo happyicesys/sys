@@ -573,7 +573,7 @@ class VendController extends Controller
         ];
 
         return Inertia::render('Vend/Index', [
-            'cmsEndpoint' => env('CMS_URL'),
+            'cmsEndpoint' => config('app.cms_url'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'deliveryPlatformOptions' => DeliveryPlatformResource::collection(
                 DeliveryPlatform::orderBy('name')->get()
@@ -2352,7 +2352,7 @@ class VendController extends Controller
             // so the dropdown stays consistent even if a vend hasn't been
             // bound to any card terminal yet.
             'cardTerminalOptions' => Vend::CARD_TERMINALS,
-            'cmsEndpoint' => env('CMS_URL'),
+            'cmsEndpoint' => config('app.cms_url'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'dayOptions' => Customer::DAYS_MAPPING,
             'deliveryPlatformOptions' => ['data' => $deliveryPlatformOptions],

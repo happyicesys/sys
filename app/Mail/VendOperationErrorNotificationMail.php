@@ -32,7 +32,7 @@ class VendOperationErrorNotificationMail extends Mailable implements ShouldQueue
      */
     public function __construct(int $vendId, string $alertType, string $label)
     {
-        $this->baseUrl = env('APP_URL');
+        $this->baseUrl = config('app.url');
         $this->now = now();
         $this->vendId = $vendId;
         $this->alertType = $alertType;

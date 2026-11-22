@@ -31,7 +31,7 @@ class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
      */
     public function __construct(int $vendId, int $thresholdMinutes)
     {
-        $this->baseUrl = env('APP_URL');
+        $this->baseUrl = config('app.url');
         $this->now = Carbon::now();
         $this->vendId = $vendId;
         $this->thresholdMinutes = $thresholdMinutes;

@@ -28,7 +28,7 @@ class VendMqttOfflineNotificationMail extends Mailable
      */
     public function __construct(Vend $vend)
     {
-        $this->baseUrl = env('APP_URL');
+        $this->baseUrl = config('app.url');
         $this->now = Carbon::now();
         $this->vend = $vend;
         $this->vendPrefixName = $vend->vendPrefix ? $vend->vendPrefix->name : '';

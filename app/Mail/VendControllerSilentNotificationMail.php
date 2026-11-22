@@ -29,7 +29,7 @@ class VendControllerSilentNotificationMail extends Mailable implements ShouldQue
 
     public function __construct(int $vendId, string $label, string $state)
     {
-        $this->baseUrl = env('APP_URL');
+        $this->baseUrl = config('app.url');
         $this->now = Carbon::now();
         $this->vendId = $vendId;
         $this->label = $label;

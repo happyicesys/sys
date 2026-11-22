@@ -23,10 +23,11 @@ class MapController extends Controller
             return response()->json(['results' => []]);
         }
 
-        $provider = env('MAP_PROVIDER');
+        $provider = config('app.map_provider');
 
         if ($provider === 'google') {
             $countryCode = optional($request->user()?->operator?->country)->code;
+
             return response()->json([
                 'results' => $mapService->searchAddressGoogle($query, $countryCode),
             ]);
@@ -39,11 +40,11 @@ class MapController extends Controller
     public function index(Request $request)
     {
         $vends = Vend::with([
-                    'customer.deliveryAddress',
-                ])
-                ->has('customer')
-                ->orderBy('code')
-                ->get();
+            'customer.deliveryAddress',
+        ])
+            ->has('customer')
+            ->orderBy('code')
+            ->get();
 
         return Inertia::render('Map/Index', [
             'vends' => VendResource::collection($vends),

@@ -192,7 +192,7 @@ class CustomerController extends Controller
             ),
             'categories' => $optionsService->categories($className),
             'categoryGroups' => $optionsService->categoryGroups($className),
-            'cmsEndpoint' => env('CMS_URL'),
+            'cmsEndpoint' => config('app.cms_url'),
             'days' => Customer::DAYS_MAPPING,
             'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
             'locationTypeOptions' => $optionsService->locationTypes(),
@@ -916,7 +916,7 @@ class CustomerController extends Controller
                     'name' => $status,
                 ]),
             ],
-            'cmsEndpoint' => env('CMS_URL'),
+            'cmsEndpoint' => config('app.cms_url'),
             'locationTypeOptions' => $optionsService->locationTypes(),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'operatorOptions' => $optionsService->operators(),
@@ -972,7 +972,7 @@ class CustomerController extends Controller
                     'name' => $status,
                 ]),
             ],
-            'cmsEndpoint' => env('CMS_URL'),
+            'cmsEndpoint' => config('app.cms_url'),
             'locationTypeOptions' => $optionsService->locationTypes(),
             'operatorOptions' => $optionsService->operators(),
             'tags' => $optionsService->tags($className),
@@ -4964,7 +4964,7 @@ class CustomerController extends Controller
                 ->where('customer_id', null)
                 ->orderBy('code')
                 ->get(),
-            'cmsEndpoint' => env('CMS_URL'),
+            'cmsEndpoint' => config('app.cms_url'),
             'sellingPriceTypeOptions' => collect(SellingPrice::TYPE_MAPPINGS),
             'type' => 'create',
         ]);
@@ -5628,7 +5628,7 @@ class CustomerController extends Controller
             ->values();
 
         return Inertia::render('Customer/Edit', [
-            'cmsEndpoint' => env('CMS_URL'),
+            'cmsEndpoint' => config('app.cms_url'),
             'siteGroupOptions' => $siteGroupOptions,
             'countries' => $optionsService->countries(),
             'customerTagOptions' => $optionsService->tags(Customer::class),

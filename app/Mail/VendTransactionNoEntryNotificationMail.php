@@ -13,13 +13,16 @@ class VendTransactionNoEntryNotificationMail extends Mailable implements ShouldQ
     use Queueable; // avoid SerializesModels to prevent model rehydrate issues
 
     public $baseUrl;
+
     public $now;
+
     public ?int $operatorId;
+
     public array $vends;
 
     public function __construct(?int $operatorId, array $vends)
     {
-        $this->baseUrl = env('APP_URL');
+        $this->baseUrl = config('app.url');
         $this->now = Carbon::now();
         $this->operatorId = $operatorId;
         $this->vends = $vends;

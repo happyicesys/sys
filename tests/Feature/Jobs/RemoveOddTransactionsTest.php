@@ -19,16 +19,7 @@ class RemoveOddTransactionsTest extends TestCase
     {
         parent::setUp();
         Model::unguard();
-        putenv('DELETE_ODD_TRANSACTIONS=true');
-        $_ENV['DELETE_ODD_TRANSACTIONS'] = 'true';
-        $_SERVER['DELETE_ODD_TRANSACTIONS'] = 'true';
-    }
-
-    protected function tearDown(): void
-    {
-        putenv('DELETE_ODD_TRANSACTIONS');
-        unset($_ENV['DELETE_ODD_TRANSACTIONS'], $_SERVER['DELETE_ODD_TRANSACTIONS']);
-        parent::tearDown();
+        config(['sales.delete_odd_transactions' => true]);
     }
 
     private function txn(Vend $vend, Operator $operator, PaymentMethod $pm, int $amount): VendTransaction
