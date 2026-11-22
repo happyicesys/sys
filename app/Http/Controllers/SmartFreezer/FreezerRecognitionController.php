@@ -11,6 +11,7 @@ use App\Models\FreezerFailedSession;
 use App\Models\Product;
 use App\Models\Scopes\OperatorVendFilterScope;
 use App\Models\SmartFreezerClaudeRecognition;
+use App\Models\SmartFreezerOwnAiCheck;
 use App\Models\SmartFreezerOwnAiRecognition;
 use App\Models\SmartFreezerRecognition;
 use App\Models\Vend;
@@ -28,6 +29,7 @@ use App\Services\SmartFreezer\FreezerDoorTimeline;
 use App\Services\SmartFreezer\FreezerRecognitionService;
 use App\Services\SmartFreezer\FreezerSaleLocator;
 use App\Services\SmartFreezer\OwnAi\HappyIceZijiaComparison;
+use App\Services\SmartFreezer\OwnAi\OwnAiCheck;
 use App\Services\SmartFreezer\OwnAi\OwnAiLink;
 use App\Services\SmartFreezer\PersonCount;
 use App\Services\SmartFreezer\RecognitionBadges;
@@ -79,7 +81,7 @@ class FreezerRecognitionController extends Controller
     {
         $this->middleware(['permission:read ai-recognition']);
         $this->middleware(['permission:charge ai-recognition'])->only('charge', 'correctionEditor', 'correct');
-        $this->middleware(['permission:update ai-recognition'])->only('claudeModel');
+        $this->middleware(['permission:update ai-recognition'])->only('claudeModel', 'ownAiCheckEditor', 'ownAiCheck');
     }
 
     /** Which Claude model counts the door sessions from now on (ClaudeModelChoice). Shadow only: it decides nothing. */
@@ -89,6 +91,39 @@ class FreezerRecognitionController extends Controller
         ClaudeModelChoice::pick($data['model'], $request->user());
 
         return back()->with('success', __('Claude now counts with :model.', ['model' => ClaudeModelChoice::offered()[$data['model']]]));
+    }
+
+    /** The HappyIce AI check form for one session (OwnAiCheck). Shadow only. */
+    public function ownAiCheckEditor(SmartFreezerRecognition $recognition, OwnAiCheck $checks): JsonResponse
+    {
+        $this->assertVisible($recognition);
+
+        return response()->json(['editor' => $checks->editor($recognition)]);
+    }
+
+    /** A person says HappyIce AI was right, or what really left the cabinet (OwnAiCheck). Moves no money and no stock. */
+    public function ownAiCheck(Request $request, SmartFreezerRecognition $recognition, OwnAiCheck $checks): JsonResponse
+    {
+        $data = $request->validate([
+            'outcome' => ['required', 'in:'.SmartFreezerOwnAiCheck::RIGHT.','.SmartFreezerOwnAiCheck::WRONG],
+            'taken' => ['present_if:outcome,'.SmartFreezerOwnAiCheck::WRONG, 'array'],
+            'taken.*' => ['integer', 'min:0', 'max:'.OwnAiCheck::MAX_UNITS],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $this->assertVisible($recognition);
+
+        try {
+            $check = $checks->save($recognition, $data['outcome'], (array) ($data['taken'] ?? []), $data['note'] ?? null, $request->user());
+        } catch (DomainException $e) {
+            return response()->json(['message' => $e->getMessage(), 'editor' => $checks->editor($recognition)], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => $check->outcome === SmartFreezerOwnAiCheck::RIGHT
+                ? __('Saved: HappyIce AI was right. The office Mac learns from it at 03:15.')
+                : __('Saved: HappyIce AI was wrong, with the right count. The office Mac learns from it at 03:15.'),
+        ]);
     }
 
     public function index(Request $request)
@@ -184,7 +219,7 @@ class FreezerRecognitionController extends Controller
         $invoiceScans = $this->invoiceScans($page->getCollection());
         $claude = $this->claudeRows($page->getCollection());
         // Read only while the link is on, so the page never queries the table before its migration has run (deploy gap).
-        $ownAi = config('smart_freezer.own_ai.enabled') ? $this->ownAiRows($page->getCollection()) : ['rows' => [], 'names' => []];
+        $ownAi = config('smart_freezer.own_ai.enabled') ? $this->ownAiRows($page->getCollection()) : ['rows' => [], 'checks' => [], 'names' => []];
         $happyHour = CampaignLabelFilter::happyHourLabels($page->getCollection()->map(fn (SmartFreezerRecognition $r) => $r->vendTransaction)->filter()
             ->flatMap(fn (VendTransaction $sale) => $sale->vendTransactionItems->pluck('happy_hour_slot_id')->push($sale->happy_hour_slot_id)));
 
@@ -229,6 +264,8 @@ class FreezerRecognitionController extends Controller
             ],
             'canCharge' => (bool) $request->user()?->can('charge ai-recognition'),
             'canRefund' => (bool) $request->user()?->can('verify refunds'),
+            // Brian, 2026-11-22: a person checks HappyIce AI's count; the office Macs train on it at 03:15.
+            'canCheckOwnAi' => (bool) $request->user()?->can('update ai-recognition'),
             'sessionlessHolds' => fn () => $this->sessionlessHolds($payments, $operatorId),
             'waitingForVideo' => fn () => $this->waitingForVideo($request, $dateFrom, $dateTo, $operatorId),
             // Zijia's orderStatus codes (§6.2) with ops' plain words — the legend above the table.
@@ -384,7 +421,7 @@ class FreezerRecognitionController extends Controller
      * This page's answers from our own AI on the Macs, the preferred one per session (mini before M1), with the names
      * of the products they name.
      *
-     * @return array{rows: array<int, SmartFreezerOwnAiRecognition>, names: array<int, string>}
+     * @return array{rows: array<int, SmartFreezerOwnAiRecognition>, checks: array<int, SmartFreezerOwnAiCheck>, names: array<int, string>}
      */
     private function ownAiRows($recognitions): array
     {
@@ -397,8 +434,13 @@ class FreezerRecognitionController extends Controller
             ->unique('smart_freezer_recognition_id')->keyBy('smart_freezer_recognition_id')->all();
         $ids = collect($rows)->flatMap(fn (SmartFreezerOwnAiRecognition $a) => array_keys((array) $a->items))->unique()->values();
 
+        $checks = SmartFreezerOwnAiCheck::with('checker:id,name')->whereIn('smart_freezer_recognition_id', $recognitions->pluck('id'))
+            ->get()->keyBy('smart_freezer_recognition_id')->all();
+        $ids = $ids->merge(collect($checks)->flatMap(fn (SmartFreezerOwnAiCheck $c) => array_keys((array) $c->items)))->unique()->values();
+
         return [
             'rows' => $rows,
+            'checks' => $checks,
             'names' => $ids->isEmpty() ? [] : Product::withoutGlobalScopes()->whereIn('id', $ids)->pluck('name', 'id')->all(),
         ];
     }
@@ -406,7 +448,7 @@ class FreezerRecognitionController extends Controller
     /**
      * Our own AI's verdict on this session (Brian, 2026-11-19: "Our Verdict", shown before Claude's). Shadow only.
      *
-     * @param  array{rows: array<int, SmartFreezerOwnAiRecognition>, names: array<int, string>}  $ownAi
+     * @param  array{rows: array<int, SmartFreezerOwnAiRecognition>, checks: array<int, SmartFreezerOwnAiCheck>, names: array<int, string>}  $ownAi
      */
     private function ownAiOf(SmartFreezerRecognition $r, array $ownAi): ?array
     {
@@ -451,6 +493,8 @@ class FreezerRecognitionController extends Controller
                 $r->created_at && $answer->received_at->isSameDay($r->created_at) ? 'H:i:s' : 'Y-m-d H:i:s'
             ),
             'stages' => $link->stages($answer),
+            // a person's check of this count (OwnAiCheck): right, or wrong with the right count and a note
+            'check' => isset($ownAi['checks'][$r->id]) ? app(OwnAiCheck::class)->summary($ownAi['checks'][$r->id], $ownAi['names']) : null,
         ];
     }
 

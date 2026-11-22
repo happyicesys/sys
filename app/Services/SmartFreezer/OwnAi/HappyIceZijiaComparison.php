@@ -3,6 +3,7 @@
 namespace App\Services\SmartFreezer\OwnAi;
 
 use App\Models\SmartFreezerClaudeRecognition as ClaudeRow;
+use App\Models\SmartFreezerOwnAiCheck;
 use App\Models\SmartFreezerOwnAiRecognition;
 use App\Models\SmartFreezerRecognition;
 use App\Services\SmartFreezer\Claude\ClaudeCostMoney;
@@ -55,6 +56,10 @@ final class HappyIceZijiaComparison
             ])
             ->unique('smart_freezer_recognition_id')->keyBy('smart_freezer_recognition_id');
         $claude = ClaudeRow::whereIn('smart_freezer_recognition_id', $ids)->get()->keyBy('smart_freezer_recognition_id');
+        // A person's check of HappyIce AI's count (OwnAiCheck, Brian 2026-11-22): the truth for OUR units where no Adjust Qty
+        // count exists. Zijia's units keep the Zijia box's own rule.
+        $checks = SmartFreezerOwnAiCheck::whereIn('smart_freezer_recognition_id', $ids)->get(['smart_freezer_recognition_id', 'items'])
+            ->mapWithKeys(fn (SmartFreezerOwnAiCheck $c) => [$c->smart_freezer_recognition_id => array_filter(array_map('intval', (array) $c->items))]);
         if ($mac->isEmpty() && $claude->isEmpty()) {
             return null;
         }
@@ -83,8 +88,9 @@ final class HappyIceZijiaComparison
                 $s['ours_match_paid'] += $ours['verdict'] === RecognitionVerdict::MATCH ? 1 : 0;
 
                 // Units, by the Zijia box's rule: a person's count first, else the paid order.
-                if ($person !== null) {
-                    [$right, $wrong] = self::units($ours['items'], $person);
+                $truth = $person ?? $checks->get($r->id);
+                if ($truth !== null) {
+                    [$right, $wrong] = self::units($ours['items'], $truth);
                     $s['ours_correct_qty'] += $right;
                     $s['ours_wrong_qty'] += $wrong;
                 } else {

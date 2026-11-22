@@ -1532,6 +1532,11 @@ Route::middleware(['auth', 'cors'])->controller(\App\Http\Controllers\SmartFreez
     Route::get('/', 'correctionEditor');
     Route::post('/', 'correct')->name('.save');
 });
+// A person checks HappyIce AI's count (right, or the right count + a note); the office Macs train on it. Moves nothing.
+Route::middleware(['auth', 'cors'])->controller(\App\Http\Controllers\SmartFreezer\FreezerRecognitionController::class)->prefix('ai-recognition/{recognition}/happyice-check')->name('ai-recognition.happyice-check')->group(function () {
+    Route::get('/', 'ownAiCheckEditor');
+    Route::post('/', 'ownAiCheck')->name('.save');
+});
 // Which freezer products the AI is asked about, and a person's link to a SKU registered in Zijia's portal.
 Route::middleware(['auth', 'cors'])->controller(\App\Http\Controllers\SmartFreezer\ZijiaSkuLinkController::class)->prefix('ai-recognition/sku-links')->name('ai-recognition.sku-links')->group(function () {
     Route::get('/', 'index');

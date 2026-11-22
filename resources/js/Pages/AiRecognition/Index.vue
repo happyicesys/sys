@@ -204,7 +204,7 @@
               </dd>
             </div>
             <div class="mt-1 flex justify-between gap-2">
-              <dt tabindex="0" v-tooltip="$t('Units where a person\'s Adjust Qty count differs from HappyIce AI\'s count. One product swapped for another counts as one.')">{{ $t('Wrong qty') }}:</dt>
+              <dt tabindex="0" v-tooltip="$t('Units where a person\'s count (Adjust Qty, or a HappyIce AI check) differs from HappyIce AI\'s count. One product swapped for another counts as one.')">{{ $t('Wrong qty') }}:</dt>
               <dd class="font-semibold tabular-nums text-gray-900">{{ dashboard.happyice.ours_wrong_qty.toLocaleString() }}</dd>
             </div>
             <div v-if="dashboard.happyice.ours_unchecked_qty" class="mt-1 flex justify-between gap-2">
@@ -658,6 +658,24 @@
                         <span v-if="row.own_ai.compute_seconds !== null" class="w-fit cursor-help whitespace-nowrap" tabindex="0" v-tooltip="ownAiTimeTip(row.own_ai)">Δ {{ shortDuration(row.own_ai.compute_seconds) }}</span>
                         <span v-else class="w-fit cursor-help whitespace-nowrap" tabindex="0" v-tooltip="$t('Counted in the nightly run with many other sessions, so it has no time of its own.')">Δ {{ $t('overnight') }}</span>
                       </div>
+                      <!-- Brian, 2026-11-22: a person's check of this count, which HappyIce AI trains on at 03:15 (moves nothing) -->
+                      <div v-if="row.own_ai.check" class="mt-1 rounded border px-1.5 py-1" :class="row.own_ai.check.outcome === 'right' ? 'border-green-300 bg-green-50 text-green-900' : 'border-rose-300 bg-rose-50 text-rose-900'">
+                        <span class="flex items-center gap-1 font-semibold">
+                          <CheckCircleIcon v-if="row.own_ai.check.outcome === 'right'" class="h-4 w-4 flex-none text-green-600" aria-hidden="true" />
+                          <XCircleIcon v-else class="h-4 w-4 flex-none text-rose-600" aria-hidden="true" />
+                          {{ row.own_ai.check.outcome === 'right' ? $t('Right, checked by :name', { name: row.own_ai.check.by || '?' }) : $t('Wrong, checked by :name', { name: row.own_ai.check.by || '?' }) }}
+                        </span>
+                        <template v-if="row.own_ai.check.outcome === 'wrong'">
+                          <span class="block">{{ $t('Really taken:') }}</span>
+                          <span v-for="item in row.own_ai.check.items" :key="'k' + item.product_id" class="block">{{ item.number }} × {{ item.name }}</span>
+                          <span v-if="!row.own_ai.check.items.length" class="block">{{ $t('Nothing taken') }}</span>
+                        </template>
+                        <span v-if="row.own_ai.check.note" class="block italic">“{{ row.own_ai.check.note }}”</span>
+                        <span class="block text-[11px] text-gray-500">{{ row.own_ai.check.at }}</span>
+                      </div>
+                      <button v-if="canCheckOwnAi" type="button"
+                        :class="['mt-1 w-fit rounded px-2 py-0.5 text-xs font-semibold', row.own_ai.check ? 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'bg-violet-600 text-white hover:bg-violet-700']"
+                        @click="checkRow = row">{{ row.own_ai.check ? $t('Check again') : $t('Check HappyIce AI') }}</button>
                     </div>
                     <span v-else-if="ownAiColumn" class="text-gray-400" tabindex="0" v-tooltip="$t('HappyIce AI has not answered this session.')">—</span>
                     <div v-if="row.claude" :class="['flex w-56 flex-col gap-1', row.own_ai || ownAiColumn ? 'mt-2 border-t border-violet-200 pt-2' : '']">
@@ -761,6 +779,10 @@
         </div>
       </div>
     </div>
+    <Modal :open="checkRow !== null" @modalClose="checkRow = null">
+      <template #header>{{ $t('Check HappyIce AI') }}</template>
+      <OwnAiCheckPanel v-if="checkRow !== null" :key="checkRow.id" :recognition-id="checkRow.id" @saved="ownAiCheckSaved" />
+    </Modal>
     <Modal :open="correctRow !== null" @modalClose="correctRow = null">
       <template #header>{{ $t('Adjust qty taken') }}</template>
       <AiCorrectionPanel v-if="correctRow !== null" :key="correctRow.id" :recognition-id="correctRow.id" @saved="correctionSaved" @key-in="keyInstead" />
@@ -853,8 +875,9 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import MachineIdLink from '@/Components/MachineIdLink.vue';
 import T05RefundPanel from '@/Components/T05RefundPanel.vue';
 import AiCorrectionPanel from '@/Components/AiCorrectionPanel.vue';
+import OwnAiCheckPanel from '@/Components/OwnAiCheckPanel.vue';
 import SearchInput from '@/Components/SearchInput.vue';
-import { CheckCircleIcon, ClockIcon, InformationCircleIcon, MagnifyingGlassIcon, PencilSquareIcon, QuestionMarkCircleIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, ClockIcon, InformationCircleIcon, MagnifyingGlassIcon, PencilSquareIcon, QuestionMarkCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -874,6 +897,7 @@ const props = defineProps({
   aiCoverage: { type: Array, default: () => [] },
   claudeModel: { type: Object, default: null },
   ownAiColumn: { type: Boolean, default: false },
+  canCheckOwnAi: { type: Boolean, default: false },
   orderStatusLegend: Array,
   doorFaultLegend: { type: Array, default: () => [] },
   filters: Object,
@@ -1225,6 +1249,14 @@ const refundIntentId = ref(null)
 const refundChanged = ref(false)
 const correctRow = ref(null)
 const correctionNotice = ref('')
+
+// Brian, 2026-11-22: a person's check of HappyIce AI's count (OwnAiCheckPanel). Moves nothing; the Macs train on it.
+const checkRow = ref(null)
+function ownAiCheckSaved(result) {
+  checkRow.value = null
+  correctionNotice.value = result.message
+  router.reload({ only: ['recognitions', 'dashboard'] })
+}
 
 function correctionSaved(result) {
   correctRow.value = null
