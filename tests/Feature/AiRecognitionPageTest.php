@@ -245,6 +245,15 @@ class AiRecognitionPageTest extends TestCase
                 $this->assertTrue($invoice['SF-50001-1793780200-3']['offered']);
                 $this->assertNull($invoice['SF-50001-1793780300-4']['opened_at']);
                 $this->assertFalse($invoice['SF-50001-1791539003-2']['offered']);
+
+                // Brian, 2026-11-22: staff open the customer's page from the row. A link already opened keeps its
+                // pinned signature; one never opened is signed now; before app 41 there is no customer's copy.
+                $this->assertStringEndsWith('/r/'.$this->vend->code.'/SF-50001-1793780000-1?s=sig', $invoice['SF-50001-1793780000-1']['url']);
+                $this->assertStringEndsWith(
+                    '?s='.\App\Services\SmartFreezer\FreezerReceipt::signature($this->vend, 'SF-50001-1793780200-3'),
+                    $invoice['SF-50001-1793780200-3']['url'],
+                );
+                $this->assertNull($invoice['SF-50001-1791539003-2']['url']);
             });
     }
 

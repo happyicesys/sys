@@ -25,8 +25,9 @@ class FreezerReceiptController extends Controller
         $receipt = $this->receipts->state($vend, $ref);
 
         // `auto` marks the page's own reload when the invoice changes: the same viewer, not a new open.
+        // A signed-in user is staff opening it from AI Recognition, not the customer scanning it.
         $device = FreezerReceipt::viewerDevice($request->userAgent());
-        if ($device !== null && $request->isMethod('GET')) {
+        if ($device !== null && $request->isMethod('GET') && $request->user() === null) {
             $this->receipts->recordView($vend, $ref, $receipt['status'], $device, isNewOpen: ! $request->boolean('auto'));
         }
 

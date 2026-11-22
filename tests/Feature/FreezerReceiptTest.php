@@ -327,6 +327,21 @@ class FreezerReceiptTest extends TestCase
         $this->assertNull($row->device);
     }
 
+    /** Brian, 2026-11-22: staff open it from AI Recognition; that is not the customer scanning it. */
+    public function test_a_signed_in_viewer_gets_the_page_but_is_not_a_scan(): void
+    {
+        $this->trade(units: 1, paymentType: 0);
+
+        $this->actingAs(\App\Models\User::factory()->create())
+            ->withHeader('User-Agent', self::ANDROID)->get($this->link())->assertOk();
+
+        $row = DB::table('freezer_receipts')->first();
+        $this->assertNull($row->first_opened_at);
+        $this->assertNull($row->final_seen_at);
+        $this->assertSame(0, (int) $row->open_count);
+        $this->assertNull($row->device);
+    }
+
     public function test_a_cubot_phone_is_a_viewer(): void
     {
         $this->assertSame('Android', FreezerReceipt::viewerDevice('Mozilla/5.0 (Linux; Android 10; CUBOT X50) Chrome/120.0 Mobile'));

@@ -26,6 +26,7 @@ use App\Services\SmartFreezer\Claude\ClaudeZijiaComparison;
 use App\Services\SmartFreezer\DoorFault;
 use App\Services\SmartFreezer\FreezerClipLinks;
 use App\Services\SmartFreezer\FreezerDoorTimeline;
+use App\Services\SmartFreezer\FreezerReceipt;
 use App\Services\SmartFreezer\FreezerRecognitionService;
 use App\Services\SmartFreezer\FreezerSaleLocator;
 use App\Services\SmartFreezer\OwnAi\HappyIceZijiaComparison;
@@ -501,7 +502,7 @@ class FreezerRecognitionController extends Controller
     }
 
     /**
-     * The invoice QR's scans, batched: a row whose first open is empty only pinned a signature.
+     * The invoice QR's rows, batched: a row whose first open is empty only pinned a signature.
      *
      * @return array<string, object> "vend_id|session_ref" => its freezer_receipts row
      */
@@ -515,8 +516,7 @@ class FreezerRecognitionController extends Controller
         return DB::table('freezer_receipts')
             ->whereIn('vend_id', $recognitions->pluck('vend_id')->filter()->unique()->values())
             ->whereIn('session_ref', $refs)
-            ->whereNotNull('first_opened_at')
-            ->get(['vend_id', 'session_ref', 'open_count', 'first_opened_at', 'final_seen_at', 'device'])
+            ->get(['vend_id', 'session_ref', 'signature', 'open_count', 'first_opened_at', 'final_seen_at', 'device'])
             ->keyBy(fn (object $scan) => $scan->vend_id.'|'.$scan->session_ref)
             ->all();
     }
@@ -524,10 +524,19 @@ class FreezerRecognitionController extends Controller
     /** One session's invoice QR as the page shows it. `offered` = the app of its day could show one. */
     private function invoiceScan(SmartFreezerRecognition $r, array $invoiceScans): array
     {
-        $scan = $invoiceScans[$r->vend_id.'|'.$r->session_ref] ?? null;
+        $row = $invoiceScans[$r->vend_id.'|'.$r->session_ref] ?? null;
+        $scan = $row?->first_opened_at !== null ? $row : null;
+        $offered = (self::sessionStart($r->session_ref) ?? 0) >= self::INVOICE_QR_SINCE;
 
         return [
-            'offered' => (self::sessionStart($r->session_ref) ?? 0) >= self::INVOICE_QR_SINCE,
+            'offered' => $offered,
+            // The customer's own page, for staff to open from here (Brian, 2026-11-22). A link already
+            // opened keeps the signature it was first opened with, so it never 404s after a key change.
+            'url' => $offered && $r->vend !== null && FreezerReceipt::isSessionRefOf($r->vend, (string) $r->session_ref)
+                ? ($row?->signature !== null
+                    ? url('/r/'.$r->vend->code.'/'.$r->session_ref).'?s='.$row->signature
+                    : FreezerReceipt::url($r->vend, (string) $r->session_ref))
+                : null,
             'opened_at' => $scan?->first_opened_at,
             'opens' => (int) ($scan?->open_count ?? 0),
             'final_seen_at' => $scan?->final_seen_at,

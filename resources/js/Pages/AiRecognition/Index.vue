@@ -757,14 +757,21 @@
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-center"></TableData>
                   <TableData :currentIndex="rowIndex" :totalLength="recognitions.data.length" inputClass="text-left">
                     <div v-if="row.invoice.opened_at" class="flex w-28 flex-col space-y-0.5 text-xs">
-                      <span class="w-fit rounded border border-green-300 bg-green-100 px-1.5 py-0.5 font-bold text-green-800">{{ $t('Scanned') }}</span>
+                      <button v-if="row.invoice.url" type="button" v-tooltip="$t('View invoice')"
+                        class="w-fit rounded border border-green-300 bg-green-100 px-1.5 py-0.5 font-bold text-green-800 underline decoration-dotted hover:bg-green-200"
+                        @click="invoiceRow = row"
+                      >{{ $t('Scanned') }}</button>
+                      <span v-else class="w-fit rounded border border-green-300 bg-green-100 px-1.5 py-0.5 font-bold text-green-800">{{ $t('Scanned') }}</span>
                       <span class="text-gray-700">{{ row.invoice.opened_at }}</span>
                       <span v-if="row.invoice.device" class="text-gray-500">{{ row.invoice.device === 'Other' ? $t('Other') : row.invoice.device }}<template v-if="row.invoice.opens > 1"> · {{ $t(':count opens', { count: row.invoice.opens }) }}</template></span>
                       <!-- A row with no device was opened before this was recorded, so what it saw is unknown. -->
                       <span v-if="row.invoice.final_seen_at" class="text-green-700">{{ $t('Saw final amount') }}</span>
                       <span v-else-if="row.invoice.device" class="text-amber-700">{{ $t('Final amount not seen') }}</span>
                     </div>
-                    <span v-else-if="row.invoice.offered" class="whitespace-nowrap text-xs text-gray-500">{{ $t('Not scanned') }}</span>
+                    <div v-else-if="row.invoice.offered" class="flex flex-col items-start space-y-0.5 text-xs">
+                      <span class="whitespace-nowrap text-gray-500">{{ $t('Not scanned') }}</span>
+                      <button v-if="row.invoice.url" type="button" class="whitespace-nowrap text-indigo-600 underline hover:text-indigo-800" @click="invoiceRow = row">{{ $t('View invoice') }}</button>
+                    </div>
                     <span v-else class="text-gray-400">—</span>
                   </TableData>
                 </tr>
@@ -780,6 +787,14 @@
         </div>
       </div>
     </div>
+    <!-- The customer's own invoice page; a signed-in viewer is never counted as the customer's scan. -->
+    <Modal :open="invoiceRow !== null" @modalClose="invoiceRow = null">
+      <template #header>{{ $t("Customer's copy") }}</template>
+      <div v-if="invoiceRow !== null" class="flex flex-col space-y-2">
+        <a :href="invoiceRow.invoice.url" target="_blank" rel="noopener" class="self-end text-sm text-indigo-600 underline hover:text-indigo-800">{{ $t('Open in new tab') }}</a>
+        <iframe :key="invoiceRow.id" :src="invoiceRow.invoice.url" :title="$t('View invoice')" class="h-[75vh] w-full rounded border border-gray-200"></iframe>
+      </div>
+    </Modal>
     <Modal :open="checkRow !== null" @modalClose="checkRow = null">
       <template #header>{{ $t('Check HappyIce AI') }}</template>
       <OwnAiCheckPanel v-if="checkRow !== null" :key="checkRow.id" :recognition-id="checkRow.id" @saved="ownAiCheckSaved" />
@@ -1253,6 +1268,7 @@ const correctionNotice = ref('')
 
 // Brian, 2026-11-22: a person's check of HappyIce AI's count (OwnAiCheckPanel). Moves nothing; the Macs train on it.
 const checkRow = ref(null)
+const invoiceRow = ref(null)
 function ownAiCheckSaved(result) {
   checkRow.value = null
   correctionNotice.value = result.message
