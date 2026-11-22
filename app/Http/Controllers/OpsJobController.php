@@ -239,7 +239,10 @@ class OpsJobController extends Controller
                 'delta_cash_amount',
             ])
         ) {
-            $query->orderBy($request->sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+            // A header whose figure is not an ops_jobs column (Total Cash Amount, picked / stock-in
+            // totals …) sorts by date instead of failing the page with "Unknown column" (IDN, 2026-11-15).
+            $column = in_array($request->sortKey, Schema::getColumnListing('ops_jobs'), true) ? $request->sortKey : 'date';
+            $query->orderBy($column, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
         }
 
         // Paginate first to get the target IDs

@@ -179,6 +179,39 @@ class DeactivatedUserLoggedOutTest extends TestCase
         $this->assertTrue($boss->fresh()->hasRole('superadmin'));
     }
 
+    /** Audit 2026-11-22: an admin must not take a superadmin's account over by resetting its sign-in. */
+    public function test_an_admin_cannot_change_a_superadmins_password_email_or_username(): void
+    {
+        $this->seedHiplAndRoles();
+        $boss = $this->hiplUser('superadmin');
+        $admin = $this->hiplUser('admin');
+        $before = $boss->fresh()->password;
+
+        foreach ([['password' => 'taken-over'], ['email' => 'other@example.com'], ['username' => 'someone-else']] as $change) {
+            $this->actingAs($admin)->post("/users/{$boss->id}/update", array_merge([
+                'name' => $boss->name,
+                'email' => $boss->email,
+                'username' => $boss->username,
+            ], $change))->assertForbidden();
+        }
+        $after = $boss->fresh();
+        $this->assertSame($before, $after->password);
+        $this->assertSame($boss->email, $after->email);
+        $this->assertSame($boss->username, $after->username);
+
+        // Saving the same values back (the form posts the whole user) is not a sign-in change.
+        $this->actingAs($admin)->post("/users/{$boss->id}/update", [
+            'name' => 'Renamed', 'email' => $boss->email, 'username' => $boss->username,
+        ])->assertRedirect();
+        $this->assertSame('Renamed', $boss->fresh()->name);
+
+        // Another superadmin may still reset it.
+        $this->actingAs($this->hiplUser('superadmin'))->post("/users/{$boss->id}/update", [
+            'name' => 'Renamed', 'email' => $boss->email, 'username' => $boss->username, 'password' => 'new-secret',
+        ])->assertRedirect();
+        $this->assertNotSame($before, $boss->fresh()->password);
+    }
+
     public function test_a_superadmin_may_still_deactivate_themselves_and_admins_still_work(): void
     {
         $this->seedHiplAndRoles();

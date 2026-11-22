@@ -74,6 +74,23 @@ class UserController extends Controller
     }
 
     /**
+     * A superadmin's sign-in (password, email, username) is changed only by themselves or another
+     * superadmin. Otherwise an admin could set a superadmin's password, sign in as them and get
+     * around "a superadmin only by themselves" (audit 2026-11-22). The form posts the whole user
+     * back, so only a real change counts.
+     */
+    private function assertMayChangeSignIn(Request $request, User $target): void
+    {
+        if ((int) $target->id === (int) auth()->id() || ! $target->hasRole('superadmin') || auth()->user()?->hasRole('superadmin')) {
+            return;
+        }
+        $changed = filled($request->password)
+            || ($request->has('email') && strcasecmp(trim((string) $request->email), trim((string) $target->email)) !== 0)
+            || ($request->has('username') && trim((string) $request->username) !== trim((string) $target->username));
+        abort_if($changed, 403);
+    }
+
+    /**
      * The role the request asks for, checked against what the CALLER may hand
      * out (User::assignableRoleNames()). Null when no (existing) role was
      * posted - create() and update() then leave the roles alone, as before.
@@ -420,6 +437,7 @@ class UserController extends Controller
         if ($role && $role->name !== 'superadmin') {
             $this->assertNotAnotherSuperadmin($user);
         }
+        $this->assertMayChangeSignIn($request, $user);
 
         // Capture BEFORE update(): $validated can contain a new operator_id, and
         // every clamp below must validate the posted ids against the operator the

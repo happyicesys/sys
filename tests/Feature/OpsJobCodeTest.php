@@ -121,4 +121,13 @@ class OpsJobCodeTest extends TestCase
 
         $this->assertSame(10082, (int) OpsJob::where('operator_id', $this->small->id)->max('code'));
     }
+
+    /** IDN 2026-11-15: sorting Daily Jobs by Total Cash Amount failed the page with "Unknown column". */
+    public function test_sorting_by_a_figure_that_is_not_a_column_does_not_fail_the_page(): void
+    {
+        $this->job(5, $this->small);
+        foreach (['total_cash_amount', 'picked_amount', 'stock_in_amount', 'date', 'code'] as $key) {
+            $this->actingAs($this->user)->get('/ops-jobs?sortKey='.$key.'&sortBy=true')->assertOk();
+        }
+    }
 }
