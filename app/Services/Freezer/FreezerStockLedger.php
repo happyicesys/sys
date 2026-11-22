@@ -173,9 +173,12 @@ class FreezerStockLedger
         $target = [];
         foreach (array_keys($moved + $short + $applied) as $productId) {
             $want = ($moved[$productId] ?? 0) - ($short[$productId] ?? 0);
-            $this->shift($vend, (int) $productId, $want - ($applied[$productId] ?? 0));
-            if ($want !== 0) {
-                $target[$productId] = $want;
+            // Record what really moved: the count never goes below 0, so a move it could not make is not
+            // "applied" and the next correction still owes it (audit 2026-11-22: adjusting up past the count
+            // and back down left a phantom unit for sale under the stock cap).
+            $now = ($applied[$productId] ?? 0) + $this->shift($vend, (int) $productId, $want - ($applied[$productId] ?? 0));
+            if ($now !== 0) {
+                $target[$productId] = $now;
             }
         }
         ksort($target);
@@ -183,12 +186,17 @@ class FreezerStockLedger
         $sale->meta_json = array_merge($meta, [self::APPLIED => $target]);
     }
 
-    private function shift(Vend $vend, int $productId, int $delta): void
+    /** @return int the units that really moved (the count stops at 0) */
+    private function shift(Vend $vend, int $productId, int $delta): int
     {
-        if ($delta !== 0) {
-            VendChannel::where('vend_id', $vend->id)->where('product_id', $productId)
-                ->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) + '.$delta.', 0)')]);
+        if ($delta === 0) {
+            return 0;
         }
+        $rows = VendChannel::where('vend_id', $vend->id)->where('product_id', $productId);
+        $before = (int) (clone $rows)->lockForUpdate()->sum('qty');
+        $rows->update(['qty' => DB::raw('GREATEST(CAST(qty AS SIGNED) + '.$delta.', 0)')]);
+
+        return (int) VendChannel::where('vend_id', $vend->id)->where('product_id', $productId)->sum('qty') - $before;
     }
 
     /**

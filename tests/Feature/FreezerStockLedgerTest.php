@@ -321,6 +321,21 @@ class FreezerStockLedgerTest extends TestCase
         $this->assertSame(1, app(FreezerStockLedger::class)->unitsOut($sale->fresh())[$this->cheesecake->id], 'the sale still took 1 for the rebuild');
     }
 
+    /** Audit 2026-11-22: adjusting above the count and back must not leave a phantom unit for sale. */
+    public function test_adjusting_past_the_count_and_back_leaves_no_phantom_unit(): void
+    {
+        $this->channel->update(['qty' => 1]);
+        $this->trade('26112215550450001', [0, 0]); // paid 2, the count held 1
+        $this->assertSame(0, (int) $this->channel->fresh()->qty);
+
+        $this->adjust('26112215550450001', 0); // nothing taken: the 1 the count held comes back
+        $this->assertSame(1, (int) $this->channel->fresh()->qty);
+        $this->adjust('26112215550450001', 2); // 2 taken: only the 1 there can go
+        $this->assertSame(0, (int) $this->channel->fresh()->qty);
+        $this->adjust('26112215550450001', 1); // 1 taken after all: it was the only one, so none is left
+        $this->assertSame(0, (int) $this->channel->fresh()->qty, 'no phantom unit');
+    }
+
     public function test_a_sale_within_the_count_is_corrected_as_before(): void
     {
         $this->channel->update(['qty' => 5]);

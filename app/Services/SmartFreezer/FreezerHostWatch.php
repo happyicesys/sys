@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Log;
  *
  * Each goes once per episode to the operator's machine alert recipients
  * ({@see AlertEmailService::sendVendOperationErrorNotificationMail}); a dark freezer alerts again only after it
- * reported host data once more. Read-only apart from the cache keys and the alert's own log row.
+ * reported host data once more (going offline in between does not count). Read-only apart from the cache keys and the alert's own log row.
  */
 class FreezerHostWatch
 {
@@ -54,7 +54,11 @@ class FreezerHostWatch
             $since = $this->darkSince($vend, $now);
             $key = 'freezer-host-dark:'.$vend->id;
             if ($since === null) {
-                Cache::forget($key);
+                // Only host data reported again ends the episode. A freezer that went quiet (offline, or no
+                // status for a while) keeps it, or every return from a dropped link would email again.
+                if ($this->reportsHostData($vend, $now)) {
+                    Cache::forget($key);
+                }
 
                 continue;
             }
@@ -113,6 +117,16 @@ class FreezerHostWatch
         }
 
         return $since;
+    }
+
+    /** The freezer's newest status frame, within the last 6 hours, carries host data. */
+    private function reportsHostData(Vend $vend, Carbon $now): bool
+    {
+        $newest = DB::table('vend_data')->where('vend_code', $vend->code)->where('type', 'FREEZERSTATUS')
+            ->where('created_at', '>=', $now->copy()->subHours(6))
+            ->orderByDesc('id')->value('value');
+
+        return $newest !== null && self::hasHostData($newest);
     }
 
     /** A status frame (vend_data.value) that carries the host's lock reading. */

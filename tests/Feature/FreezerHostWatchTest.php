@@ -89,6 +89,26 @@ class FreezerHostWatchTest extends TestCase
         $this->assertCount(2, $this->sent);
     }
 
+    /** Audit 2026-11-22: a dark freezer whose link drops and comes back is the same episode, not a new email. */
+    public function test_a_dark_freezer_that_drops_offline_and_returns_still_dark_does_not_alert_again(): void
+    {
+        $this->good(60);
+        $this->empty(45);
+        $this->empty(30);
+        $this->frame('VENDER', ['TEMP' => -250], 1);
+        app(FreezerHostWatch::class)->run();
+        $this->assertCount(1, $this->sent);
+
+        // Off MQTT for a while: nothing in the last 5 minutes.
+        Carbon::setTestNow(now()->addMinutes(20));
+        $this->assertSame([], app(FreezerHostWatch::class)->run()['dark']);
+
+        // Back online, its host still dark.
+        $this->empty(1);
+        $this->assertSame([], app(FreezerHostWatch::class)->run()['dark']);
+        $this->assertCount(1, $this->sent);
+    }
+
     public function test_a_fine_offline_or_just_restarted_freezer_does_not_alert(): void
     {
         $this->good(20);
