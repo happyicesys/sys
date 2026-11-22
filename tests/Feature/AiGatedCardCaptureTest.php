@@ -226,6 +226,45 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame([], $this->gateway->callsOf('capture'));
     }
 
+    /** Brian, 2026-11-22 (hold 337): a hold released at Payrallel closes here too, so the page stops asking a person. */
+    public function test_a_waiting_hold_released_at_payrallel_closes_here_on_the_next_recheck(): void
+    {
+        $intent = $this->service->authorize($this->vend, 'SF1', 1640);
+        $this->gateway->answer('50001-SF1', T::APPROVED);
+        $this->service->refresh($intent);
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+        $this->service->reconcile();
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->fresh()->state, 'still held at Payrallel');
+
+        // Released in Payrallel's portal (or expired at the bank): within HELD_RECHECK_MINUTES it is closed here.
+        $this->gateway->answers['50001-SF1'] = [new T(T::VOIDED, 'voided', 'TXN-50001-SF1', 'master')];
+        Carbon::setTestNow(Carbon::now()->addMinutes(5));
+        $this->service->reconcile();
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->fresh()->state, 'not re-read before 15 min');
+        Carbon::setTestNow(Carbon::now()->addMinutes(11));
+        $this->service->reconcile();
+        $closed = $intent->fresh();
+        $this->assertSame(CardPaymentIntent::STATE_VOIDED, $closed->state);
+        $this->assertStringContainsString('released at Payrallel', (string) $closed->last_error);
+        $this->assertSame([], $this->gateway->callsOf('capture'));
+        $this->assertSame([], $this->gateway->callsOf('void'), 'nothing sent: it was already released there');
+    }
+
+    public function test_a_hold_charged_outside_connectvend_is_flagged_not_closed(): void
+    {
+        $intent = $this->service->authorize($this->vend, 'SF1', 1640);
+        $this->gateway->answer('50001-SF1', T::APPROVED);
+        $this->service->refresh($intent);
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+        $this->service->reconcile();
+        $this->gateway->answers['50001-SF1'] = [new T(T::PROCESSING, 'captured', 'TXN-50001-SF1', 'master')];
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+        $this->service->reconcile();
+        $held = $intent->fresh();
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $held->state, 'the amount is not known here: a person decides');
+        $this->assertStringContainsString('charged at Payrallel outside ConnectVend', (string) $held->last_error);
+    }
+
     public function test_a_late_door_close_names_the_session_of_an_unconfirmed_hold(): void
     {
         $intent = $this->service->authorize($this->vend, 'SF1', 760);

@@ -57,6 +57,15 @@ class CardPaymentService
     /** How often the reconciler retries a pre-auth capture the provider refused. */
     private const AUTO_CAPTURE_RETRY_MINUTES = 10;
 
+    /** How often a hold waiting on a person is re-read from Payrallel (recheckHeld). */
+    private const HELD_RECHECK_MINUTES = 15;
+
+    /** Payrallel words for a hold that no longer holds money. */
+    private const RELEASED_AT_PROVIDER = ['voided', 'void', 'expired', 'cancelled', 'canceled', 'reversed', 'released', 'declined'];
+
+    /** Payrallel words for a hold charged outside ConnectVend (the amount is not on the hold's record). */
+    private const CHARGED_AT_PROVIDER = ['captured', 'partially_captured', 'completed', 'settled'];
+
     /** How far back the sweep looks for a decided charge whose sale is still held for its audit. */
     private const AUDIT_SETTLE_LOOKBACK_HOURS = 48;
 
@@ -439,9 +448,69 @@ class CardPaymentService
                 $this->isolated($intent, fn () => $this->locked($intent, fn (CardPaymentIntent $i) => $this->settleAwaitingAiLocked($i)));
             });
 
+        // Holds waiting on a person: re-read from Payrallel every HELD_RECHECK_MINUTES (Brian, 2026-11-22: "whenever the
+        // problem has been cleared off, update accordingly"). A hold released, expired or cancelled at Payrallel (their
+        // portal, the bank, the provider's own expiry) closes here too, so AI Recognition stops asking a person for it.
+        CardPaymentIntent::query()
+            ->where('state', CardPaymentIntent::STATE_AWAITING_AI)
+            ->where('created_at', '<', Carbon::now()->subMinutes(self::HELD_RECHECK_MINUTES))
+            ->where(fn ($q) => $q->whereNull('last_queried_at')
+                ->orWhere('last_queried_at', '<', Carbon::now()->subMinutes(self::HELD_RECHECK_MINUTES)))
+            ->lazyById(100)
+            ->each(function (CardPaymentIntent $intent) use (&$touched) {
+                $touched++;
+                $this->isolated($intent, fn () => $this->locked($intent, fn (CardPaymentIntent $i) => $this->recheckHeld($i)));
+            });
+
         $this->settleUnaudited();
 
         return $touched;
+    }
+
+    /**
+     * A hold still waiting (AWAITING_AI) as Payrallel sees it now. Released / expired / cancelled there → VOIDED here
+     * (nothing charged). Charged there outside ConnectVend → left for a person with a note: the amount charged is
+     * not on the hold's record, so it is never guessed. Still approved → unchanged. Caller holds the lock.
+     */
+    private function recheckHeld(CardPaymentIntent $intent): CardPaymentIntent
+    {
+        $decision = (array) $intent->ai_decision;
+        if ($intent->state !== CardPaymentIntent::STATE_AWAITING_AI
+            || isset($decision['action']) || isset($decision['inflight']) || isset($decision['uncertain'])) {
+            return $intent; // a charge is decided, in flight or uncertain: its own retry / a person handles it
+        }
+        $terminal = $this->terminalOf($intent);
+        try {
+            $txn = $this->gateways->for($terminal)->query($terminal, $intent->custom_order_id);
+        } catch (CardTerminalException $e) {
+            $intent->update(['last_queried_at' => Carbon::now(), 'query_count' => $intent->query_count + 1]);
+
+            return $intent;
+        }
+        $said = strtolower((string) ($txn->providerStatus ?? ''));
+        $intent->fill([
+            'provider_status' => $txn->providerStatus ?? $intent->provider_status,
+            'last_response' => $txn->raw,
+            'query_count' => $intent->query_count + 1,
+            'last_queried_at' => Carbon::now(),
+        ]);
+        if ($txn->status === TerminalTransaction::VOIDED || in_array($said, self::RELEASED_AT_PROVIDER, true)) {
+            $this->events->record('provider.released_outside', ['provider_status' => $said, 'hold_cents' => $intent->amount_cents],
+                $intent->terminal, $intent->custom_order_id, null, 'warning');
+            Log::warning('Card hold released at Payrallel — closed here too', $this->logContext($intent));
+
+            return $this->finish($intent, CardPaymentIntent::STATE_VOIDED, [
+                'voided_at' => Carbon::now(),
+                'last_error' => 'released at Payrallel ('.($said ?: 'voided').'), outside ConnectVend',
+            ]);
+        }
+        if (in_array($said, self::CHARGED_AT_PROVIDER, true)) {
+            $intent->last_error = 'charged at Payrallel outside ConnectVend ('.$said.'): check the amount in their portal';
+            $this->events->record('provider.charged_outside', ['provider_status' => $said], $intent->terminal, $intent->custom_order_id, null, 'warning');
+        }
+        $intent->save();
+
+        return $intent;
     }
 
     /**
