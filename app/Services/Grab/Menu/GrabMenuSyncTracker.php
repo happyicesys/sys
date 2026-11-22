@@ -272,7 +272,7 @@ class GrabMenuSyncTracker
                 'last_message' => 'Sent again by a person',
                 'updated_at' => now(),
             ]);
-            NotifyDeliveryPlatformUpdateMenu::dispatch($binding, true)->onQueue('default');
+            NotifyDeliveryPlatformUpdateMenu::dispatch($binding, true)->onQueue('default')->delay($this->spacedAsk($sent));
             $sent++;
         }
 
@@ -385,6 +385,7 @@ class GrabMenuSyncTracker
     private function moveStuckRows(): int
     {
         $moved = 0;
+        $asked = 0;
 
         $unpulled = GrabMenuSyncStore::query()->with('binding')->where('status', GrabMenuSyncStore::STATUS_SENT)
             ->where('sent_at', '<', now()->subMinutes(self::PULL_WAIT_MINUTES))->get();
@@ -396,7 +397,7 @@ class GrabMenuSyncTracker
                 continue;
             }
             $row->update(['status' => GrabMenuSyncStore::STATUS_WAITING, 'last_message' => 'Grab did not pull the menu; asked again']);
-            NotifyDeliveryPlatformUpdateMenu::dispatch($row->binding, true)->onQueue('default');
+            NotifyDeliveryPlatformUpdateMenu::dispatch($row->binding, true)->onQueue('default')->delay($this->spacedAsk($asked++));
         }
 
         $moved += GrabMenuSyncStore::query()->where('status', GrabMenuSyncStore::STATUS_PULLED)
@@ -426,10 +427,19 @@ class GrabMenuSyncTracker
                 continue;
             }
             GrabMenuSyncStore::query()->whereIn('id', $rows->pluck('id'))->update(['updated_at' => now()]);
-            NotifyDeliveryPlatformUpdateMenu::dispatch($binding, true)->onQueue('default');
+            NotifyDeliveryPlatformUpdateMenu::dispatch($binding, true)->onQueue('default')->delay($this->spacedAsk($asked++));
         }
 
         return $moved;
+    }
+
+    /**
+     * Several stores asked again at once go out `grab.daily_sync_spacing_seconds` apart, like the nightly
+     * sync: one company-rule save re-asked for 63 stores in the same second drew 429s from Grab (2026-11-21).
+     */
+    private function spacedAsk(int $place): \DateTimeInterface
+    {
+        return now()->addSeconds($place * (int) config('grab.daily_sync_spacing_seconds', 3));
     }
 
     // ---- Shared ------------------------------------------------------------------------------------

@@ -289,6 +289,31 @@ class GrabMenuSyncTest extends TestCase
         $this->assertStringContainsString('confirmation never came', $b->last_message);
     }
 
+    /** 2026-11-21: re-asking many stores in the same second drew 429s; they go out spaced like the nightly sync. */
+    public function test_stores_asked_again_together_go_out_spaced(): void
+    {
+        config(['grab.daily_sync_spacing_seconds' => 3]);
+        Http::fake(['*/partner/v1/merchant/menu/notification' => Http::response([], 200)]);
+        $this->saveRule(12500);
+        $this->notify($this->a);
+        $this->notify($this->b);
+
+        $this->travel(21)->minutes();
+        Queue::fake();
+        Artisan::call('grab:check-menu-sync');
+
+        $delays = [];
+        Queue::assertPushed(NotifyDeliveryPlatformUpdateMenu::class, function ($job) use (&$delays) {
+            $delays[] = $job->delay ? now()->diffInSeconds($job->delay) : 0;
+
+            return true;
+        });
+        sort($delays);
+        $this->assertCount(2, $delays);
+        $this->assertEqualsWithDelta(0, $delays[0], 1);
+        $this->assertEqualsWithDelta(3, $delays[1], 1);
+    }
+
     public function test_a_store_grab_keeps_failing_is_sent_again_by_the_system_check_at_most_once_a_day(): void
     {
         Http::fake(['*/partner/v1/merchant/menu/notification' => Http::response([], 200)]);

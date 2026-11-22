@@ -107,6 +107,46 @@ class GrabSiteGuardTest extends TestCase
         $this->assertSame('settled', $resumed->data['site_change']);
     }
 
+    /** Audit 2026-11-22: a machine swap at the Site must not leave the store paused for good. */
+    public function test_moving_the_store_onto_the_replacement_machine_at_its_site_resumes_it(): void
+    {
+        $old = $this->vend();
+        $old->customer_id = null; // the old machine leaves the Site: the store is paused
+        $old->save();
+        $this->assertFalse((bool) $this->binding->fresh()->is_active);
+
+        $new = Vend::forceCreate(['code' => 2339, 'operator_id' => $old->operator_id, 'customer_id' => $this->siteA->id]);
+        $moved = app(GrabStoreService::class)->move($this->binding->fresh(), $new, null, null);
+
+        $this->assertTrue((bool) $moved->fresh()->is_active);
+        $this->assertSame((int) $new->id, (int) $moved->vend_id);
+        $resumed = DeliveryPlatformStoreEvent::query()->where('event', DeliveryPlatformStoreEvent::EVENT_RESUMED)->sole();
+        $this->assertSame('settled', $resumed->data['site_change']);
+    }
+
+    public function test_a_store_moved_onto_a_machine_at_another_site_stays_paused(): void
+    {
+        $old = $this->vend();
+        $old->customer_id = null;
+        $old->save();
+
+        $elsewhere = Vend::forceCreate(['code' => 2340, 'operator_id' => $old->operator_id, 'customer_id' => $this->siteB->id]);
+        $moved = app(GrabStoreService::class)->move($this->binding->fresh(), $elsewhere, null, null);
+
+        $this->assertFalse((bool) $moved->fresh()->is_active, 'Grab still lists the old Site');
+        $this->assertSame(0, DeliveryPlatformStoreEvent::query()->where('event', DeliveryPlatformStoreEvent::EVENT_RESUMED)->count());
+    }
+
+    public function test_a_store_a_person_paused_stays_paused_when_moved_at_its_site(): void
+    {
+        app(GrabStoreService::class)->pause($this->binding, null, 'Machine being serviced');
+        $new = Vend::forceCreate(['code' => 2341, 'operator_id' => $this->vend()->operator_id, 'customer_id' => $this->siteA->id]);
+        $moved = app(GrabStoreService::class)->move($this->binding->fresh(), $new, null, null);
+
+        $this->assertFalse((bool) $moved->fresh()->is_active);
+        $this->assertSame('Machine being serviced', $moved->fresh()->pause_reason);
+    }
+
     public function test_a_store_a_person_paused_is_never_resumed_by_a_site_change(): void
     {
         app(GrabStoreService::class)->pause($this->binding, null, 'Machine being serviced');

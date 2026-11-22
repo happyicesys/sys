@@ -320,12 +320,38 @@ class GrabStoreService
         // A move keeps selling, but its promotions end as before (their items may not exist on the new machine).
         $this->afterClose($closed, pauseOnGrab: false, endPromotions: true);
         $this->afterOpen($binding, resumeOnGrab: false);
+        $binding = $this->resumeSitePauseAfterSwap($current, $binding, $vend, $userId);
         // A store still on an old Grab menu moves over to its machine with the move.
         if ($this->willUseMachineMenu($ref) && ! $ref->fresh()->usesMachineMenu()) {
             $this->setMenuSource($ref->fresh(), true, $userId);
         }
 
         return $binding;
+    }
+
+    /**
+     * A machine swap at the store's own Site: the old machine left the Site, so GrabSiteGuard paused the
+     * store, and the store is now moved onto the machine that replaced it there. That pause was only
+     * about the Site, and the guard looks for its pause on the binding the store is on, which is no
+     * longer the old one, so without this the store stayed off Grab until someone pressed Resume (audit
+     * 2026-11-22). Only that rule's own pause is lifted, and only when the new machine is at the Site the
+     * store was set up at; a person's pause, or a move to another Site, stays paused. Never throws: the
+     * move itself is already done.
+     */
+    private function resumeSitePauseAfterSwap(DeliveryProductMappingVend $old, DeliveryProductMappingVend $binding, Vend $vend, ?int $userId): DeliveryProductMappingVend
+    {
+        try {
+            if ($binding->is_active || ! $old->customer_id || (int) $vend->customer_id !== (int) $old->customer_id
+                || ! app(Grab\GrabSiteGuard::class)->pausedBySiteChange($old)) {
+                return $binding;
+            }
+
+            return $this->resume($binding, $userId, __('Machine :code is back at the Site the store was set up at', ['code' => $vend->code]), ['site_change' => 'settled']);
+        } catch (\Throwable $e) {
+            Log::warning('Grab site pause not lifted after a move', ['binding' => $binding->id, 'error' => $e->getMessage()]);
+
+            return $binding;
+        }
     }
 
     /** Take a store off its machine. It is paused on Grab, since nothing sells it now. */
