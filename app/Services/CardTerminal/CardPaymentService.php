@@ -483,7 +483,8 @@ class CardPaymentService
         try {
             $txn = $this->gateways->for($terminal)->query($terminal, $intent->custom_order_id);
         } catch (CardTerminalException $e) {
-            $intent->update(['last_queried_at' => Carbon::now(), 'query_count' => $intent->query_count + 1]);
+            $intent->fill(['last_queried_at' => Carbon::now(), 'query_count' => $intent->query_count + 1]);
+            $this->saveKeepingUpdatedAt($intent);
 
             return $intent;
         }
@@ -508,9 +509,25 @@ class CardPaymentService
             $intent->last_error = 'charged at Payrallel outside ConnectVend ('.$said.'): check the amount in their portal';
             $this->events->record('provider.charged_outside', ['provider_status' => $said], $intent->terminal, $intent->custom_order_id, null, 'warning');
         }
-        $intent->save();
+        $this->saveKeepingUpdatedAt($intent);
 
         return $intent;
+    }
+
+    /**
+     * A re-read saves what Payrallel said without moving `updated_at`. A hold the device never
+     * confirmed has no `door_closed_at`, so {@see personNeededBecause} counts its 30 minutes from
+     * `updated_at`; a re-read every 15 minutes kept resetting that clock, and the hold never reached
+     * a person (intent 337, 2026-11-22).
+     */
+    private function saveKeepingUpdatedAt(CardPaymentIntent $intent): void
+    {
+        $intent->timestamps = false;
+        try {
+            $intent->save();
+        } finally {
+            $intent->timestamps = true;
+        }
     }
 
     /**

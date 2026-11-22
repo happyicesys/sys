@@ -226,6 +226,28 @@ class AiGatedCardCaptureTest extends TestCase
         $this->assertSame([], $this->gateway->callsOf('capture'));
     }
 
+    /** Hold 337 (2026-11-22): the 15-minute re-read must not keep restarting the 30 minutes before a person is asked. */
+    public function test_rereading_an_unconfirmed_hold_does_not_hide_it_from_a_person(): void
+    {
+        $intent = $this->service->authorize($this->vend, 'SF1', 1640);
+        $this->gateway->answer('50001-SF1', T::APPROVED);
+        $this->service->refresh($intent);
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+        $this->service->reconcile(); // never confirmed by the device: awaiting_ai, no door_closed_at
+        $this->assertSame(CardPaymentIntent::STATE_AWAITING_AI, $intent->fresh()->state);
+        $this->assertNull($intent->fresh()->door_closed_at);
+
+        // Payrallel still says approved on every re-read.
+        foreach ([16, 16] as $minutes) {
+            Carbon::setTestNow(Carbon::now()->addMinutes($minutes));
+            $this->service->reconcile();
+        }
+        $held = $intent->fresh();
+        $this->assertGreaterThanOrEqual(2, (int) $held->query_count, 're-read twice');
+        $this->assertSame(CardPaymentService::PERSON_AI_NO_ANSWER, $this->service->personNeededBecause($held));
+        $this->assertTrue($this->service->awaitsPerson($held));
+    }
+
     /** Brian, 2026-11-22 (hold 337): a hold released at Payrallel closes here too, so the page stops asking a person. */
     public function test_a_waiting_hold_released_at_payrallel_closes_here_on_the_next_recheck(): void
     {
