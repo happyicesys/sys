@@ -142,6 +142,9 @@ class Kernel extends ConsoleKernel
         // T05 readiness-poll HTTP lines older than 30 days (rows tied to a payment are kept). Audit SF2-02.
         $schedule->command('card-payments:prune-events')->dailyAt('03:50')->withoutOverlapping(30);
         $schedule->command('freezer:run-setpoint-schedules')->everyMinute()->withoutOverlapping();
+        // A freezer online but cut off from its door/cameras, or a T05 capture with no sale record after it
+        // (50001, 2026-11-22: neither raised anything for an hour). Emails the operator's machine alert users.
+        $schedule->command('freezer:watch-host')->everyFiveMinutes()->withoutOverlapping(5);
         // Happy Hour: pick each day's lineup before its window, swap/end slots, record results. In the
         // background, so it starts on the minute instead of after every command listed before it (at
         // midnight, the daily jobs held it back past the 00:00 slot — audit 2026-10-30).
