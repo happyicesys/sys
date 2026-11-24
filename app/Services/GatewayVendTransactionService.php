@@ -12,6 +12,7 @@ use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
 use App\Services\Sales\PreCreatedSaleFactory;
+use App\Support\Sales\ChannelChargedPrice;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -112,11 +113,15 @@ class GatewayVendTransactionService
         $vendChannelCode = ! $isMultiple && isset($channels[0]['code']) ? (int) $channels[0]['code'] : 0;
         $vendChannelId = $parentMap['vendChannel']?->id ?? 0; // column is NOT NULL → 0 placeholder for multi/unmapped
 
+        // A basket line is priced at what the screen charged for it: the Site's price on a machine that
+        // follows it, else the board price (ChannelChargedPrice). The gateway gives one total, no line prices.
+        $serverPrices = $isMultiple ? ChannelChargedPrice::serverPrices($vend) : [];
+
         try {
             return DB::transaction(function () use (
                 $vend, $orderId, $approvedAt, $amountCents, $isMultiple, $paymentMethod,
                 $channels, $parentMap, $money,
-                $vendChannelCode, $vendChannelId, $log, $productMappingItems
+                $vendChannelCode, $vendChannelId, $log, $productMappingItems, $serverPrices
             ) {
                 // Machine-derived columns + meta come from the shared rail factory
                 // (one definition with the NETS-orphan rail); the basket mapping is
@@ -161,7 +166,7 @@ class GatewayVendTransactionService
                             'product_mapping_item_id' => $map['mappingItem']?->id,
                             'unit_cost_id' => $map['unitCostId'],
                             'unit_cost' => $map['unitCostValue'],
-                            'unit_price_amount' => $map['vendChannel']?->amount ?? 0,
+                            'unit_price_amount' => $serverPrices[(string) (int) ($channel['code'] ?? '')] ?? $map['vendChannel']?->amount ?? 0,
                             'vend_channel_id' => $map['vendChannel']?->id ?? 0,
                             'vend_channel_code' => $channel['code'] ?? null,
                             'vend_channel_error_code' => null, // pending

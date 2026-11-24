@@ -23,6 +23,7 @@ use App\Models\VendTransactionItem;
 use App\Services\CardSettlement\CardSettlementMatcher;
 use App\Services\Sales\LateTradeTracker;
 use App\Support\DispenseVerdict;
+use App\Support\Sales\ChannelChargedPrice;
 use App\Support\TradeTimestampResolver;
 use Carbon\Carbon;
 use DB;
@@ -47,6 +48,9 @@ class VendTransactionService
     protected $vendChannels;
 
     protected $productMappingItems;
+
+    /** @var array<string, int>|null ChannelChargedPrice::serverPrices for the vend being ingested; read on first need. */
+    protected ?array $serverPrices = null;
 
     public function __construct()
     {
@@ -89,6 +93,7 @@ class VendTransactionService
         $this->paymentMethods = PaymentMethod::all()->keyBy('code');
         $this->vendChannelErrors = VendChannelError::all()->keyBy('code');
         $this->vendChannels = $vend->vendChannels->keyBy('code');
+        $this->serverPrices = null;
         if ($vend->productMapping) {
             $this->productMappingItems = $vend->productMapping->productMappingItems->keyBy('channel_code');
         }
@@ -914,7 +919,7 @@ class VendTransactionService
      * figure (RefundItemPrice). Revenue and sold-qty aggregates leave failed lines out by their error
      * code (DispenseVerdict::sqlSale), never by a 0 price.
      */
-    private function determineUnitPriceAmount(?VendChannel $vendChannel, array $input): ?int
+    private function determineUnitPriceAmount($vend, ?VendChannel $vendChannel, $vendChannelCode, array $input): ?int
     {
         if (array_key_exists('unit_price_amount', $input) && ! is_null($input['unit_price_amount'])) {
             return (int) $input['unit_price_amount'];
@@ -927,6 +932,16 @@ class VendTransactionService
             $amount = (int) round($input['amount']);
             if ($amount > 0) {
                 return $amount;
+            }
+        }
+
+        // No price of its own (a basket line: the TRADE carries one Price for the basket). A machine that follows
+        // the Site's pricing charged the server price it was served, not its board price (ChannelChargedPrice).
+        if ($vend instanceof Vend && (int) $vendChannelCode !== 0) {
+            $this->serverPrices ??= ChannelChargedPrice::serverPrices($vend);
+            $served = $this->serverPrices[(string) (int) $vendChannelCode] ?? null;
+            if ($served !== null) {
+                return $served;
             }
         }
 
@@ -1068,7 +1083,7 @@ class VendTransactionService
             $vendChannel = $this->createVendChannel($vend->id, $vendChannelCode);
         }
 
-        $unitPriceAmount = $this->determineUnitPriceAmount($vendChannel, $input);
+        $unitPriceAmount = $this->determineUnitPriceAmount($vend, $vendChannel, $vendChannelCode, $input);
 
         return [
             'amount' => isset($input['amount']) ? $input['amount'] : 0,

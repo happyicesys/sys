@@ -357,6 +357,16 @@ RP back and forth). `App\Services\Product\MachinePriceDelivery` is the one rule,
   row's channel code is not red for it either. A board-price machine keeps the red board-vs-Ref mismatch.
 Regression coverage: `tests/Feature/MachinePriceDeliveryTest.php`.
 
+**A basket line is stored at what the screen charged** (Brian, 2026-11-24, IDN 10027: a 60,000 basket stored Watermelon
+Berry at the 32,000 board price while the machine sells it at RP2's 28,000). The vending TRADE and the QR log carry one
+total for a basket and no line prices, so mark1 prices each line. `App\Support\Sales\ChannelChargedPrice::serverPrices`
+is the one rule, read by `VendTransactionService::determineUnitPriceAmount` and the gateway pre-create: on a server-price
+machine, the `server_price` the machine last loaded (`price_menu_prices_json`), else what `/thumbnails` would serve now; a
+null / 0 there means the machine charges its board price, which stays the fallback. A line that carries its own price
+(freezer, a single sale's header) is never second-guessed. Baskets stored before: `sales:backfill-server-price-basket-lines
+[--days=31] [--vend=] [--apply]` — re-prices a basket only when the new line prices add up exactly to what was paid (Happy
+Hour baskets are left to `happy-hour:reprice-vending-baskets`). Regression coverage: `tests/Feature/BasketLineServerPriceTest.php`.
+
 **A Smart Freezer has no choice: always Yes** (Brian, 2026-09-14). The freezer
 APK has no board price and drops every menu row without `server_price`, so No
 means an empty kiosk (50001 was created that way). `Vend::requiresServerPrice()`
