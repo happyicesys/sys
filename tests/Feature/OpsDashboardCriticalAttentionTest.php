@@ -276,6 +276,49 @@ class OpsDashboardCriticalAttentionTest extends TestCase
         $this->assertSame([6001, 6003], $codes);
     }
 
+    /**
+     * Brian, 2026-11-24 (IDN 10030): a machine on Server Price with no Site sells at its controller's own prices
+     * (Rp99.900, Rp1). The page lists Sites, so it was never in the section; now it has its own group.
+     */
+    public function test_a_server_price_machine_with_no_site_in_use_is_flagged(): void
+    {
+        $unbound = fn (int $code, array $extra = [], int $op = OperatorVendFilterScope::UNRESTRICTED_OPERATOR_ID) => $this->vend($code, array_merge(['customer_id' => null, 'is_using_server_price' => 1], $extra), $op);
+        $unbound(7001);                                                                           // flagged
+        $unbound(7002, ['is_online' => 0, 'mqtt_last_updated_at' => now()->subDays(2), 'last_vend_transaction_at' => null]); // flagged, offline
+        $unbound(7003, ['is_using_server_price' => 0]);                                           // Machine Price: nothing to send
+        $unbound(7004, ['is_online' => 0, 'mqtt_last_updated_at' => now()->subDays(30), 'last_vend_transaction_at' => now()->subDays(30)]); // not in use
+        $unbound(7005, ['is_active' => 0]);                                                       // inactive
+        $unbound(7006, ['machine_type' => Vend::MACHINE_TYPE_SMART_CHILLER]);                     // CityBox prices it
+        $unbound(7007, [], self::OTHER_OPERATOR_ID);                                              // another operator's: outside HIPL's default filter
+        $this->vend(7008, ['is_using_server_price' => 1]);                                        // has a Site
+
+        $result = $this->actingAs($this->viewer())->postJson('/vends/customers/critical-attention')->assertOk()->json();
+        $labels = $this->labels($result);
+        $this->assertSame(['7001', '7002'], $labels[CriticalAttention::GROUP_NO_SITE]);
+        $this->assertNotContains('7001', $labels['no_sales'] ?? [], 'no-Site machines join only their own group');
+        $group = collect($result['groups'])->firstWhere('key', CriticalAttention::GROUP_NO_SITE);
+        $this->assertSame('critical', $group['severity']);
+        $this->assertStringContainsString('last heard', $group['machines'][1]['detail']);
+
+        $other = $this->actingAs($this->viewer(self::OTHER_OPERATOR_ID))->postJson('/vends/customers/critical-attention')->assertOk()->json();
+        $this->assertSame(['7007'], $this->labels($other)[CriticalAttention::GROUP_NO_SITE], 'the viewer ceiling still applies');
+
+        // A viewer who may not list unbound machines gets no such group.
+        $limited = User::factory()->create(['operator_id' => OperatorVendFilterScope::UNRESTRICTED_OPERATOR_ID]);
+        $limited->givePermissionTo(Permission::findOrCreate('read vend-customers', 'web'));
+        $none = $this->actingAs($limited)->postJson('/vends/customers/critical-attention')->assertOk()->json();
+        $this->assertArrayNotHasKey(CriticalAttention::GROUP_NO_SITE, $this->labels($none));
+    }
+
+    public function test_no_group_when_every_server_price_machine_has_a_site(): void
+    {
+        $this->vend(7101, ['is_using_server_price' => 1]);
+
+        $result = $this->actingAs($this->viewer())->postJson('/vends/customers/critical-attention')->assertOk()->json();
+
+        $this->assertArrayNotHasKey(CriticalAttention::GROUP_NO_SITE, $this->labels($result));
+    }
+
     private function pwron(int $code, int $frameId, string $apkVersion): void
     {
         $service = new VendDataService;

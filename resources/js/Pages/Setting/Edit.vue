@@ -27,6 +27,17 @@
         >
         </MultiSelect>
       </div>
+      <!-- Brian, 2026-11-24 (IDN 10030): Server Price with no Site = mark1 has no RP to send, so the machine sells at
+           whatever its controller holds (Rp99.900 / Rp1 there). Said loudly, at the top, from what is SAVED. -->
+      <div v-if="serverPriceNoSite" class="mt-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+        <div class="flex items-start gap-2">
+          <ExclamationTriangleIcon class="h-5 w-5 flex-shrink-0 text-red-500" aria-hidden="true" />
+          <div>
+            <p class="font-semibold">{{ $t('No Site bound, but this machine is set to Server Price') }}</p>
+            <p class="mt-1">{{ $t('ConnectVend has no Reference Price to send, so the machine sells at the prices stored in its own controller, which may be wrong. Bind the machine to its Site (Site section below) and the machine picks up the Site\'s prices within a minute.') }}</p>
+          </div>
+        </div>
+      </div>
       <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-3 sm:-mx-6 lg:-mx-8">
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5 mb-3">
@@ -771,7 +782,10 @@
                 <!-- Server Price = the Site's Reference Price Type (Site edit page, which carries the same
                      switch — one column on the machine, so the two pages always agree). Only the case that
                      needs action is spelled out. -->
-                <p v-if="!siteSellingPriceType" class="mt-1 text-xs text-amber-700">
+                <p v-if="serverPriceNoSite || (!vend.customer && form.is_using_server_price && form.is_using_server_price.id === 'true')" class="mt-1 rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
+                  {{ $t('No Site bound: the machine sells at its own controller prices until a Site is bound.') }}
+                </p>
+                <p v-else-if="!siteSellingPriceType" class="mt-1 text-xs text-amber-700">
                   {{ $t('No Site bound / no Reference Price Type on the Site — the machine uses its machine price until one is set.') }}
                 </p>
                 <FieldAudit :entry="fieldAudit.is_using_server_price" />
@@ -1995,7 +2009,7 @@ import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import SmartFreezerPlanogramGrid from '@/Components/SmartFreezerPlanogramGrid.vue';
 import SmartFreezerRemoteControls from '@/Components/SmartFreezerRemoteControls.vue';
 import RemoteCardTerminalPanel from '@/Components/RemoteCardTerminalPanel.vue';
-import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon, XMarkIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, ExclamationTriangleIcon, PaperClipIcon, XCircleIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
@@ -2278,6 +2292,8 @@ const serverPriceOptions = ref([
   {id: 'true', value: t('Server Price')},
   {id: 'false', value: t('Machine Price')},
 ])
+// Saved state, what the machine runs on now (MachinePriceDelivery::noSiteServerPrice).
+const serverPriceNoSite = computed(() => !isChiller.value && !props.vend?.customer && ['1', 'true'].includes(String(props.vend?.is_using_server_price)))
 const siteSellingPriceType = computed(() => props.vend?.selling_price_type ?? props.vend?.customer?.selling_price_type ?? null)
 const simcardOptions = ref([])
 const upcomingProductMappingOptions = ref([])

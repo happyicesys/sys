@@ -355,7 +355,17 @@ RP back and forth). `App\Services\Product\MachinePriceDelivery` is the one rule,
 - **Machine Price on a server-price machine** (Brian, 2026-11-11): the column shows what the machine SELLS at (its server
   price) with the VMC board's own price as a small "(VMC price …)" note only when it differs, never in red; the dashboard
   row's channel code is not red for it either. A board-price machine keeps the red board-vs-Ref mismatch.
-Regression coverage: `tests/Feature/MachinePriceDeliveryTest.php`.
+- **Server Price with no Site is flagged, never "Up to date"** (Brian, 2026-11-24: IDN 10030 had its mapping but no
+  Site, so `/thumbnails` sent `server_price` null and the board sold at its VMC prices — Rp99.900, Rp39.900 and Rp1
+  instead of RP2's Rp32.000 — while the check read null = null as current). `MachinePriceDelivery::noSiteServerPrice()`
+  is the rule (chillers excluded); `report()` gives state `no_site`. Setting/Edit shows a red banner and a red note under
+  "Is Server Price?", the channel view a red "No Site bound" badge (no "Send to machine again": resending cannot help),
+  and the Operation Dashboard's Needs attention a critical group "Server Price, but no Site bound" — active machines
+  heard on MQTT or sold within 7 days (`CriticalAttention::GROUP_NO_SITE`). The page lists Sites, so these machines
+  are read with "Include unbound?" on, only for a viewer with `admin-access vend-customers` (the toggle's gate); the
+  page's other filters and the viewer ceiling still apply, and they join no other group. The machine's own screen
+  does not say anything yet: that needs an APK change.
+Regression coverage: `tests/Feature/MachinePriceDeliveryTest.php`, `tests/Feature/OpsDashboardCriticalAttentionTest.php`.
 
 **A basket line is stored at what the screen charged** (Brian, 2026-11-24, IDN 10027: a 60,000 basket stored Watermelon
 Berry at the 32,000 board price while the machine sells it at RP2's 28,000). The vending TRADE and the QR log carry one

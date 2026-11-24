@@ -23,7 +23,11 @@
         <div v-if="priceDelivery" class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
           <template v-if="priceDelivery.follows_site">
             <span class="font-semibold text-gray-900">{{ $t('Prices on machine') }}</span>
-            <span v-if="priceDelivery.state === 'current'" class="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 cursor-help" v-tooltip="{ content: summaryTooltip(), html: true }">
+            <!-- Brian, 2026-11-24 (IDN 10030): Server Price with no Site = no tier to send, so the machine sells at its board prices. -->
+            <span v-if="priceDelivery.state === 'no_site'" class="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 cursor-help" v-tooltip="{ content: summaryTooltip(), html: true }">
+              <ExclamationTriangleIcon class="h-4 w-4" aria-hidden="true" />{{ $t('No Site bound: machine sells at its own board prices') }}
+            </span>
+            <span v-else-if="priceDelivery.state === 'current'" class="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 cursor-help" v-tooltip="{ content: summaryTooltip(), html: true }">
               <CheckCircleIcon class="h-4 w-4" aria-hidden="true" />{{ $t('Up to date') }}
             </span>
             <span v-else-if="priceDelivery.state === 'stale'" class="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 cursor-help" v-tooltip="{ content: summaryTooltip(), html: true }">
@@ -36,7 +40,7 @@
             <span class="text-xs text-red-600" v-if="!priceDelivery.reachable">{{ $t('Machine is offline on MQTT') }}</span>
             <span v-if="pricePolling" class="text-xs text-gray-500">{{ $t('Checking…') }}</span>
             <button
-              v-if="permissions.includes('update machine-settings') && priceDelivery.state !== 'current'"
+              v-if="permissions.includes('update machine-settings') && !['current', 'no_site'].includes(priceDelivery.state)"
               type="button"
               class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               :disabled="pricePushing"
@@ -91,7 +95,7 @@
                         </span>
                       </th> -->
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-blue-600">
-                        {{ $t('Ref Price(:type)', { type: priceDelivery && priceDelivery.tier ? priceDelivery.tier : (vend.customer ? vend.customer.selling_price_type : vend.selling_price_type) }) }}
+                        {{ refPriceTier() ? $t('Ref Price(:type)', { type: refPriceTier() }) : $t('Ref Price') }}
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         {{ $t('Error') }}
@@ -198,12 +202,13 @@
                               'bg-green-100 text-green-800': channelDelivery(channel).state === 'current',
                               'bg-amber-100 text-amber-800': channelDelivery(channel).state === 'stale',
                               'bg-gray-100 text-gray-600': channelDelivery(channel).state === 'unknown',
+                              'bg-red-100 text-red-800': channelDelivery(channel).state === 'no_site',
                             }"
                             v-tooltip="{ content: channelTooltip(channelDelivery(channel)), html: true }"
                           >
                             <CheckCircleIcon v-if="channelDelivery(channel).state === 'current'" class="h-3.5 w-3.5" aria-hidden="true" />
                             <ClockIcon v-else-if="channelDelivery(channel).state === 'stale'" class="h-3.5 w-3.5" aria-hidden="true" />
-                            {{ channelDelivery(channel).state === 'current' ? $t('On machine') : (channelDelivery(channel).state === 'stale' ? $t('Waiting') : $t('Not checked yet')) }}
+                            {{ channelDelivery(channel).state === 'no_site' ? $t('No Site') : (channelDelivery(channel).state === 'current' ? $t('On machine') : (channelDelivery(channel).state === 'stale' ? $t('Waiting') : $t('Not checked yet'))) }}
                           </span>
                         </div>
                       </td>
@@ -318,7 +323,7 @@
 </template>
 
 <script setup>
-import { ChevronDoubleDownIcon, ChevronDoubleUpIcon, CheckCircleIcon, ClockIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
+import { ChevronDoubleDownIcon, ChevronDoubleUpIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
 import Button from '@/Components/Button.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -455,6 +460,11 @@ onBeforeUnmount(() => {
   }
 })
 
+// The RP the Ref Price column is in; none when the machine has no Site (the header then says just "Ref Price").
+function refPriceTier() {
+  return (priceDelivery.value && priceDelivery.value.tier) || (props.vend.customer ? props.vend.customer.selling_price_type : props.vend.selling_price_type) || null
+}
+
 function channelDelivery(channel) {
   return priceDelivery.value && priceDelivery.value.channels ? priceDelivery.value.channels[String(channel.code)] : null
 }
@@ -481,7 +491,10 @@ function escapeHtml(text) {
 function channelTooltip(row) {
   const d = priceDelivery.value
   const lines = []
-  if (row.state === 'current') {
+  if (row.state === 'no_site') {
+    lines.push(t('This machine is set to Server Price, but no Site is bound, so ConnectVend has no RP to send.'))
+    lines.push(t('It sells at the prices stored in its own controller (Machine Price column). Bind the Site to fix it.'))
+  } else if (row.state === 'current') {
     lines.push(t('The machine sells at :price.', { price: money(row.loaded) }))
     if (d.fetched_at) {
       lines.push(t('Loaded :time.', { time: formatTime(d.fetched_at) }))
@@ -511,7 +524,10 @@ function channelTooltip(row) {
 function summaryTooltip() {
   const d = priceDelivery.value
   const lines = []
-  if (d.state === 'current') {
+  if (d.state === 'no_site') {
+    lines.push(t('This machine is set to Server Price, but no Site is bound, so ConnectVend has no RP to send.'))
+    lines.push(t('It sells at the prices stored in its own controller (Machine Price column). Bind the Site to fix it.'))
+  } else if (d.state === 'current') {
     lines.push(t('Every channel on the machine holds its RP:tier price.', { tier: d.tier }))
   } else if (d.state === 'stale') {
     lines.push(t(':count channel(s) still hold an older price.', { count: d.stale_count }))

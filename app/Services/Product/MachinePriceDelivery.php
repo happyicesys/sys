@@ -23,6 +23,13 @@ use Illuminate\Support\Facades\Log;
  *   unknown — no fetch recorded yet (tracking began 2026-11-11), or the channel was not in the menu it fetched.
  * Same idea as the payment menu (OperatorPaymentMenu::deliveryState). A machine on its board price (Machine Price)
  * sells at the VMC's own prices, so there is nothing to deliver and `report()` says so.
+ *
+ * **Server Price with no Site** (Brian, 2026-11-24, IDN 10030: a mapping was put on the machine but no Site, so it
+ * sold at its VMC prices — Rp99.900, Rp39.900 and Rp1 instead of RP2's Rp32.000). The Site owns the tier, so with no
+ * Site `/thumbnails` sends every channel `server_price` null and the APK falls back to the board price. "Nothing
+ * expected" then equals "nothing loaded", which this class used to call `current` (Up to date). It is `no_site`:
+ * the machine is NOT selling at a Ref Price. `noSiteServerPrice()` is the one rule; Setting/Edit, the channel view and
+ * the Operation Dashboard's Needs attention (CriticalAttention::GROUP_NO_SITE) all read it.
  */
 class MachinePriceDelivery
 {
@@ -109,6 +116,7 @@ class MachinePriceDelivery
         $vend->loadMissing(['customer:id,name,selling_price_type', 'vendChannels']);
         $tier = $vend->customer?->selling_price_type ? (int) $vend->customer->selling_price_type : null;
         $followsSite = $vend->usesServerPrice();
+        $noSite = $followsSite && self::noSiteServerPrice($vend);
         $expected = $followsSite ? $this->expected($vend) : [];
 
         $fetchedAt = $vend->price_menu_fetched_at ? Carbon::parse($vend->price_menu_fetched_at) : null;
@@ -133,7 +141,9 @@ class MachinePriceDelivery
             $known = $loaded !== null && array_key_exists($code, $loaded);
 
             $state = null; // Machine Price: nothing to deliver.
-            if ($followsSite) {
+            if ($noSite) {
+                $state = 'no_site'; // No tier to send: the machine sells at its board price, whatever it loaded.
+            } elseif ($followsSite) {
                 $state = ! $known ? 'unknown' : ($has === $want ? 'current' : 'stale');
             }
 
@@ -156,7 +166,8 @@ class MachinePriceDelivery
             'vend_id' => $vend->id,
             'tier' => $tier,
             'follows_site' => $followsSite,
-            'state' => ! $followsSite ? null : ($states->contains('stale') ? 'stale' : ($states->contains('unknown') ? 'unknown' : 'current')),
+            'no_site' => $noSite,
+            'state' => ! $followsSite ? null : ($noSite ? 'no_site' : ($states->contains('stale') ? 'stale' : ($states->contains('unknown') ? 'unknown' : 'current'))),
             'stale_count' => $states->filter(fn ($s) => $s === 'stale')->count(),
             'fetched_at' => $fetchedAt?->toIso8601String(),
             'pushed_at' => $vend->price_menu_pushed_at ? Carbon::parse($vend->price_menu_pushed_at)->toIso8601String() : null,
@@ -165,6 +176,17 @@ class MachinePriceDelivery
             'tracking_since' => self::TRACKING_SINCE,
             'channels' => $channels,
         ];
+    }
+
+    /**
+     * The machine follows the Site's pricing but has no Site, so mark1 has no tier to send and it sells at its own
+     * board prices. A Smart Chiller is priced by CityBox and is never this.
+     */
+    public static function noSiteServerPrice(Vend $vend): bool
+    {
+        return $vend->usesServerPrice()
+            && $vend->customer_id === null
+            && $vend->machine_type !== Vend::MACHINE_TYPE_SMART_CHILLER;
     }
 
     /** The machine kinds this applies to: a vending machine (a freezer's and a chiller's prices travel other ways). */

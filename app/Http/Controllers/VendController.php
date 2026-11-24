@@ -7057,7 +7057,33 @@ class VendController extends Controller
      */
     public function customerIndexAttention(Request $request, CriticalAttention $attention)
     {
-        return response()->json($attention->forVendIds($this->customerIndexAttentionPopulation($request)));
+        $population = $this->customerIndexAttentionPopulation($request);
+
+        return response()->json($attention->forVendIds($population, null, $this->customerIndexNoSiteServerPricePopulation($request)));
+    }
+
+    /**
+     * Machines set to Server Price with no Site that are still in use (Brian, 2026-11-24, IDN 10030 sold at Rp1 and
+     * Rp99.900 with no Site bound). The page lists Sites, so such a machine is never in its population: read here with
+     * "Include unbound?" switched on — the page's other filters and the viewer ceiling still apply — and only for a
+     * viewer who may list unbound machines (the toggle's own gate, applied by applyCustomerIndexRequestDefaults).
+     *
+     * @return int[]
+     */
+    private function customerIndexNoSiteServerPricePopulation(Request $request): array
+    {
+        if (! auth()->user()?->can('admin-access vend-customers')) {
+            return [];
+        }
+        // A fresh request, never duplicate(): a JSON request's duplicate shares its input bag, so the merges below
+        // would leak into the page's own population.
+        $unbound = new Request(array_merge($request->all(), ['include_unbound_vends' => true]));
+
+        return CriticalAttention::noSiteServerPriceQuery($this->customerIndexAttentionPopulationQuery($unbound))
+            ->distinct()
+            ->pluck('vends.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     /**
@@ -7076,18 +7102,23 @@ class VendController extends Controller
     /** @return int[] the machines the pre-Search cards count — the population of both endpoints above */
     private function customerIndexAttentionPopulation(Request $request): array
     {
+        return $this->customerIndexAttentionPopulationQuery($request)
+            ->whereNotNull('vends.id')
+            ->distinct()
+            ->pluck('vends.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    private function customerIndexAttentionPopulationQuery(Request $request)
+    {
         $this->applyCustomerIndexRequestDefaults($request);
         // The pre-Search cards' own default (indexCustomer): an untouched Machine Status means Active.
         if (! $request->filled('status') && ! $request->filled('codes') && ! $request->filled('channel_codes')) {
             $request->merge(['status' => 'active']);
         }
 
-        return $this->customerIndexFilteredQuery($request)
-            ->whereNotNull('vends.id')
-            ->distinct()
-            ->pluck('vends.id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
+        return $this->customerIndexFilteredQuery($request);
     }
 
     private function computeCustomerIndexCardStats(Request $request): array

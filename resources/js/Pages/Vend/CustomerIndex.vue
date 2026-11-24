@@ -4337,7 +4337,9 @@ import OperatorFilter from '@/Components/OperatorFilter.vue';
 		attention.value.loading = true
 		router.reload({
 			only: ['vends'],
-			data: { autoload: true, codes: codes.join(',') + (codes.length === 1 ? ',' : ''), numberPerPage: 'All', defer_aggregates: 0 },
+			// include_unbound_vends: the "Server Price, but no Site bound" group's machines have no Site (Brian, 2026-11-24);
+			// the codes limit the rows anyway, and the server grants the toggle only to who may list unbound machines.
+			data: { autoload: true, codes: codes.join(',') + (codes.length === 1 ? ',' : ''), numberPerPage: 'All', defer_aggregates: 0, include_unbound_vends: true },
 			preserveUrl: true,
 			preserveState: true,
 			preserveScroll: true,

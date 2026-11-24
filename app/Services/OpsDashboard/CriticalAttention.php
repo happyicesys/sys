@@ -43,6 +43,12 @@ use Illuminate\Support\Facades\DB;
  *  - Paid, not served: Midtrans took the money and no machine confirmed a sale
  *    (PaymentGatewayLog::scopePaidNotServed). Shown only when there is one, so a server with no
  *    Midtrans machines looks as it did.
+ *  - Server Price, but no Site bound (Brian, 2026-11-24, IDN 10030 sold at Rp99.900 and Rp1): a
+ *    machine in use, set to follow the Site's pricing, with no Site, so mark1 has no RP to send and
+ *    it sells at its controller's own prices (MachinePriceDelivery::noSiteServerPrice). The page
+ *    lists Sites, so these machines are never in its population: the caller reads them with
+ *    "Include unbound?" on and passes them as `$noSiteVendIds`; they join only this group. Shown
+ *    only when there is one.
  */
 class CriticalAttention
 {
@@ -62,6 +68,11 @@ class CriticalAttention
 
     public const GROUP_PAID_NOT_SERVED = 'paid_not_served';
 
+    public const GROUP_NO_SITE = 'no_site_server_price';
+
+    /** A machine heard from (MQTT or a sale) within this many days is in use, so its prices matter. */
+    public const NO_SITE_IN_USE_DAYS = 7;
+
     /** Machine Health's operation errors, with Machine Health's own wording. */
     public const TEMPERATURE_GROUPS = [
         VendSmartAlert::TYPE_COMP_FAN_OFF => '2A) Cooling Fan, in OFF condition',
@@ -79,26 +90,17 @@ class CriticalAttention
 
     /**
      * @param  int[]  $vendIds  machines already chosen by the page's filters and viewer ceiling
+     * @param  int[]  $noSiteVendIds  Server Price machines with no Site (noSiteServerPriceQuery), chosen by the same filters
      * @return array{machine_count: int, flagged_count: int, generated_at: string, groups: array<int, array<string, mixed>>}
      */
-    public function forVendIds(array $vendIds, ?CarbonInterface $now = null): array
+    public function forVendIds(array $vendIds, ?CarbonInterface $now = null, array $noSiteVendIds = []): array
     {
         $now = $now ? Carbon::instance($now) : Carbon::now();
         $vendIds = array_values(array_unique(array_map('intval', $vendIds)));
+        $noSiteVendIds = array_values(array_unique(array_map('intval', $noSiteVendIds)));
 
-        $vends = $vendIds === [] ? collect() : DB::table('vends')
-            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-            ->whereIn('vends.id', $vendIds)
-            ->select([
-                'vends.id', 'vends.code', 'vends.code_prefix', 'vends.machine_type',
-                'vends.is_online', 'vends.last_vend_transaction_at',
-                'vends.temp_updated_at', 'vends.last_updated_at', 'vends.mqtt_last_updated_at', 'vends.is_mqtt',
-                'vends.temp_probe_error_since', 'vends.temp_probe_ok_since', 'vends.temp_probe_error_probes',
-                'customers.name AS site_name',
-                DB::raw(MachineHealthDashboardService::lastContactSql().' AS last_contact_at'),
-            ])
-            ->get()
-            ->keyBy('id');
+        $vends = $this->vendRows($vendIds);
+        $machineCount = $vends->count();
 
         $vendingIds = $vends
             ->filter(fn ($v) => ($v->machine_type ?: Vend::MACHINE_TYPE_VENDING_MACHINE) === Vend::MACHINE_TYPE_VENDING_MACHINE)
@@ -117,6 +119,13 @@ class CriticalAttention
         $groups[] = $this->group(self::GROUP_SCREEN, __('Touch screen frozen'), 'warning', $this->screenFaults($vendingIds, $now));
         $groups[] = $this->group(self::GROUP_NO_SALES, __('No sales for :duration', ['duration' => $this->noSalesHours().'h']), 'warning', $this->noSales($vends, $now));
         $groups[] = $this->group(self::GROUP_AI_LIST, __('Freezer products not on the AI\'s list'), 'warning', $this->aiListGaps($vends));
+        // Server Price, no Site: never in the Site-rooted population, so their rows are loaded for this group only.
+        $noSiteRows = $this->vendRows(array_values(array_diff($noSiteVendIds, $vendIds)));
+        $noSite = $this->noSiteServerPrice($noSiteVendIds, $vends->union($noSiteRows), $now);
+        if ($noSite !== []) {
+            $vends = $vends->union($noSiteRows);
+            $groups[] = $this->group(self::GROUP_NO_SITE, __('Server Price, but no Site bound'), 'critical', $noSite);
+        }
         $paidNotServed = $this->paidNotServed($vendIds, $now);
         if ($paidNotServed !== []) {
             $groups[] = $this->group(self::GROUP_PAID_NOT_SERVED, __('Paid, not served'), 'warning', $paidNotServed) + [
@@ -143,11 +152,64 @@ class CriticalAttention
         $flagged = collect($groups)->flatMap(fn ($g) => array_column($g['machines'], 'vend_id'))->unique();
 
         return [
-            'machine_count' => $vends->count(),
+            'machine_count' => $machineCount + count(array_diff(array_keys($noSite), $vendIds)),
             'flagged_count' => $flagged->count(),
             'generated_at' => $now->toIso8601String(),
             'groups' => $groups,
         ];
+    }
+
+    /** @param  int[]  $ids */
+    private function vendRows(array $ids): Collection
+    {
+        return $ids === [] ? collect() : DB::table('vends')
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->whereIn('vends.id', $ids)
+            ->select([
+                'vends.id', 'vends.code', 'vends.code_prefix', 'vends.machine_type', 'vends.customer_id', 'vends.is_using_server_price',
+                'vends.is_online', 'vends.last_vend_transaction_at',
+                'vends.temp_updated_at', 'vends.last_updated_at', 'vends.mqtt_last_updated_at', 'vends.is_mqtt',
+                'vends.temp_probe_error_since', 'vends.temp_probe_ok_since', 'vends.temp_probe_error_probes',
+                'customers.name AS site_name',
+                DB::raw(MachineHealthDashboardService::lastContactSql().' AS last_contact_at'),
+            ])
+            ->get()
+            ->keyBy('id');
+    }
+
+    /**
+     * Narrows a vends query to Server Price machines with no Site that are in use: active, not a Smart Chiller (CityBox
+     * prices it), heard on MQTT or sold within NO_SITE_IN_USE_DAYS. The SQL side of
+     * MachinePriceDelivery::noSiteServerPrice plus "in use"; noSiteServerPrice() below re-checks each row.
+     */
+    public static function noSiteServerPriceQuery($query, ?CarbonInterface $now = null)
+    {
+        $since = ($now ? Carbon::instance($now) : Carbon::now())->copy()->subDays(self::NO_SITE_IN_USE_DAYS);
+
+        return $query
+            ->whereNotNull('vends.id')
+            ->whereNull('vends.customer_id')
+            ->where('vends.is_using_server_price', true)
+            ->where('vends.is_active', true)
+            ->where(fn ($q) => $q->whereNull('vends.machine_type')->orWhere('vends.machine_type', '!=', Vend::MACHINE_TYPE_SMART_CHILLER))
+            ->where(fn ($q) => $q->where('vends.mqtt_last_updated_at', '>=', $since)->orWhere('vends.last_vend_transaction_at', '>=', $since));
+    }
+
+    /** @return array<int, string> vend id => detail */
+    private function noSiteServerPrice(array $vendIds, Collection $vends, Carbon $now): array
+    {
+        $out = [];
+        foreach ($vendIds as $id) {
+            $vend = $vends->get($id);
+            if (! $vend || $vend->customer_id !== null || ! $vend->is_using_server_price || $vend->machine_type === Vend::MACHINE_TYPE_SMART_CHILLER) {
+                continue;
+            }
+            $out[$id] = (bool) $vend->is_online || $vend->last_contact_at === null
+                ? __('selling at its own controller prices')
+                : __('selling at its own controller prices, last heard :duration ago', ['duration' => $this->hours(Carbon::parse($vend->last_contact_at)->diffInMinutes($now) / 60)]);
+        }
+
+        return $out;
     }
 
     public function noSalesHours(): int
@@ -388,6 +450,7 @@ class CriticalAttention
         self::GROUP_NO_SALES => 'No sales',
         self::GROUP_AI_LIST => 'AI list',
         self::GROUP_PAID_NOT_SERVED => 'Paid, not served',
+        self::GROUP_NO_SITE => 'No Site',
     ];
 
     private function group(string $key, string $label, string $severity, array $machines): array

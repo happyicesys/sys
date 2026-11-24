@@ -172,6 +172,37 @@ class MachinePriceDeliveryTest extends TestCase
         $this->assertSame(32000, $report['channels']['10']['ref_price']);
     }
 
+    /**
+     * Brian, 2026-11-24 (IDN 10030): Server Price with no Site. `/thumbnails` sends null for every channel and the
+     * machine sells at its board price; null served = null expected used to read "Up to date".
+     */
+    public function test_server_price_with_no_site_is_no_site_not_up_to_date(): void
+    {
+        $vend = $this->makeVend(10030);
+        Vend::withoutGlobalScopes()->whereKey($vend->id)->update(['customer_id' => null]);
+        $this->get('/api/vends/10030/thumbnails', ['User-Agent' => self::OKHTTP])->assertJsonPath('0.server_price', null);
+
+        $fresh = Vend::withoutGlobalScopes()->find($vend->id);
+        $this->assertTrue(MachinePriceDelivery::noSiteServerPrice($fresh));
+        $report = $this->report($vend);
+        $this->assertTrue($report['no_site']);
+        $this->assertSame('no_site', $report['state']);
+        $this->assertSame('no_site', $report['channels']['10']['state']);
+
+        // Machine Price with no Site has nothing to send either way, so it is not flagged.
+        Vend::withoutGlobalScopes()->whereKey($vend->id)->update(['is_using_server_price' => false]);
+        $this->assertFalse(MachinePriceDelivery::noSiteServerPrice(Vend::withoutGlobalScopes()->find($vend->id)));
+        $this->assertNull($this->report($vend)['state']);
+
+        // Bound again: back to the normal check.
+        $this->assertFalse($this->makeVendReport(10031)['no_site']);
+    }
+
+    private function makeVendReport(int $code): array
+    {
+        return $this->report($this->makeVend($code));
+    }
+
     public function test_the_site_rp_nudge_records_the_push_and_rebuilds_the_page_snapshot(): void
     {
         // A Site RP change calls nudge() for every machine that follows the Site (CustomerController::update).
