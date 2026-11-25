@@ -3,6 +3,7 @@
 namespace App\Services\SmartFreezer;
 
 use App\Http\Middleware\VerifyDeviceSignature;
+use App\Models\Address;
 use App\Models\CardPaymentIntent;
 use App\Models\Product;
 use App\Models\Vend;
@@ -10,6 +11,7 @@ use App\Models\VendTransaction;
 use App\Services\CardTerminal\CardPaymentService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * The live tax invoice a customer opens from the freezer's thank-you QR (Brian, 2026-11-02).
@@ -178,6 +180,7 @@ class FreezerReceipt
             'status' => $status,
             'session_ref' => $sessionRef,
             'machine' => (string) $vend->code,
+            'site' => $vend->customer()->withoutGlobalScopes()->value('name'),
             'company' => $this->company($vend),
             'invoice_no' => $sale?->order_id ?: $sessionRef,
             'issued_at' => $this->issuedAt($sale, $intent, $sessionRef)?->format('d M Y, g:i A'),
@@ -206,7 +209,7 @@ class FreezerReceipt
         if ($lines !== [] && $adjustment !== 0) {
             // The charge and the basket only part when Payrallel refused to go above the hold
             // (the hold was charged instead) — the invoice states what was actually charged.
-            $lines[] = ['name' => 'Adjustment', 'qty' => null, 'unit_cents' => null, 'amount_cents' => $adjustment, 'badge' => null];
+            $lines[] = ['name' => 'Adjustment', 'photo' => null, 'qty' => null, 'unit_cents' => null, 'amount_cents' => $adjustment, 'badge' => null];
         }
         $excluding = $rate > 0 ? (int) round($total * 100 / (100 + $rate)) : $total;
 
@@ -248,7 +251,7 @@ class FreezerReceipt
      * paid unit that was not taken. Badges come from the audit's two baskets — set only when the
      * AI changed the cart.
      *
-     * @return list<array{name: string, qty: int|null, unit_cents: int|null, amount_cents: int, badge: string|null}>
+     * @return list<array{name: string, photo: string|null, qty: int|null, unit_cents: int|null, amount_cents: int, badge: string|null}>
      */
     private function lines(VendTransaction $sale): array
     {
@@ -279,14 +282,16 @@ class FreezerReceipt
         $audited = $paid !== [] && ($charged !== [] || $nothingLeft);
 
         $ids = array_unique(array_merge(array_column($groups, 'product_id'), array_keys($paid)));
-        $names = Product::withoutGlobalScopes()->whereIn('id', $ids)->pluck('name', 'id');
-        $name = fn (int $id) => (string) ($names[$id] ?? 'Item');
+        $products = Product::withoutGlobalScopes()->with('thumbnail')->whereIn('id', $ids)->get(['id', 'name'])->keyBy('id');
+        $name = fn (int $id) => (string) ($products[$id]->name ?? 'Item');
+        $photo = fn (int $id) => ($products[$id] ?? null)?->thumbnail?->full_url ?: null;
 
         $lines = [];
         foreach ($groups as $g) {
             $extra = $audited ? max(0, ($charged[$g['product_id']] ?? 0) - ($paid[$g['product_id']] ?? 0)) : 0;
             $lines[] = [
                 'name' => $name($g['product_id']),
+                'photo' => $photo($g['product_id']),
                 'qty' => $g['qty'],
                 'unit_cents' => $g['unit_cents'],
                 'amount_cents' => $g['qty'] * $g['unit_cents'],
@@ -300,6 +305,7 @@ class FreezerReceipt
                 if ($notTaken > 0) {
                     $lines[] = [
                         'name' => $name((int) $productId),
+                        'photo' => $photo((int) $productId),
                         'qty' => $notTaken,
                         'unit_cents' => 0,
                         'amount_cents' => 0,
@@ -321,10 +327,32 @@ class FreezerReceipt
             'name' => $profile?->name,
             'uen' => $profile?->uen,
             'gst_reg_no' => $profile?->gst_reg_no,
-            'address' => $profile?->address?->full_address,
-            'phone' => $profile?->contact?->phone_num ? '+65 '.$profile->contact->phone_num : null,
+            'address' => self::letterheadAddress($profile?->address),
+            'phone' => $profile?->contact?->phone_num ?: null,
             'email' => $profile?->contact?->email,
         ];
+    }
+
+    /**
+     * The address as a letterhead line, "#01-198, Block 2021, Bukit Batok Street 23, Singapore 659526",
+     * from its parts; the stored full_address when the parts are missing.
+     */
+    private static function letterheadAddress(?Address $address): ?string
+    {
+        if ($address === null) {
+            return null;
+        }
+        if (blank($address->street_name) || blank($address->postcode)) {
+            return $address->full_address ?: null;
+        }
+        $title = fn (?string $v) => blank($v) ? null : Str::title(Str::lower(trim($v)));
+
+        return implode(', ', array_filter([
+            blank($address->unit_num) ? null : '#'.ltrim(trim($address->unit_num), '#'),
+            blank($address->block_num) ? null : 'Block '.trim($address->block_num),
+            $title($address->street_name),
+            ($title($address->city) ?? 'Singapore').' '.trim($address->postcode),
+        ]));
     }
 
     private function issuedAt(?VendTransaction $sale, ?CardPaymentIntent $intent, string $sessionRef): ?Carbon

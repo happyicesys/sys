@@ -149,10 +149,27 @@ class FreezerReceiptTest extends TestCase
         $r = $this->receipt();
         $this->assertSame(FreezerReceipt::FINAL, $r['status']);
         $this->assertSame(760, $r['total_cents']);
-        $this->assertSame([['name' => 'Basque Cheesecake', 'qty' => 2, 'unit_cents' => 380, 'amount_cents' => 760, 'badge' => null]], $r['lines']);
+        $this->assertSame([['name' => 'Basque Cheesecake', 'photo' => null, 'qty' => 2, 'unit_cents' => 380, 'amount_cents' => 760, 'badge' => null]], $r['lines']);
         $this->assertNull($r['hold_cents']);
 
         $this->get($this->link())->assertOk()->assertSee('Basque Cheesecake')->assertSee('$7.60')->assertDontSee('Updating live');
+    }
+
+    public function test_each_item_shows_its_product_photo(): void
+    {
+        $url = 'https://happyice-space.sgp1.digitaloceanspaces.com/sys/products/cheesecake.jpg';
+        $this->cheesecake->thumbnail()->create(['full_url' => $url, 'local_url' => $url, 'type' => 1, 'is_active' => true]);
+        $this->trade(units: 2, paymentType: 0);
+
+        $this->assertSame($url, $this->receipt()['lines'][0]['photo']);
+        $this->get($this->link())->assertOk()->assertSee('class="thumb', false)->assertSee($url, false);
+    }
+
+    public function test_no_photo_column_when_no_item_has_a_photo(): void
+    {
+        $this->trade(units: 1, paymentType: 0);
+
+        $this->get($this->link())->assertOk()->assertSee('Basque Cheesecake')->assertDontSee('class="thumb', false);
     }
 
     public function test_a_t05_hold_shows_calculating_until_the_ai_decides(): void
@@ -242,7 +259,30 @@ class FreezerReceiptTest extends TestCase
         $profile = Profile::create(['name' => 'HAPPY ICE PTE LTD', 'uen' => '201302530W', 'gst_reg_no' => '201302530W']);
         \App\Models\Operator::query()->updateOrCreate(['id' => 1], ['code' => 'HIPL', 'name' => 'HI SG', 'profile_id' => $profile->id]);
 
-        $this->get($this->link())->assertOk()->assertSee('Tax Invoice')->assertSee('GST Reg No. 201302530W');
+        $this->get($this->link())->assertOk()->assertSee('Tax Invoice')->assertSee('Co. Reg &amp; GST Reg No: 201302530W', false);
+    }
+
+    public function test_the_letterhead_shows_the_company_address_phone_and_the_site(): void
+    {
+        $profile = Profile::create(['name' => 'HAPPY ICE PTE LTD', 'uen' => '201302530W', 'gst_reg_no' => '201302530W']);
+        $profile->address()->create(['block_num' => '2021', 'unit_num' => '01-198', 'street_name' => 'BUKIT BATOK STREET 23',
+            'building' => 'BUKIT BATOK INDUSTRIAL ESTATE PARK A', 'postcode' => '659526',
+            'full_address' => '2021 BUKIT BATOK STREET 23 BUKIT BATOK INDUSTRIAL ESTATE PARK A SINGAPORE 659526']);
+        $profile->contact()->create(['phone_num' => '6563 1692']);
+        $operator = \App\Models\Operator::withoutGlobalScopes()->firstOrNew(['id' => 1]);
+        $operator->forceFill(['id' => 1, 'code' => 'HIPL', 'name' => 'HI SG', 'profile_id' => $profile->id])->save();
+        $this->trade(units: 1, paymentType: 0);
+
+        $r = $this->receipt();
+        $this->assertSame('#01-198, Block 2021, Bukit Batok Street 23, Singapore 659526', $r['company']['address']);
+        $this->assertSame('Freezer Site', $r['site']);
+        $this->get($this->link())->assertOk()
+            ->assertSee('HAPPY ICE PTE LTD')
+            ->assertSee('#01-198, Block 2021, Bukit Batok Street 23, Singapore 659526')
+            ->assertSee('Tel: 6563 1692')
+            ->assertSee('Co. Reg &amp; GST Reg No: 201302530W', false)
+            ->assertSee('Machine ID')
+            ->assertSee('Freezer Site');
     }
 
     public function test_a_link_keeps_working_after_the_freezer_key_changes(): void

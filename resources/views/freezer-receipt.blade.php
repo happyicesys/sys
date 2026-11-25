@@ -34,17 +34,24 @@
         h1 { font-size: 20px; margin: 0 0 4px; }
         .muted { color: var(--muted); }
         .small { font-size: 13px; }
-        .company { font-size: 13px; color: var(--muted); }
-        .company strong { color: var(--ink); font-size: 14px; }
+        .letterhead { text-align: center; font-size: 12.5px; line-height: 1.5; color: var(--muted); padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+        .letterhead .lh-name { color: var(--ink); font-size: 16px; font-weight: 800; letter-spacing: .02em; margin-bottom: 2px; }
         .row { display: flex; justify-content: space-between; gap: 12px; }
         .meta { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; margin-top: 12px; }
         .meta dt { color: var(--muted); }
         .meta dd { margin: 0; text-align: right; word-break: break-all; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .meta dd.site { word-break: normal; overflow-wrap: anywhere; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+        col.c-qty { width: 44px; } col.c-amt { width: 78px; }
+        .item > div { min-width: 0; overflow-wrap: anywhere; }
         th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; padding: 0 0 8px; border-bottom: 1px solid var(--line); }
         td { padding: 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-        .num { text-align: right; white-space: nowrap; }
-        .badge { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+        .num { text-align: right; white-space: nowrap; padding-left: 14px; }
+        .item { display: flex; align-items: flex-start; gap: 12px; }
+        .thumb { flex: none; width: 52px; height: 52px; border-radius: 12px; background: var(--grey-soft); overflow: hidden; display: grid; place-items: center; }
+        .thumb img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+        .thumb.dim img { opacity: .45; filter: grayscale(1); }
+        .badge { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
         .badge.extra { background: var(--amber-soft); color: var(--amber); }
         .badge.nottaken { background: var(--grey-soft); color: var(--muted); }
         .struck { color: var(--muted); }
@@ -95,6 +102,19 @@
     </div>
 
     <div class="card">
+        @if ($company['name'] || $company['address'] || $company['uen'])
+            <div class="letterhead">
+                @if ($company['name'])<div class="lh-name">{{ $company['name'] }}</div>@endif
+                @if ($company['address'])<div>{{ $company['address'] }}</div>@endif
+                @if ($company['phone'])<div>Tel: {{ $company['phone'] }}</div>@endif
+                @if ($company['uen'] && $company['uen'] === $company['gst_reg_no'])
+                    <div>Co. Reg &amp; GST Reg No: {{ $company['uen'] }}</div>
+                @else
+                    @if ($company['uen'])<div>Co. Reg No: {{ $company['uen'] }}</div>@endif
+                    @if ($company['gst_reg_no'])<div>GST Reg No: {{ $company['gst_reg_no'] }}</div>@endif
+                @endif
+            </div>
+        @endif
         <div class="row" style="align-items:flex-start">
             <div>
                 <h1>{{ $isTaxInvoice ? 'Tax Invoice' : 'Receipt' }}</h1>
@@ -103,16 +123,11 @@
                 @endif
             </div>
         </div>
-        <div class="company" style="margin-top:10px">
-            @if ($company['name'])<strong>{{ $company['name'] }}</strong><br>@endif
-            @if ($company['address']){{ $company['address'] }}<br>@endif
-            @if ($company['uen'])UEN {{ $company['uen'] }}@endif
-            @if ($company['gst_reg_no']) · GST Reg No. {{ $company['gst_reg_no'] }}@endif
-        </div>
         <dl class="meta">
             <dt>Invoice no.</dt><dd>{{ $r['invoice_no'] }}</dd>
             @if ($r['issued_at'])<dt>Date</dt><dd>{{ $r['issued_at'] }}</dd>@endif
-            <dt>Machine</dt><dd>{{ $r['machine'] }}</dd>
+            <dt>Machine ID</dt><dd>{{ $r['machine'] }}</dd>
+            @if ($r['site'] ?? null)<dt>Site</dt><dd class="site">{{ $r['site'] }}</dd>@endif
             @if ($r['payment'])<dt>Paid by</dt><dd>{{ $r['payment'] }}</dd>@endif
         </dl>
     </div>
@@ -156,16 +171,25 @@
             @if ($r['refunded'])
                 <div class="note amber" style="margin-bottom:12px">This purchase has been refunded.</div>
             @endif
+            @php $hasPhotos = collect($r['lines'])->contains(fn ($l) => ! empty($l['photo'])); @endphp
             <table>
+                <colgroup><col><col class="c-qty"><col class="c-amt"></colgroup>
                 <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Amount</th></tr></thead>
                 <tbody>
                 @foreach ($r['lines'] as $line)
                     @php $notTaken = $line['badge'] === 'Not taken – not charged'; @endphp
                     <tr>
                         <td class="{{ $notTaken ? 'struck' : '' }}">
-                            {{ $line['name'] }}
-                            @if ($line['unit_cents'] && ! $notTaken)<div class="small muted">{{ $money($line['unit_cents']) }} each</div>@endif
-                            @if ($line['badge'])<div><span class="badge {{ $notTaken ? 'nottaken' : 'extra' }}">{{ $line['badge'] }}</span></div>@endif
+                            <div class="item">
+                                @if ($hasPhotos)
+                                    <span class="thumb {{ $notTaken ? 'dim' : '' }}">@if ($line['photo'] ?? null)<img src="{{ $line['photo'] }}" alt="" loading="lazy" onerror="this.remove()">@endif</span>
+                                @endif
+                                <div>
+                                    {{ $line['name'] }}
+                                    @if ($line['unit_cents'] && ! $notTaken)<div class="small muted">{{ $money($line['unit_cents']) }} each</div>@endif
+                                    @if ($line['badge'])<div><span class="badge {{ $notTaken ? 'nottaken' : 'extra' }}">{{ $line['badge'] }}</span></div>@endif
+                                </div>
+                            </div>
                         </td>
                         <td class="num {{ $notTaken ? 'struck' : '' }}">{{ $line['qty'] }}</td>
                         <td class="num {{ $notTaken ? 'struck' : '' }}">{{ $money($line['amount_cents']) }}</td>
