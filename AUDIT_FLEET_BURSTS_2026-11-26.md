@@ -39,7 +39,7 @@ access logs 2026-11-12 → 11-26.
 | 6 | Mapping bind (many machines) | Selected machines | **Paced** `3de43ec138` |
 | 7 | Happy Hour "no UI Setting" welcome refresh | Campaign members | **Paced** `3de43ec138` |
 | 8 | UI Setting **Push button** and unbinding machines on save | Every machine on the setting | **Paced in this patch** (it bypassed #4) |
-| 9 | Happy Hour planner: slot pick (−2 min), slot start (−1 min), cancel/swap/sold-out, campaign save | Every member; group campaigns = whole fleet | **Paced in this patch** (`menu_auto`, not before 5 s) |
+| 9 | Happy Hour planner: slot pick (−2 min), slot start (−1 min), cancel/swap/sold-out, campaign save | Every member; group campaigns = whole fleet | **Paced in this patch** (`menu_auto`, not before 5 s). Measured 11:58 vs 10:58: this wave was already spread over ~30 s by the planner's own loop, so little changed. The real hourly peak is the boards' own re-read 45 s before slot end (11:59:15–:20, ~45 reads/s) — board-side item C, fixed in APK 331 |
 | 10 | Welcome sketch goes live | Every freezer / 315+ board with the product | **Paced in this patch** (not before 90 s) |
 | 11 | Next-visit voucher settings save | Every 330+ board of the operator group | **Paced in this patch** |
 | 12 | Push OTA check button | Every active machine on the channel | **Paced in this patch** (2 machines/s) |
