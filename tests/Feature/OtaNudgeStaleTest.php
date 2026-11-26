@@ -24,6 +24,7 @@ use Tests\TestCase;
 class OtaNudgeStaleTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\RunsPacedNudges;
 
     protected function tearDown(): void
     {
@@ -75,6 +76,7 @@ class OtaNudgeStaleTest extends TestCase
     /** Vend codes of every queued OTA_CHECK, from each job's MQTT topic. */
     private function nudgedCodes(): array
     {
+        $this->runPacedNudges(); // OTA checks are paced (MachineNudgePacer)
         $topic = new \ReflectionProperty(PublishMqtt::class, 'topic');
 
         return Queue::pushed(PublishMqtt::class)

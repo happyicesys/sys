@@ -718,12 +718,10 @@ class HappyHourPlanner
     /** @param  list<int>  $vendIds */
     private function nudge(array $vendIds): void
     {
-        foreach (array_unique($vendIds) as $vendId) {
-            // The key lives exactly as long as the delay: a change after the job has read the menu sends a
-            // new nudge (it used to live 4× the delay, so a change 5–20 s later sent none).
-            if (Cache::add("happy-hour-nudge:{$vendId}", true, self::NUDGE_DELAY_SECONDS)) {
-                NudgeFreezerMenu::dispatch((int) $vendId)->delay(now()->addSeconds(self::NUDGE_DELAY_SECONDS))->afterCommit();
-            }
-        }
+        // Paced on the shared clock (MachineNudgePacer, 2026-11-26): every member of a campaign shares the same slot
+        // times, so each slot used to send the whole campaign its frame in the same second and ~440 /thumbnails
+        // reads landed at :59 (p90 3.6 s against 0.15 s). A frame still waiting for a machine covers a newer change.
+        app(\App\Services\Vend\MachineNudgePacer::class)
+            ->schedule(array_unique($vendIds), \App\Services\Vend\MachineNudgePacer::MENU_AUTO, self::NUDGE_DELAY_SECONDS);
     }
 }

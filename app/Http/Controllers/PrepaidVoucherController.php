@@ -83,11 +83,11 @@ class PrepaidVoucherController extends Controller
 
         // Every machine that can run it re-reads its settings now (app 330+ answers PREPAIDVOUCHER).
         // Each save is in user_logs (UserLogger records every model write).
-        foreach ($this->campaignVends($ownerId) as $vend) {
-            if (PrepaidVoucherProgram::boardReason($vend) === null) {
-                $jobs->nudgePrepaidVoucherToVend($vend);
-            }
-        }
+        // Paced (MachineNudgePacer, 2026-11-26).
+        app(\App\Services\Vend\MachineNudgePacer::class)->schedule(
+            $this->campaignVends($ownerId)->filter(fn ($vend) => PrepaidVoucherProgram::boardReason($vend) === null)->pluck('id'),
+            \App\Services\Vend\MachineNudgePacer::PREPAID_VOUCHER,
+        );
 
         return back()->with('success', $campaign->is_active
             ? __('Next-visit voucher settings saved. Machines are offering it.')

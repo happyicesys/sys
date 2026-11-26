@@ -37,6 +37,9 @@ class SendMachineNudge implements ShouldQueue
                 MachineNudgePacer::MENU_LIGHT => $vendJobService->nudgeHappyHourToVend($vend),
                 MachineNudgePacer::SETTINGS => $vendJobService->syncSettingsToVend($vend),
                 MachineNudgePacer::PAYMENT_MENU => $vendJobService->nudgePaymentMenuToVend($vend),
+                MachineNudgePacer::MENU_AUTO => (new \App\Jobs\NudgeFreezerMenu($vend->id))->handle($vendJobService),
+                MachineNudgePacer::PREPAID_VOUCHER => $vendJobService->nudgePrepaidVoucherToVend($vend),
+                MachineNudgePacer::OTA_CHECK => app(\App\Services\OtaCheckNudge::class)->send($vend),
             };
         } catch (\Throwable $e) {
             Log::warning('SendMachineNudge failed', ['vend_code' => $vend->code, 'kind' => $this->kind, 'error' => $e->getMessage()]);

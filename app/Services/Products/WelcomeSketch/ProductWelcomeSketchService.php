@@ -281,11 +281,9 @@ class ProductWelcomeSketchService
                 ->pluck('id')->intersect(
                     \Illuminate\Support\Facades\DB::table('vend_channels')->where('product_id', $product->id)->distinct()->pluck('vend_id')
                 ));
-        foreach ($vendIds->unique() as $vendId) {
-            if (\Illuminate\Support\Facades\Cache::add("welcome-sketch-nudge:{$vendId}", true, self::NUDGE_DELAY_SECONDS)) {
-                \App\Jobs\NudgeFreezerMenu::dispatch((int) $vendId)->delay(now()->addSeconds(self::NUDGE_DELAY_SECONDS))->afterCommit();
-            }
-        }
+        // Paced on the shared clock (MachineNudgePacer, 2026-11-26), still no sooner than the batching delay.
+        app(\App\Services\Vend\MachineNudgePacer::class)
+            ->schedule($vendIds->unique(), \App\Services\Vend\MachineNudgePacer::MENU_AUTO, self::NUDGE_DELAY_SECONDS);
     }
 
     /** On any smart freezer's planogram (vend_channels, kept by FreezerChannelSync). */

@@ -24,6 +24,7 @@ use Tests\TestCase;
 class ApkSettingPermissionGateTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\RunsPacedNudges;
 
     private int $settingId;
 
@@ -104,5 +105,6 @@ class ApkSettingPermissionGateTest extends TestCase
         $this->actingAs($this->userWithRole('technician'))
             ->post("/apk-settings/{$this->settingId}/push")
             ->assertRedirect(route('apk-settings.edit', $this->settingId));
+        $this->runPacedNudges(); // the push is paced (MachineNudgePacer)
     }
 }

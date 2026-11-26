@@ -3955,23 +3955,44 @@ class VendController extends Controller
         if (is_string($jpeg) && $jpeg !== '') {
             return $jpeg;
         }
-
-        $source = @file_get_contents($url);
-        if ($source === false || $source === '') {
+        // A photo that just failed is not fetched again for a minute (a broken link must not cost every request).
+        if (Cache::has($key.':failed')) {
             return null;
         }
+
+        // One worker makes it; the others wait up to 8 s for its result instead of each downloading the same photo.
+        $make = function () use ($key, $url): ?string {
+            $jpeg = Cache::get($key);
+            if (is_string($jpeg) && $jpeg !== '') {
+                return $jpeg;
+            }
+
+            // 5 s cap: a slow Spaces answer must not hold a PHP worker for the default 60 s.
+            $source = @file_get_contents($url, false, stream_context_create(['http' => ['timeout' => 5]]));
+            try {
+                if ($source === false || $source === '') {
+                    throw new \RuntimeException('empty download');
+                }
+                $image = Image::read($source);
+                $image->resize(300, 300);
+                $jpeg = (string) $image->toJpeg();
+            } catch (\Throwable $e) {
+                Cache::put($key.':failed', true, now()->addMinute());
+
+                return null;
+            }
+
+            // 7 days plus up to a day, so photos cached together do not all expire in the same minute.
+            Cache::put($key, $jpeg, now()->addDays(7)->addSeconds(random_int(0, 86400)));
+
+            return $jpeg;
+        };
 
         try {
-            $image = Image::read($source);
-            $image->resize(300, 300);
-            $jpeg = (string) $image->toJpeg();
+            return Cache::lock($key.':lock', 15)->block(8, $make);
         } catch (\Throwable $e) {
-            return null;
+            return $make();
         }
-
-        Cache::put($key, $jpeg, now()->addDays(7));
-
-        return $jpeg;
     }
 
     public function getVendChannelThumnail($vendCode, $vendChannelCode)
@@ -3989,9 +4010,10 @@ class VendController extends Controller
                 $jpeg = self::channelThumbnailJpeg($vendChannel->product->thumbnail->full_url);
 
                 if ($jpeg !== null) {
+                    // No Cache-Control: the URL is per CHANNEL, so a long max-age could keep a board on the old
+                    // product's photo after a re-map (the board's own 24 h file check decides re-downloads).
                     return response($jpeg, 200)
-                        ->header('Content-Type', 'image/jpeg')
-                        ->header('Cache-Control', 'public, max-age=86400');
+                        ->header('Content-Type', 'image/jpeg');
                 }
             }
         }

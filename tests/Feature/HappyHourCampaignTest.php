@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Jobs\FollowHappyHourCampaignSave;
-use App\Jobs\NudgeFreezerMenu;
 use App\Models\Customer;
 use App\Models\HappyHourCampaign;
 use App\Models\HappyHourSlot;
@@ -40,6 +39,7 @@ use Tests\TestCase;
 class HappyHourCampaignTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\RunsPacedNudges;
 
     private Vend $vend;
 
@@ -509,7 +509,7 @@ class HappyHourCampaignTest extends TestCase
         $this->assertSame(['14:00-15:30 B'], $slots(), 'only the slot coming up, highest balance first');
         $first = HappyHourSlot::firstOrFail();
         $this->assertSame([400, 240, 40, 80.0], [$first->original_price, $first->promo_price, $first->discount_pct, $first->qty_at_pick / $first->capacity_at_pick * 100]);
-        Queue::assertPushed(NudgeFreezerMenu::class, fn ($job) => $job->vendId === $this->vend->id);
+        Queue::assertPushed(\App\Jobs\Vend\SendMachineNudge::class, fn ($job) => $job->kind === 'menu_auto' && $job->vendId === $this->vend->id);
         $this->planner()->run(now()->addMinute());
         $this->assertSame(1, HappyHourSlot::count(), 'idempotent');
 
@@ -1249,12 +1249,13 @@ class HappyHourCampaignTest extends TestCase
         $campaign = $this->campaign();
         Carbon::setTestNow('2026-10-09 13:58:00');
         $this->planner()->run(now());
-        Queue::assertPushed(NudgeFreezerMenu::class, 1);
+        Queue::assertPushed(\App\Jobs\Vend\SendMachineNudge::class, 1);
+        $this->runPacedNudges(); // the first nudge's job reads the menu
 
         // 6 s later (after the first nudge's job read the menu) the slot is taken back: a second nudge.
         Carbon::setTestNow('2026-10-09 13:58:06');
         $this->planner()->cancel($campaign, now());
-        Queue::assertPushed(NudgeFreezerMenu::class, 2);
+        Queue::assertPushed(\App\Jobs\Vend\SendMachineNudge::class, 2);
     }
 
     /** @param  array<string, mixed>  $overrides */

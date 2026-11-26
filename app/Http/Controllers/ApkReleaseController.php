@@ -241,15 +241,13 @@ class ApkReleaseController extends Controller
         $this->fleetQuery($channel)
             ->where('is_active', true)
             ->select(['id', 'code', 'private_key'])
-            ->chunkById(200, function ($vends) use (&$count, $nudge) {
-                foreach ($vends as $vend) {
-                    if (empty($vend->code)) {
-                        continue;
-                    }
-
-                    $nudge->send($vend);
-                    $count++;
-                }
+            ->chunkById(200, function ($vends) use (&$count) {
+                // Paced (MachineNudgePacer, 2026-11-26): a board that finds a new build downloads it, installs and
+                // restarts, then re-reads everything; the whole channel at once was the 16 Nov 10:40 spike.
+                $count += app(\App\Services\Vend\MachineNudgePacer::class)->schedule(
+                    $vends->filter(fn ($vend) => ! empty($vend->code))->pluck('id'),
+                    \App\Services\Vend\MachineNudgePacer::OTA_CHECK,
+                );
             });
 
         return redirect()->back()->with(

@@ -65,16 +65,25 @@ again, and nginx ran out of connections. Three rules came out of it:
   `VendJobService` calls. It queues one `SendMachineNudge` per machine on ONE shared clock (`vend.nudge_pace`:
   `MACHINE_NUDGE_UNITS_PER_SECOND` 10; a full menu or settings re-read weighs 5 = 2 machines/s, a JSON-only re-read 1 =
   10/s; 0 = send at once) and drops a request while the same frame waits for that machine (a waiting full menu covers
-  a light one). Users: `PushMappingMenuSync`, `PushApkSettingSync`, `PushPaymentMenu`,
-  `HappyHourWelcomeFallback::nudgeUnbound`, the mapping bind. A single machine's own button / Stock In still sends at
-  once. Tests that fake the queue run the paced jobs with `Tests\Support\RunsPacedNudges`.
+  a light one). Kinds: `menu`, `settings`, `ota_check` (weight 5); `menu_light`, `menu_auto` (NudgeFreezerMenu's
+  freezer/315+ choice), `payment_menu`, `prepaid_voucher` (weight 1). Users: `PushMappingMenuSync`,
+  `PushApkSettingSync`, the UI Setting Push button and unbind, `PushPaymentMenu`, `HappyHourWelcomeFallback::nudgeUnbound`,
+  the mapping bind, the Happy Hour planner (every campaign member shares the same slot times — ~440 `/thumbnails` reads
+  used to land at :59, p90 3.6 s), welcome sketch nudges, the voucher settings save, Push OTA check and
+  `ota:nudge-stale`. A single machine's own button / Stock In still sends at once. Tests that fake the queue run the
+  paced jobs with `Tests\Support\RunsPacedNudges`. Full audit: `AUDIT_FLEET_BURSTS_2026-11-26.md`.
+- **Modem resets are capped per minute** (`vend.modem_reset.max_per_run`, 3): many boards silent at once is usually our
+  own outage (4 modems were reset at 10:36 that day for nothing).
 - **Send the lightest frame that carries the change.** A product save without a new photo sends `textOnly`
   (HAPPYHOUR on big board 315+, which re-parses names, Halal, Healthier Choice, description from the same JSON without
   photos); only a new photo needs TYPESYNCAPICHANNELSLOTLIST.
-- **The menu photo is made once**: `VendController::channelThumbnailJpeg` caches the 300×300 JPEG 7 days by photo URL.
+- **The menu photo is made once**: `VendController::channelThumbnailJpeg` caches the 300×300 JPEG 7 days + up to a day
+  (staggered expiry) by photo URL; one worker makes it under a lock while the others wait, the Spaces download has a 5 s
+  timeout, a failure is not retried for a minute. Never add a long `Cache-Control`: the URL is per CHANNEL, so a board
+  could keep the old product's photo after a re-map.
 
 Regression coverage: `tests/Feature/MachineNudgePacerTest.php`, `tests/Feature/VendChannelThumbnailCacheTest.php`,
-`tests/Feature/MappingMenuAutoPushTest.php`.
+`tests/Feature/MappingMenuAutoPushTest.php`, `tests/Feature/ModemResetTest.php`.
 
 ## File storage: everything goes to DO Spaces
 

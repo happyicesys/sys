@@ -295,7 +295,7 @@ class HappyHourVendingTest extends TestCase
         $slot = HappyHourSlot::where('vend_id', $vend->id)->where('starts_at', '2026-10-09 16:00:00')->firstOrFail();
         $this->assertSame(1, $stats['paused']);
         $this->assertSame([HappyHourSlot::STATUS_CANCELLED, '2026-10-09 16:10:00'], [$slot->status, $slot->ends_at->toDateTimeString()]);
-        Queue::assertPushed(NudgeFreezerMenu::class, fn ($job) => $job->vendId === $vend->id);
+        Queue::assertPushed(\App\Jobs\Vend\SendMachineNudge::class, fn ($job) => $job->kind === 'menu_auto' && $job->vendId === $vend->id);
         $this->assertSame(HappyHourSlot::STATUS_SCHEDULED, HappyHourSlot::where('vend_id', $free->id)->where('starts_at', '2026-10-09 16:00:00')->value('status'));
     }
 
@@ -447,7 +447,7 @@ class HappyHourVendingTest extends TestCase
         $this->campaign([$vend]);
         Carbon::setTestNow('2026-10-09 13:58:00');
         $this->planner()->run(now());
-        Queue::assertPushed(NudgeFreezerMenu::class, fn ($job) => $job->vendId === $vend->id);
+        Queue::assertPushed(\App\Jobs\Vend\SendMachineNudge::class, fn ($job) => $job->kind === 'menu_auto' && $job->vendId === $vend->id);
     }
 
     // ── 8. Sale tagging ──────────────────────────────────────────────────────────────────────

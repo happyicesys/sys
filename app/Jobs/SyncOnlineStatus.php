@@ -25,6 +25,9 @@ class SyncOnlineStatus implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /** Modem resets sent by this run (capped by vend.modem_reset.max_per_run). */
+    private int $modemResetsThisRun = 0;
+
     public function __construct() {}
 
     public function handle(MqttService $mqttService, AlertEmailService $alertEmailService): void
@@ -418,9 +421,20 @@ class SyncOnlineStatus implements ShouldQueue
             return;
         }
         $modemUnit = $vend->modemUnit;
-        if (ModemReset::blockedBecause($vend, $modemUnit, $now) !== null || ! ModemReset::claim($vend)) {
+        if (ModemReset::blockedBecause($vend, $modemUnit, $now) !== null) {
             return;
         }
+        // Many boards "silent" in the same minute is usually our own outage, not their modems: reset a few per run,
+        // the rest wait for the next minute (when, if mark1 was the cause, they are heard again and need none).
+        if ($this->modemResetsThisRun >= max(0, (int) config('vend.modem_reset.max_per_run', 3))) {
+            Log::info('SyncVendOnlineStatus: modem reset deferred, per-run cap reached', ['vend' => $vend->code]);
+
+            return;
+        }
+        if (! ModemReset::claim($vend)) {
+            return;
+        }
+        $this->modemResetsThisRun++;
 
         $processed = $mqttService->publishModemParamMapping($modemUnit, 2, ['action' => 'RESET', 'time' => $now->timestamp]);
         if (! $processed) {

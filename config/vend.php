@@ -26,6 +26,9 @@ return [
         'offline_minutes' => (int) env('MODEM_RESET_OFFLINE_MINUTES', 10),
         'cooldown_minutes' => (int) env('MODEM_RESET_COOLDOWN_MINUTES', 30),
         'modem_contact_minutes' => (int) env('MODEM_RESET_MODEM_CONTACT_MINUTES', 15),
+        // At most this many resets per minute's run (2026-11-26): when many boards look silent at once the cause is
+        // usually OUR side (mark1 down 10:18–10:28, then 4 modems reset at 10:36 for nothing), not their modems.
+        'max_per_run' => (int) env('MODEM_RESET_MAX_PER_RUN', 3),
     ],
 
     'attention' => [

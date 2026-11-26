@@ -256,7 +256,7 @@ class ProductWelcomeSketchTest extends TestCase
             ->assertOk()->assertJsonPath('live.version_id', $picked->id)->assertJsonPath('live.selected_by', $this->user->name);
         $now = $this->live($product);
         $this->assertSame([$picked->path, $this->user->id], [$now->path, $now->selected_by]);
-        Queue::assertPushed(\App\Jobs\NudgeFreezerMenu::class, fn ($job) => $job->vendId === $vend->id);
+        Queue::assertPushed(\App\Jobs\Vend\SendMachineNudge::class, fn ($job) => $job->kind === 'menu_auto' && $job->vendId === $vend->id);
         $row = collect($this->getJson("/api/vends/{$vend->code}/menu")->json())->firstWhere('product_code', 'A-1');
         $this->assertStringContainsString($picked->path, $row['welcome_sketch'], 'the freezer gets the picked drawing');
 
@@ -548,8 +548,8 @@ class ProductWelcomeSketchTest extends TestCase
         $this->service()->seed($vendingOnly, self::png(300, 300));
 
         // Two sketches on the same freezer within the window: one nudge, delayed.
-        Queue::assertPushed(\App\Jobs\NudgeFreezerMenu::class, 1);
-        Queue::assertPushed(\App\Jobs\NudgeFreezerMenu::class, fn ($job) => $job->vendId === $vend->id && $job->delay !== null);
+        Queue::assertPushed(\App\Jobs\Vend\SendMachineNudge::class, 1);
+        Queue::assertPushed(\App\Jobs\Vend\SendMachineNudge::class, fn ($job) => $job->kind === 'menu_auto' && $job->vendId === $vend->id && $job->delay !== null);
     }
 
     public function test_the_freezer_menu_carries_the_sketch_and_vending_menus_are_unchanged(): void

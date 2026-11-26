@@ -295,11 +295,9 @@ class ApkSettingController extends Controller
     {
         $apkSetting = ApkSetting::findOrFail($id);
 
-        if ($apkSetting->vends) {
-            foreach ($apkSetting->vends as $vend) {
-                $this->syncApkSettings($vend->id);
-            }
-        }
+        // Paced (MachineNudgePacer, 2026-11-26): every bound machine re-reads /parameters and its banner media.
+        app(\App\Services\Vend\MachineNudgePacer::class)
+            ->schedule($apkSetting->vends()->pluck('vends.id'), \App\Services\Vend\MachineNudgePacer::SETTINGS);
 
         return redirect()->route('apk-settings.edit', [$apkSetting->id]);
     }
@@ -388,11 +386,10 @@ class ApkSettingController extends Controller
             // below cannot miss any of them.
             $removed = $apkSetting->vends()->sync($target)['detached'];
 
-            foreach (Vend::whereIn('id', $removed)->get() as $removedVend) {
-                // Machines UNBOUND by this save are still told to re-read —
-                // the debounced push below only reaches what stays bound.
-                $this->pushToVendNow($removedVend);
-            }
+            // Machines UNBOUND by this save are still told to re-read — the debounced push below only reaches
+            // what stays bound. Paced (MachineNudgePacer, 2026-11-26).
+            app(\App\Services\Vend\MachineNudgePacer::class)
+                ->schedule(Vend::whereIn('id', $removed)->pluck('id'), \App\Services\Vend\MachineNudgePacer::SETTINGS);
         }
 
         // Reflect the save (and any newly bound machine) without a manual Push.

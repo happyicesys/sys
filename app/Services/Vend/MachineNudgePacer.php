@@ -34,15 +34,26 @@ class MachineNudgePacer
 
     public const PAYMENT_MENU = 'payment_menu';  // PAYMENTMENU: the wallet list only (big board 321+)
 
+    /** Happy Hour / welcome sketch refresh, as NudgeFreezerMenu: a freezer re-reads /menu, a 315+ big board /thumbnails JSON. */
+    public const MENU_AUTO = 'menu_auto';
+
+    public const PREPAID_VOUCHER = 'prepaid_voucher'; // PREPAIDVOUCHER: the voucher settings JSON (big board 330+)
+
+    /** OTA_CHECK: polls the manifest, may download and install a build, then restarts and re-reads everything. */
+    public const OTA_CHECK = 'ota_check';
+
     public const WEIGHTS = [
         self::MENU => 5,
         self::SETTINGS => 5,
+        self::OTA_CHECK => 5,
         self::MENU_LIGHT => 1,
+        self::MENU_AUTO => 1,
         self::PAYMENT_MENU => 1,
+        self::PREPAID_VOUCHER => 1,
     ];
 
-    /** A waiting frame older than this no longer blocks a new one (a lost job must not mute a machine). */
-    private const PENDING_TTL_SECONDS = 1800;
+    /** A waiting frame blocks a new one until it is sent, or this long after its slot (a lost job must not mute a machine). */
+    private const PENDING_GRACE_SECONDS = 300;
 
     private const CLOCK_KEY = 'machine-nudge-pacer:clock';
 
@@ -56,7 +67,7 @@ class MachineNudgePacer
      *
      * @param  iterable<int>  $vendIds
      */
-    public function schedule(iterable $vendIds, string $kind): int
+    public function schedule(iterable $vendIds, string $kind, int $notBeforeSeconds = 0): int
     {
         if (! isset(self::WEIGHTS[$kind])) {
             throw new \InvalidArgumentException("Unknown machine nudge kind [{$kind}]");
@@ -67,13 +78,20 @@ class MachineNudgePacer
             if ($kind === self::MENU_LIGHT && Cache::has(self::pendingKey($vendId, self::MENU))) {
                 continue; // the full re-read already waiting reads the same JSON
             }
-            if (! Cache::add(self::pendingKey($vendId, $kind), true, self::PENDING_TTL_SECONDS)) {
+            if (Cache::has(self::pendingKey($vendId, $kind))) {
+                continue;
+            }
+            $delay = $this->reserveDelay(self::WEIGHTS[$kind], $notBeforeSeconds);
+            if (! Cache::add(self::pendingKey($vendId, $kind), true, $delay + self::PENDING_GRACE_SECONDS)) {
                 continue;
             }
 
+            // afterCommit: a sender inside a transaction (the Happy Hour planner) must not have the machine read
+            // the old rows; outside one it dispatches at once.
             SendMachineNudge::dispatch($vendId, $kind)
-                ->delay(now()->addSeconds($this->reserveDelay(self::WEIGHTS[$kind])))
-                ->onQueue('default');
+                ->delay(now()->addSeconds($delay))
+                ->onQueue('default')
+                ->afterCommit();
             $queued++;
         }
 
@@ -84,10 +102,10 @@ class MachineNudgePacer
      * Seconds from now until this frame's slot. The clock is a second plus the units already given out in it;
      * a full second moves the clock on. Shared by every sender, under a lock.
      */
-    private function reserveDelay(int $weight): int
+    private function reserveDelay(int $weight, int $notBeforeSeconds = 0): int
     {
         $perSecond = (int) config('vend.nudge_pace.units_per_second', 10);
-        $minDelay = max(0, (int) config('vend.nudge_pace.min_delay_seconds', 1));
+        $minDelay = max(0, (int) config('vend.nudge_pace.min_delay_seconds', 1), $notBeforeSeconds);
         if ($perSecond <= 0) {
             return $minDelay;
         }

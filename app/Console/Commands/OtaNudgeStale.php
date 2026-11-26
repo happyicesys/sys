@@ -69,7 +69,9 @@ class OtaNudgeStale extends Command
             $summary = $targets->map(fn ($v) => $v->code.':'.$v->reportedApkVersion())->implode(' ');
 
             if (! $dryRun) {
-                $targets->each(fn ($vend) => $nudge->send($vend));
+                // Paced (MachineNudgePacer, 2026-11-26), never the whole stale list in one second.
+                app(\App\Services\Vend\MachineNudgePacer::class)
+                    ->schedule($targets->pluck('id'), \App\Services\Vend\MachineNudgePacer::OTA_CHECK);
             }
 
             $verb = $dryRun ? 'would nudge' : 'nudged';

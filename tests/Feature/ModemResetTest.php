@@ -92,6 +92,20 @@ class ModemResetTest extends TestCase
         $this->assertSame(11, $log->context['http_quiet_minutes']);
     }
 
+    public function test_many_silent_boards_in_one_minute_reset_only_a_few(): void
+    {
+        // 2026-11-26: mark1 itself was down 10:18–10:28, every board looked silent, and modems were reset for nothing.
+        config(['vend.modem_reset.max_per_run' => 2]);
+        foreach ([2388, 2389, 2390, 2391] as $i => $code) {
+            $this->vend(['code' => $code], ['imei' => '86123456039'.$i]);
+        }
+
+        $this->run_job();
+
+        $this->assertSame(2, VendLog::where('event', VendLog::EVENT_MODEM_RESET)->count());
+        Queue::assertPushed(PublishMqtt::class, 2);
+    }
+
     public function test_the_2388_loop_no_longer_starts_five_minutes_after_one_late_packet(): void
     {
         $this->vend(['last_updated_at' => now()->subMinutes(5), 'mqtt_last_updated_at' => now()->subMinutes(5)]);

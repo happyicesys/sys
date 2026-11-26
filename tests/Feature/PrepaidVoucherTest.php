@@ -39,6 +39,7 @@ use Tests\TestCase;
 class PrepaidVoucherTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\RunsPacedNudges;
 
     private ?ProductMapping $mapping = null;
 
@@ -430,6 +431,7 @@ class PrepaidVoucherTest extends TestCase
         ])->assertRedirect();
         $this->assertSame(15, PrepaidVoucherCampaign::where('operator_id', 1)->value('discount_pct'));
 
+        $this->runPacedNudges(); // paced (MachineNudgePacer)
         $frames = [];
         Queue::assertPushed(PublishMqtt::class, function (PublishMqtt $job) use (&$frames) {
             $frames[] = $job;
