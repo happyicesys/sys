@@ -1673,11 +1673,12 @@ class ProductMappingController extends Controller
         // Fetched in ONE query (withoutGlobalScopes, matching what the service
         // does for a bare id) — a big rebind must not turn into a point-SELECT
         // per machine.
-        $nudgeVends = Vend::withoutGlobalScopes()
-            ->findMany([...array_values($vendsToAddIds), ...array_values($vendsToRemoveIds)]);
-        foreach ($nudgeVends as $nudgeVend) {
-            $this->vendJobService->syncChannelSlotListToVend($nudgeVend);
-        }
+        // Paced through MachineNudgePacer (2026-11-26): binding a whole fleet to a mapping must not make every
+        // machine download every photo in the same second. Each frame is sent after this request commits.
+        app(\App\Services\Vend\MachineNudgePacer::class)->schedule(
+            [...array_values($vendsToAddIds), ...array_values($vendsToRemoveIds)],
+            \App\Services\Vend\MachineNudgePacer::MENU,
+        );
 
         return redirect()->route('product-mappings');
     }

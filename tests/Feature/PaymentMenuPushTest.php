@@ -25,6 +25,7 @@ use Tests\TestCase;
 class PaymentMenuPushTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\RunsPacedNudges;
 
     private const MENU = '/api/v1/payment-merchants/SG/omise';
 
@@ -113,6 +114,7 @@ class PaymentMenuPushTest extends TestCase
     /** @return array<int, string> machine code => frame Type, for every frame published */
     private function framesSent(): array
     {
+        $this->runPacedNudges();
         $frames = [];
         foreach (Queue::pushed(PublishMqtt::class) as $job) {
             [$topic, $wire] = (fn () => [$this->topic, $this->message])->call($job);

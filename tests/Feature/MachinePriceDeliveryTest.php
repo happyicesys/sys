@@ -34,6 +34,7 @@ use Tests\TestCase;
 class MachinePriceDeliveryTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\RunsPacedNudges;
 
     private const OKHTTP = 'okhttp/4.12.0';
 
@@ -93,6 +94,7 @@ class MachinePriceDeliveryTest extends TestCase
     /** @return list<string> the Type of every MQTT frame queued */
     private function frameTypes(): array
     {
+        $this->runPacedNudges();
         $types = [];
         Queue::assertPushed(PublishMqtt::class, function (PublishMqtt $job) use (&$types) {
             [, $wire] = (fn () => [$this->topic, $this->message])->call($job);

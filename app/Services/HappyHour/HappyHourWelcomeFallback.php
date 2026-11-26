@@ -4,10 +4,8 @@ namespace App\Services\HappyHour;
 
 use App\Models\HappyHourCampaign;
 use App\Models\Vend;
-use App\Services\VendJobService;
 use App\ValueObjects\ApkSettingParameters;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 
 /**
  * The bear welcome scene for a Happy Hour machine that has NO UI Setting (Brian, 2026-10-14:
@@ -56,20 +54,14 @@ final class HappyHourWelcomeFallback
         if ($ids === []) {
             return;
         }
-        $service = app(VendJobService::class);
         // Unscoped on purpose: a campaign may span operators, and this only tells a machine to
         // re-read /parameters (which decides for itself). Raw NOT EXISTS, not whereDoesntHave(),
         // so no scope inside the subquery can make a bound machine look unbound.
         Vend::query()->withoutGlobalScopes()->whereIn('id', $ids)
             ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('apk_setting_vend')->whereColumn('apk_setting_vend.vend_id', 'vends.id'))
-            ->get()
-            ->each(function (Vend $vend) use ($service) {
-                try {
-                    $service->syncSettingsToVend($vend);
-                } catch (\Throwable $e) {
-                    Log::warning('Happy Hour welcome nudge failed', ['vend' => $vend->code, 'error' => $e->getMessage()]);
-                }
-            });
+            ->pluck('id')
+            ->pipe(fn ($unbound) => app(\App\Services\Vend\MachineNudgePacer::class)
+                ->schedule($unbound, \App\Services\Vend\MachineNudgePacer::SETTINGS)); // paced (outage 2026-11-26)
     }
 
     /**

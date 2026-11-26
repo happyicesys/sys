@@ -54,6 +54,28 @@ rebase or merge deliberately), `fetch.prune` , `merge.conflictStyle zdiff3`,
   sure"; check the committed bundle for the new code instead.
 - **Log tables get a prune when they are created** (Grab Errors 30 days, `card_payment_events` status polls 30 days).
 
+## Telling many machines to re-read: always paced, never all at once
+
+Outage 2026-11-26 10:18–10:28 (SG down for every user): Halal ticks on five products in a minute sent all ~224
+boards the full menu re-read, every board downloaded every channel photo at once, and `/thumbnails`' photo endpoint
+downloaded + resized each from Spaces per request. The 20 PHP-FPM workers filled, boards gave up at 10 s and asked
+again, and nginx ran out of connections. Three rules came out of it:
+
+- **A fan-out goes through `App\Services\Vend\MachineNudgePacer`** (`schedule($vendIds, $kind)`), never a loop of
+  `VendJobService` calls. It queues one `SendMachineNudge` per machine on ONE shared clock (`vend.nudge_pace`:
+  `MACHINE_NUDGE_UNITS_PER_SECOND` 10; a full menu or settings re-read weighs 5 = 2 machines/s, a JSON-only re-read 1 =
+  10/s; 0 = send at once) and drops a request while the same frame waits for that machine (a waiting full menu covers
+  a light one). Users: `PushMappingMenuSync`, `PushApkSettingSync`, `PushPaymentMenu`,
+  `HappyHourWelcomeFallback::nudgeUnbound`, the mapping bind. A single machine's own button / Stock In still sends at
+  once. Tests that fake the queue run the paced jobs with `Tests\Support\RunsPacedNudges`.
+- **Send the lightest frame that carries the change.** A product save without a new photo sends `textOnly`
+  (HAPPYHOUR on big board 315+, which re-parses names, Halal, Healthier Choice, description from the same JSON without
+  photos); only a new photo needs TYPESYNCAPICHANNELSLOTLIST.
+- **The menu photo is made once**: `VendController::channelThumbnailJpeg` caches the 300×300 JPEG 7 days by photo URL.
+
+Regression coverage: `tests/Feature/MachineNudgePacerTest.php`, `tests/Feature/VendChannelThumbnailCacheTest.php`,
+`tests/Feature/MappingMenuAutoPushTest.php`.
+
 ## File storage: everything goes to DO Spaces
 
 Prod's default disk is `digitaloceanspaces` (bucket `happyice-space`, sgp1), so

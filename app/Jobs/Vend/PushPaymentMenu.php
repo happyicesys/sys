@@ -86,12 +86,14 @@ class PushPaymentMenu implements ShouldQueue
             ->where(fn ($q) => $q->where('is_active', true)->orWhere('is_testing', true))
             ->get();
 
+        // Paced, never every machine in one second (MachineNudgePacer; outage 2026-11-26).
+        $pacer = app(\App\Services\Vend\MachineNudgePacer::class);
         foreach ($vends as $vend) {
             if (! self::supports($vend)) {
                 continue;
             }
             try {
-                $vendJobService->nudgePaymentMenuToVend($vend);
+                $pacer->schedule([$vend->id], \App\Services\Vend\MachineNudgePacer::PAYMENT_MENU);
                 DB::table('vends')->where('id', $vend->id)->update(['payment_menu_pushed_at' => now()]);
             } catch (\Throwable $e) {
                 // One unreachable machine must not stop the rest.

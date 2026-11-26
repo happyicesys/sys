@@ -10,7 +10,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Fan a TYPESYNCSETTINGSPARAM nudge out to every vend bound to an apk_setting,
@@ -85,17 +84,9 @@ class PushApkSettingSync implements ShouldQueue
             return;   // deleted between schedule and run
         }
 
-        foreach ($apkSetting->vends as $vend) {
-            try {
-                $vendJobService->syncSettingsToVend($vend);
-            } catch (\Throwable $e) {
-                // One unreachable machine must not stop the rest of the fleet.
-                Log::warning('PushApkSettingSync failed for vend', [
-                    'apk_setting_id' => $this->apkSettingId,
-                    'vend_code' => $vend->code,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
+        // Paced, never every machine on the setting in one second: each re-reads /parameters and its
+        // banner media (MachineNudgePacer; outage 2026-11-26).
+        app(\App\Services\Vend\MachineNudgePacer::class)
+            ->schedule($apkSetting->vends->pluck('id'), \App\Services\Vend\MachineNudgePacer::SETTINGS);
     }
 }

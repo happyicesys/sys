@@ -102,6 +102,7 @@ class ApkSettingAutoPushTest extends TestCase
                 return null;
             });
 
+        $this->app->instance(VendJobService::class, $service); // the paced SendMachineNudge resolves it
         (new PushApkSettingSync($setting->id))->handle($service);
 
         sort($pushed);
@@ -140,6 +141,7 @@ class ApkSettingAutoPushTest extends TestCase
         Cache::put(PushApkSettingSync::cacheKey($setting->id), true, 60);
 
         $service = $this->createMock(VendJobService::class);
+        $this->app->instance(VendJobService::class, $service); // the paced SendMachineNudge resolves it
         (new PushApkSettingSync($setting->id))->handle($service);
 
         $this->assertFalse(Cache::has(PushApkSettingSync::cacheKey($setting->id)));
@@ -176,6 +178,7 @@ class ApkSettingAutoPushTest extends TestCase
                 return null;
             });
 
+        $this->app->instance(VendJobService::class, $service); // the paced SendMachineNudge resolves it
         (new PushApkSettingSync($setting->id))->handle($service);
 
         $this->assertCount(2, $seen, 'the second machine must still be attempted');

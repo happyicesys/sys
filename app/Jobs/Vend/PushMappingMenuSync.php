@@ -6,6 +6,7 @@ use App\Models\ProductMappingItem;
 use App\Models\Vend;
 use App\Services\HappyHour\HappyHourEligibility;
 use App\Services\Product\MachinePriceDelivery;
+use App\Services\Vend\MachineNudgePacer;
 use App\Services\VendJobService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -132,14 +133,17 @@ class PushMappingMenuSync implements ShouldQueue
             ->when($this->serverPriceOnly, fn ($q) => $q->where('is_using_server_price', true))
             ->get(['id', 'code', 'private_key', 'machine_type', 'is_active', 'apk_ver_json', 'apk_version_code', 'apk_checked_in_at']);
 
+        // Paced, never the whole mapping in one second (MachineNudgePacer; outage 2026-11-26).
+        $light = [];
+        $full = [];
         foreach ($vends as $vend) {
             try {
                 // A price is words-and-numbers too (2026-11-11): the light re-read carries `server_price` and the
                 // board applies it from the JSON alone, so an RP edit no longer re-downloads every photo over the SIM.
                 if (($this->textOnly || $this->serverPriceOnly) && HappyHourEligibility::supportsVending($vend)) {
-                    $vendJobService->nudgeHappyHourToVend($vend);
+                    $light[] = $vend->id;
                 } else {
-                    $vendJobService->syncChannelSlotListToVend($vend);
+                    $full[] = $vend->id;
                 }
                 if ($this->serverPriceOnly) {
                     MachinePriceDelivery::recordPush($vend->id);
@@ -153,6 +157,9 @@ class PushMappingMenuSync implements ShouldQueue
                 ]);
             }
         }
+        $pacer = app(MachineNudgePacer::class);
+        $pacer->schedule($light, MachineNudgePacer::MENU_LIGHT);
+        $pacer->schedule($full, MachineNudgePacer::MENU);
 
         // A price changed: every machine page on this mapping shows it under Ref Price, which is a snapshot of the
         // channels (vends.vend_channels_json), board-price machines included. Rebuild them now rather than at each

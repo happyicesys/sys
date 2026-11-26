@@ -50,4 +50,14 @@ return [
         'temp_probe_error_email_cooldown_minutes' => (int) env('OPS_ATTENTION_TEMP_PROBE_ERROR_EMAIL_COOLDOWN_MINUTES', 60),
     ],
 
+    // Fleet-wide "re-read" frames are paced, never sent to every machine in the same second
+    // (App\Services\Vend\MachineNudgePacer; Brian, 2026-11-26, after the 10:18 outage). Each machine
+    // costs weight units; the queue releases units_per_second. A full menu or settings re-read
+    // re-downloads photos / banner media, so weighs 5 (2 machines a second at the default 10); a
+    // JSON-only re-read weighs 1. 0 units_per_second = send at once (the old behaviour).
+    'nudge_pace' => [
+        'units_per_second' => (int) env('MACHINE_NUDGE_UNITS_PER_SECOND', 10),
+        'min_delay_seconds' => (int) env('MACHINE_NUDGE_MIN_DELAY_SECONDS', 1),
+    ],
+
 ];

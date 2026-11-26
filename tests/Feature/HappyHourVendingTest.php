@@ -48,6 +48,7 @@ use Tests\TestCase;
 class HappyHourVendingTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\RunsPacedNudges;
 
     /** @var array<string, Product> */
     private array $products = [];
@@ -877,6 +878,7 @@ class HappyHourVendingTest extends TestCase
             'min_qty' => 2, 'price_step_cents' => 10, 'allow_below_cost' => false, 'excluded_product_ids' => [], 'vend_ids' => $ids,
         ];
         $settingsSyncs = function (): array {
+            $this->runPacedNudges();
             $topics = [];
             foreach (Queue::pushed(PublishMqtt::class) as $job) {
                 [$topic, $wire] = (fn () => [$this->topic, $this->message])->call($job);

@@ -171,6 +171,7 @@ class MachineRefreshTriggersTest extends TestCase
             return true;
         });
 
+        $this->app->instance(VendJobService::class, $service); // the paced SendMachineNudge resolves it
         (new PushMappingMenuSync($mapping->id, false, true))->handle($service);
 
         $this->assertSame([2003], $light);

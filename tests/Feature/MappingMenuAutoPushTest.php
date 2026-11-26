@@ -100,6 +100,7 @@ class MappingMenuAutoPushTest extends TestCase
                 return true;
             });
 
+        $this->app->instance(VendJobService::class, $service); // the paced SendMachineNudge resolves it
         (new PushMappingMenuSync($mappingId, $serverPriceOnly))->handle($service);
         sort($pushed);
 
