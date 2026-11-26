@@ -1008,6 +1008,7 @@ class ProductController extends Controller
         // price. The form saves every field on each Save, so push only when
         // one of them really changed.
         $menuChanged = $product->wasChanged(self::MENU_COLUMNS);
+        $photoChanged = false;
         $freezerCapacityChanged = $product->wasChanged('freezer_slot_qty');
         $tagsBefore = $product->tagBindings()->pluck('tag_id')->sort()->values()->all();
 
@@ -1028,6 +1029,7 @@ class ProductController extends Controller
                 'local_url' => $url,
             ]);
             $menuChanged = true;
+            $photoChanged = true;
         }
 
         // Freezer welcome sketch: redraw from a new photo, or draw one for a freezer product that
@@ -1096,8 +1098,11 @@ class ProductController extends Controller
         // Vending machines carrying this product re-fetch their menu (debounced
         // per mapping). A new price only shows where the machine follows the
         // Site's pricing; anything else visible goes to every machine.
+        // 2026-11-26 outage: ticking Halal on a few products in a row sent every board the full re-read, which
+        // re-downloads every photo; the fleet's ~13,000 photo requests took mark1 down for 10 minutes. Without a new
+        // photo it is words only, so big boards on 315+ get the light re-read (same /thumbnails JSON, no photos).
         if ($menuChanged) {
-            PushMappingMenuSync::scheduleForProduct($product->id);
+            PushMappingMenuSync::scheduleForProduct($product->id, textOnly: ! $photoChanged);
         } elseif ($priceAdded) {
             PushMappingMenuSync::scheduleForProduct($product->id, serverPriceOnly: true);
         }

@@ -85,13 +85,13 @@ class PushMappingMenuSync implements ShouldQueue
     /**
      * A product changed: push every mapping it sits on.
      */
-    public static function scheduleForProduct(?int $productId, bool $serverPriceOnly = false): void
+    public static function scheduleForProduct(?int $productId, bool $serverPriceOnly = false, bool $textOnly = false): void
     {
         if (! $productId) {
             return;
         }
 
-        self::scheduleForProducts([$productId], $serverPriceOnly);
+        self::scheduleForProducts([$productId], $serverPriceOnly, $textOnly);
     }
 
     /**

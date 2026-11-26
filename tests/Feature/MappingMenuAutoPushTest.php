@@ -188,6 +188,38 @@ class MappingMenuAutoPushTest extends TestCase
 
         Queue::assertPushed(PushMappingMenuSync::class, 2);
         Queue::assertPushed(PushMappingMenuSync::class, fn ($job) => ! $this->serverPriceOnly($job));
+        // Words only: the light re-read, never the full one that re-downloads every photo (outage 2026-11-26).
+        Queue::assertNotPushed(PushMappingMenuSync::class, fn ($job) => ! $this->jobProp($job, 'textOnly'));
+    }
+
+    public function test_ticking_halal_sends_the_light_push_not_a_photo_re_download(): void
+    {
+        $product = $this->product('001', 'Kam Heong');
+        $this->item($this->mapping(), $product, '11');
+        Queue::fake([PushMappingMenuSync::class]);
+
+        $this->actingAs($this->admin())
+            ->post("/products/{$product->id}/update", $this->productPayload($product, ['is_halal' => true]))
+            ->assertSessionHasNoErrors();
+
+        Queue::assertPushed(PushMappingMenuSync::class, 1);
+        Queue::assertPushed(PushMappingMenuSync::class, fn ($job) => $this->jobProp($job, 'textOnly'));
+    }
+
+    public function test_a_new_photo_still_sends_the_full_push(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake();
+        $product = $this->product('001', 'Kam Heong');
+        $this->item($this->mapping(), $product, '11');
+        Queue::fake([PushMappingMenuSync::class]);
+
+        $this->actingAs($this->admin())
+            ->post("/products/{$product->id}/update", $this->productPayload($product, [
+                'thumbnail' => \Illuminate\Http\UploadedFile::fake()->image('p.jpg', 100, 100),
+            ]))
+            ->assertSessionHasNoErrors();
+
+        Queue::assertPushed(PushMappingMenuSync::class, fn ($job) => ! $this->jobProp($job, 'textOnly'));
     }
 
     public function test_saving_a_product_with_nothing_visible_changed_pushes_nothing(): void
@@ -229,6 +261,11 @@ class MappingMenuAutoPushTest extends TestCase
         $this->actingAs($this->admin())->delete("/products/selling-prices/{$price->id}");
 
         Queue::assertPushed(PushMappingMenuSync::class, fn ($job) => $this->serverPriceOnly($job));
+    }
+
+    private function jobProp(PushMappingMenuSync $job, string $name): bool
+    {
+        return (bool) (new \ReflectionProperty($job, $name))->getValue($job);
     }
 
     private function serverPriceOnly(PushMappingMenuSync $job): bool
