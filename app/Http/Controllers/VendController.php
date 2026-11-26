@@ -3940,6 +3940,40 @@ class VendController extends Controller
         ], 200);
     }
 
+    /**
+     * The 300x300 JPEG a terminal shows for a product, made once per photo and kept.
+     *
+     * 2026-11-26 (outage): every request used to download the photo from Spaces and resize it.
+     * When all ~224 boards re-read their menus at once (~13,000 requests), the 20 PHP workers
+     * fell behind, boards gave up at 10 s and asked again, and mark1 stayed down for every user.
+     * The key carries the photo's URL, so a new photo is a new key; a failed download is not kept.
+     */
+    private static function channelThumbnailJpeg(string $url): ?string
+    {
+        $key = 'vend-channel-thumbnail:v1:'.md5($url);
+        $jpeg = Cache::get($key);
+        if (is_string($jpeg) && $jpeg !== '') {
+            return $jpeg;
+        }
+
+        $source = @file_get_contents($url);
+        if ($source === false || $source === '') {
+            return null;
+        }
+
+        try {
+            $image = Image::read($source);
+            $image->resize(300, 300);
+            $jpeg = (string) $image->toJpeg();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        Cache::put($key, $jpeg, now()->addDays(7));
+
+        return $jpeg;
+    }
+
     public function getVendChannelThumnail($vendCode, $vendChannelCode)
     {
         $vendChannel = VendChannel::query()
@@ -3952,12 +3986,13 @@ class VendController extends Controller
 
         if ($vendChannel) {
             if ($vendChannel->product && $vendChannel->product->thumbnail) {
+                $jpeg = self::channelThumbnailJpeg($vendChannel->product->thumbnail->full_url);
 
-                $thumbnail = Image::read(file_get_contents($vendChannel->product->thumbnail->full_url));
-                $thumbnail->resize(300, 300);
-
-                return response($thumbnail->toJpeg(), 200)
-                    ->header('Content-Type', 'image/jpeg');
+                if ($jpeg !== null) {
+                    return response($jpeg, 200)
+                        ->header('Content-Type', 'image/jpeg')
+                        ->header('Cache-Control', 'public, max-age=86400');
+                }
             }
         }
 
