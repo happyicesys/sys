@@ -17,6 +17,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import Dropzone from 'dropzone';
+import { shrinkImage } from '@/utils/shrinkImage';
 
 import 'dropzone/dist/dropzone.css';
 
@@ -31,6 +32,12 @@ const props = defineProps({
     type: Number,
     default: 20,
   },
+  // Phone photos are shrunk to a 2048 px long side before upload (utils/shrinkImage.js). Pass false where
+  // the original file itself is the point, e.g. UI Setting media shown on the machine screen.
+  shrinkImages: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 onMounted(() => {
@@ -40,6 +47,10 @@ onMounted(() => {
     acceptedFiles: props.acceptedFiles,
     addRemoveLinks: false,
     paramName: "files",
+    // Dropzone sends whatever blob reaches done(); shrinkImage returns the original when it cannot help.
+    transformFile: props.shrinkImages
+      ? (file, done) => { shrinkImage(file).then(done); }
+      : (file, done) => done(file),
     init: function () {
       this.on("success", function (file, response) {
         console.log("File uploaded successfully", file, response);

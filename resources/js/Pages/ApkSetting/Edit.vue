@@ -338,6 +338,7 @@
                 :endpoint="'/apk-settings/' + apkSetting.id + '/upload-media'"
                 :accepted-files="'image/*,video/*'"
                 :max-filesize="500"
+                :shrink-images="false"
                 >
               </DropzoneFileInput>
             </div>
@@ -519,6 +520,7 @@
                 :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-media'"
                 :accepted-files="'image/*,video/*'"
                 :max-filesize="500"
+                :shrink-images="false"
                 >
               </DropzoneFileInput>
             </div>
