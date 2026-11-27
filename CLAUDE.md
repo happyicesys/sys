@@ -2051,11 +2051,17 @@ broker. `App\Services\SmartFreezer\OwnAi\OwnAiLink` is the one rule and the only
   freezer, new ones included, since 2026-11-19) the session opens seconds after the door closes; on a freezer left out of it,
   only on Zijia's push, ~6 min later. **IDs only — never a
   video link**: the broker is plain TCP. The Mac fetches the session itself (its read-only prod export over ssh).
-- **One answer per Mac.** Each Mac is a WORKER (`m1` = the MacBook, `mini` = the Mac mini) with its own broker client id
-  (`fai-<worker>`) and a persistent session, so both get every job (a Mac that was off gets the queued ones on reconnect),
-  both answer on `freezer-ai/results/<worker>` {session, items {product id: units}, confidence 0–100, auto, why_person,
-  model}, and the table keeps one row per (recognition, worker) — re-answers update it (`answers`). Switching a Mac off
-  stops only its rows. mark1 acks on `freezer-ai/ack/<worker>`; a Mac re-sends unacked answers every 5 min.
+- **One Mac per session, the first to answer** (Brian, 2026-11-27: "only the available one at the moment will do the job,
+  if done, dont need to redo when that offline one turn online"). Each Mac is a WORKER (`m1` = the MacBook, `mini` = the
+  Mac mini) with its own broker client id (`fai-<worker>`) and a persistent session, so both get every job (a Mac that was
+  off gets the queued ones on reconnect) and answer on `freezer-ai/results/<worker>` {session, items {product id: units},
+  confidence 0–100, auto, why_person, model}. The FIRST worker to answer owns the session: its re-answers update its row
+  (`answers`); another worker's answer is acked `{"ok":true,"done_by":"<owner>"}` and NOT stored. The first answer also
+  publishes `freezer-ai/done` {session, worker} (QoS 1, through `MqttPublisher`, never fails the ack), queued behind the
+  job on a Mac that is off, so the Mac can drop the job instead of counting it — that skip is freezer-ai's side. Before
+  this, the mini redid every session the M1 had answered while it was off (16 sessions, 2026-11-23 → 11-27); those
+  pairs stay, and `preferredAnswer` still reads the mini's. mark1 acks on `freezer-ai/ack/<worker>`; a Mac re-sends
+  unacked answers every 5 min.
 - **Listener.** `php artisan freezer-ai:listen --seconds=55`, run EVERY MINUTE by the scheduler (`Kernel`,
   `withoutOverlapping`) — no daemon (`forge` cannot add supervisor programs), and it returns at once where the link is off
   (LSH, IDN). Own connection `mqtt_freezer_ai` (client id `FREEZER_AI_MQTT_CLIENT_ID`, default `mk1-freezer-ai`, persistent

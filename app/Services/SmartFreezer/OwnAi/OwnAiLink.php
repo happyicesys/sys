@@ -24,10 +24,12 @@ use Throwable;
  *   Mac   ──<prefix>/results/<worker> {"v":1,"session":…,"items":{product id: units},…}──▶ mark1
  *   mark1 ──<prefix>/ack/<worker> {"session":…,"ok":true}──▶ that Mac
  *   Mac   ──<prefix>/status/<worker> {"state":"online"|"offline",…}  (its last will says offline)
+ *   mark1 ──<prefix>/done {"session":…,"worker":…}──▶ every Mac       (the first answer is in: nobody counts it again)
  *
  * Each Mac is a WORKER with its own name and its own broker client id, so the MacBook M1 and the Mac mini can both be
- * connected: both receive every job, both answer, and mark1 keeps one answer per worker per session. Switching a Mac
- * off only stops its column. Video links never travel over MQTT (the broker is not encrypted): a Mac fetches the
+ * connected: both receive every job, the Macs pick who answers (the mini while it is up), and the FIRST worker to
+ * answer owns the session — a later answer from another Mac is acked with `done_by` and not stored (Brian,
+ * 2026-11-27). Video links never travel over MQTT (the broker is not encrypted): a Mac fetches the
  * session itself. SHADOW ONLY — nothing here charges, releases, refunds or moves stock.
  */
 class OwnAiLink
@@ -219,12 +221,21 @@ class OwnAiLink
         if ($items === null) {
             return $this->ack($worker, $session, false, 'bad items');
         }
+        // One Mac per session (Brian, 2026-11-27: "only the available one at the moment will do the job, if done, dont
+        // need to redo when that offline one turn online"). The first Mac to answer owns the session; another Mac's
+        // later answer is acknowledged (so it stops re-sending) but never stored. Its own re-answer still updates.
+        $owner = SmartFreezerOwnAiRecognition::where('smart_freezer_recognition_id', $recognition->id)
+            ->where('worker', '!=', $worker)->orderBy('received_at')->value('worker');
+        if ($owner !== null) {
+            return $this->ack($worker, $session, true, null, $owner);
+        }
         $confidence = $data['confidence'] ?? null;
         $confidence = is_numeric($confidence) ? max(0, min(100, (int) round((float) $confidence))) : null;
         $now = Carbon::now();
         $sent = Cache::get('freezer-ai:job-sent:'.$recognition->id);
 
         $row = SmartFreezerOwnAiRecognition::firstOrNew(['smart_freezer_recognition_id' => $recognition->id, 'worker' => $worker]);
+        $first = ! $row->exists;
         $row->fill([
             'vend_id' => $recognition->vend_id,
             'session_ref' => $recognition->session_ref,
@@ -241,8 +252,25 @@ class OwnAiLink
         ]);
         $row->answers = $row->exists ? $row->answers + 1 : 1;
         $row->save();
+        if ($first) {
+            $this->announceDone($recognition->id, $worker);
+        }
 
         return $this->ack($worker, $session, true);
+    }
+
+    /**
+     * Tells every Mac that a session is answered: `<prefix>/done` {"session","worker"}, QoS 1. A Mac that was off gets it
+     * on reconnect, queued AFTER the job it settles, so it can drop that job instead of counting it again. Never throws:
+     * the answer is stored and the ack must still go out.
+     */
+    private function announceDone(int $recognitionId, string $worker): void
+    {
+        try {
+            $this->publisher->publish($this->prefix().'/done', json_encode(['session' => $recognitionId, 'worker' => $worker]), 1);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /** product id => units, ints only; null when malformed. An empty map is a real answer: nothing taken. */
@@ -297,10 +325,10 @@ class OwnAiLink
     }
 
     /** @return array{0: string, 1: string} */
-    private function ack(string $worker, mixed $session, bool $ok, ?string $error = null): array
+    private function ack(string $worker, mixed $session, bool $ok, ?string $error = null, ?string $doneBy = null): array
     {
         return [$this->prefix().'/ack/'.$worker, json_encode(array_filter(
-            ['session' => is_numeric($session) ? (int) $session : null, 'ok' => $ok, 'error' => $error],
+            ['session' => is_numeric($session) ? (int) $session : null, 'ok' => $ok, 'error' => $error, 'done_by' => $doneBy],
             fn ($v) => $v !== null,
         ))];
     }
@@ -324,8 +352,8 @@ class OwnAiLink
 
     /**
      * The answer to read for a session: the first worker in `worker_priority` that answered (the mini before the M1),
-     * else the most recent answer. The Macs already keep the M1 quiet while the mini is up; this settles a session both
-     * answered (a takeover overlapping the mini's return).
+     * else the most recent answer. Since 2026-11-27 a session keeps only its first Mac's answer, so this settles the
+     * sessions both Macs answered before that.
      */
     public function preferredAnswer(int $recognitionId): ?SmartFreezerOwnAiRecognition
     {
