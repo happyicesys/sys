@@ -24,13 +24,14 @@
         </span>
 
         <!-- Filters -->
-        <div class="grid grid-cols-1 md:grid-cols-7 gap-2 mt-3">
-          <div class="md:col-span-2">
+        <!-- One width for every filter, five to a row, like the Operation Dashboard (Brian, 2026-11-27). -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-2 mt-3">
+          <div>
             <SearchInput :placeholderStr="$t('Order no / device / machine')" v-model="filters.search" @keyup.enter="onSearchFilterUpdated()">
               {{ $t('Search') }}
             </SearchInput>
           </div>
-          <div class="md:col-span-2">
+          <div>
             <SearchInput :placeholderStr="$t('Machine ID (e.g. 50001, or 50001,2009)')" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
               {{ $t('Machine ID') }}
             </SearchInput>
@@ -83,12 +84,12 @@
             >
             </MultiSelect>
           </div>
-          <div class="md:col-span-2">
+          <div>
             <DatePicker v-model="filters.date_from">
               {{ $t('Date From') }}
             </DatePicker>
           </div>
-          <div class="md:col-span-2">
+          <div>
             <DatePicker v-model="filters.date_to" :minDate="filters.date_from">
               {{ $t('Date To') }}
             </DatePicker>
@@ -96,7 +97,7 @@
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
-          <div class="mt-3">
+          <div class="mt-3 flex space-x-2">
             <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
               @click="onSearchFilterUpdated()"
             >
@@ -105,6 +106,14 @@
                 {{ $t('Search') }}
               </span>
             </Button>
+            <button type="button" class="inline-flex space-x-1 items-center rounded-md border border-gray-300 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              @click="resetFilters()"
+            >
+              <ArrowPathIcon class="h-4 w-4" aria-hidden="true"/>
+              <span>
+                {{ $t('Reset') }}
+              </span>
+            </button>
           </div>
           <div class="flex flex-col space-y-2">
             <p class="text-sm text-gray-700 leading-5 flex space-x-1">
@@ -893,7 +902,7 @@ import T05RefundPanel from '@/Components/T05RefundPanel.vue';
 import AiCorrectionPanel from '@/Components/AiCorrectionPanel.vue';
 import OwnAiCheckPanel from '@/Components/OwnAiCheckPanel.vue';
 import SearchInput from '@/Components/SearchInput.vue';
-import { CheckCircleIcon, ClockIcon, InformationCircleIcon, MagnifyingGlassIcon, PencilSquareIcon, QuestionMarkCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, CheckCircleIcon, ClockIcon, InformationCircleIcon, MagnifyingGlassIcon, PencilSquareIcon, QuestionMarkCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -1346,6 +1355,11 @@ function submitCharge() {
 // A cleared DatePicker hands back the text "Invalid date", which the server refuses and the page reopens on today.
 function pickedDate(date) {
   return date === 'Invalid date' ? '' : date
+}
+
+// Back to how the page opens: today, every status / verdict / processor, 100 a page.
+function resetFilters() {
+  router.get('/ai-recognition')
 }
 
 function onSearchFilterUpdated() {
