@@ -163,7 +163,12 @@ class FreezerAiLinkTest extends TestCase
         $this->assertStringNotContainsString('http', $message);
     }
 
-    public function test_two_macs_each_keep_their_own_answer(): void
+    /**
+     * Brian, 2026-11-27: the M1 answered sessions while the mini was off; when the mini came on it counted all of them
+     * again. The first Mac to answer owns the session: the other Mac's answer is acked (so it stops re-sending) with
+     * `done_by`, and never stored. The owner's own re-answer still updates its row.
+     */
+    public function test_the_first_mac_to_answer_owns_the_session(): void
     {
         $r = $this->recognition();
         $answer = fn (array $items, int $conf) => json_encode(['v' => 1, 'session' => $r->id, 'items' => $items, 'confidence' => $conf,
@@ -172,25 +177,42 @@ class FreezerAiLinkTest extends TestCase
         $ack = $this->link()->receive('freezer-ai/results/m1', $answer(['445' => 1, '740' => 2], 81));
         $this->assertSame('freezer-ai/ack/m1', $ack[0]);
         $this->assertSame(['session' => $r->id, 'ok' => true], json_decode($ack[1], true));
-        $this->link()->receive('freezer-ai/results/mini', $answer(['445' => 1], 64));
+        $this->assertSame([['freezer-ai/done', json_encode(['session' => $r->id, 'worker' => 'm1']), 1]], $this->published);
+
+        $late = $this->link()->receive('freezer-ai/results/mini', $answer(['445' => 1], 64));   // the mini comes on later
+        $this->assertSame('freezer-ai/ack/mini', $late[0]);
+        $this->assertSame(['session' => $r->id, 'ok' => true, 'done_by' => 'm1'], json_decode($late[1], true));
+
         $this->link()->receive('freezer-ai/results/m1', $answer(['445' => 1, '740' => 1], 90));   // m1 answers again
 
-        $rows = SmartFreezerOwnAiRecognition::orderBy('worker')->get();
-        $this->assertSame(['m1', 'mini'], $rows->pluck('worker')->all());
-        $this->assertSame(['445' => 1, '740' => 1], $rows[0]->items);
-        $this->assertSame(90, $rows[0]->confidence);
-        $this->assertSame(2, $rows[0]->answers);
-        $this->assertSame(['445' => 1], $rows[1]->items);
-        $this->assertTrue($rows[1]->auto_accept);
+        $row = SmartFreezerOwnAiRecognition::sole();
+        $this->assertSame('m1', $row->worker);
+        $this->assertSame(['445' => 1, '740' => 1], $row->items);
+        $this->assertSame(90, $row->confidence);
+        $this->assertSame(2, $row->answers);
+        $this->assertCount(1, $this->published);                   // "done" goes out once, on the first answer only
         $this->assertSame(['m1', 'mini'], array_keys($this->link()->workers()));
+    }
+
+    public function test_a_broker_failure_on_done_still_stores_and_acks_the_answer(): void
+    {
+        $this->app->instance(MqttPublisher::class, new MqttPublisher(
+            ['persistent_codes' => []], [], 'mqtt_vends', null,
+            fn () => throw new \RuntimeException('broker down'),
+        ));
+        $r = $this->recognition();
+        $ack = $this->link()->receive('freezer-ai/results/mini', json_encode(['session' => $r->id, 'items' => ['445' => 1]]));
+        $this->assertTrue(json_decode($ack[1], true)['ok']);
+        $this->assertSame('mini', SmartFreezerOwnAiRecognition::sole()->worker);
     }
 
     public function test_the_time_the_mac_took_is_kept(): void
     {
         $r = $this->recognition();
+        $other = $this->recognition('SF-50001-1795000000-2');
         $this->link()->receive('freezer-ai/results/m1', json_encode(['session' => $r->id, 'items' => ['445' => 1],
             'detail' => ['seconds' => 9.14, 'timing' => ['export' => 4.4, 'hand_tracking' => 0.1]]]));
-        $this->link()->receive('freezer-ai/results/mini', json_encode(['session' => $r->id, 'items' => ['445' => 1],
+        $this->link()->receive('freezer-ai/results/mini', json_encode(['session' => $other->id, 'items' => ['445' => 1],
             'detail' => ['seconds' => 'slow']]));
 
         $rows = SmartFreezerOwnAiRecognition::orderBy('worker')->get();
@@ -274,8 +296,10 @@ class FreezerAiLinkTest extends TestCase
         $send('m1', ['445' => 1]);                       // the mini was offline: the M1 took the job
         $this->assertSame('m1', $this->link()->preferredAnswer($r->id)->worker);
 
+        // Sessions both Macs answered before 2026-11-27 (stored directly: a second Mac's answer is no longer kept).
         Carbon::setTestNow(now()->addMinute());
-        $send('mini', ['445' => 2]);                     // the mini came back and answered too
+        SmartFreezerOwnAiRecognition::create(['smart_freezer_recognition_id' => $r->id, 'worker' => 'mini', 'vend_id' => $this->vend->id,
+            'items' => ['445' => 2], 'answers' => 1, 'received_at' => now()]);
         $this->assertSame('mini', $this->link()->preferredAnswer($r->id)->worker);
         $this->assertSame(['445' => 2], $this->link()->preferredAnswer($r->id)->items);
         $this->assertNull($this->link()->preferredAnswer(999999));
