@@ -1494,9 +1494,10 @@ class OpsJobController extends Controller
                 'opsJobItems.attachments',
                 // machine_type/citybox_* /is_online: the Smart Chiller Open Door button + status on each row (§6b).
                 'opsJobItems.vend:id,customer_id,code,code_prefix,vend_prefix_id,product_mapping_id,upcoming_product_mapping_id,parameter_json,vend_channel_error_logs_json,machine_type,citybox_equipment_id,is_online,citybox_status_json',
-                'opsJobItems.vend.productMapping.productMappingItemsNormalSequence.product',
-                'opsJobItems.vend.productMapping.upcomingProductMapping.productMappingItemsNormalSequence.product',
-                'opsJobItems.vend.upcomingProductMapping.productMappingItemsNormalSequence.product',
+                // The mappings' names and remarks only: this page never reads their items (only Edit Item does),
+                // and the items with their products were ~1 MB of a 21-stop job (2026-11-27).
+                'opsJobItems.vend.productMapping.upcomingProductMapping',
+                'opsJobItems.vend.upcomingProductMapping',
                 // Delivery-platform bindings on the vend — used to render the
                 // green "Grab" pill next to the customer name in the Customer
                 // column. Mirrors the chain eager-loaded in
@@ -1548,6 +1549,9 @@ class OpsJobController extends Controller
             ->with(['vendChannel.product.thumbnail'])
             ->get()
             ->groupBy('ops_job_item_id');
+
+        // Every channel's server price in two queries instead of two each (~360 on a 21-stop job, 2026-11-27).
+        VendChannel::primeServerAmounts($channelsByItemId->flatten(1)->pluck('vendChannel'));
 
         $opsJob->opsJobItems->each(function ($item) use ($channelsByItemId) {
             $item->setRelation(

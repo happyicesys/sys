@@ -156,8 +156,74 @@ class VendChannel extends Model
         return \App\Support\ChannelCode::label((int) $this->code, $this->attributes['suffix'] ?? null);
     }
 
+    /**
+     * server_amount worked out ahead for a whole page by primeServerAmounts(); the accessor below otherwise
+     * runs two queries per channel (Ops Job edit: ~360 queries, ~0.7 s on a 21-stop job, 2026-11-27).
+     */
+    private bool $serverAmountPrimed = false;
+
+    private $primedServerAmount = null;
+
+    /**
+     * Work out server_amount for many channels in two queries, with exactly the accessor's rule.
+     *
+     * @param  iterable<VendChannel|null>  $channels
+     */
+    public static function primeServerAmounts(iterable $channels): void
+    {
+        $channels = collect($channels)->filter(fn ($c) => $c instanceof self);
+        $vendIds = $channels->pluck('vend_id')->filter()->unique()->values();
+        if ($vendIds->isEmpty()) {
+            return;
+        }
+
+        $pricing = DB::table('vends')
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->whereIn('vends.id', $vendIds)
+            ->select('vends.id', 'vends.is_using_server_price', 'customers.selling_price_type')
+            ->get()
+            ->keyBy('id');
+
+        $typeByVend = $pricing
+            ->filter(fn ($p) => $p->is_using_server_price && $p->selling_price_type)
+            ->map(fn ($p) => $p->selling_price_type);
+
+        $wanted = $channels
+            ->filter(fn ($c) => $c->product_id && $typeByVend->has($c->vend_id))
+            ->map(fn ($c) => [$c->product_id, $typeByVend->get($c->vend_id)]);
+
+        $amounts = [];
+        if ($wanted->isNotEmpty()) {
+            // Same pick as the accessor's ->value('amount'): the first row per product + type.
+            DB::table('selling_prices')
+                ->whereIn('product_id', $wanted->pluck(0)->unique()->values())
+                ->whereIn('type', $wanted->pluck(1)->unique()->values())
+                ->orderBy('id')
+                ->get(['product_id', 'type', 'amount'])
+                ->each(function ($row) use (&$amounts) {
+                    $key = $row->product_id.':'.$row->type;
+                    if (! array_key_exists($key, $amounts)) {
+                        $amounts[$key] = $row->amount;
+                    }
+                });
+        }
+
+        foreach ($channels as $channel) {
+            $value = null;
+            if ($channel->vend_id && $channel->product_id && $typeByVend->has($channel->vend_id)) {
+                $value = $amounts[$channel->product_id.':'.$typeByVend->get($channel->vend_id)] ?? null;
+            }
+            $channel->primedServerAmount = $value;
+            $channel->serverAmountPrimed = true;
+        }
+    }
+
     public function getServerAmountAttribute()
     {
+        if ($this->serverAmountPrimed) {
+            return $this->primedServerAmount;
+        }
+
         if (! $this->vend_id || ! $this->product_id) {
             return null;
         }

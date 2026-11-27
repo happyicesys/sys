@@ -151,6 +151,36 @@ class VendServerPriceSourceTest extends TestCase
         $this->assertNull($vend->fresh()->serverPriceType());
     }
 
+    public function test_primed_server_amounts_match_the_accessor_in_two_queries(): void
+    {
+        // Ops Job edit primes every channel at once (2026-11-27); the answer must be the accessor's.
+        $other = Product::create(['code' => 'SP-NOPRICE', 'name' => 'No RP3 price']);
+        $vends = [
+            $this->makeVend(9921, siteRp: SellingPrice::TYPE_3, usesServerPrice: true),  // 350
+            $this->makeVend(9922, siteRp: SellingPrice::TYPE_2, usesServerPrice: true),  // 250
+            $this->makeVend(9923, siteRp: SellingPrice::TYPE_3, usesServerPrice: false), // board price
+            $this->makeVend(9924, siteRp: SellingPrice::TYPE_3, usesServerPrice: true),  // no Site below
+        ];
+        DB::table('vends')->where('id', $vends[3]->id)->update(['customer_id' => null]);
+        VendChannel::forceCreate(['vend_id' => $vends[0]->id, 'code' => 12, 'product_id' => $other->id, 'amount' => 100, 'is_active' => 1]);
+        VendChannel::forceCreate(['vend_id' => $vends[0]->id, 'code' => 13, 'product_id' => null, 'amount' => 100, 'is_active' => 1]);
+
+        $expected = VendChannel::orderBy('id')->get()->mapWithKeys(fn ($c) => [$c->id => $c->server_amount])->all();
+
+        $channels = VendChannel::orderBy('id')->get();
+        DB::enableQueryLog();
+        VendChannel::primeServerAmounts($channels->all() + [999 => null]);
+        $primed = $channels->mapWithKeys(fn ($c) => [$c->id => $c->server_amount])->all();
+        $this->assertCount(2, DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $this->assertEquals($expected, $primed);
+        $this->assertSame(350, (int) $primed[$vends[0]->vendChannels()->where('code', 11)->value('id')]);
+        $this->assertSame(250, (int) $primed[$vends[1]->vendChannels()->value('id')]);
+        $this->assertNull($primed[$vends[2]->vendChannels()->value('id')]);
+        $this->assertNull($primed[$vends[3]->vendChannels()->value('id')]);
+    }
+
     public function test_service_only_nudges_the_terminal_on_a_real_change(): void
     {
         Queue::fake();
