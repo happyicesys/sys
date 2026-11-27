@@ -209,9 +209,10 @@ class FreezerAiLinkTest extends TestCase
     public function test_the_time_the_mac_took_is_kept(): void
     {
         $r = $this->recognition();
+        $other = $this->recognition('SF-50001-1795000000-2');
         $this->link()->receive('freezer-ai/results/m1', json_encode(['session' => $r->id, 'items' => ['445' => 1],
             'detail' => ['seconds' => 9.14, 'timing' => ['export' => 4.4, 'hand_tracking' => 0.1]]]));
-        $this->link()->receive('freezer-ai/results/mini', json_encode(['session' => $r->id, 'items' => ['445' => 1],
+        $this->link()->receive('freezer-ai/results/mini', json_encode(['session' => $other->id, 'items' => ['445' => 1],
             'detail' => ['seconds' => 'slow']]));
 
         $rows = SmartFreezerOwnAiRecognition::orderBy('worker')->get();
